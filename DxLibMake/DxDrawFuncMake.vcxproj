@@ -55,17 +55,17 @@
     <_ProjectFileVersion>11.0.60610.1</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>..\DxLib\</OutDir>
+    <OutDir>..\bin\</OutDir>
     <IntDir>DxDrawFuncMake\Debug\</IntDir>
     <TargetName>DxDrawFunc_d</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug_vs2012|Win32'">
-    <OutDir>..\DxLib\</OutDir>
+    <OutDir>..\bin\</OutDir>
     <IntDir>Debug\</IntDir>
     <TargetName>DxDrawFuncW_d</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>..\DxLib\</OutDir>
+    <OutDir>..\bin\</OutDir>
     <IntDir>DxDrawFuncMake\Release\</IntDir>
     <TargetName>DxDrawFunc</TargetName>
   </PropertyGroup>
