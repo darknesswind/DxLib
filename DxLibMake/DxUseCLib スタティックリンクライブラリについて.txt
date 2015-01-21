@@ -1,0 +1,66 @@
+﻿DxUseCLib.lib について
+
+	　DxUseCLib.lib はＤＸライブラリ中の libpng や libjpeg や Ogg Vorbis 関連の
+	ファイルを使用している部分を抜き出し、一つの lib ファイルとしてものです。
+	　このようにする利点はＤＸライブラリに手を加えてみようと思った方が、libpng
+	や libjpeg 等のファイルを用意しなくても DxLib.lib のコンパイルが出来るという
+	事です。
+	　libpng や libjpeg 等の外部ライブラリを使用している部分を改造したいと思った
+	場合は DxUseClib.lib をコンパイルする必要があります。
+
+
+DxUseCLib.lib のコンパイルについて
+
+	　DxUseCLib.lib は DxUseCLib.cpp と DxUseCLibOgg .cpp だけを静的ライブラリ
+	(スタティックリンクライブラリ) にしたものです。DxUseCLib.cpp と DxUseCLibOgg.cpp
+	さえコンパイルできれば作成できます。
+	　DxUseCLib.cpp または DxUseCLibOgg.cpp に手を加えて、DxUseCLib.lib を
+	コンパイルしたい、という場合は zlib と libpng と libjpeg と Ogg , Ogg Vorbis,
+	Ogg Theora のファイルを用意して、パスを設定(インクルードフォルダとして登録)する
+	必要があります。
+
+	　以下は　2008/8/23 現在での各ライブラリファイルの説明となりますので、
+	記述と違いがありましたらご連絡ください。
+
+
+	・libpng
+
+	　こちら http://www.libpng.org/pub/png/libpng.html からソースをダウンロード
+	出来ます。パスを通すフォルダは中のカレントフォルダです。
+
+
+	・zlib
+
+	　こちら http://www.zlib.net/ からソースをダウンロード出来ます。
+	　パスを通すフォルダは中のカレントフォルダです。
+
+
+	・libjpeg
+
+	　ちょっと厄介です。
+	　ソースは http://www.ijg.org/files/ からダウンロード出来ます。
+	(圧縮ファイル名は jpegsrc.v6b.tar.gz )
+
+	　中に最初は jconfig.h がありませんので、環境に応じて以下のファイルを jconfig.h
+	にリネームしてください。
+
+	jconfig.mc6	VisualC++ 用
+	jconfig.bcc	Borland C++ 用
+
+	　その上でコンパイルすると INT32 の二重定義(と、VisualC++ の場合は加えて boolean の
+	二重定義)があるというエラーが発生しますので、各 libjpeg 側の定義をコメントアウト
+	して下さい。(ファイルが何れも 1998年以前 のものなので、対応できていないのだと思います)
+
+
+	・Ogg, Ogg Vorbis, Ogg Theora
+
+	　こちらは SVN を使用して
+
+	http://svn.xiph.org/trunk/ogg
+	http://svn.xiph.org/trunk/vorbis
+	http://svn.xiph.org/trunk/theora
+
+	　の三つをチェックアウトすることでソースを取得することが出来ます。
+	　パスは各 include フォルダを指定してください。
+
+　

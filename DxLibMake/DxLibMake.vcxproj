@@ -1,0 +1,274 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="debug_vs2012|Win32">
+      <Configuration>debug_vs2012</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DxArchive_.h" />
+    <ClInclude Include="DxASyncLoad.h" />
+    <ClInclude Include="DxBaseFunc.h" />
+    <ClInclude Include="DxBaseImage.h" />
+    <ClInclude Include="DxCompileConfig.h" />
+    <ClInclude Include="DxDataType.h" />
+    <ClInclude Include="DxDataTypeWin.h" />
+    <ClInclude Include="DxDirectX.h" />
+    <ClInclude Include="DxFile.h" />
+    <ClInclude Include="DxFont.h" />
+    <ClInclude Include="DxGraphics.h" />
+    <ClInclude Include="DxGraphicsAPI.h" />
+    <ClInclude Include="DxGraphicsBase.h" />
+    <ClInclude Include="DxHandle.h" />
+    <ClInclude Include="DxInput.h" />
+    <ClInclude Include="DxInputString.h" />
+    <ClInclude Include="DxLib.h" />
+    <ClInclude Include="DxLog.h" />
+    <ClInclude Include="DxMask.h" />
+    <ClInclude Include="DxMath.h" />
+    <ClInclude Include="DxMemImg.h" />
+    <ClInclude Include="DxMemory.h" />
+    <ClInclude Include="DxModel.h" />
+    <ClInclude Include="DxModelFile.h" />
+    <ClInclude Include="DxModelLoader3.h" />
+    <ClInclude Include="DxModelLoader4.h" />
+    <ClInclude Include="DxModelLoaderVMD.h" />
+    <ClInclude Include="DxModelRead.h" />
+    <ClInclude Include="DxMovie.h" />
+    <ClInclude Include="DxNetwork.h" />
+    <ClInclude Include="DxPixelShader.h" />
+    <ClInclude Include="DxRingBuffer.h" />
+    <ClInclude Include="DxSoftImage.h" />
+    <ClInclude Include="DxSound.h" />
+    <ClInclude Include="DxSoundConvert.h" />
+    <ClInclude Include="DxStatic.h" />
+    <ClInclude Include="DxSystem.h" />
+    <ClInclude Include="DxThread.h" />
+    <ClInclude Include="DxVertexShader.h" />
+    <ClInclude Include="Windows\DxFileWin.h" />
+    <ClInclude Include="Windows\DxGraphicsAPIWin.h" />
+    <ClInclude Include="Windows\DxGraphicsWin.h" />
+    <ClInclude Include="Windows\DxGuid.h" />
+    <ClInclude Include="Windows\DxLogWin.h" />
+    <ClInclude Include="Windows\DxMemoryWin.h" />
+    <ClInclude Include="Windows\DxNetworkWin.h" />
+    <ClInclude Include="Windows\DxSystemWin.h" />
+    <ClInclude Include="Windows\DxThreadWin.h" />
+    <ClInclude Include="Windows\DxWinAPI.h" />
+    <ClInclude Include="Windows\DxWindow.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="DxArchive_.cpp" />
+    <ClCompile Include="DxASyncLoad.cpp" />
+    <ClCompile Include="DxBaseFunc.cpp" />
+    <ClCompile Include="DxBaseImage.cpp" />
+    <ClCompile Include="DxFile.cpp" />
+    <ClCompile Include="DxFont.cpp" />
+    <ClCompile Include="DxGateway.cpp" />
+    <ClCompile Include="DxGraphics.cpp" />
+    <ClCompile Include="DxGraphicsAPI.cpp" />
+    <ClCompile Include="DxGraphicsBase.cpp" />
+    <ClCompile Include="DxHandle.cpp" />
+    <ClCompile Include="DxInput.cpp" />
+    <ClCompile Include="DxInputString.cpp" />
+    <ClCompile Include="DxKeyHookBinary.cpp" />
+    <ClCompile Include="DxLog.cpp" />
+    <ClCompile Include="DxMask.cpp" />
+    <ClCompile Include="DxMath.cpp" />
+    <ClCompile Include="DxMemImg.cpp" />
+    <ClCompile Include="DxMemory.cpp" />
+    <ClCompile Include="DxModel.cpp" />
+    <ClCompile Include="DxModelLoader0.cpp" />
+    <ClCompile Include="DxModelLoader1.cpp" />
+    <ClCompile Include="DxModelLoader2.cpp" />
+    <ClCompile Include="DxModelLoader3.cpp" />
+    <ClCompile Include="DxModelLoader4.cpp" />
+    <ClCompile Include="DxModelLoaderVMD.cpp" />
+    <ClCompile Include="DxModelRead.cpp" />
+    <ClCompile Include="DxMovie.cpp" />
+    <ClCompile Include="DxNetwork.cpp" />
+    <ClCompile Include="DxRingBuffer.cpp" />
+    <ClCompile Include="DxSoftImage.cpp" />
+    <ClCompile Include="DxSound.cpp" />
+    <ClCompile Include="DxSoundConvert.cpp" />
+    <ClCompile Include="DxSystem.cpp" />
+    <ClCompile Include="DxThread.cpp" />
+    <ClCompile Include="Windows\DxFileWin.cpp" />
+    <ClCompile Include="Windows\DxGraphicsAPIWin.cpp" />
+    <ClCompile Include="Windows\DxGraphicsWin.cpp" />
+    <ClCompile Include="Windows\DxGuid.cpp" />
+    <ClCompile Include="Windows\DxLogWin.cpp" />
+    <ClCompile Include="Windows\DxMemoryWin.cpp" />
+    <ClCompile Include="Windows\DxNetworkWin.cpp" />
+    <ClCompile Include="Windows\DxShaderCodeBin_Base.cpp" />
+    <ClCompile Include="Windows\DxShaderCodeBin_Filter.cpp" />
+    <ClCompile Include="Windows\DxShaderCodeBin_Model.cpp" />
+    <ClCompile Include="Windows\DxShaderCodeBin_RgbaMix.cpp" />
+    <ClCompile Include="Windows\DxSystemWin.cpp" />
+    <ClCompile Include="Windows\DxThreadWin.cpp" />
+    <ClCompile Include="Windows\DxWinAPI.cpp" />
+    <ClCompile Include="Windows\DxWindow.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DxLibBin\DxLibBin.vcxproj">
+      <Project>{8f18ab5f-37fa-4108-86f6-9d26b055258e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="DxDrawFuncMake.vcxproj">
+      <Project>{e2a60781-cf20-400e-bb35-9b9557b66549}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{E4222A5C-B8C6-4B8D-9840-4633AD2D941F}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug_vs2012|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v110</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='debug_vs2012|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\DxLib\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='debug_vs2012|Win32'">..\DxLib\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Debug\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='debug_vs2012|Win32'">Debug\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\DxLib\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Release\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <TargetName>DxLibW_d</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug_vs2012|Win32'">
+    <TargetName>DxLibW_d</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <TargetName>DxLibW</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <StructMemberAlignment>Default</StructMemberAlignment>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+    </ClCompile>
+    <Lib>
+      <OutputFile>$(OutDir)DxLibW_d.lib</OutputFile>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
+    </Lib>
+    <PostBuildEvent>
+      <Command>copy DxCompileConfig.h $(OutDir)DxCompileConfig.h
+copy DxDataType.h $(OutDir)DxDataType.h
+copy DxDirectX.h $(OutDir)DxDirectX.h
+copy DxLib.h $(OutDir)DxLib.h
+copy DxPixelShader.h $(OutDir)DxPixelShader.h
+copy DxVertexShader.h $(OutDir)DxVertexShader.h
+copy DxDataTypeWin.h $(OutDir)DxDataTypeWin.h</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug_vs2012|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <StructMemberAlignment>Default</StructMemberAlignment>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+    </ClCompile>
+    <Lib>
+      <OutputFile>$(OutDir)DxLibW_d.lib</OutputFile>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
+    </Lib>
+    <PostBuildEvent>
+      <Command>copy DxCompileConfig.h $(OutDir)DxCompileConfig.h
+copy DxDataType.h $(OutDir)DxDataType.h
+copy DxDirectX.h $(OutDir)DxDirectX.h
+copy DxLib.h $(OutDir)DxLib.h
+copy DxPixelShader.h $(OutDir)DxPixelShader.h
+copy DxVertexShader.h $(OutDir)DxVertexShader.h
+copy DxDataTypeWin.h $(OutDir)DxDataTypeWin.h</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <StructMemberAlignment>Default</StructMemberAlignment>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <DisableSpecificWarnings>4731;4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Lib>
+      <OutputFile>$(OutDir)DxLibW.lib</OutputFile>
+    </Lib>
+    <PostBuildEvent>
+      <Command>copy DxCompileConfig.h $(OutDir)DxCompileConfig.h
+copy DxDataType.h $(OutDir)DxDataType.h
+copy DxDirectX.h $(OutDir)DxDirectX.h
+copy DxLib.h $(OutDir)DxLib.h
+copy DxPixelShader.h $(OutDir)DxPixelShader.h
+copy DxVertexShader.h $(OutDir)DxVertexShader.h
+copy DxDataTypeWin.h $(OutDir)DxDataTypeWin.h</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
