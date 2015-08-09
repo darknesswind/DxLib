@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ読み込み処理３用ヘッダ
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -19,8 +19,12 @@
 #include "DxModel.h"
 #include "DxModelRead.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 -----------------------------------
 
@@ -301,6 +305,8 @@ struct DX_MODELLOADER3_PMD_PHYSICS_INFO
 	int LoopMotionFlag ;
 	int LoopMotionNum ;
 
+	int	PhysicsCalcPrecision ;
+
 	int PmdPhysicsNum ;
 	PMD_READ_PHYSICS_INFO *PmdPhysicsInfoDim ;
 
@@ -315,11 +321,17 @@ struct DX_MODELLOADER3_PMD_PHYSICS_INFO
 
 // 関数宣言 -------------------------------------
 
+#ifdef DX_USE_NAMESPACE
+
+}
+
+#endif // DX_USE_NAMESPACE
+
 #ifndef DX_NON_BULLET_PHYSICS
 
 extern int SetupPhysicsObject_PMDPhysicsInfo(		DX_MODELLOADER3_PMD_PHYSICS_INFO *MLPhysicsInfo ) ;
 extern int ReleasePhysicsObject_PMDPhysicsInfo(		DX_MODELLOADER3_PMD_PHYSICS_INFO *MLPhysicsInfo ) ;
-extern int OneFrameProcess_PMDPhysicsInfo(			DX_MODELLOADER3_PMD_PHYSICS_INFO *MLPhysicsInfo, int FrameNo, int LoopNo, bool FPS60 ) ;
+extern int OneFrameProcess_PMDPhysicsInfo(			DX_MODELLOADER3_PMD_PHYSICS_INFO *MLPhysicsInfo, int FrameNo, int LoopNo, bool FPS60, int ValidNextRate, int TimeDivNum ) ;
 extern int CheckDisablePhysicsAnim_PMDPhysicsInfo(	DX_MODELLOADER3_PMD_PHYSICS_INFO *MLPhysicsInfo, int PhysicsIndex ) ;
 
 extern int SetupPhysicsObject_ModelPhysicsInfo(		MV1_MODEL *Model ) ;
@@ -329,8 +341,6 @@ extern int StepSimulation_ModelPhysicsInfo(			MV1_MODEL *Model, float TimeStep )
 extern int SetWorldGravity_ModelPhysiceInfo(		MV1_MODEL *Model, VECTOR Gravity ) ;
 
 #endif
-
-}
 
 #endif
 #endif

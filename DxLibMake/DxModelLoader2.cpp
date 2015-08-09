@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ＭＱＯモデルデータ読み込みプログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -19,11 +19,14 @@
 #include "DxBaseFunc.h"
 #include "DxSystem.h"
 #include "DxMemory.h"
-#include "Windows/DxWindow.h"
-#include "Windows/DxGuid.h"
+#include "DxChar.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 -----------------------------------
 
@@ -131,14 +134,14 @@ static int GetString( MQO_MODEL *Model, char *Buffer )
 	// 文字列取得
 	if( GetNextString( Model, Buffer ) != 0 )
 		return -1 ;
-	Len = lstrlenA( Buffer ) ;
+	Len = _STRLEN( Buffer ) ;
 
 	// ダブルコーテーションで括られていなかったらエラー
 	if( Buffer[ 0 ] != '\"' || Buffer[ Len - 1 ] != '\"' )
 		return -1 ;
 
 	// １バイト分ずらす
-	_MEMMOVE( Buffer, Buffer + 1, Len - 2 ) ;
+	_MEMMOVE( Buffer, Buffer + 1, ( size_t )( Len - 2 ) ) ;
 	Buffer[ Len - 2 ] = '\0' ;
 
 	// 終了
@@ -162,7 +165,7 @@ static int GetNextString( MQO_MODEL *Model, char *Buffer )
 		Buffer ++ ;
 		while( !ENDCHECK( Model ) )
 		{
-			if( CheckMultiByteChar( *Model->TextNow, _GET_CHARSET() ) )
+			if( CHECK_SHIFTJIS_2BYTE( *Model->TextNow ) )
 			{
 				*( ( WORD * )Buffer ) = *( ( WORD * )Model->TextNow ) ;
 				Buffer += 2 ;
@@ -277,7 +280,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	MV1_MODEL_R RModel ;
 	MV1_TEXTURE_R *Texture ;
 	MV1_MATERIAL_R *Material ;
-	MV1_FRAME_R *Frame ;
+	MV1_FRAME_R *Frame = NULL ;
 	MV1_FRAME_R *FrameStack[ 1024 ] ;
 	MV1_MESH_R *Mesh ;
 	MV1_MESHFACE_R *MeshFace ;
@@ -307,11 +310,12 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	if( _MEMCMP( LoadParam->DataBuffer, "Metasequoia Document\r\nFormat Text Ver 1.0\r\n", 22 ) != 0 )
 		return -1 ;
 
-	// モデル名とファイル名をセット
-	RModel.FilePath = ( TCHAR * )DXALLOC( ( lstrlen( LoadParam->FilePath ) + 1 ) * sizeof( TCHAR ) ) ;
-	RModel.Name     = ( TCHAR * )DXALLOC( ( lstrlen( LoadParam->Name     ) + 1 ) * sizeof( TCHAR ) ) ;
-	lstrcpy( RModel.FilePath, LoadParam->FilePath ) ;
-	lstrcpy( RModel.Name,     LoadParam->Name ) ;
+	// モデル名とファイル名とコードページをセット
+	RModel.CodePage = DX_CODEPAGE_SHIFTJIS ;
+	RModel.FilePath = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->FilePath ) + 1 ) * sizeof( wchar_t ) ) ;
+	RModel.Name     = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->Name     ) + 1 ) * sizeof( wchar_t ) ) ;
+	_WCSCPY( RModel.FilePath, LoadParam->FilePath ) ;
+	_WCSCPY( RModel.Name,     LoadParam->Name ) ;
 
 	// 法線の自動生成を使用
 	RModel.AutoCreateNormal = TRUE ;
@@ -321,7 +325,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	{
 		if( GetNextString( &MqoModel, String ) == -1 )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : 予期せぬ EOF です\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x88\x4e\x1f\x67\x5b\x30\x6c\x30\x20\x00\x45\x00\x4f\x00\x46\x00\x20\x00\x67\x30\x59\x30\x0a\x00\x00"/*@ L"MQO Load Error : 予期せぬ EOF です\n" @*/ )) ;
 			goto ENDLABEL ;
 		}
 
@@ -336,7 +340,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		Num = GetInt( &MqoModel ) ;
 		if( Num < 0 )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : マテリアルの数( %d )が不正です\n" ), Num ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x6e\x30\x70\x65\x28\x00\x20\x00\x25\x00\x64\x00\x20\x00\x29\x00\x4c\x30\x0d\x4e\x63\x6b\x67\x30\x59\x30\x0a\x00\x00"/*@ L"MQO Load Error : マテリアルの数( %d )が不正です\n" @*/, Num ) ) ;
 			goto ENDLABEL ;
 		}
 
@@ -344,7 +348,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		GetNextString( &MqoModel, String ) ;
 		if( String[ 0 ] != '{' )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : Material 数の後に { がありません\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4d\x00\x61\x00\x74\x00\x65\x00\x72\x00\x69\x00\x61\x00\x6c\x00\x20\x00\x70\x65\x6e\x30\x8c\x5f\x6b\x30\x20\x00\x7b\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Material 数の後に { がありません\n" @*/ )) ;
 			goto ENDLABEL ;
 		}
 
@@ -355,7 +359,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			// マテリアルの名前を取得
 			if( GetString( &MqoModel, String ) == -1 )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : No.%d の Material 名の取得に失敗しました\n" ), i ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x20\x00\x4d\x00\x61\x00\x74\x00\x65\x00\x72\x00\x69\x00\x61\x00\x6c\x00\x20\x00\x0d\x54\x6e\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : No.%d の Material 名の取得に失敗しました\n" @*/, i ) ) ;
 				goto ENDLABEL ;
 			}
 
@@ -363,7 +367,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			Material = MV1RAddMaterial( &RModel, String ) ;
 			if( Material == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : No.%d の Material オブジェクトの追加に失敗しました\n" ), i ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x20\x00\x4d\x00\x61\x00\x74\x00\x65\x00\x72\x00\x69\x00\x61\x00\x6c\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : No.%d の Material オブジェクトの追加に失敗しました\n" @*/, i ) ) ;
 				goto ENDLABEL ;
 			}
 			
@@ -374,15 +378,15 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			a = 1.0f ;
 			for(;;)
 			{
-				static TCHAR *MaterialError1 = _T( "MQO Load Error : No.%d の Material の %s の後に ( がありませんでした\n" ) ;
-				static TCHAR *MaterialError2 = _T( "MQO Load Error : No.%d の Material の %s の数値の後に ) がありませんでした\n" ) ;
+				static char *MaterialError1 = "MQO Load Error : No.%d \x82\xcc Material \x82\xcc %s \x82\xcc\x8c\xe3\x82\xc9 ( \x82\xaa\x82\xa0\x82\xe8\x82\xdc\x82\xb9\x82\xf1\x82\xc5\x82\xb5\x82\xbd\n"/*@ "MQO Load Error : No.%d の Material の %s の後に ( がありませんでした\n" @*/ ;
+				static char *MaterialError2 = "MQO Load Error : No.%d \x82\xcc Material \x82\xcc %s \x82\xcc\x90\x94\x92\x6c\x82\xcc\x8c\xe3\x82\xc9 ) \x82\xaa\x82\xa0\x82\xe8\x82\xdc\x82\xb9\x82\xf1\x82\xc5\x82\xb5\x82\xbd\n"/*@ "MQO Load Error : No.%d の Material の %s の数値の後に ) がありませんでした\n" @*/ ;
 
 				SkipSpace( &MqoModel, 1 ) ;
 				if( *MqoModel.TextNow == '\r' ) break ;
 
 				if( GetNextString( &MqoModel, String ) != 0 )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : No.%d の Material の読み込み中にエラーが発生しました\n" ), i ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x20\x00\x4d\x00\x61\x00\x74\x00\x65\x00\x72\x00\x69\x00\x61\x00\x6c\x00\x20\x00\x6e\x30\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x2d\x4e\x6b\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : No.%d の Material の読み込み中にエラーが発生しました\n" @*/, i )) ;
 					goto ENDLABEL ;
 				}
 
@@ -392,7 +396,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '(' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError1, i, _T( "col" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError1, i, "col" )) ;
 						goto ENDLABEL ;
 					}
 
@@ -404,7 +408,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != ')' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError2, i, _T( "col" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError2, i, "col" )) ;
 						goto ENDLABEL ;
 					}
 				}
@@ -414,7 +418,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '(' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError1, i, _T( "dif" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError1, i, "dif" )) ;
 						goto ENDLABEL ;
 					}
 
@@ -427,7 +431,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != ')' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError2, i, _T( "dif" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError2, i, "dif" )) ;
 						goto ENDLABEL ;
 					}
 				}
@@ -437,7 +441,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '(' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError1, i, _T( "amb" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError1, i, "amb" )) ;
 						goto ENDLABEL ;
 					}
 
@@ -450,7 +454,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != ')' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError2, i, _T( "amb" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError2, i, "amb" )) ;
 						goto ENDLABEL ;
 					}
 				}
@@ -460,7 +464,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '(' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError1, i, _T( "emi" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError1, i, "emi" )) ;
 						goto ENDLABEL ;
 					}
 
@@ -473,7 +477,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != ')' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError2, i, _T( "emi" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError2, i, "emi" )) ;
 						goto ENDLABEL ;
 					}
 				}
@@ -483,7 +487,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '(' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError1, i, _T( "spc" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError1, i, "spc" )) ;
 						goto ENDLABEL ;
 					}
 
@@ -496,7 +500,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != ')' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError2, i, _T( "spc" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError2, i, "spc" )) ;
 						goto ENDLABEL ;
 					}
 				}
@@ -506,7 +510,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '(' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError1, i, _T( "power" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError1, i, "power" )) ;
 						goto ENDLABEL ;
 					}
 
@@ -515,7 +519,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != ')' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError2, i, _T( "power" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError2, i, "power" )) ;
 						goto ENDLABEL ;
 					}
 				}
@@ -525,13 +529,13 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '(' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError1, i, _T( "tex" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError1, i, "tex" )) ;
 						goto ENDLABEL ;
 					}
 
 					if( GetString( &MqoModel, String ) == -1 )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : No.%d の tex の文字列読み込みに失敗しました\n" ), i ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x20\x00\x74\x00\x65\x00\x78\x00\x20\x00\x6e\x30\x87\x65\x57\x5b\x17\x52\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : No.%d の tex の文字列読み込みに失敗しました\n" @*/, i ) ) ;
 						goto ENDLABEL ;
 					}
 
@@ -539,7 +543,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					Texture = MV1RAddTexture( &RModel, String, String ) ;
 					if( Texture == NULL )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : No.%d の テクスチャオブジェクトの作成に失敗しました\n" ), i ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : No.%d の テクスチャオブジェクトの作成に失敗しました\n" @*/, i ) ) ;
 						goto ENDLABEL ;
 					}
 					Material->DiffuseTexNum = 1 ;
@@ -548,7 +552,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != ')' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError2, i, _T( "tex" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError2, i, "tex" )) ;
 						goto ENDLABEL ;
 					}
 				}
@@ -558,13 +562,13 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '(' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError1, i, _T( "aplane" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError1, i, "aplane" )) ;
 						goto ENDLABEL ;
 					}
 
 					if( GetString( &MqoModel, String ) == -1 )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : No.%d の aplane の文字列読み込みに失敗しました\n" ), i ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x20\x00\x61\x00\x70\x00\x6c\x00\x61\x00\x6e\x00\x65\x00\x20\x00\x6e\x30\x87\x65\x57\x5b\x17\x52\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : No.%d の aplane の文字列読み込みに失敗しました\n" @*/, i ) ) ;
 						goto ENDLABEL ;
 					}
 
@@ -574,7 +578,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 						Texture = MV1RAddTexture( &RModel, String, NULL ) ;
 						if( Texture == NULL )
 						{
-							DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : No.%d の テクスチャオブジェクトの作成に失敗しました\n" ), i ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : No.%d の テクスチャオブジェクトの作成に失敗しました\n" @*/, i ) ) ;
 							goto ENDLABEL ;
 						}
 						Material->DiffuseTexNum = 1 ;
@@ -582,17 +586,24 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					}
 
 					// アルファプレーンを追加
-					Material->DiffuseTexs[ 0 ]->AlphaFileName = MV1RAddString( &RModel, String ) ;
-					if( Material->DiffuseTexs[ 0 ]->AlphaFileName == NULL )
+#ifndef UNICODE
+					Material->DiffuseTexs[ 0 ]->AlphaFileNameA = MV1RAddString(     &RModel, String ) ;
+#endif
+					Material->DiffuseTexs[ 0 ]->AlphaFileNameW = MV1RAddStringAToW( &RModel, String ) ;
+					if( 
+#ifndef UNICODE
+						Material->DiffuseTexs[ 0 ]->AlphaFileNameA == NULL ||
+#endif
+						Material->DiffuseTexs[ 0 ]->AlphaFileNameW == NULL )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : No.%d の aplane の文字列の保存に失敗しました\n" ), i ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x20\x00\x61\x00\x70\x00\x6c\x00\x61\x00\x6e\x00\x65\x00\x20\x00\x6e\x30\x87\x65\x57\x5b\x17\x52\x6e\x30\xdd\x4f\x58\x5b\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : No.%d の aplane の文字列の保存に失敗しました\n" @*/, i ) ) ;
 						goto ENDLABEL ;
 					}
 
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != ')' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError2, i, _T( "aplane" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError2, i, "aplane" )) ;
 						goto ENDLABEL ;
 					}
 				}
@@ -602,26 +613,28 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '(' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError1, i, _T( "bump" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError1, i, "bump" )) ;
 						goto ENDLABEL ;
 					}
 
 					if( GetString( &MqoModel, String ) == -1 )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : No.%d の bump の文字列読み込みに失敗しました\n" ), i ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x20\x00\x62\x00\x75\x00\x6d\x00\x70\x00\x20\x00\x6e\x30\x87\x65\x57\x5b\x17\x52\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : No.%d の bump の文字列読み込みに失敗しました\n" @*/, i ) ) ;
 						goto ENDLABEL ;
 					}
 
 					// テクスチャを追加
 					{
-						char FileName[ 512 ] ;
+						wchar_t StringW[ 1024 ] ;
+						wchar_t FileNameW[ 512 ] ;
 
-						AnalysisFileNameAndDirPath_( String, FileName, NULL ) ;
-						Texture = MV1RAddTexture( &RModel, FileName, String, NULL, TRUE ) ;
+						ConvString( String, DX_CODEPAGE_SHIFTJIS, ( char * )StringW, WCHAR_T_CODEPAGE ) ;
+						AnalysisFileNameAndDirPathW_( StringW, FileNameW, NULL ) ;
+						Texture = MV1RAddTextureW( &RModel, FileNameW, StringW, NULL, TRUE ) ;
 					}
 					if( Texture == NULL )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : No.%d の テクスチャオブジェクトの作成に失敗しました\n" ), i ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : No.%d の テクスチャオブジェクトの作成に失敗しました\n" @*/, i ) ) ;
 						goto ENDLABEL ;
 					}
 					Material->NormalTexNum = 1 ;
@@ -630,7 +643,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != ')' )
 					{
-						DXST_ERRORLOGFMT_ADD( ( MaterialError2, i, _T( "bump" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDA(( MaterialError2, i, "bump" )) ;
 						goto ENDLABEL ;
 					}
 				}
@@ -642,7 +655,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		GetNextString( &MqoModel, String ) ;
 		if( String[ 0 ] != '}' )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : Material チャンクの終端に } がありません\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4d\x00\x61\x00\x74\x00\x65\x00\x72\x00\x69\x00\x61\x00\x6c\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x42\x7d\xef\x7a\x6b\x30\x20\x00\x7d\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Material チャンクの終端に } がありません\n" @*/ )) ;
 			goto ENDLABEL ;
 		}
 		break ;
@@ -652,7 +665,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	Material = MV1RAddMaterial( &RModel, "NoMaterial" ) ;
 	if( Material == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : Material オブジェクトの追加に失敗しました\n" ), i ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4d\x00\x61\x00\x74\x00\x65\x00\x72\x00\x69\x00\x61\x00\x6c\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Material オブジェクトの追加に失敗しました\n" @*/, i ) ) ;
 		goto ENDLABEL ;
 	}
 	Material->DiffuseTexNum = 0 ;
@@ -670,7 +683,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	{
 		if( GetNextString( &MqoModel, String ) == -1 )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : チャンク解析中に文字列解析エラーが発生しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\xe3\x89\x90\x67\x2d\x4e\x6b\x30\x87\x65\x57\x5b\x17\x52\xe3\x89\x90\x67\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : チャンク解析中に文字列解析エラーが発生しました\n" @*/ )) ;
 			goto ENDLABEL ;
 		}
 
@@ -678,6 +691,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		if( _STRCMP( String, "Object" ) == 0 )
 		{
 			char FrameName[ 512 ] ;
+			char FrameNameUTF16LE[ 512 ] ;
 
 			// ミラー情報の初期化
 			Mirror = 0 ;
@@ -690,7 +704,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			// オブジェクト名を取得
 			if( GetString( &MqoModel, FrameName ) != 0 )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : Object チャンクの名前の取得に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x0d\x54\x4d\x52\x6e\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object チャンクの名前の取得に失敗しました\n" @*/ )) ;
 				goto ENDLABEL ;
 			}
 
@@ -698,7 +712,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			GetNextString( &MqoModel, String ) ;
 			if( String[ 0 ] != '{' )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : Object チャンク名の後に { がありません\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x0d\x54\x6e\x30\x8c\x5f\x6b\x30\x20\x00\x7b\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object チャンク名の後に { がありません\n" @*/ )) ;
 				goto ENDLABEL ;
 			}
 
@@ -706,7 +720,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			Depth = 0 ;
 			if( GetNextString( &MqoModel, String ) != 0 )
 			{
-				DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの解析中にエラーが発生しました\n", Frame->Name ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x64\x00\x65\x00\x70\x00\x74\x00\x68\x00\x20\x00\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object チャンクの depth 取得に失敗しました\n" @*/ )) ;
 				goto ENDLABEL ;
 			}
 			if( _STRCMP( String, "depth" ) == 0 )
@@ -718,10 +732,12 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			Frame = MV1RAddFrame( &RModel, FrameName, Depth == 0 ? NULL : FrameStack[ Depth - 1 ] ) ;
 			if( Frame == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : フレームオブジェクトの追加に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xd5\x30\xec\x30\xfc\x30\xe0\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : フレームオブジェクトの追加に失敗しました\n" @*/ )) ;
 				goto ENDLABEL ;
 			}
 			FrameStack[ Depth ] = Frame ;
+
+			ConvString( ( const char * )Frame->NameW, WCHAR_T_CODEPAGE, FrameNameUTF16LE, DX_CODEPAGE_UTF16LE ) ;
 
 			// スケールの初期値をセット
 			Frame->Scale.x = 1.0f ;
@@ -738,7 +754,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			Mesh = MV1RAddMesh( &RModel, Frame ) ;
 			if( Mesh == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load Error : メッシュオブジェクトの追加に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xe1\x30\xc3\x30\xb7\x30\xe5\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : メッシュオブジェクトの追加に失敗しました\n" @*/ )) ;
 				goto ENDLABEL ;
 			}
 
@@ -748,7 +764,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 				// 次の文字列を読み込み
 				if( GetNextString( &MqoModel, String ) != 0 )
 				{
-					DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの解析中にエラーが発生しました\n", Frame->Name ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\xe3\x89\x90\x67\x2d\x4e\x6b\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの解析中にエラーが発生しました\n" @*/, FrameNameUTF16LE ) ) ;
 					goto ENDLABEL ;
 				}
 
@@ -829,10 +845,10 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 				if( _STRCMP( String, "vertex" ) == 0 )
 				{
 					// 頂点数を取得
-					Mesh->PositionNum = GetInt( &MqoModel ) ;
+					Mesh->PositionNum = ( DWORD )GetInt( &MqoModel ) ;
 					if( Mesh->PositionNum < 0 )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの vertex の数の取得に失敗しました\n", Frame->Name ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x76\x00\x65\x00\x72\x00\x74\x00\x65\x00\x78\x00\x20\x00\x6e\x30\x70\x65\x6e\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの vertex の数の取得に失敗しました\n" @*/, FrameNameUTF16LE ) ) ;
 						goto ENDLABEL ;
 					}
 
@@ -840,7 +856,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					Mesh->Positions = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * Mesh->PositionNum, &RModel.Mem ) ;
 					if( Mesh->Positions == NULL )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの頂点座標を保存するメモリ領域の確保に失敗しました\n", Frame->Name ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x02\x98\xb9\x70\xa7\x5e\x19\x6a\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの頂点座標を保存するメモリ領域の確保に失敗しました\n" @*/, FrameNameUTF16LE ) ) ;
 						goto ENDLABEL ;
 					}
 
@@ -848,7 +864,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '{' )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの vertex 後に { がありません\n", Frame->Name ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x76\x00\x65\x00\x72\x00\x74\x00\x65\x00\x78\x00\x20\x00\x8c\x5f\x6b\x30\x20\x00\x7b\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの vertex 後に { がありません\n" @*/, FrameNameUTF16LE ) ) ;
 						goto ENDLABEL ;
 					}
 
@@ -864,7 +880,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '}' )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの vertex の終端に } がありません\n", Frame->Name ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x76\x00\x65\x00\x72\x00\x74\x00\x65\x00\x78\x00\x20\x00\x6e\x30\x42\x7d\xef\x7a\x6b\x30\x20\x00\x7d\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの vertex の終端に } がありません\n" @*/, FrameNameUTF16LE ) ) ;
 						goto ENDLABEL ;
 					}
 				}
@@ -877,14 +893,14 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					FaceNum = GetInt( &MqoModel ) ;
 					if( FaceNum < 0 )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の数の取得に失敗しました\n", Frame->Name ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x70\x65\x6e\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の数の取得に失敗しました\n" @*/, FrameNameUTF16LE ) ) ;
 						goto ENDLABEL ;
 					}
 
 					// 面情報を格納するメモリ領域の確保
 					if( MV1RSetupMeshFaceBuffer( &RModel, Mesh, FaceNum, 4 ) < 0 )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの面情報を保存するメモリ領域の確保に失敗しました\n", Frame->Name ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x62\x97\xc5\x60\x31\x58\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの面情報を保存するメモリ領域の確保に失敗しました\n" @*/, FrameNameUTF16LE ) ) ;
 						goto ENDLABEL ;
 					}
 
@@ -893,7 +909,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					Mesh->UVs[ 0 ] = ( FLOAT4 * )ADDMEMAREA( sizeof( FLOAT4 ) * Mesh->UVNum[ 0 ], &RModel.Mem ) ;
 					if( Mesh->UVs[ 0 ] == NULL )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの uv座標を保存するメモリ領域の確保に失敗しました\n", Frame->Name ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x75\x00\x76\x00\xa7\x5e\x19\x6a\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの uv座標を保存するメモリ領域の確保に失敗しました\n" @*/, FrameNameUTF16LE ) ) ;
 						goto ENDLABEL ;
 					}
 
@@ -902,7 +918,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					Mesh->VertexColors = ( COLOR_F * )ADDMEMAREA( sizeof( COLOR_F ) * Mesh->VertexColorNum, &RModel.Mem ) ;
 					if( Mesh->VertexColors == NULL )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの 頂点カラーを保存するメモリ領域の確保に失敗しました\n", Frame->Name ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x02\x98\xb9\x70\xab\x30\xe9\x30\xfc\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの 頂点カラーを保存するメモリ領域の確保に失敗しました\n" @*/, FrameNameUTF16LE ) ) ;
 						goto ENDLABEL ;
 					}
 
@@ -919,7 +935,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '{' )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face 後に { がありません\n", Frame->Name ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x8c\x5f\x6b\x30\x20\x00\x7b\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face 後に { がありません\n" @*/, FrameNameUTF16LE ) ) ;
 						goto ENDLABEL ;
 					}
 
@@ -937,15 +953,15 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 						uv = 0 ;
 
 						// インデックスの数を取得
-						MeshFace->IndexNum = GetInt( &MqoModel ) ;
+						MeshFace->IndexNum = ( DWORD )GetInt( &MqoModel ) ;
 						if( Mesh->FaceUnitMaxIndexNum < MeshFace->IndexNum )
 						{
 							int FaceIndex ;
 
 							FaceIndex = ( int )( MeshFace - Mesh->Faces ) ;
-							if( MV1RSetupMeshFaceBuffer( &RModel, Mesh, Mesh->FaceNum, MeshFace->IndexNum ) < 0 )
+							if( MV1RSetupMeshFaceBuffer( &RModel, Mesh, ( int )Mesh->FaceNum, ( int )MeshFace->IndexNum ) < 0 )
 							{
-								DXST_ERRORLOGFMT_ADD( ( _T( "MQO Load : 面情報を格納するメモリの再確保に失敗しました\n" ) ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x62\x97\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\x8d\x51\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load : 面情報を格納するメモリの再確保に失敗しました\n" @*/ )) ;
 								return -1 ;
 							}
 							MeshFace = Mesh->Faces + FaceIndex ;
@@ -956,23 +972,23 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 							GetNextString( &MqoModel, String ) ;
 							if( String[ 0 ] != 'V' )
 							{
-								DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の頂点数の数の後に V がありません\n", Frame->Name ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x02\x98\xb9\x70\x70\x65\x6e\x30\x70\x65\x6e\x30\x8c\x5f\x6b\x30\x20\x00\x56\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の頂点数の数の後に V がありません\n" @*/, FrameNameUTF16LE ) ) ;
 								goto ENDLABEL ;
 							}
 
 							GetNextString( &MqoModel, String ) ;
 							if( String[ 0 ] != '(' )
 							{
-								DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の V の ( がありません\n", Frame->Name ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x20\x00\x56\x00\x20\x00\x6e\x30\x20\x00\x28\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の V の ( がありません\n" @*/, FrameNameUTF16LE ) ) ;
 								goto ENDLABEL ;
 							}
 
 							for( j = 0 ; j < ( int )MeshFace->IndexNum ; j ++ )
 							{
-								MeshFace->VertexIndex[ j ] = GetInt( &MqoModel ) ;
+								MeshFace->VertexIndex[ j ] = ( DWORD )GetInt( &MqoModel ) ;
 								if( MeshFace->VertexIndex[ j ] == 0xffffffff )
 								{
-									DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の %d番目の V の頂点インデックスが不正です\n", Frame->Name, j ) ) ;
+									DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x20\x00\x25\x00\x64\x00\x6a\x75\xee\x76\x6e\x30\x20\x00\x56\x00\x20\x00\x6e\x30\x02\x98\xb9\x70\xa4\x30\xf3\x30\xc7\x30\xc3\x30\xaf\x30\xb9\x30\x4c\x30\x0d\x4e\x63\x6b\x67\x30\x59\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の %d番目の V の頂点インデックスが不正です\n" @*/, FrameNameUTF16LE, j ) ) ;
 									goto ENDLABEL ;
 								}
 							}
@@ -980,7 +996,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 							GetNextString( &MqoModel, String ) ;
 							if( String[ 0 ] != ')' )
 							{
-								DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の V の ) がありません\n", Frame->Name ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x20\x00\x56\x00\x20\x00\x6e\x30\x20\x00\x29\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の V の ) がありません\n" @*/, FrameNameUTF16LE ) ) ;
 								goto ENDLABEL ;
 							}
 						}
@@ -994,7 +1010,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 							GetNextString( &MqoModel, String ) ;
 							if( String[ 0 ] != '(' )
 							{
-								DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の M の ( がありません\n", Frame->Name ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x20\x00\x4d\x00\x20\x00\x6e\x30\x20\x00\x28\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の M の ( がありません\n" @*/, FrameNameUTF16LE ) ) ;
 								goto ENDLABEL ;
 							}
 
@@ -1007,11 +1023,11 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 								UseMaterialTable[ MatIndex ] = UseMaterialNum ;
 								UseMaterialNum ++ ;
 							}
-							MeshFace->MaterialIndex = UseMaterialTable[ MatIndex ] ;
+							MeshFace->MaterialIndex = ( DWORD )UseMaterialTable[ MatIndex ] ;
 							GetNextString( &MqoModel, String ) ;
 							if( String[ 0 ] != ')' )
 							{
-								DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の M の ) がありません\n", Frame->Name ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x20\x00\x4d\x00\x20\x00\x6e\x30\x20\x00\x29\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の M の ) がありません\n" @*/, FrameNameUTF16LE ) ) ;
 								goto ENDLABEL ;
 							}
 
@@ -1027,20 +1043,20 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 							GetNextString( &MqoModel, String ) ;
 							if( String[ 0 ] != '(' )
 							{
-								DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の UV の ( がありません\n", Frame->Name ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x20\x00\x55\x00\x56\x00\x20\x00\x6e\x30\x20\x00\x28\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の UV の ( がありません\n" @*/, FrameNameUTF16LE ) ) ;
 								goto ENDLABEL ;
 							}
 
 							for( j = 0 ; j < ( int )MeshFace->IndexNum ; j ++, uvcount ++ )
 							{
-								MeshFace->UVIndex[ 0 ][ j ] = uvcount ;
+								MeshFace->UVIndex[ 0 ][ j ] = ( DWORD )uvcount ;
 								Mesh->UVs[ 0 ][ uvcount ].x = GetFloat( &MqoModel ) ;
 								Mesh->UVs[ 0 ][ uvcount ].y = GetFloat( &MqoModel ) ;
 							}
 							GetNextString( &MqoModel, String ) ;
 							if( String[ 0 ] != ')' )
 							{
-								DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の UV の ) がありません\n", Frame->Name ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x20\x00\x55\x00\x56\x00\x20\x00\x6e\x30\x20\x00\x29\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の UV の ) がありません\n" @*/, FrameNameUTF16LE ) ) ;
 								goto ENDLABEL ;
 							}
 
@@ -1058,7 +1074,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 							GetNextString( &MqoModel, String ) ;
 							if( String[ 0 ] != '(' )
 							{
-								DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の COL の ( がありません\n", Frame->Name ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x20\x00\x43\x00\x4f\x00\x4c\x00\x20\x00\x6e\x30\x20\x00\x28\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の COL の ( がありません\n" @*/, FrameNameUTF16LE ) ) ;
 								goto ENDLABEL ;
 							}
 
@@ -1077,7 +1093,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 
 							for( j = 0 ; j < ( int )MeshFace->IndexNum ; j ++, colcount ++ )
 							{
-								MeshFace->VertexColorIndex[ j ] = colcount ;
+								MeshFace->VertexColorIndex[ j ] = ( DWORD )colcount ;
 								ColorCode = ( DWORD )GetInt( &MqoModel ) ;
 								Mesh->VertexColors[ colcount ].r = MatColor.r * ( ( ColorCode >>  0 ) & 0xff ) / 255.0f ;
 								Mesh->VertexColors[ colcount ].g = MatColor.g * ( ( ColorCode >>  8 ) & 0xff ) / 255.0f ;
@@ -1087,7 +1103,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 							GetNextString( &MqoModel, String ) ;
 							if( String[ 0 ] != ')' )
 							{
-								DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の UV の ) がありません\n", Frame->Name ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x20\x00\x55\x00\x56\x00\x20\x00\x6e\x30\x20\x00\x29\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の UV の ) がありません\n" @*/, FrameNameUTF16LE ) ) ;
 								goto ENDLABEL ;
 							}
 
@@ -1100,7 +1116,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 							{
 								for( j = 0 ; j < ( int )MeshFace->IndexNum ; j ++, colcount ++ )
 								{
-									MeshFace->VertexColorIndex[ j ] = colcount ;
+									MeshFace->VertexColorIndex[ j ] = ( DWORD )colcount ;
 									Material = MV1RGetMaterial( &RModel, UseMaterialList[ MeshFace->MaterialIndex ] ) ;
 									Mesh->VertexColors[ colcount ] = Material->Diffuse ;
 								}
@@ -1110,7 +1126,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 						// マテリアルが無い場合は、マテリアル無し用のマテリアルを割り当てる
 						if( mat == 0 )
 						{
-							MatIndex = RModel.MaterialNum - 1 ;
+							MatIndex = ( int )( RModel.MaterialNum - 1 ) ;
 							if( UseMaterialMap[ MatIndex ] == 0 )
 							{
 								UseMaterialMap[ MatIndex ] = 1 ;
@@ -1119,7 +1135,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 								UseMaterialTable[ MatIndex ] = UseMaterialNum ;
 								UseMaterialNum ++ ;
 							}
-							MeshFace->MaterialIndex = UseMaterialTable[ MatIndex ] ;
+							MeshFace->MaterialIndex = ( DWORD )UseMaterialTable[ MatIndex ] ;
 						}
 
 						// 頂点数が３か４では無い場合は場合は面を追加しない
@@ -1142,7 +1158,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					else
 					{
 						// 使用しているマテリアルのセット
-						Mesh->MaterialNum = UseMaterialNum ;
+						Mesh->MaterialNum = ( DWORD )UseMaterialNum ;
 						for( i = 0 ; i < UseMaterialNum ; i ++ )
 							Mesh->Materials[ i ] = MV1RGetMaterial( &RModel, UseMaterialList[ i ] ) ;
 
@@ -1164,7 +1180,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					GetNextString( &MqoModel, String ) ;
 					if( String[ 0 ] != '}' )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクの face の終端に } がありません\n", Frame->Name ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x66\x00\x61\x00\x63\x00\x65\x00\x20\x00\x6e\x30\x42\x7d\xef\x7a\x6b\x30\x20\x00\x7d\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの face の終端に } がありません\n" @*/, FrameNameUTF16LE ) ) ;
 						goto ENDLABEL ;
 					}
 				}
@@ -1237,7 +1253,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 				PositionUnionFlag = ( BYTE * )DXALLOC( Mesh->PositionNum ) ;
 				if( PositionUnionFlag == NULL )
 				{
-					DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクのミラーリング頂点データ情報フラグ格納用メモリの確保に失敗しました\n", Frame->Name ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\xdf\x30\xe9\x30\xfc\x30\xea\x30\xf3\x30\xb0\x30\x02\x98\xb9\x70\xc7\x30\xfc\x30\xbf\x30\xc5\x60\x31\x58\xd5\x30\xe9\x30\xb0\x30\x3c\x68\x0d\x7d\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクのミラーリング頂点データ情報フラグ格納用メモリの確保に失敗しました\n" @*/, FrameNameUTF16LE ) ) ;
 					goto ENDLABEL ;
 				}
 
@@ -1246,13 +1262,13 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 				Mesh->Positions = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * Mesh->PositionNum * TotalMeshNum, &RModel.Mem ) ;
 				if( Mesh->Positions == NULL )
 				{
-					DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクのミラーリング頂点データ格納用メモリの確保に失敗しました\n", Frame->Name ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\xdf\x30\xe9\x30\xfc\x30\xea\x30\xf3\x30\xb0\x30\x02\x98\xb9\x70\xc7\x30\xfc\x30\xbf\x30\x3c\x68\x0d\x7d\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクのミラーリング頂点データ格納用メモリの確保に失敗しました\n" @*/, FrameNameUTF16LE ) ) ;
 					goto ENDLABEL ;
 				}
-				OrigFaceNum = Mesh->FaceNum ;
-				if( MV1RSetupMeshFaceBuffer( &RModel, Mesh, OrigFaceNum * TotalMeshNum, Mesh->FaceUnitMaxIndexNum ) < 0 )
+				OrigFaceNum = ( int )Mesh->FaceNum ;
+				if( MV1RSetupMeshFaceBuffer( &RModel, Mesh, ( int )( OrigFaceNum * TotalMeshNum ), ( int )Mesh->FaceUnitMaxIndexNum ) < 0 )
 				{
-					DXST_ERRORLOGFMT_ADDA( ( "MQO Load Error : Object %s チャンクのミラーリング面データ格納用メモリの確保に失敗しました\n", Frame->Name ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\xdf\x30\xe9\x30\xfc\x30\xea\x30\xf3\x30\xb0\x30\x62\x97\xc7\x30\xfc\x30\xbf\x30\x3c\x68\x0d\x7d\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクのミラーリング面データ格納用メモリの確保に失敗しました\n" @*/, FrameNameUTF16LE ) ) ;
 					goto ENDLABEL ;
 				}
 
@@ -1495,11 +1511,15 @@ ENDLABEL :
 	// 読み込みようモデルを解放
 	MV1TermReadModel( &RModel ) ; 
 
-	// 返回句柄
+	// ハンドルを返す
 	return NewHandle ;
 }
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif
 

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		動画プログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -13,16 +13,41 @@
 
 #ifndef DX_NON_MOVIE
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxHandle.h"
-#include "DxGraphics.h"
+#include "DxBaseImage.h"
+#include "DxFile.h"
+
+#ifdef __WINDOWS__
+	#include "Windows/DxMovieWin.h"
+#endif // __WINDOWS__
+
+#ifdef __PSVITA
+	#include "PSVita/DxMoviePSVita.h"
+#endif // __PSVITA
+
+#ifdef __PS4
+	#include "PS4/DxMoviePS4.h"
+#endif // __PS4
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
+
+// 構造体定義 --------------------------------------------------------------------
+
+// ムービーファイルのオープンに必要なグローバルデータを纏めたもの
+struct OPENMOVIE_GPARAM
+{
+	int							RightAlphaFlag;					// 動画像の右側をアルファとみなす動画ハンドルを作成するか(TRUE:作成する)
+	int							A8R8G8B8Flag ;					// 32bitカラーフォーマットの動画を A8R8G8B8 形式として扱うかどうかのフラグ
+	int							NotUseYUVFormatSurfaceFlag ;	// ＹＵＶフォーマットのサーフェスを使用しないかどうか
+} ;
 
 // Ogg Theora のデコード時の情報
 struct THEORADECODE_INFO
@@ -42,40 +67,23 @@ struct MOVIEGRAPH
 #ifndef DX_NON_OGGTHEORA
 	int						TheoraFlag ;					// Theora を使用しているかどうかのフラグ( 1:使用している  0:使用していない )
 	DWORD_PTR				TheoraHandle ;					// Theora ファイルハンドル
-	LONGLONG				TheoraPlayTime ;				// 再生開始時間
+//	LONGLONG				TheoraPlayTime ;				// 再生開始時間
+	LONGLONG				TheoraPrevTimeCount ;			// 前回の計測時間
+	LONGLONG				TheoraPlayNowTime ;				// 再生時間
 	int						TheoraTotalPlayTime ;			// 再生総時間( ミリ秒 )
 	DWORD_PTR				TheoraStreamData ;				// ストリーム処理用データ
-	DOUBLE					TheoraFrameRate ;				// フレームレート
+	double					TheoraFrameRate ;				// フレームレート
 	int						TheoraLoopType ;				// ループタイプ( 0:動画データに合わせてループ  1:サウンドデータに合わせてループ )
 #ifndef DX_NON_SOUND
 	int						TheoraVorbisHandle ;			// Vorbis用サウンドハンドル
+	int						TheoraVorbisFrequency ;			// Vorbis用サウンドの周波数
 	int						TheoraVorbisTotalTime ;			// Vorbisサウンドデータの再生総時間( ミリ秒 )
 #endif // DX_NON_SOUND
+	double					TheoraPlaySpeedRate ;			// Theora用再生速度
 #endif // DX_NON_OGGTHEORA
 
 	RECT					SrcRect ;						// ブロック転送操作の転送元矩形
 
-#ifndef DX_NON_DSHOW_MOVIE
-	D_IGraphBuilder			*pGraph ;						// フィルタグラフマネージャ
-	D_IMediaControl			*pMediaControl ;				// メディアコントローラ
-	D_IMediaSeeking			*pMediaSeeking ;				// メディアシーキング
-	D_IBasicAudio			*pBasicAudio ;					// BasicAudio インターフェイス
-
-//	D_ISampleGrabber		*SampleGrabber ;				// サンプルグラッバオブジェクト
-
-	D_CMovieRender			*pMovieImage ;					// 動画のイメージ
-
-	D_IBaseFilter			*pFilter ;						// BaseFilter インターフェイス
-	D_IVMRSurfaceAllocator9	*pAllocator ;					// VMR9サーフェスアロケータ
-
-	D_STREAM_TIME			FrameTime ;						// １フレーム当たりの時間
-	D_STREAM_TIME			OldTime ;						// 前回描画時の時間
-	D_STREAM_TIME			StartTime ;						// 再生開始時刻
-
-	D_STREAM_TIME			BackUpTime ;					// 再生を止めた時間
-	int						UseTemporaryFile ;				// テンポラリファイルを使用しているかどうか、フラグ
-	wchar_t					FileName[ MAX_PATH ] ;			// ファイルネーム
-#endif // DX_NON_DSHOW_MOVIE
 	LONGLONG				RefreshFrame ;					// 前回更新したフレーム
 	int						RefreshTime ;					// 前回更新した時間
 
@@ -84,16 +92,13 @@ struct MOVIEGRAPH
 	int						Width, Height ;					// ムービーグラフィックのサイズ
 	int						RightAlpha ;					// ムービーの右側をアルファチャンネルとして扱うか(TRUE:扱う)
 	int						A8R8G8B8Flag ;					// 32bitカラーフォーマットの動画を A8R8G8B8 形式として扱うかどうかのフラグ
+	int						NotUseYUVFormatSurfaceFlag ;	// ＹＵＶフォーマットのサーフェスを使用しないかどうか
 	int						PlayFlag ;						// 再生中フラグ
 	int						SysPauseFlag ;					// 内部一時停止フラグ
 	int						FirstUpdateFlag ;				// 最初のアップデートが行われたかどうか( TRUE:行われた  FALSE:まだ )
 
 	int						YUVFlag ;						// ＹＵＶ形式を使用しているかどうか( TRUE:している  FALSE:していない )
 	int						SurfaceMode ;					// 使用しているサーフェスタイプ
-
-
-	HANDLE					RefreshEvent ;					// 更新イベント
-	int						RefreshEventFlag ;				// 更新イベント発動中か、フラグ
 
 	BASEIMAGE				NowImage ;
 	int						NowImageGraphOutAlloc ;			// NowImage の GraphData が外部で確保されたバッファを使用しているかどうか
@@ -106,6 +111,8 @@ struct MOVIEGRAPH
 
 	void					( *UpdateFunction )( struct MOVIEGRAPH *Movie, void *Data ) ;		// 動画更新時に呼ぶコールバック関数
 	void					*UpdateFunctionData ;												// コールバック関数に渡すポインタ
+
+	MOVIEGRAPH_PF			PF ;							// 環境依存情報
 } ;
 
 // ムービーデータ管理構造体
@@ -115,6 +122,7 @@ struct MOVIEGRAPHMANAGE
 
 	int						RightAlphaFlag ;				// 動画像の右側をアルファとみなす動画ハンドルを作成するか(TRUE:作成する)
 	int						A8R8G8B8Flag ;					// 32bitカラーフォーマットを A8R8G8B8 形式として扱うかどうかのフラグ
+	int						NotUseYUVFormatSurfaceFlag ;	// ＹＵＶフォーマットのサーフェスを使用しないかどうか
 } ;
 
 // テーブル-----------------------------------------------------------------------
@@ -126,14 +134,15 @@ struct MOVIEGRAPHMANAGE
 extern	int		InitializeMovieManage( void ) ;																		// ムービー関連の管理処理の初期化
 extern	int		TerminateMovieManage( void ) ;																		// ムービー関連の管理処理の後始末
 
-extern	int		OpenMovie_UseGParam( OPENMOVIE_GPARAM *GParam, const TCHAR *FileName, int *Width, int *Height, int SurfaceMode, int ASyncThread = FALSE ) ;	// OpenMovie のグローバル変数にアクセスしないバージョン
+extern	int		OpenMovie_UseGParam( OPENMOVIE_GPARAM *GParam, const wchar_t *FileName, int *Width, int *Height, int SurfaceMode, int ASyncThread = FALSE ) ;	// OpenMovie のグローバル変数にアクセスしないバージョン
 
-extern	int		OpenMovie( const TCHAR *FileName, int *Width, int *Height, int SurfaceMode ) ;						// ムービーを開く
+extern	int		OpenMovie( const wchar_t *FileName, int *Width, int *Height, int SurfaceMode ) ;						// ムービーを開く
 extern	int		CloseMovie( int MovieHandle ) ;																		// ムービーを閉じる
 extern 	int		PlayMovie_( int MovieHandle, int PlayType = DX_PLAYTYPE_BACK, int SysPlay = 0 ) ;					// ムービーの再生を開始する
 extern 	int		PauseMovie( int MovieHandle, int SysPause = 0 ) ;													// ムービーの再生をストップする
 extern	int		AddMovieFrame( int MovieHandle, unsigned int FrameNum ) ;											// ムービーのフレームを進める、戻すことは出来ない( ムービーが停止状態で、且つ Ogg Theora のみ有効 )
 extern	int		SeekMovie( int MovieHandle, int Time ) ;															// ムービーの再生位置を設定する(ミリ秒単位)
+extern	int		SetPlaySpeedRateMovie( int MovieHandle, double SpeedRate ) ;										// ムービーの再生速度を設定する( 1.0 = 等倍速  2.0 = ２倍速 )、一部のファイルフォーマットのみで有効な機能です
 extern 	int		GetMovieState( int MovieHandle ) ;																	// ムービーの再生状態を得る
 extern	int		SetMovieVolume( int Volume, int MovieHandle ) ;														// ムービーのボリュームをセットする(0～10000)
 extern	BASEIMAGE *GetMovieBaseImage( int MovieHandle, int *ImageUpdateFlag ) ;										// ムービーの基本イメージデータを取得する
@@ -157,11 +166,32 @@ extern 	int		PauseMovieAll( void ) ;																				// すべてのムービ
 extern	int		InitializeMovieHandle( HANDLEINFO *HandleInfo ) ;													// ムービーハンドルを初期化をする関数
 extern	int		TerminateMovieHandle( HANDLEINFO *HandleInfo ) ;													// ムービーハンドルの後始末を行う関数
 
-#ifndef DX_NON_DSHOW_MOVIE
-extern	D_CMovieRender *New_D_CMovieRender( IUnknown * pUnk, HRESULT *phr ) ;
-#endif 
+
+// 環境依存関数
+
+extern	int		TerminateMovieHandle_PF( HANDLEINFO *HandleInfo ) ;													// ムービーハンドルの後始末を行う
+extern	int		OpenMovie_UseGParam_PF( MOVIEGRAPH * Movie, OPENMOVIE_GPARAM *GParam, const wchar_t *FileName, int *Width, int *Height, int SurfaceMode, int ASyncThread = FALSE ) ;	// OpenMovie のグローバル変数にアクセスしないバージョンの環境依存処理
+extern 	int		PlayMovie__PF( MOVIEGRAPH * Movie, int PlayType = DX_PLAYTYPE_BACK, int SysPlay = 0 ) ;				// ムービーの再生を開始する処理の環境依存処理
+extern 	int		PauseMovie_PF( MOVIEGRAPH * Movie, int SysPause = 0 ) ;												// ムービーの再生をストップする処理の環境依存処理
+extern	int		SeekMovie_PF( MOVIEGRAPH * Movie, int Time ) ;														// ムービーの再生位置を設定する(ミリ秒単位)処理の環境依存処理
+extern	int		SetPlaySpeedRateMovie_PF( MOVIEGRAPH * Movie, double SpeedRate ) ;									// ムービーの再生速度を設定する( 1.0 = 等倍速  2.0 = ２倍速 )処理の環境依存処理
+extern 	int		GetMovieState_PF( MOVIEGRAPH * Movie ) ;															// ムービーの再生状態を得る処理の環境依存処理
+extern	int		SetMovieVolume_PF( MOVIEGRAPH * Movie, int Volume ) ;												// ムービーのボリュームをセットする(0～10000)処理の環境依存処理
+extern	BASEIMAGE *GetMovieBaseImage_PF( MOVIEGRAPH * Movie, int *ImageUpdateFlag ) ;								// ムービーの基本イメージデータを取得する処理の環境依存処理
+extern	int		TellMovie_PF( MOVIEGRAPH * Movie ) ;																// ムービーの再生位置を取得する(ミリ秒単位)処理の環境依存処理
+extern	int		TellMovieToFrame_PF( MOVIEGRAPH * Movie ) ;															// ムービーの再生位置を取得する(フレーム単位)処理の環境依存処理
+extern	int		SeekMovieToFrame_PF( MOVIEGRAPH * Movie, int Frame ) ;												// ムービーの再生位置を設定する(フレーム単位)処理の環境依存処理
+extern	LONGLONG GetOneFrameTimeMovie_PF( MOVIEGRAPH * Movie ) ;													// ムービーの１フレームあたりの時間を得る処理の環境依存処理
+
+extern	int		UpdateMovie_PF( MOVIEGRAPH * Movie, int AlwaysFlag = FALSE ) ;										// ムービーの更新を行う処理の環境依存処理
+
+
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // DX_NON_MOVIE
 

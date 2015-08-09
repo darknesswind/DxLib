@@ -2,11 +2,11 @@
 // 
 // 		ＤＸライブラリ		マスクデータ管理プログラム
 // 
-//  	Ver 3.11f
+//  	Ver 3.14d
 // 
 //-----------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 #include "DxCompileConfig.h"
@@ -22,28 +22,35 @@
 #include "DxFile.h"
 #include "DxBaseFunc.h"
 #include "DxSystem.h"
-#include "DxGraphicsBase.h"
 #include "DxLog.h"
-#include "Windows/DxWindow.h"
 #include "DxGraphics.h"
 #include "DxASyncLoad.h"
+#include "DxMemory.h"
+
+#ifdef __WINDOWS__
+#include "Windows/DxMaskWin.h"
+#endif // __WINDOWS__
+
+#ifdef __PSVITA
+#include "PSVita/DxMaskPSVita.h"
+#endif // __PSVITA
+
+#ifdef __PS4
+#include "PS4/DxMaskPS4.h"
+#endif // __PS4
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義------------------------------------------------------------------
 
 // マスクハンドルの有効性チェック
 #define MASKHCHK( HAND, MPOINT )		HANDLECHK(       DX_HANDLETYPE_GMASK, HAND, *( ( HANDLEINFO ** )&MPOINT ) )
 #define MASKHCHK_ASYNC( HAND, MPOINT )	HANDLECHK_ASYNC( DX_HANDLETYPE_GMASK, HAND, *( ( HANDLEINFO ** )&MPOINT ) )
-
-// FVFの変更
-#define SETFVF( type )	\
-	if( GRH.SetFVF != ( type ) )\
-	{\
-		GraphicsDevice_SetFVF( ( type ) ) ;\
-		GRH.SetFVF = ( type ) ;\
-	}
 
 // 型定義----------------------------------------------------------------------
 
@@ -53,18 +60,16 @@ MASKMANAGEDATA MaskManageData ;
 
 // 関数プロトタイプ宣言 -------------------------------------------------------
 
-static int UpdateMaskImageTexture( RECT Rect ) ;						// 指定領域のマスクイメージテクスチャを更新する
-
 // プログラム------------------------------------------------------------------
 
 // マスク処理の初期化
-extern int InitializeMask( void )
+extern int Mask_Initialize( void )
 {
 	if( MASKD.InitializeFlag == TRUE )
 		return -1 ;
 
 	// マスクハンドル管理データの初期化
-	InitializeHandleManage( DX_HANDLETYPE_GMASK, sizeof( MASKDATA ), MAX_MASK_NUM, InitializeMaskHandle, TerminateMaskHandle, DXSTRING( _T( "マスク" ) ) ) ;
+	InitializeHandleManage( DX_HANDLETYPE_GMASK, sizeof( MASKDATA ), MAX_MASK_NUM, Mask_InitializeHandle, Mask_TerminateHandle, L"Mask" ) ;
 
 	// 初期化フラグを立てる
 	MASKD.InitializeFlag = TRUE ;
@@ -74,7 +79,7 @@ extern int InitializeMask( void )
 }
 
 // マスク処理の後始末
-extern int TerminateMask( void )
+extern int Mask_Terminate( void )
 {
 	if( MASKD.InitializeFlag == FALSE )
 		return -1 ;
@@ -111,11 +116,10 @@ extern int NS_CreateMaskScreen( void )
 	if( MASKD.InitializeFlag == FALSE )
 		return -1 ;
 
-	if( WinData.ActiveFlag == FALSE )
-		DxActiveWait() ;
+	CheckActiveState() ;
 
 	// マスク保存用サーフェスとマスク描画用サーフェスの作成
-	CreateMaskScreenFunction( TRUE, GBASE.DrawSizeX, GBASE.DrawSizeY ) ; 
+	Mask_CreateScreenFunction( TRUE, GSYS.Screen.MainScreenSizeX, GSYS.Screen.MainScreenSizeY ) ; 
 
 	// マスクサーフェスが作成されているかフラグをたてる
 	MASKD.CreateMaskFlag = TRUE ;
@@ -130,18 +134,18 @@ extern int NS_CreateMaskScreen( void )
 }
 
 // マスクサーフェスの作成
-extern int CreateMaskSurface( BYTE **MaskBuffer, int *BufferPitch, int Width, int Height, int *TransModeP )
+extern int Mask_CreateSurface( BYTE **MaskBuffer, int *BufferPitch, int Width, int Height, int *TransModeP )
 {
 	// ピッチの算出
 	*BufferPitch = ( Width + 3 ) / 4 * 4 ;
 
 	// バッファの作成
-	*MaskBuffer = ( BYTE * )DXALLOC( *BufferPitch * Height ) ;
+	*MaskBuffer = ( BYTE * )DXALLOC( ( size_t )( *BufferPitch * Height ) ) ;
 	if( *MaskBuffer == NULL )
 		return -1 ;
 
 	// バッファの初期化
-	_MEMSET( *MaskBuffer, 0, *BufferPitch * Height ) ;
+	_MEMSET( *MaskBuffer, 0, ( size_t )( *BufferPitch * Height ) ) ;
 
 	// 透過色モードのセット
 	*TransModeP = DX_MASKTRANS_BLACK ;
@@ -151,14 +155,14 @@ extern int CreateMaskSurface( BYTE **MaskBuffer, int *BufferPitch, int Width, in
 }
 
 // マスクハンドルの初期化
-extern int InitializeMaskHandle( HANDLEINFO * )
+extern int Mask_InitializeHandle( HANDLEINFO * )
 {
 	// 特に何もせず終了
 	return 0 ;
 }
 
 // マスクハンドルの後始末
-extern int TerminateMaskHandle( HANDLEINFO *HandleInfo )
+extern int Mask_TerminateHandle( HANDLEINFO *HandleInfo )
 {
 	MASKDATA *Mask ;
 
@@ -176,7 +180,7 @@ extern int TerminateMaskHandle( HANDLEINFO *HandleInfo )
 }
 
 // MakeMask の実処理関数
-static int MakeMask_Static(
+static int Mask_MakeMask_Static(
 	int MaskHandle,
 	int Width,
 	int Height,
@@ -192,7 +196,7 @@ static int MakeMask_Static(
 		return -1 ;
 
 	// マスク保存用サーフェスの作成
-	if( CreateMaskSurface( &Mask->SrcData, &Mask->SrcDataPitch, Width, Height, &Mask->TransMode ) < 0 )
+	if( Mask_CreateSurface( &Mask->SrcData, &Mask->SrcDataPitch, Width, Height, &Mask->TransMode ) < 0 )
 		return -1 ;
 
 	// データのセット
@@ -206,7 +210,7 @@ static int MakeMask_Static(
 #ifndef DX_NON_ASYNCLOAD
 
 // MakeMask の非同期読み込みスレッドから呼ばれる関数
-static void MakeMask_ASync( ASYNCLOADDATA_COMMON *AParam )
+static void Mask_MakeMask_ASync( ASYNCLOADDATA_COMMON *AParam )
 {
 	int MaskHandle ;
 	int Width ;
@@ -219,7 +223,7 @@ static void MakeMask_ASync( ASYNCLOADDATA_COMMON *AParam )
 	Width = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
 	Height = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
 
-	Result = MakeMask_Static( MaskHandle, Width, Height, TRUE ) ;
+	Result = Mask_MakeMask_Static( MaskHandle, Width, Height, TRUE ) ;
 
 	DecASyncLoadCount( MaskHandle ) ;
 	if( Result < 0 )
@@ -230,19 +234,21 @@ static void MakeMask_ASync( ASYNCLOADDATA_COMMON *AParam )
 #endif // DX_NON_ASYNCLOAD
 
 // マスクデータの追加
-extern int MakeMask_UseGParam( int Width, int Height, int ASyncLoadFlag )
+extern int Mask_MakeMask_UseGParam( int Width, int Height, int ASyncLoadFlag )
 {
 	int MaskHandle ;
 
 	if( MASKD.InitializeFlag == FALSE )
 		return -1 ;
 
-	if( WinData.ActiveFlag == FALSE )
-		DxActiveWait() ;
+	CheckActiveState() ;
 
 	// ハンドルの作成
-	MaskHandle = AddHandle( DX_HANDLETYPE_GMASK ) ;
-	if( MaskHandle == -1 ) return -1 ;
+	MaskHandle = AddHandle( DX_HANDLETYPE_GMASK, FALSE, -1 ) ;
+	if( MaskHandle == -1 )
+	{
+		return -1 ;
+	}
 
 #ifndef DX_NON_ASYNCLOAD
 	if( ASyncLoadFlag )
@@ -262,7 +268,7 @@ extern int MakeMask_UseGParam( int Width, int Height, int ASyncLoadFlag )
 			goto ERR ;
 
 		// 処理に必要な情報をセット
-		AParam->ProcessFunction = MakeMask_ASync ;
+		AParam->ProcessFunction = Mask_MakeMask_ASync ;
 		Addr = 0 ;
 		AddASyncLoadParamInt( AParam->Data, &Addr, MaskHandle ) ;
 		AddASyncLoadParamInt( AParam->Data, &Addr, Width ) ;
@@ -282,7 +288,7 @@ extern int MakeMask_UseGParam( int Width, int Height, int ASyncLoadFlag )
 	else
 #endif // DX_NON_ASYNCLOAD
 	{
-		if( MakeMask_Static( MaskHandle, Width, Height, FALSE ) < 0 )
+		if( Mask_MakeMask_Static( MaskHandle, Width, Height, FALSE ) < 0 )
 			goto ERR ;
 	}
 
@@ -298,7 +304,7 @@ ERR :
 // マスクデータの追加
 extern int NS_MakeMask( int Width, int Height )
 {
-	return MakeMask_UseGParam( Width, Height, GetASyncLoadFlag() ) ;
+	return Mask_MakeMask_UseGParam( Width, Height, GetASyncLoadFlag() ) ;
 }
 
 // マスクデータを削除
@@ -306,6 +312,8 @@ extern int NS_DeleteMask( int MaskHandle )
 {
 	return SubHandle( MaskHandle ) ;
 }
+
+#ifdef __WINDOWS__
 
 // マスクデータサーフェスにＢＭＰデータをマスクデータと見たてて転送
 extern int NS_BmpBltToMask( HBITMAP Bmp, int BmpPointX, int BmpPointY, int MaskHandle )
@@ -389,6 +397,159 @@ extern int NS_BmpBltToMask( HBITMAP Bmp, int BmpPointX, int BmpPointY, int MaskH
 	return 0 ;
 }
 
+#endif // __WINDOWS_
+
+// マスクハンドルにBASEIMAGEデータを転送する
+extern int NS_GraphImageBltToMask( const BASEIMAGE *BaseImage, int ImageX, int ImageY, int MaskHandle )
+{
+	MASKDATA * MaskData ;
+	int       UseTempBaseImage = FALSE ;
+	BASEIMAGE TempBaseImage ;
+	int       ColorBitDepth ;
+	
+	if( MASKD.InitializeFlag == FALSE )
+		return -1 ;
+
+	if( MASKHCHK_ASYNC( MaskHandle, MaskData ) )
+		return -1 ;
+
+	// BASEIMAGE がフルカラー( 24bit )でも32bitカラーでもなかった場合はではなかった場合はフルカラー画像に変換
+	if( BaseImage->ColorData.Format        != DX_BASEIMAGE_FORMAT_NORMAL ||
+		BaseImage->ColorData.FloatTypeFlag != FALSE ||
+		( BaseImage->ColorData.ColorBitDepth != 24 &&
+		  BaseImage->ColorData.ColorBitDepth != 32 ) ||
+		BaseImage->ColorData.RedMask       != 0xff0000 ||
+		BaseImage->ColorData.GreenMask     != 0x00ff00 ||
+		BaseImage->ColorData.BlueMask      != 0x0000ff )
+	{
+		UseTempBaseImage = TRUE ;
+		NS_CreateRGB8ColorBaseImage( BaseImage->Width, BaseImage->Height, &TempBaseImage ) ;
+		NS_BltBaseImage( 0, 0, ( BASEIMAGE * )BaseImage, &TempBaseImage ) ;
+		BaseImage = &TempBaseImage ;
+	}
+
+	// 転送処理
+	ColorBitDepth = NS_GetScreenBitDepth() ;
+	{
+		BYTE *SrcPoint,   *DestPoint ;
+		int   SrcAddIndex, DestAddIndex ;
+		int   DestHeight,  DestWidth ;
+
+		SrcPoint  = ( BYTE * )BaseImage->GraphData + ImageX * BaseImage->ColorData.PixelByte + ImageY * BaseImage->Pitch ;
+		DestPoint = ( BYTE * )MaskData->SrcData ;
+
+		SrcAddIndex  = BaseImage->Pitch - MaskData->MaskWidth * BaseImage->ColorData.PixelByte ;
+		DestAddIndex = MaskData->SrcDataPitch - MaskData->MaskWidth ;
+
+		DestHeight = MaskData->MaskHeight ;
+		DestWidth  = MaskData->MaskWidth ;
+
+#ifdef DX_NON_INLINE_ASM
+		int i ;
+		if( BaseImage->ColorData.ColorBitDepth == 24 )
+		{
+			do
+			{
+				i = DestWidth ;
+				do
+				{
+					*DestPoint = *SrcPoint ;
+					DestPoint ++ ;
+					SrcPoint += 3 ;
+				}while( -- i != 0 ) ;
+				DestPoint += DestAddIndex ;
+				SrcPoint  += SrcAddIndex ;
+			}while( -- DestHeight != 0 ) ;
+		}
+		else
+		{
+			do
+			{
+				i = DestWidth ;
+				do
+				{
+					*DestPoint = *SrcPoint ;
+					DestPoint ++ ;
+					SrcPoint += 4 ;
+				}while( -- i != 0 ) ;
+				DestPoint += DestAddIndex ;
+				SrcPoint  += SrcAddIndex ;
+			}while( -- DestHeight != 0 ) ;
+		}
+#else
+		if( BaseImage->ColorData.ColorBitDepth == 24 )
+		{
+			__asm{
+				PUSH	EDI
+				PUSH	ESI
+				PUSHF
+				CLD
+				MOV		EDI, DestPoint
+				MOV		ESI, SrcPoint
+				MOV		EDX, DestHeight
+				MOV		EBX, DestWidth
+			LOOP81_24:
+				MOV		ECX, EBX
+			LOOP82_24:
+				MOV		AL	, [ESI]
+				MOV		[EDI], AL
+				INC		EDI
+				ADD		ESI, 3
+				LOOP	LOOP82_24
+
+				ADD		ESI, SrcAddIndex
+				ADD		EDI, DestAddIndex
+				DEC		EDX
+				JNZ		LOOP81_24
+
+				POPF
+				POP		ESI
+				POP		EDI
+			}
+		}
+		else
+		{
+			__asm{
+				PUSH	EDI
+				PUSH	ESI
+				PUSHF
+				CLD
+				MOV		EDI, DestPoint
+				MOV		ESI, SrcPoint
+				MOV		EDX, DestHeight
+				MOV		EBX, DestWidth
+			LOOP81_32:
+				MOV		ECX, EBX
+			LOOP82_32:
+				MOV		AL	, [ESI]
+				MOV		[EDI], AL
+				INC		EDI
+				ADD		ESI, 4
+				LOOP	LOOP82_32
+
+				ADD		ESI, SrcAddIndex
+				ADD		EDI, DestAddIndex
+				DEC		EDX
+				JNZ		LOOP81_32
+
+				POPF
+				POP		ESI
+				POP		EDI
+			}
+		}
+#endif
+	}
+
+	// フルカラー画像に変換したものを使用した場合はフルカラー画像を解放する
+	if( UseTempBaseImage )
+	{
+		NS_ReleaseBaseImage( &TempBaseImage ) ;
+	}
+
+	// 終了
+	return 0 ;
+}
+
 // マスクの大きさを得る 
 extern int NS_GetMaskSize( int *WidthBuf, int *HeightBuf, int MaskHandle )
 {
@@ -408,15 +569,13 @@ extern int NS_GetMaskSize( int *WidthBuf, int *HeightBuf, int MaskHandle )
 }
 
 // LoadMask の実処理関数
-static int LoadMask_Static(
+static int Mask_LoadMask_Static(
 	int MaskHandle,
-	const TCHAR *FileName,
+	const wchar_t *FileName,
 	int /*ASyncThread*/
 )
 {
-	HBITMAP Bmp ;
-	BITMAP bm ;
-	COLORDATA SrcColor;
+	BASEIMAGE BaseImage ;
 	MASKDATA * Mask ;
 
 	if( MASKD.InitializeFlag == FALSE )
@@ -425,29 +584,34 @@ static int LoadMask_Static(
 	if( MASKHCHK_ASYNC( MaskHandle, Mask ) )
 		return -1 ;
 
-	// ロードを試みる
-	NS_CreateFullColorData( &SrcColor );
-	if( ( Bmp = NS_CreateDIBGraph( FileName, FALSE, &SrcColor ) ) == NULL ) return -1 ;
-
-	// グラフィックのデータを取得
-	GetObject( Bmp, sizeof( BITMAP ), ( void * )&bm ) ;
-	
-	// マスク保存用サーフェスの作成
-	if( CreateMaskSurface( &Mask->SrcData, &Mask->SrcDataPitch, bm.bmWidth, bm.bmHeight, &Mask->TransMode ) < 0 )
+	// 画像の読み込みを試みる
+	if( CreateGraphImageOrDIBGraph_WCHAR_T( FileName, NULL, 0, LOADIMAGE_TYPE_FILE, FALSE, FALSE, &BaseImage, NULL, NULL ) < 0 )
 	{
-		DeleteObject( Bmp ) ;
+		return -1 ;
+	}
+
+	// 通常フォーマットではなかったら通常フォーマットに変換
+	if( BaseImage.ColorData.Format != DX_BASEIMAGE_FORMAT_NORMAL )
+	{
+		NS_ConvertNormalFormatBaseImage( &BaseImage ) ;
+	}
+
+	// マスク保存用サーフェスの作成
+	if( Mask_CreateSurface( &Mask->SrcData, &Mask->SrcDataPitch, BaseImage.Width, BaseImage.Height, &Mask->TransMode ) < 0 )
+	{
+		NS_ReleaseBaseImage( &BaseImage ) ;
 		return -1 ;
 	}
 
 	// データのセット
-	Mask->MaskWidth = bm.bmWidth ;
-	Mask->MaskHeight = bm.bmHeight ;
+	Mask->MaskWidth  = BaseImage.Width ;
+	Mask->MaskHeight = BaseImage.Height ;
 
 	// マスクデータを転送
-	NS_BmpBltToMask( Bmp, 0, 0, MaskHandle ) ;
+	NS_GraphImageBltToMask( &BaseImage, 0, 0, MaskHandle ) ;
 
-	// ＢＭＰオブジェクトを削除
-	DeleteObject( Bmp ) ;
+	// 画像を解放
+	NS_ReleaseBaseImage( &BaseImage ) ;
 
 	// 終了
 	return MaskHandle ;
@@ -455,10 +619,10 @@ static int LoadMask_Static(
 
 #ifndef DX_NON_ASYNCLOAD
 // LoadMask の非同期読み込みスレッドから呼ばれる関数
-static void LoadMask_ASync( ASYNCLOADDATA_COMMON *AParam )
+static void Mask_LoadMask_ASync( ASYNCLOADDATA_COMMON *AParam )
 {
 	int MaskHandle ;
-	const TCHAR *FileName ;
+	const wchar_t *FileName ;
 	int Addr ;
 	int Result ;
 
@@ -466,7 +630,7 @@ static void LoadMask_ASync( ASYNCLOADDATA_COMMON *AParam )
 	MaskHandle = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
 	FileName = GetASyncLoadParamString( AParam->Data, &Addr ) ;
 
-	Result = LoadMask_Static( MaskHandle, FileName, TRUE ) ;
+	Result = Mask_LoadMask_Static( MaskHandle, FileName, TRUE ) ;
 
 	DecASyncLoadCount( MaskHandle ) ;
 	if( Result < 0 )
@@ -476,29 +640,31 @@ static void LoadMask_ASync( ASYNCLOADDATA_COMMON *AParam )
 }
 #endif // DX_NON_ASYNCLOAD
 
-// マスクデータをロードする 
-extern int LoadMask_UseGParam( const TCHAR *FileName, int ASyncLoadFlag )
+// マスクデータを画像ファイルから読み込む
+extern int Mask_LoadMask_UseGParam( const wchar_t *FileName, int ASyncLoadFlag )
 {
 	int MaskHandle ;
 
 	if( MASKD.InitializeFlag == FALSE )
 		return -1 ;
 
-	if( WinData.ActiveFlag == FALSE )
-		DxActiveWait() ;
+	CheckActiveState() ;
 
 	// ハンドルの作成
-	MaskHandle = AddHandle( DX_HANDLETYPE_GMASK ) ;
-	if( MaskHandle == -1 ) return -1 ;
+	MaskHandle = AddHandle( DX_HANDLETYPE_GMASK, FALSE, -1 ) ;
+	if( MaskHandle == -1 )
+	{
+		return -1 ;
+	}
 
 #ifndef DX_NON_ASYNCLOAD
 	if( ASyncLoadFlag )
 	{
 		ASYNCLOADDATA_COMMON *AParam = NULL ;
 		int Addr ;
-		TCHAR FullPath[ 1024 ] ;
+		wchar_t FullPath[ 1024 ] ;
 
-		ConvertFullPathT_( FileName, FullPath ) ;
+		ConvertFullPathW_( FileName, FullPath ) ;
 
 		// パラメータに必要なメモリのサイズを算出
 		Addr = 0 ;
@@ -511,7 +677,7 @@ extern int LoadMask_UseGParam( const TCHAR *FileName, int ASyncLoadFlag )
 			goto ERR ;
 
 		// 処理に必要な情報をセット
-		AParam->ProcessFunction = LoadMask_ASync ;
+		AParam->ProcessFunction = Mask_LoadMask_ASync ;
 		Addr = 0 ;
 		AddASyncLoadParamInt( AParam->Data, &Addr, MaskHandle ) ;
 		AddASyncLoadParamString( AParam->Data, &Addr, FullPath ) ;
@@ -530,7 +696,7 @@ extern int LoadMask_UseGParam( const TCHAR *FileName, int ASyncLoadFlag )
 	else
 #endif // DX_NON_ASYNCLOAD
 	{
-		if( LoadMask_Static( MaskHandle, FileName, FALSE ) < 0 )
+		if( Mask_LoadMask_Static( MaskHandle, FileName, FALSE ) < 0 )
 			goto ERR ;
 	}
 
@@ -546,12 +712,34 @@ ERR :
 // マスクデータをロードする
 extern int NS_LoadMask( const TCHAR *FileName )
 {
-	return LoadMask_UseGParam( FileName, GetASyncLoadFlag() ) ;
+#ifdef UNICODE
+	return LoadMask_WCHAR_T(
+		FileName
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FileName, return -1 )
+
+	Result = LoadMask_WCHAR_T(
+		UseFileNameBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FileName )
+
+	return Result ;
+#endif
+}
+
+// マスクデータをロードする
+extern int LoadMask_WCHAR_T( const wchar_t *FileName )
+{
+	return Mask_LoadMask_UseGParam( FileName, GetASyncLoadFlag() ) ;
 }
 
 // LoadDivMask の実処理関数
-static int LoadDivMask_Static(
-	const TCHAR *FileName,
+static int Mask_LoadDivMask_Static(
+	const wchar_t *FileName,
 	int AllNum,
 	int XNum,
 	int YNum,
@@ -562,25 +750,20 @@ static int LoadDivMask_Static(
 )
 {
 	MASKDATA * Mask ;
-	HBITMAP Bmp ;
-	BITMAP bm ;
+	BASEIMAGE BaseImage ;
 	int i, j, k ;
-	COLORDATA SrcColor;
 
 	if( MASKD.InitializeFlag == FALSE )
 		return -1 ;
 
-	// ロードを試みる
-	Bmp = NULL ;
-	NS_CreateFullColorData( &SrcColor );
-	if( ( Bmp = NS_CreateDIBGraph( FileName, FALSE, &SrcColor ) ) == NULL )
+	// 画像の読み込みを試みる
+	if( CreateGraphImageOrDIBGraph_WCHAR_T( FileName, NULL, 0, LOADIMAGE_TYPE_FILE, FALSE, FALSE, &BaseImage, NULL, NULL ) < 0 )
+	{
 		return -1 ;
-
-	// グラフィックのデータを取得
-	GetObject( Bmp, sizeof( BITMAP ), ( void * )&bm ) ;
+	}
 
 	// サイズ確認
-	if( XNum * XSize > bm.bmWidth || YNum * YSize > bm.bmHeight )
+	if( XNum * XSize > BaseImage.Width || YNum * YSize > BaseImage.Height )
 		goto ERR ;
 
 	// 分割転送開始
@@ -593,7 +776,7 @@ static int LoadDivMask_Static(
 				goto ERR ;
 
 			// マスクの作成
-			if( CreateMaskSurface( &Mask->SrcData, &Mask->SrcDataPitch, XSize, YSize, &Mask->TransMode ) < 0 )
+			if( Mask_CreateSurface( &Mask->SrcData, &Mask->SrcDataPitch, XSize, YSize, &Mask->TransMode ) < 0 )
 				goto ERR ;
 
 			// データのセット
@@ -601,29 +784,29 @@ static int LoadDivMask_Static(
 			Mask->MaskHeight = YSize ;
 
 			// マスクデータの転送
-			NS_BmpBltToMask( Bmp, XSize * j, YSize * i, HandleBuf[ k ] ) ;
+			NS_GraphImageBltToMask( &BaseImage, XSize * j, YSize * i, HandleBuf[ k ] ) ;
 		}
 	}
 
-	// ＢＭＰの削除
-	DeleteObject( Bmp ) ;
+	// 画像を解放
+	NS_ReleaseBaseImage( &BaseImage ) ;
 
 	// 終了
 	return 0 ;
 
 	// エラー終了
 ERR :
-	if( Bmp != NULL )
-		DeleteObject( Bmp ) ;
+	// 画像を解放
+	NS_ReleaseBaseImage( &BaseImage ) ;
 	
 	return -1 ;
 }
 
 #ifndef DX_NON_ASYNCLOAD
 // LoadDivMask の非同期読み込みスレッドから呼ばれる関数
-static void LoadDivMask_ASync( ASYNCLOADDATA_COMMON *AParam )
+static void Mask_LoadDivMask_ASync( ASYNCLOADDATA_COMMON *AParam )
 {
-	const TCHAR *FileName ;
+	const wchar_t *FileName ;
 	int AllNum ;
 	int XNum ;
 	int YNum ;
@@ -643,7 +826,7 @@ static void LoadDivMask_ASync( ASYNCLOADDATA_COMMON *AParam )
 	YSize = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
 	HandleBuf = ( int * )GetASyncLoadParamStruct( AParam->Data, &Addr ) ;
 
-	Result = LoadDivMask_Static( FileName, AllNum, XNum, YNum, XSize, YSize, HandleBuf, TRUE ) ;
+	Result = Mask_LoadDivMask_Static( FileName, AllNum, XNum, YNum, XSize, YSize, HandleBuf, TRUE ) ;
 
 	for( i = 0 ; i < AllNum ; i ++ )
 		DecASyncLoadCount( HandleBuf[ i ] ) ;
@@ -656,9 +839,9 @@ static void LoadDivMask_ASync( ASYNCLOADDATA_COMMON *AParam )
 }
 #endif // DX_NON_ASYNCLOAD
 
-// マスクを画像から分割読みこみ
-extern int LoadDivMask_UseGParam(
-	const TCHAR *FileName,
+// マスクを画像ファイルから分割読みこみ
+extern int Mask_LoadDivMask_UseGParam(
+	const wchar_t *FileName,
 	int AllNum,
 	int XNum,
 	int YNum,
@@ -670,8 +853,7 @@ extern int LoadDivMask_UseGParam(
 {
 	int i ;
 
-	if( WinData.ActiveFlag == FALSE )
-		DxActiveWait() ;
+	CheckActiveState() ;
 
 	if( AllNum == 0 )
 		return -1 ;
@@ -680,9 +862,11 @@ extern int LoadDivMask_UseGParam(
 	_MEMSET( HandleBuf, 0, sizeof( int ) * AllNum ) ;
 	for( i = 0 ; i < AllNum ; i ++ )
 	{
-		HandleBuf[ i ] = AddHandle( DX_HANDLETYPE_GMASK ) ;
+		HandleBuf[ i ] = AddHandle( DX_HANDLETYPE_GMASK, FALSE, -1 ) ;
 		if( HandleBuf[ i ] < 0 )
+		{
 			goto ERR ;
+		}
 	}
 
 #ifndef DX_NON_ASYNCLOAD
@@ -690,9 +874,9 @@ extern int LoadDivMask_UseGParam(
 	{
 		ASYNCLOADDATA_COMMON *AParam = NULL ;
 		int Addr ;
-		TCHAR FullPath[ 1024 ] ;
+		wchar_t FullPath[ 1024 ] ;
 
-		ConvertFullPathT_( FileName, FullPath ) ;
+		ConvertFullPathW_( FileName, FullPath ) ;
 
 		// パラメータに必要なメモリのサイズを算出
 		Addr = 0 ;
@@ -702,7 +886,7 @@ extern int LoadDivMask_UseGParam(
 		AddASyncLoadParamInt( NULL, &Addr, YNum ) ;
 		AddASyncLoadParamInt( NULL, &Addr, XSize ) ;
 		AddASyncLoadParamInt( NULL, &Addr, YSize ) ;
-		AddASyncLoadParamStruct( NULL, &Addr, HandleBuf, sizeof( int ) * AllNum ) ;
+		AddASyncLoadParamStruct( NULL, &Addr, HandleBuf, ( int )( sizeof( int ) * AllNum ) ) ;
 
 		// メモリの確保
 		AParam = AllocASyncLoadDataMemory( Addr ) ;
@@ -710,7 +894,7 @@ extern int LoadDivMask_UseGParam(
 			goto ERR ;
 
 		// 処理に必要な情報をセット
-		AParam->ProcessFunction = LoadDivMask_ASync ;
+		AParam->ProcessFunction = Mask_LoadDivMask_ASync ;
 		Addr = 0 ;
 		AddASyncLoadParamString( AParam->Data, &Addr, FullPath ) ; 
 		AddASyncLoadParamInt( AParam->Data, &Addr, AllNum ) ;
@@ -718,7 +902,7 @@ extern int LoadDivMask_UseGParam(
 		AddASyncLoadParamInt( AParam->Data, &Addr, YNum ) ;
 		AddASyncLoadParamInt( AParam->Data, &Addr, XSize ) ;
 		AddASyncLoadParamInt( AParam->Data, &Addr, YSize ) ;
-		AddASyncLoadParamStruct( AParam->Data, &Addr, HandleBuf, sizeof( int ) * AllNum ) ;
+		AddASyncLoadParamStruct( AParam->Data, &Addr, HandleBuf, ( int )( sizeof( int ) * AllNum ) ) ;
 
 		// データを追加
 		if( AddASyncLoadData( AParam ) < 0 )
@@ -735,7 +919,7 @@ extern int LoadDivMask_UseGParam(
 	else
 #endif // DX_NON_ASYNCLOAD
 	{
-		if( LoadDivMask_Static( FileName, AllNum, XNum, YNum, XSize, YSize, HandleBuf, FALSE ) < 0 )
+		if( Mask_LoadDivMask_Static( FileName, AllNum, XNum, YNum, XSize, YSize, HandleBuf, FALSE ) < 0 )
 			goto ERR ;
 	}
 
@@ -754,8 +938,415 @@ ERR :
 // マスクを画像から分割読みこみ
 extern int NS_LoadDivMask( const TCHAR *FileName, int AllNum, int XNum, int YNum, int XSize, int YSize, int *HandleBuf )
 {
-	return LoadDivMask_UseGParam( FileName, AllNum, XNum, YNum, XSize, YSize, HandleBuf, GetASyncLoadFlag() ) ;
+#ifdef UNICODE
+	return LoadDivMask_WCHAR_T(
+		FileName, AllNum, XNum, YNum, XSize, YSize, HandleBuf
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FileName, return -1 )
+
+	Result = LoadDivMask_WCHAR_T(
+		UseFileNameBuffer, AllNum, XNum, YNum, XSize, YSize, HandleBuf
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FileName )
+
+	return Result ;
+#endif
 }
+
+// マスクを画像から分割読みこみ
+extern int LoadDivMask_WCHAR_T( const wchar_t *FileName, int AllNum, int XNum, int YNum, int XSize, int YSize, int *HandleBuf )
+{
+	return Mask_LoadDivMask_UseGParam( FileName, AllNum, XNum, YNum, XSize, YSize, HandleBuf, GetASyncLoadFlag() ) ;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+// CreateMaskFromMem の実処理関数
+static int Mask_CreateMaskFromMem_Static(
+	int         MaskHandle,
+	const void *FileImage,
+	int         FileImageSize,
+	int       /*ASyncThread*/
+)
+{
+	BASEIMAGE BaseImage ;
+	MASKDATA * Mask ;
+
+	if( MASKD.InitializeFlag == FALSE )
+		return -1 ;
+
+	if( MASKHCHK_ASYNC( MaskHandle, Mask ) )
+		return -1 ;
+
+	// ロードを試みる
+	if( NS_CreateBaseImage( NULL, FileImage, FileImageSize, LOADIMAGE_TYPE_MEM, &BaseImage, FALSE ) < 0 )
+	{
+		return -1 ;
+	}
+	
+	// マスク保存用サーフェスの作成
+	if( Mask_CreateSurface( &Mask->SrcData, &Mask->SrcDataPitch, BaseImage.Width, BaseImage.Height, &Mask->TransMode ) < 0 )
+	{
+		NS_ReleaseBaseImage( &BaseImage ) ;
+		return -1 ;
+	}
+
+	// データのセット
+	Mask->MaskWidth  = BaseImage.Width ;
+	Mask->MaskHeight = BaseImage.Height ;
+
+	// マスクデータを転送
+	NS_GraphImageBltToMask( &BaseImage, 0, 0, MaskHandle ) ;
+
+	// BASEIMAGE を解放
+	NS_ReleaseBaseImage( &BaseImage ) ;
+
+	// 終了
+	return MaskHandle ;
+}
+
+#ifndef DX_NON_ASYNCLOAD
+// CreateMaskFromMem の非同期読み込みスレッドから呼ばれる関数
+static void Mask_CreateMaskFromMem_ASync( ASYNCLOADDATA_COMMON *AParam )
+{
+	int         MaskHandle ;
+	const void *FileImage ;
+	int         FileImageSize ;
+	int         Addr ;
+	int         Result ;
+
+	Addr = 0 ;
+	MaskHandle    = GetASyncLoadParamInt(   AParam->Data, &Addr ) ;
+	FileImage     = GetASyncLoadParamVoidP( AParam->Data, &Addr ) ;
+	FileImageSize = GetASyncLoadParamInt(   AParam->Data, &Addr ) ;
+
+	Result = Mask_CreateMaskFromMem_Static( MaskHandle, FileImage, FileImageSize, TRUE ) ;
+
+	DecASyncLoadCount( MaskHandle ) ;
+	if( Result < 0 )
+	{
+		SubHandle( MaskHandle ) ;
+	}
+}
+#endif // DX_NON_ASYNCLOAD
+
+// マスクデータをメモリ上の画像ファイルイメージから読み込む
+extern int Mask_CreateMaskFromMem_UseGParam( const void *FileImage, int FileImageSize, int ASyncLoadFlag )
+{
+	int MaskHandle ;
+
+	if( MASKD.InitializeFlag == FALSE )
+		return -1 ;
+
+	CheckActiveState() ;
+
+	// ハンドルの作成
+	MaskHandle = AddHandle( DX_HANDLETYPE_GMASK, FALSE, -1 ) ;
+	if( MaskHandle == -1 )
+	{
+		return -1 ;
+	}
+
+#ifndef DX_NON_ASYNCLOAD
+	if( ASyncLoadFlag )
+	{
+		ASYNCLOADDATA_COMMON *AParam = NULL ;
+		int Addr ;
+
+		// パラメータに必要なメモリのサイズを算出
+		Addr = 0 ;
+		AddASyncLoadParamInt(        NULL, &Addr, MaskHandle ) ;
+		AddASyncLoadParamConstVoidP( NULL, &Addr, FileImage ) ;
+		AddASyncLoadParamInt(        NULL, &Addr, FileImageSize ) ;
+
+		// メモリの確保
+		AParam = AllocASyncLoadDataMemory( Addr ) ;
+		if( AParam == NULL )
+			goto ERR ;
+
+		// 処理に必要な情報をセット
+		AParam->ProcessFunction = Mask_CreateMaskFromMem_ASync ;
+		Addr = 0 ;
+		AddASyncLoadParamInt(        AParam->Data, &Addr, MaskHandle ) ;
+		AddASyncLoadParamConstVoidP( AParam->Data, &Addr, FileImage ) ;
+		AddASyncLoadParamInt(        AParam->Data, &Addr, FileImageSize ) ;
+
+		// データを追加
+		if( AddASyncLoadData( AParam ) < 0 )
+		{
+			DXFREE( AParam ) ;
+			AParam = NULL ;
+			goto ERR ;
+		}
+
+		// 非同期読み込みカウントをインクリメント
+		IncASyncLoadCount( MaskHandle, AParam->Index ) ;
+	}
+	else
+#endif // DX_NON_ASYNCLOAD
+	{
+		if( Mask_CreateMaskFromMem_Static( MaskHandle, FileImage, FileImageSize, FALSE ) < 0 )
+			goto ERR ;
+	}
+
+	// 終了
+	return MaskHandle ;
+
+ERR :
+	SubHandle( MaskHandle ) ;
+
+	return -1 ;
+}
+
+// メモリ上にある画像ファイルイメージを読み込みマスクハンドルを作成する
+extern int NS_CreateMaskFromMem( const void *FileImage, int FileImageSize )
+{
+	return Mask_CreateMaskFromMem_UseGParam( FileImage, FileImageSize, GetASyncLoadFlag() ) ;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+// CreateDivMaskFromMem の実処理関数
+static int Mask_CreateDivMaskFromMem_Static(
+	const void *FileImage,
+	int FileImageSize,
+	int AllNum,
+	int XNum,
+	int YNum,
+	int XSize,
+	int YSize,
+	int *HandleBuf,
+	int /*ASyncThread*/
+)
+{
+	BASEIMAGE BaseImage ;
+	MASKDATA * Mask ;
+	int i ;
+	int j ;
+	int k ;
+
+	if( MASKD.InitializeFlag == FALSE )
+		return -1 ;
+
+	// ロードを試みる
+	if( NS_CreateBaseImage( NULL, FileImage, FileImageSize, LOADIMAGE_TYPE_MEM, &BaseImage, FALSE ) < 0 )
+	{
+		return -1 ;
+	}
+
+	// サイズ確認
+	if( XNum * XSize > BaseImage.Width || YNum * YSize > BaseImage.Height )
+		goto ERR ;
+
+	// 分割転送開始
+	k = 0 ;
+	for( i = 0 ; k != AllNum && i < YNum ; i ++ )
+	{
+		for( j = 0 ; k != AllNum && j < XNum ; j ++, k ++ )
+		{
+			if( MASKHCHK_ASYNC( HandleBuf[ k ], Mask ) )
+				goto ERR ;
+
+			// マスクの作成
+			if( Mask_CreateSurface( &Mask->SrcData, &Mask->SrcDataPitch, XSize, YSize, &Mask->TransMode ) < 0 )
+				goto ERR ;
+
+			// データのセット
+			Mask->MaskWidth = XSize ;
+			Mask->MaskHeight = YSize ;
+
+			// マスクデータの転送
+			NS_GraphImageBltToMask( &BaseImage, XSize * j, YSize * i, HandleBuf[ k ] ) ;
+		}
+	}
+
+	// BASEIMAGE を解放
+	NS_ReleaseBaseImage( &BaseImage ) ;
+
+	// 終了
+	return 0 ;
+
+	// エラー終了
+ERR :
+	// BASEIMAGE を解放
+	NS_ReleaseBaseImage( &BaseImage ) ;
+	
+	return -1 ;
+}
+
+#ifndef DX_NON_ASYNCLOAD
+// CreateDivMaskFromMem の非同期読み込みスレッドから呼ばれる関数
+static void Mask_CreateDivMaskFromMem_ASync( ASYNCLOADDATA_COMMON *AParam )
+{
+	const void *FileImage ;
+	int         FileImageSize ;
+	int         AllNum ;
+	int         XNum ;
+	int         YNum ;
+	int         XSize ;
+	int         YSize ;
+	int        *HandleBuf ;
+	int         Addr ;
+	int         i ;
+	int         Result ;
+
+	Addr = 0 ;
+	FileImage     =          GetASyncLoadParamVoidP(  AParam->Data, &Addr ) ;
+	FileImageSize =          GetASyncLoadParamInt(    AParam->Data, &Addr ) ;
+	AllNum        =          GetASyncLoadParamInt(    AParam->Data, &Addr ) ;
+	XNum          =          GetASyncLoadParamInt(    AParam->Data, &Addr ) ;
+	YNum          =          GetASyncLoadParamInt(    AParam->Data, &Addr ) ;
+	XSize         =          GetASyncLoadParamInt(    AParam->Data, &Addr ) ;
+	YSize         =          GetASyncLoadParamInt(    AParam->Data, &Addr ) ;
+	HandleBuf     = ( int * )GetASyncLoadParamStruct( AParam->Data, &Addr ) ;
+
+	Result = Mask_CreateDivMaskFromMem_Static( FileImage, FileImageSize, AllNum, XNum, YNum, XSize, YSize, HandleBuf, TRUE ) ;
+
+	for( i = 0 ; i < AllNum ; i ++ )
+		DecASyncLoadCount( HandleBuf[ i ] ) ;
+
+	if( Result < 0 )
+	{
+		for( i = 0 ; i < AllNum ; i ++ )
+			NS_DeleteMask( HandleBuf[ i ] ) ;
+	}
+}
+#endif // DX_NON_ASYNCLOAD
+
+// マスクをメモリ上の画像ファイルイメージから分割読みこみ
+extern int Mask_CreateDivMaskFromMem_UseGParam(
+	const void *FileImage,
+	int FileImageSize,
+	int AllNum,
+	int XNum,
+	int YNum,
+	int XSize,
+	int YSize,
+	int *HandleBuf,
+	int ASyncLoadFlag
+)
+{
+	int i ;
+
+	CheckActiveState() ;
+
+	if( AllNum == 0 )
+		return -1 ;
+
+	// グラフィックハンドルの作成
+	_MEMSET( HandleBuf, 0, sizeof( int ) * AllNum ) ;
+	for( i = 0 ; i < AllNum ; i ++ )
+	{
+		HandleBuf[ i ] = AddHandle( DX_HANDLETYPE_GMASK, FALSE, -1 ) ;
+		if( HandleBuf[ i ] < 0 )
+		{
+			goto ERR ;
+		}
+	}
+
+#ifndef DX_NON_ASYNCLOAD
+	if( ASyncLoadFlag )
+	{
+		ASYNCLOADDATA_COMMON *AParam = NULL ;
+		int Addr ;
+
+		// パラメータに必要なメモリのサイズを算出
+		Addr = 0 ;
+		AddASyncLoadParamConstVoidP( NULL, &Addr, FileImage ) ;
+		AddASyncLoadParamInt(        NULL, &Addr, FileImageSize ) ;
+		AddASyncLoadParamInt(        NULL, &Addr, AllNum ) ;
+		AddASyncLoadParamInt(        NULL, &Addr, XNum ) ;
+		AddASyncLoadParamInt(        NULL, &Addr, YNum ) ;
+		AddASyncLoadParamInt(        NULL, &Addr, XSize ) ;
+		AddASyncLoadParamInt(        NULL, &Addr, YSize ) ;
+		AddASyncLoadParamStruct(     NULL, &Addr, HandleBuf, ( int )( sizeof( int ) * AllNum ) ) ;
+
+		// メモリの確保
+		AParam = AllocASyncLoadDataMemory( Addr ) ;
+		if( AParam == NULL )
+			goto ERR ;
+
+		// 処理に必要な情報をセット
+		AParam->ProcessFunction = Mask_CreateDivMaskFromMem_ASync ;
+		Addr = 0 ;
+		AddASyncLoadParamConstVoidP( AParam->Data, &Addr, FileImage ) ;
+		AddASyncLoadParamInt(        AParam->Data, &Addr, FileImageSize ) ;
+		AddASyncLoadParamInt(        AParam->Data, &Addr, AllNum ) ;
+		AddASyncLoadParamInt(        AParam->Data, &Addr, XNum ) ;
+		AddASyncLoadParamInt(        AParam->Data, &Addr, YNum ) ;
+		AddASyncLoadParamInt(        AParam->Data, &Addr, XSize ) ;
+		AddASyncLoadParamInt(        AParam->Data, &Addr, YSize ) ;
+		AddASyncLoadParamStruct(     AParam->Data, &Addr, HandleBuf, ( int )( sizeof( int ) * AllNum ) ) ;
+
+		// データを追加
+		if( AddASyncLoadData( AParam ) < 0 )
+		{
+			DXFREE( AParam ) ;
+			AParam = NULL ;
+			goto ERR ;
+		}
+
+		// 非同期読み込みカウントをインクリメント
+		for( i = 0 ; i < AllNum ; i ++ )
+			IncASyncLoadCount( HandleBuf[ i ], AParam->Index ) ;
+	}
+	else
+#endif // DX_NON_ASYNCLOAD
+	{
+		if( Mask_CreateDivMaskFromMem_Static( FileImage, FileImageSize, AllNum, XNum, YNum, XSize, YSize, HandleBuf, FALSE ) < 0 )
+			goto ERR ;
+	}
+
+	// 正常終了
+	return 0 ;
+
+ERR :
+	for( i = 0 ; i < AllNum ; i ++ )
+	{
+		NS_DeleteMask( HandleBuf[ i ] ) ;
+	}
+
+	return -1 ;
+}
+
+// メモリ上にある画像ファイルイメージを分割読み込みしてマスクハンドルを作成する
+extern int NS_CreateDivMaskFromMem( const void *FileImage, int FileImageSize, int AllNum, int XNum, int YNum, int XSize, int YSize, int *HandleBuf )
+{
+	return Mask_CreateDivMaskFromMem_UseGParam( FileImage, FileImageSize, AllNum, XNum, YNum, XSize, YSize, HandleBuf, GetASyncLoadFlag() ) ;
+}
+
+
+
+
+
+
+
+
+
+
+
 
 #ifndef DX_NON_FONT
 
@@ -779,6 +1370,25 @@ extern int NS_DrawFormatStringMask( int x, int y, int Flag, const TCHAR *FormatS
 }
 
 // 書式指定ありの文字列をマスクスクリーンに描画する
+extern int DrawFormatStringMask_WCHAR_T( int x, int y, int Flag, const wchar_t *FormatString, ... )
+{
+	va_list VaList ;
+	wchar_t String[ 1024 ] ;
+	
+	if( MASKD.InitializeFlag == FALSE )
+		return -1 ;
+
+	// 編集後の文字列を取得する
+	{
+		va_start( VaList, FormatString ) ;
+		_VSWPRINTF( String, FormatString, VaList ) ;
+		va_end( VaList ) ;
+	}
+
+	return DrawStringMaskToHandle_WCHAR_T( x, y, Flag, NS_GetDefaultFontHandle(), String ) ;
+}
+
+// 書式指定ありの文字列をマスクスクリーンに描画する
 extern int NS_DrawFormatStringMaskToHandle( int x, int y, int Flag, int FontHandle, const TCHAR *FormatString, ... )
 {
 	va_list VaList ;
@@ -797,11 +1407,52 @@ extern int NS_DrawFormatStringMaskToHandle( int x, int y, int Flag, int FontHand
 	return NS_DrawStringMaskToHandle( x, y, Flag, FontHandle, String ) ;
 }
 
+// 書式指定ありの文字列をマスクスクリーンに描画する
+extern int DrawFormatStringMaskToHandle_WCHAR_T( int x, int y, int Flag, int FontHandle, const wchar_t *FormatString, ... )
+{
+	va_list VaList ;
+	wchar_t String[ 1024 ] ;
+	
+	if( MASKD.InitializeFlag == FALSE )
+		return -1 ;
+
+	// 編集後の文字列を取得する
+	{
+		va_start( VaList, FormatString ) ;
+		_VSWPRINTF( String, FormatString, VaList ) ;
+		va_end( VaList ) ;
+	}
+
+	return DrawStringMaskToHandle_WCHAR_T( x, y, Flag, FontHandle, String ) ;
+}
+
 // 文字列をマスクスクリーンに描画する(フォントハンドル指定版)
 extern int NS_DrawStringMaskToHandle( int x, int y, int Flag, int FontHandle, const TCHAR *String )
 {
-	BASEIMAGE Image ;
-	int Color ;
+#ifdef UNICODE
+	return DrawStringMaskToHandle_WCHAR_T(
+		x, y, Flag, FontHandle, String
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( String, return -1 )
+
+	Result = DrawStringMaskToHandle_WCHAR_T(
+		x, y, Flag, FontHandle, UseStringBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( String )
+
+	return Result ;
+#endif
+}
+
+// 文字列をマスクスクリーンに描画する(フォントハンドル指定版)
+extern int DrawStringMaskToHandle_WCHAR_T( int x, int y, int Flag, int FontHandle, const wchar_t *String )
+{
+	BASEIMAGE BaseImage ;
+	unsigned int Color ;
 	int Result ;
 	SIZE DrawSize ;
 
@@ -815,27 +1466,29 @@ extern int NS_DrawStringMaskToHandle( int x, int y, int Flag, int FontHandle, co
 	RefreshDefaultFont() ;
 
 	// BASEIMAGEデータの作成
-	NS_CreatePaletteColorData( &Image.ColorData ) ;
-	NS_GetDrawScreenSize( &Image.Width, &Image.Height ) ;
-	Image.Pitch = MASKD.MaskBufferPitch ;
-	Image.GraphData = MASKD.MaskBuffer ;
+	NS_CreatePaletteColorData( &BaseImage.ColorData ) ;
+	NS_GetDrawScreenSize( &BaseImage.Width, &BaseImage.Height ) ;
+	BaseImage.Pitch = MASKD.MaskBufferPitch ;
+	BaseImage.GraphData = MASKD.MaskBuffer ;
 
 	// マスクスクリーン上に文字を描画
-	Color = Flag == 0 ? 0 : 0xff ;
-	Result = NS_FontCacheStringDrawToHandle( x, y, String, Color, Color, 
-											&Image, &GBASE.DrawArea, FontHandle,
-											FALSE, &DrawSize ) ;
+	Color = ( DWORD )( Flag == 0 ? 0 : 0xff ) ;
+	Result = FontCacheStringDrawToHandle_WCHAR_T(
+		x, y, String, Color, Color, 
+		&BaseImage, &GSYS.DrawSetting.DrawArea, FontHandle,
+		FALSE, &DrawSize
+	) ;
 
 	RECT Rect ;
 
-	if( GRA2.ValidHardWare )
+	if( GSYS.Setting.ValidHardware )
 	{
 		// 更新
-		Rect.left = x ;
-		Rect.top = y ;
-		Rect.right = x + DrawSize.cx ;
+		Rect.left   = x ;
+		Rect.top    = y ;
+		Rect.right  = x + DrawSize.cx ;
 		Rect.bottom = y + DrawSize.cy ;
-		UpdateMaskImageTexture( Rect ) ;
+		Mask_UpdateMaskImageTexture_PF( &Rect ) ;
 	}
 
 	return Result ;
@@ -845,6 +1498,12 @@ extern int NS_DrawStringMaskToHandle( int x, int y, int Flag, int FontHandle, co
 extern int NS_DrawStringMask( int x, int y, int Flag, const TCHAR *String )
 {
 	return NS_DrawStringMaskToHandle( x, y, Flag, NS_GetDefaultFontHandle(), String ) ;
+}
+
+// 文字列をマスクスクリーンに描画する
+extern int DrawStringMask_WCHAR_T( int x, int y, int Flag, const wchar_t *String )
+{
+	return DrawStringMaskToHandle_WCHAR_T( x, y, Flag, NS_GetDefaultFontHandle(), String ) ;
 }
 
 #endif // DX_NON_FONT
@@ -871,307 +1530,17 @@ extern int NS_GetUseMaskScreenFlag( void )
 }
 
 // マスクスクリーンを復旧させる
-extern int ReCreateMaskSurface( void )
+extern int Mask_ReCreateSurface( void )
 {
 	if( MASKD.InitializeFlag == FALSE )
 		return -1 ;
 
 	// メインのマスクサーフェスを作成する
-	CreateMaskScreenFunction( MASKD.CreateMaskFlag, GBASE.DrawSizeX, GBASE.DrawSizeY ) ;
+	Mask_CreateScreenFunction( MASKD.CreateMaskFlag, GSYS.DrawSetting.DrawSizeX, GSYS.DrawSetting.DrawSizeY ) ;
 
 	// もしマスク使用フラグが立っていたらマスクを有効にする作業を行う
 	if( MASKD.MaskUseFlag )
 		NS_SetUseMaskScreenFlag( TRUE ) ;
-
-	// 終了
-	return 0 ;
-}
-
-// マスクの作成
-extern	int CreateMaskOn2D( int DrawPointX, int DrawPointY ,int DestWidth, int DestHeight, void *DestBufP, int DestPitch, int DestBitDepth, 
-					   int SrcWidth, int SrcHeight, void *SrcData )
-{
-	int SrcPitch ;
-	BYTE *DestP, *SrcDataTemp ;
-	BYTE *StartSrcPointY ;
-	DWORD StartSrcPointX ;
-	int TempHeight ;
-	int PixelByte ;
-	int StartSrcWidth, StartSrcHeight ;
-
-	// 転送準備
-	PixelByte = DestBitDepth / 8 ;
-	SrcPitch = SrcWidth ;
-	DestP = ( BYTE * )DestBufP + DrawPointX * PixelByte + DrawPointY * DestPitch ;
-	SrcDataTemp = ( BYTE * )SrcData ;
-	DestPitch -= DestBitDepth / 8 * DestWidth ;
-
-	StartSrcPointY = ( BYTE * )SrcData + ( DrawPointY % SrcHeight ) * SrcWidth ; 
-	StartSrcPointX = DrawPointX % SrcWidth ;
-	StartSrcWidth = SrcWidth - DrawPointX % SrcWidth ;
-	StartSrcHeight = SrcHeight - DrawPointY % SrcHeight ; 
-
-	// 転送処理
-#ifdef DX_NON_INLINE_ASM
-	int i ;
-	DWORD TempWidth ;
-	BYTE *SrcPoint, *SrcPointX ;
-
-	TempHeight = StartSrcHeight ;
-	SrcPointX = StartSrcPointY ;
-	switch( DestBitDepth )
-	{
-	case 8 :
-		do
-		{
-			i = DestWidth ;
-			TempWidth = StartSrcWidth ;
-			SrcPoint = SrcPointX + StartSrcPointX ;
-			do
-			{
-				*DestP = *SrcPoint ;
-				DestP ++ ;
-				SrcPoint ++ ;
-
-				if( -- TempWidth == 0 )
-				{
-					SrcPoint = SrcPointX ;
-					TempWidth = SrcWidth ;
-				}
-			}while( -- i != 0 ) ;
-
-			DestP += DestPitch ;
-			if( -- TempHeight == 0 )
-			{
-				SrcPointX = ( BYTE * )SrcData ;
-				TempHeight = SrcHeight ;
-			}
-			else
-			{
-				SrcPointX += SrcPitch ;
-			}
-		}while( -- DestHeight != 0 ) ;
-		break ;
-
-	case 16 :
-		do
-		{
-			i = DestWidth ;
-			TempWidth = StartSrcWidth ;
-			SrcPoint = SrcPointX + StartSrcPointX ;
-			do
-			{
-				DestP[ 0 ] = *SrcPoint ;
-				DestP[ 1 ] = *SrcPoint ;
-				DestP += 2 ;
-				SrcPoint ++ ;
-
-				if( -- TempWidth == 0 )
-				{
-					SrcPoint = SrcPointX ;
-					TempWidth = SrcWidth ;
-				}
-			}while( -- i != 0 ) ;
-
-			DestP += DestPitch ;
-			if( -- TempHeight == 0 )
-			{
-				SrcPointX = ( BYTE * )SrcData ;
-				TempHeight = SrcHeight ;
-			}
-			else
-			{
-				SrcPointX += SrcPitch ;
-			}
-		}while( -- DestHeight != 0 ) ;
-		break ;
-
-	case 32 :
-		do
-		{
-			i = DestWidth ;
-			TempWidth = StartSrcWidth ;
-			SrcPoint = SrcPointX + StartSrcPointX ;
-			do
-			{
-				*( ( DWORD * )DestP ) = *SrcPoint | ( *SrcPoint << 8 ) | ( *SrcPoint << 16 ) ;
-				DestP += 4 ;
-				SrcPoint ++ ;
-
-				if( -- TempWidth == 0 )
-				{
-					SrcPoint = SrcPointX ;
-					TempWidth = SrcWidth ;
-				}
-			}while( -- i != 0 ) ;
-
-			DestP += DestPitch ;
-			if( -- TempHeight == 0 )
-			{
-				SrcPointX = ( BYTE * )SrcData ;
-				TempHeight = SrcHeight ;
-			}
-			else
-			{
-				SrcPointX += SrcPitch ;
-			}
-		}while( -- DestHeight != 0 ) ;
-		break ;
-	}
-#else
-	switch( DestBitDepth ) 
-	{
-	case 8 :
-		__asm{
-			PUSHA
-			PUSHF
-			CLD
-			MOV		EDI, DestP
-			MOV		EAX, StartSrcHeight
-			MOV		TempHeight, EAX
-			MOV		ESI, StartSrcPointY
-			ADD		ESI, StartSrcPointX
-			MOV		EDX, StartSrcPointY
-			JMP		LOOP84_a
-		LOOP81_a:
-			MOV		ESI, SrcData
-			MOV		EDX, ESI
-			ADD		ESI, StartSrcPointX
-			MOV		EAX, SrcHeight
-			MOV		TempHeight, EAX
-		LOOP84_a:
-			MOV		EBX, DestWidth
-			MOV		ECX, StartSrcWidth
-			JMP		LOOP83_a
-		LOOP82_a:
-			MOV		ESI, EDX
-			MOV		ECX, SrcWidth
-		LOOP83_a:
-			MOVSB
-			DEC		EBX
-			JZ		R81_a
-			LOOP	LOOP83_a
-			JMP		LOOP82_a
-		R81_a:
-			ADD		EDX, SrcPitch
-			MOV		ESI, EDX
-			ADD		ESI, StartSrcPointX
-			ADD		EDI, DestPitch
-			DEC		DestHeight
-			JZ		END8_a
-			DEC		TempHeight
-			JNZ		LOOP84_a
-			JMP		LOOP81_a
-		END8_a:
-			POPF
-			POPA
-		}
-		break ;
-
-	case 16 :
-		__asm{
-			PUSHA
-			PUSHF
-			CLD
-			MOV		EDI, DestP
-			MOV		EAX, StartSrcHeight
-			MOV		TempHeight, EAX
-			MOV		ESI, StartSrcPointY
-			ADD		ESI, StartSrcPointX
-			MOV		EDX, StartSrcPointY
-			JMP		LOOP164_a
-		LOOP161_a:
-			MOV		ESI, SrcData
-			MOV		EDX, ESI
-			ADD		ESI, StartSrcPointX
-			MOV		EAX, SrcHeight
-			MOV		TempHeight, EAX
-		LOOP164_a:
-			MOV		EBX, DestWidth
-			MOV		ECX, StartSrcWidth
-			JMP		LOOP163_a
-		LOOP162_a:
-			MOV		ESI, EDX
-			MOV		ECX, SrcWidth
-		LOOP163_a:
-			MOV		AL, [ESI]
-			MOV		AH, AL
-			STOSW
-			INC		ESI
-			DEC		EBX
-			JZ		R161_a
-			LOOP	LOOP163_a
-			JMP		LOOP162_a
-		R161_a:
-			ADD		EDX, SrcPitch
-			MOV		ESI, EDX
-			ADD		ESI, StartSrcPointX
-			ADD		EDI, DestPitch
-			DEC		DestHeight
-			JZ		END16_a
-			DEC		TempHeight
-			JNZ		LOOP164_a
-			JMP		LOOP161_a
-		END16_a:
-			POPF
-			POPA
-		}
-		break ;
-
-	case 32 :
-		__asm{
-			PUSHA
-			PUSHF
-			CLD
-			MOV		EDI, DestP
-			MOV		EAX, StartSrcHeight
-			MOV		TempHeight, EAX
-			MOV		ESI, StartSrcPointY
-			ADD		ESI, StartSrcPointX
-			MOV		EDX, StartSrcPointY
-			JMP		LOOP324_a
-		LOOP321_a:
-			MOV		ESI, SrcData
-			MOV		EDX, ESI
-			ADD		ESI, StartSrcPointX
-			MOV		EAX, SrcHeight
-			MOV		TempHeight, EAX
-		LOOP324_a:
-			MOV		EBX, DestWidth
-			MOV		ECX, StartSrcWidth
-			JMP		LOOP323_a
-		LOOP322_a:
-			MOV		ESI, EDX
-			MOV		ECX, SrcWidth
-		LOOP323_a:
-			XOR		EAX, EAX
-			MOV		AL, [ESI]
-			MOV		AH, AL
-			SHL		EAX, 8
-			MOV		AL, AH
-			STOSD
-			INC		ESI
-			DEC		EBX
-			JZ		R321_a
-			LOOP	LOOP323_a
-			JMP		LOOP322_a
-		R321_a:
-			ADD		EDX, SrcPitch
-			MOV		ESI, EDX
-			ADD		ESI, StartSrcPointX
-			ADD		EDI, DestPitch
-			DEC		DestHeight
-			JZ		END32_a
-			DEC		TempHeight
-			JNZ		LOOP324_a
-			JMP		LOOP321_a
-		END32_a:
-			POPF
-			POPA
-		}
-		break ;
-	}
-#endif
 
 	// 終了
 	return 0 ;
@@ -1195,7 +1564,7 @@ extern int DrawMaskToDirectData_Base( int DrawPointX, int DrawPointY, void *Dest
 	if( MASKD.MaskBuffer == NULL ) return 0 ;
 
 	SETRECT( Rect, DrawPointX, DrawPointY, DrawPointX + SrcWidth, DrawPointY + SrcHeight ) ;
-	RectClipping( &Rect, &GBASE.DrawArea ) ;
+	RectClipping( &Rect, &GSYS.DrawSetting.DrawArea ) ;
 	if( Rect.left == Rect.right || Rect.top == Rect.bottom ) return 0 ;
 	Rect.left -= DrawPointX ;
 	Rect.right -= DrawPointX ;
@@ -1213,7 +1582,7 @@ extern int DrawMaskToDirectData_Base( int DrawPointX, int DrawPointY, void *Dest
 	DestP = ( BYTE * )DestBufP + DrawPointX + DrawPointY * DestPitch ;
 	DestAddPoint = DestPitch - BltWidth ;
 
-	TransColor = TransMode == DX_MASKTRANS_WHITE ? 0xff : 0 ;
+	TransColor = ( BYTE )( TransMode == DX_MASKTRANS_WHITE ? 0xff : 0 ) ;
 
 	// 透過色があるかどうかで処理を分岐
 	if( TransMode == DX_MASKTRANS_NONE )
@@ -1318,8 +1687,7 @@ extern int NS_DrawFillMaskToDirectData( int x1, int y1, int x2, int y2,  int Wid
 	if( MASKD.InitializeFlag == FALSE )
 		return -1 ;
 
-	if( WinData.ActiveFlag == FALSE )
-		DxActiveWait() ;
+	CheckActiveState() ;
 
 	// 空のマスクを作成
 	if( ( MaskHandle = NS_MakeMask( Width, Height ) ) == -1 ) return -1 ;
@@ -1350,8 +1718,7 @@ extern int NS_SetDataToMask( int Width, int Height, const void *MaskData, int Ma
 	
 	if( Mask->MaskWidth != Width || Mask->MaskHeight != Height ) return -1 ;
 
-	if( WinData.ActiveFlag == FALSE )
-		DxActiveWait() ;
+	CheckActiveState() ;
 
 	// マスクデータがなかった場合は処理を終了
 	if( MaskData == NULL ) return 0 ;
@@ -1461,15 +1828,14 @@ extern int NS_DeleteMaskScreen( void )
 	if( MASKD.InitializeFlag == FALSE )
 		return -1 ;
 
-//	if( WinData.ActiveFlag == FALSE )
-//		DxActiveWait() ;
+//	CheckActiveState() ;
 
 	// もしマスク使用フラグが立っていたらマスクを無効にする作業を行う
 	if( MASKD.MaskUseFlag )
 		NS_SetUseMaskScreenFlag( FALSE ) ;
 
 	// マスク用サーフェスを削除する
-	ReleaseMaskSurface() ;
+	Mask_ReleaseSurface() ;
 
 	// マスクサーフェスが作成されているかフラグを倒す
 	MASKD.CreateMaskFlag = FALSE ;
@@ -1492,19 +1858,14 @@ extern int NS_DeleteMaskScreen( void )
 
 
 
-// DirectX バージョン依存を含む関数
-
 // マスクスクリーンを作成する関数
-extern int CreateMaskScreenFunction( int MaskSurfaceFlag, int Width, int Height )
+extern int Mask_CreateScreenFunction( int MaskSurfaceFlag, int Width, int Height )
 {
-	bool OldEnable = false ;
-	BYTE *MaskBufferOld ;
-	int MaskBufferPitchOld ;
-	int MaskBufferSizeXOld ;
-	int MaskBufferSizeYOld ;
-	D_IDirect3DTexture9 *MaskImageTextureOld ;
-	D_IDirect3DTexture9 *MaskScreenTextureOld ;
-	D_IDirect3DSurface9 *MaskScreenSurfaceOld ;
+	bool   OldEnable = false ;
+	BYTE  *MaskBufferOld = NULL ;
+	int    MaskBufferPitchOld = 0 ;
+	int    MaskBufferSizeXOld = 0 ;
+	int    MaskBufferSizeYOld = 0 ;
 	MEMIMG MaskDrawMemImgOld ;
 
 	if( MaskSurfaceFlag == FALSE ) return 0 ;
@@ -1522,24 +1883,18 @@ extern int CreateMaskScreenFunction( int MaskSurfaceFlag, int Width, int Height 
 	{
 		OldEnable = true ;
 
-		MaskBufferOld = MASKD.MaskBuffer ;
-		MASKD.MaskBuffer = NULL ;
+		MaskBufferOld      = MASKD.MaskBuffer ;
+		MASKD.MaskBuffer   = NULL ;
 		MaskBufferPitchOld = MASKD.MaskBufferPitch ;
 
 		MaskBufferSizeXOld = MASKD.MaskBufferSizeX ;
 		MaskBufferSizeYOld = MASKD.MaskBufferSizeY ;
 
-		MaskImageTextureOld = MASKD.MaskImageTexture ;
-		MASKD.MaskImageTexture = NULL ;
-
-		MaskScreenTextureOld = MASKD.MaskScreenTexture ;
-		MASKD.MaskScreenTexture = NULL ;
-
-		MaskScreenSurfaceOld = MASKD.MaskScreenSurface ;
-		MASKD.MaskScreenSurface = NULL ;
-
-		MaskDrawMemImgOld = MASKD.MaskDrawMemImg ;
+		MaskDrawMemImgOld  = MASKD.MaskDrawMemImg ;
 		_MEMSET( &MASKD.MaskDrawMemImg, 0, sizeof( MEMIMG ) ) ;
+
+		// 環境依存処理
+		Mask_CreateScreenFunction_Timing0_PF() ;
 	}
 
 	MASKD.MaskBufferSizeX = Width ;
@@ -1552,69 +1907,18 @@ extern int CreateMaskScreenFunction( int MaskSurfaceFlag, int Width, int Height 
 		MASKD.MaskBufferPitch = ( Width + 3 ) / 4 * 4 ;
 
 		// メモリの確保
-		MASKD.MaskBuffer = ( BYTE * )DXALLOC( MASKD.MaskBufferPitch * Height ) ;
+		MASKD.MaskBuffer = ( BYTE * )DXALLOC( ( size_t )( MASKD.MaskBufferPitch * Height ) ) ;
 
 		// マスクのクリア
-		_MEMSET( MASKD.MaskBuffer, 0, MASKD.MaskBufferPitch * Height ) ;
+		_MEMSET( MASKD.MaskBuffer, 0, ( size_t )( MASKD.MaskBufferPitch * Height ) ) ;
 	}
 
-	int w, h ;
-
 	// ハードウエアの機能を使用する場合はテクスチャも作成する
-	if( GRA2.ValidHardWare == TRUE )
+	if( GSYS.Setting.ValidHardware == TRUE )
 	{
-		// カラーバッファかアルファバッファが作成不可能な場合はえエラー
-		if( GRH.MaskColorFormat == D_D3DFMT_UNKNOWN )
+		if( Mask_CreateScreenFunction_Timing1_PF( Width, Height ) < 0 )
 		{
-			return DxLib_Error( DXSTRING( _T( "マスク描画用カラーバッファで使用できるテクスチャフォーマットがありませんでした" ) ) ) ;
-		}
-
-		if( GRH.MaskAlphaFormat == D_D3DFMT_UNKNOWN )
-		{
-			return DxLib_Error( DXSTRING( _T( "マスク描画用アルファチャンネルバッファで使用できるテクスチャフォーマットがありませんでした" ) ) ) ;
-		}
-
-		// 画面サイズが収まる 2 のn乗の値を割り出す
-		for( w = 1 ; w < Width  ; w <<= 1 ){}
-		for( h = 1 ; h < Height ; h <<= 1 ){}
-		MASKD.MaskTextureSizeX = w ;
-		MASKD.MaskTextureSizeY = h ;
-
-		// マスク用イメージテクスチャの作成
-		if( MASKD.MaskImageTexture == NULL )
-		{
-			if( GraphicsDevice_CreateTexture( w, h, 1, D_D3DUSAGE_DYNAMIC, GRH.MaskAlphaFormat, D_D3DPOOL_DEFAULT, &MASKD.MaskImageTexture, NULL ) != D_D3D_OK )
-				return DxLib_Error( DXSTRING( _T( "マスク用イメージテクスチャの作成に失敗しました" ) ) ) ;
-
-			// マスク用イメージテクスチャの初期化
-			{
-				D_D3DLOCKED_RECT LockRect ;
-				int i, Width ;
-				BYTE *Dest ;
-
-				if( MASKD.MaskImageTexture->LockRect( 0, &LockRect, NULL, 0 ) == D_D3D_OK )
-				{
-					Dest = ( BYTE * )LockRect.pBits ;
-					Width = GetD3DFormatColorData( GRH.MaskAlphaFormat )->PixelByte * GRA2.MainScreenSizeX ;
-					for( i = 0 ; i < GRA2.MainScreenSizeY ; i ++, Dest += LockRect.Pitch )
-						_MEMSET( Dest, 0, Width ) ;
-
-					MASKD.MaskImageTexture->UnlockRect( 0 ) ;
-				}
-			}
-		}
-
-		// マスク用スクリーンテクスチャの作成
-		if( MASKD.MaskScreenTexture == NULL )
-		{
-			if( GraphicsDevice_CreateTexture( w, h, 1, D_D3DUSAGE_RENDERTARGET, GRH.ScreenFormat, D_D3DPOOL_DEFAULT, &MASKD.MaskScreenTexture, NULL ) != D_D3D_OK )
-				return DxLib_Error( DXSTRING( _T( "マスク用スクリーンテクスチャの作成に失敗しました" ) ) ) ;
-		}
-
-		// マスク用スクリーンサーフェスの取得
-		if( MASKD.MaskScreenTexture && MASKD.MaskScreenSurface == NULL )
-		{
-			MASKD.MaskScreenTexture->GetSurfaceLevel( 0, &MASKD.MaskScreenSurface ) ;
+			return -1 ;
 		}
 	}
 	else
@@ -1624,7 +1928,7 @@ extern int CreateMaskScreenFunction( int MaskSurfaceFlag, int Width, int Height 
 		{
 			// MEMIMG を使用する場合は画面と同じ大きさの MEMIMG を作成する
 			if( MakeMemImgScreen( &MASKD.MaskDrawMemImg, Width, Height, -1 ) < 0 )
-				return DxLib_Error( DXSTRING( _T( "マスク用 MEMIMG の作成に失敗しました" ) ) ) ;
+				return DxLib_ErrorUTF16LE( "\xde\x30\xb9\x30\xaf\x30\x28\x75\x20\x00\x4d\x00\x45\x00\x4d\x00\x49\x00\x4d\x00\x47\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"マスク用 MEMIMG の作成に失敗しました" @*/ ) ;
 
 			MASKD.ValidMaskDrawMemImg = TRUE ;
 		}
@@ -1637,44 +1941,19 @@ extern int CreateMaskScreenFunction( int MaskSurfaceFlag, int Width, int Height 
 
 		// マスクバッファの内容をコピー
 		for( i = 0 ; i < MaskBufferSizeYOld ; i ++ )
-			_MEMCPY( MASKD.MaskBuffer + MASKD.MaskBufferPitch * i, MaskBufferOld + MaskBufferPitchOld * i, MaskBufferSizeXOld ) ;
+		{
+			_MEMCPY( MASKD.MaskBuffer + MASKD.MaskBufferPitch * i, MaskBufferOld + MaskBufferPitchOld * i, ( size_t )MaskBufferSizeXOld ) ;
+		}
 		DXFREE( MaskBufferOld ) ;
 		MaskBufferOld = NULL ;
 
 		// ハードウエアの機能を使用する場合はテクスチャも作成する
-		if( GRA2.ValidHardWare == TRUE )
+		if( GSYS.Setting.ValidHardware == TRUE )
 		{
-			RECT UpdateRect ;
-
-			// マスク用イメージテクスチャに内容を転送
-			UpdateRect.left = 0 ;
-			UpdateRect.top = 0 ;
-			UpdateRect.right = MaskBufferSizeXOld ;
-			UpdateRect.bottom = MaskBufferSizeYOld ;
-			UpdateMaskImageTexture( UpdateRect ) ;
-
-			MaskImageTextureOld->Release() ;
-			MaskImageTextureOld = NULL ;
-
-			// マスク用スクリーンテクスチャに今までの内容を転送
-			GraphicsDevice_StretchRect(
-				MaskScreenSurfaceOld,    &UpdateRect,
-				MASKD.MaskScreenSurface, &UpdateRect, D_D3DTEXF_NONE ) ;
-
-			// レンダーターゲットにされていたら変更する
-			for( i = 0 ; i < DX_RENDERTARGET_COUNT ; i ++ )
+			if( Mask_CreateScreenFunction_Timing2_PF( MaskBufferSizeXOld, MaskBufferSizeYOld ) < 0 )
 			{
-				if( GRH.TargetSurface[ i ] == MaskScreenSurfaceOld )
-				{
-					SetRenderTargetHardware( MASKD.MaskScreenSurface, i ) ;
-				}
+				return -1 ;
 			}
-
-			MaskScreenSurfaceOld->Release() ;
-			MaskScreenSurfaceOld = NULL ;
-
-			MaskScreenTextureOld->Release() ;
-			MaskScreenTextureOld = NULL ;
 		}
 		else
 		{
@@ -1689,7 +1968,7 @@ extern int CreateMaskScreenFunction( int MaskSurfaceFlag, int Width, int Height 
 }
 
 // マスクスクリーンを一時削除する
-extern int ReleaseMaskSurface( void )
+extern int Mask_ReleaseSurface( void )
 {
 	// マスク保存用バッファの解放
 	if( MASKD.MaskBuffer != NULL )
@@ -1705,26 +1984,8 @@ extern int ReleaseMaskSurface( void )
 		MASKD.ValidMaskDrawMemImg = FALSE ;
 	}
 
-	// マスクイメージ用テクスチャの解放
-	if( MASKD.MaskImageTexture )
-	{
-		MASKD.MaskImageTexture->Release() ;
-		MASKD.MaskImageTexture = NULL ;
-	}
-
-	// マスクスクリーンサーフェスの解放
-	if( MASKD.MaskScreenSurface )
-	{
-		MASKD.MaskScreenSurface->Release() ;
-		MASKD.MaskScreenSurface = NULL ;
-	}
-
-	// マスクスクリーンテクスチャの解放
-	if( MASKD.MaskScreenTexture )
-	{
-		MASKD.MaskScreenTexture->Release() ;
-		MASKD.MaskScreenTexture = NULL ;
-	}
+	// 環境依存処理
+	Mask_ReleaseSurface_PF() ;
 
 	// 終了
 	return 0 ;
@@ -1733,6 +1994,8 @@ extern int ReleaseMaskSurface( void )
 // マスク使用モードを変更
 extern int NS_SetUseMaskScreenFlag( int ValidFlag )
 {
+	IMAGEDATA *Image ;
+
 	if( MASKD.InitializeFlag == FALSE )
 		return -1 ;
 
@@ -1749,52 +2012,13 @@ extern int NS_SetUseMaskScreenFlag( int ValidFlag )
 	MASKD.MaskUseFlag = ValidFlag ;
 	MASKD.MaskValidFlag = MASKD.MaskUseFlag && MASKD.CreateMaskFlag ;
 
-	IMAGEDATA2 *Image2 ;
-
-	// 描画先の画像データアドレスを取得する
-	Image2 = GetGraphData2( GBASE.TargetScreen[ 0 ] ) ;
-
 	// ハードウエアアクセラレータが有効かどうかで処理を分岐
-	if( GRA2.ValidHardWare )
+	if( GSYS.Setting.ValidHardware )
 	{
 		// ハードウエアアクセラレータが有効な場合
 
-		// 溜まった頂点データを描画する
-		RenderVertexHardware() ;
-
-		// 描画先を変更する
-
-		// マスクサーフェスが存在していて且つ有効な場合はマスクサーフェスを描画対称にする
-		if( MASKD.MaskValidFlag && MASKD.MaskScreenSurface )
-		{
-			SetRenderTargetHardware( MASKD.MaskScreenSurface ) ;
-		}
-		else
-		// 描画可能画像が有効な場合は描画可能画像を描画対象にする
-		if( Image2 )
-		{
-			if( Image2->Hard.Draw[ 0 ].Tex->RenderTargetSurface )
-			{
-				SetRenderTargetHardware( Image2->Hard.Draw[ 0 ].Tex->RenderTargetSurface ) ;
-			}
-			else
-			{
-				SetRenderTargetHardware( Image2->Hard.Draw[ 0 ].Tex->Surface[ GBASE.TargetScreenSurface[ 0 ] ] ) ;
-			}
-		}
-		else
-		{
-			// それ以外の場合はサブバックバッファが有効な場合はサブバックバッファを描画対称にする
-			SetRenderTargetHardware( GRH.SubBackBufferSurface ? GRH.SubBackBufferSurface : GRH.BackBufferSurface ) ;
-		}
-
-		// 使用するＺバッファのセットアップ
-		SetupUseZBuffer() ;
-
-		// ビューポートを元に戻す
-		GRH.InitializeFlag = TRUE ;
-		SetViewportHardwareEasy( GBASE.DrawArea.left, GBASE.DrawArea.top, GBASE.DrawArea.right, GBASE.DrawArea.bottom ) ;
-		GRH.InitializeFlag = FALSE ;
+		// 環境依存処理
+		Mask_SetUseMaskScreenFlag_PF() ;
 	}
 	else
 	{
@@ -1804,12 +2028,15 @@ extern int NS_SetUseMaskScreenFlag( int ValidFlag )
 		if( MASKD.MaskValidFlag )
 		{
 			// マスクが有効な場合はマスクを描画先にする
-			GRS.TargetMemImg = &MASKD.MaskDrawMemImg ;
+			GSYS.SoftRender.TargetMemImg = &MASKD.MaskDrawMemImg ;
 		}
 		else
 		{
+			// 描画先の画像データアドレスを取得する
+			Image = Graphics_Image_GetData( GSYS.DrawSetting.TargetScreen[ 0 ] ) ;
+
 			// それ以外の場合は描画可能画像かメインバッファ
-			GRS.TargetMemImg = Image2 ? &Image2->Soft.MemImg : &GRS.MainBufferMemImg ;
+			GSYS.SoftRender.TargetMemImg = Image ? &Image->Soft.MemImg : &GSYS.SoftRender.MainBufferMemImg ;
 		}
 	}
 
@@ -1817,11 +2044,9 @@ extern int NS_SetUseMaskScreenFlag( int ValidFlag )
 	return 0 ;
 }
 
-static 	DX_DIRECT3DSURFACE9 *UseBackupSurface, *DestTargetSurface ;
-
 // マスクを使用した描画の前に呼ぶ関数
 // ( ついでにサブバッファを使用した描画エリア機能を使用している場合の処理もいれてしまっているよ )
-extern int MaskDrawBeginFunction( RECT Rect )
+extern int Mask_DrawBeginFunction( RECT Rect )
 {
 	// フルスクリーンマスク処理を行っている場合はマスク描画の結果を反映させる
 	MASK_FULLSCREEN_MASKUPDATE
@@ -1829,56 +2054,30 @@ extern int MaskDrawBeginFunction( RECT Rect )
 	MASKD.MaskBeginFunctionCount ++ ;
 	if( MASKD.MaskBeginFunctionCount == 1 )
 	{
-		IMAGEDATA2 *Image2 ;
-
-		// 描画先の画像データアドレスを取得する
-		Image2 = GetGraphData2( GBASE.TargetScreen[ 0 ] ) ;
-
 		// 描画エリアでクリッピング
-		RectClipping( &Rect, &GBASE.DrawArea ) ;
+		RectClipping( &Rect, &GSYS.DrawSetting.DrawArea ) ;
 
 		// ハードウエアを使用するかどうかで処理を分岐
-		if( GRA2.ValidHardWare )
+		if( GSYS.Setting.ValidHardware )
 		{
 			// ハードウエアを使用する場合
-
-			// マスクを使用しているときのみ特別な処理をする
-			if( MASKD.MaskValidFlag && MASKD.MaskScreenSurface )
-			{
-				// マスクを使用している場合は描画先をマスクスクリーンにする
-				UseBackupSurface = MASKD.MaskScreenSurface ;
-
-				// 最終出力先の決定
-				
-				// 描画可能画像が描画先の場合はそれを、
-				// それ以外の場合はサブバックバッファを
-				// 使用している場合はサブバックバッファを、
-				// そうではない場合はバックバッファを出力先にする
-				if( Image2 )
-				{
-					DestTargetSurface = Image2->Orig->Hard.Tex[ 0 ].Surface[ GBASE.TargetScreenSurface[ 0 ] ] ;
-				}
-				else
-				{
-					DestTargetSurface = GRH.SubBackBufferSurface ? GRH.SubBackBufferSurface : GRH.BackBufferSurface ;
-				}
-
-				// 最終出力先からマスクスクリーンに現在の描画状況をコピーする
-				GraphicsDevice_StretchRect(
-					DestTargetSurface,       &Rect,
-					MASKD.MaskScreenSurface, &Rect, D_D3DTEXF_NONE ) ; 
-			}
+			Mask_DrawBeginFunction_PF( &Rect ) ;
 		}
 		else
 		{
+			IMAGEDATA *Image ;
+
 			// ハードウエアを使用しない場合
+
+			// 描画先の画像データアドレスを取得する
+			Image = Graphics_Image_GetData( GSYS.DrawSetting.TargetScreen[ 0 ] ) ;
 
 			// 描画対象 MEMIMG からマスク処理用 MEMIMG にイメージを転送
 			if( MASKD.MaskValidFlag )
 			{
 				BltMemImg(
 					&MASKD.MaskDrawMemImg, 
-					Image2 ? &Image2->Soft.MemImg : &GRS.MainBufferMemImg,
+					Image ? &Image->Soft.MemImg : &GSYS.SoftRender.MainBufferMemImg,
 					&Rect,
 					Rect.left,
 					Rect.top ) ;
@@ -1892,191 +2091,26 @@ extern int MaskDrawBeginFunction( RECT Rect )
 
 // マスクを使用した描画の後に呼ぶ関数
 // ( ついでにサブバッファを使用した描画エリア機能を使用している場合の処理もいれてしまっているよ )
-extern int MaskDrawAfterFunction( RECT Rect )
+extern int Mask_DrawAfterFunction( RECT Rect )
 {
 	MASKD.MaskBeginFunctionCount -- ;
 	if( MASKD.MaskBeginFunctionCount == 0 )
 	{
-		IMAGEDATA2 *Image2 ;
-
-		// 描画先の画像データアドレスを取得する
-		Image2 = GetGraphData2( GBASE.TargetScreen[ 0 ] ) ;
-
 		// 描画エリアでクリッピング
-		RectClipping( &Rect, &GBASE.DrawArea ) ;
+		RectClipping( &Rect, &GSYS.DrawSetting.DrawArea ) ;
 		if( Rect.left == Rect.right || Rect.top == Rect.bottom ) return 0 ;
 
 		// Direct3D を使用しているかどうかで処理を分岐
 		// ハードウエアを使用するかどうかで処理を分岐
-		if( GRA2.ValidHardWare )
+		if( GSYS.Setting.ValidHardware )
 		{
 			// ハードウエアを使用する場合
-
-			// マスクを使用している場合としない場合で処理を分岐
-			if( MASKD.MaskValidFlag && MASKD.MaskScreenSurface )
-			{
-#if 1
-				int UseZBufferFlag ;
-				VERTEX_2D Vert[ 4 ] ;
-				DIRECT3DBLENDINFO BlendInfo ;
-
-				// 描画先を変更
-				SetRenderTargetHardware( DestTargetSurface ) ;
-				BeginScene() ;
-
-				// Ｚバッファを使用しない設定にする
-				UseZBufferFlag = GRH.EnableZBufferFlag ;
-				D_SetUseZBufferFlag( FALSE ) ;
-
-				// シェーダーがセットされていたらはずす
-				if( GRH.SetVS )
-				{
-					GraphicsDevice_SetVertexShader( NULL ) ;
-					GRH.SetVS = NULL ;
-					GRH.SetVD = NULL ;
-					GRH.SetFVF = 0 ;
-				}
-				if( GRH.SetPS )
-				{
-					GraphicsDevice_SetPixelShader( NULL ) ;
-					GRH.SetPS = NULL ;
-				}
-				GRH.SetIB = NULL ;
-				GRH.SetVB = NULL ;
-
-				// ビューポートを元に戻す
-				GRH.InitializeFlag = TRUE ;
-				SetViewportHardwareEasy( GBASE.DrawArea.left, GBASE.DrawArea.top, GBASE.DrawArea.right, GBASE.DrawArea.bottom ) ;
-				GRH.InitializeFlag = FALSE ;
-
-				// マスクアルファチャンネルとマスクカラーバッファを融合して描画
-				BlendInfo.AlphaTestEnable = TRUE ;
-				BlendInfo.AlphaRef = 0 ;
-		//		BlendInfo.AlphaFunc = MASKD.MaskReverseEffectFlag ? D_D3DCMP_GREATER : D_D3DCMP_LESS ;
-				BlendInfo.AlphaFunc = MASKD.MaskReverseEffectFlag ? D_D3DCMP_NOTEQUAL : D_D3DCMP_EQUAL ;
-				BlendInfo.AlphaBlendEnable = FALSE ;
-				BlendInfo.FactorColor = 0xffffffff ;
-				BlendInfo.SrcBlend = -1 ;
-				BlendInfo.DestBlend = -1 ;
-				BlendInfo.UseTextureStageNum = 3 ;
-
-				BlendInfo.SeparateAlphaBlendEnable = FALSE ;
-				BlendInfo.SrcBlendAlpha = -1 ;
-				BlendInfo.DestBlendAlpha = -1 ;
-				BlendInfo.BlendOpAlpha = -1 ;
-
-				BlendInfo.TextureStageInfo[ 0 ].ResultTempARG = -1 ;
-				BlendInfo.TextureStageInfo[ 0 ].Texture = ( void * )MASKD.MaskScreenTexture ;
-				BlendInfo.TextureStageInfo[ 0 ].TextureCoordIndex = 0 ;
-				BlendInfo.TextureStageInfo[ 0 ].AlphaARG1 = D_D3DTA_CURRENT ;
-				BlendInfo.TextureStageInfo[ 0 ].AlphaARG2 = -1 ;
-				BlendInfo.TextureStageInfo[ 0 ].AlphaOP = D_D3DTOP_SELECTARG1 ;
-				BlendInfo.TextureStageInfo[ 0 ].ColorARG1 = D_D3DTA_TEXTURE ;
-				BlendInfo.TextureStageInfo[ 0 ].ColorARG2 = -1 ;
-				BlendInfo.TextureStageInfo[ 0 ].ColorOP = D_D3DTOP_SELECTARG1 ;
-
-				BlendInfo.TextureStageInfo[ 1 ].ResultTempARG = -1 ;
-				BlendInfo.TextureStageInfo[ 1 ].Texture = ( void * )MASKD.MaskImageTexture ;
-				BlendInfo.TextureStageInfo[ 1 ].TextureCoordIndex = 0 ;
-				BlendInfo.TextureStageInfo[ 1 ].AlphaARG1 = D_D3DTA_TEXTURE ;
-				BlendInfo.TextureStageInfo[ 1 ].AlphaARG2 = -1 ;
-				BlendInfo.TextureStageInfo[ 1 ].AlphaOP = D_D3DTOP_SELECTARG1 ;
-				BlendInfo.TextureStageInfo[ 1 ].ColorARG1 = D_D3DTA_CURRENT ;
-				BlendInfo.TextureStageInfo[ 1 ].ColorARG2 = -1 ;
-				BlendInfo.TextureStageInfo[ 1 ].ColorOP = D_D3DTOP_SELECTARG1 ;
-
-				BlendInfo.TextureStageInfo[ 2 ].ResultTempARG = -1 ;
-				BlendInfo.TextureStageInfo[ 2 ].Texture   = NULL ;
-				BlendInfo.TextureStageInfo[ 2 ].TextureCoordIndex = 0 ;
-				BlendInfo.TextureStageInfo[ 2 ].ColorARG1 = D_D3DTA_TEXTURE ;
-				BlendInfo.TextureStageInfo[ 2 ].ColorARG2 = D_D3DTA_DIFFUSE ;
-				BlendInfo.TextureStageInfo[ 2 ].ColorOP   = D_D3DTOP_DISABLE ;
-				BlendInfo.TextureStageInfo[ 2 ].AlphaARG1 = D_D3DTA_TEXTURE ;
-				BlendInfo.TextureStageInfo[ 2 ].AlphaARG2 = D_D3DTA_DIFFUSE ;
-				BlendInfo.TextureStageInfo[ 2 ].AlphaOP   = D_D3DTOP_DISABLE ;
-
-				// ブレンド情報の変更
-				D_SetUserBlendInfo( &BlendInfo, FALSE, FALSE ) ;
-
-				// シェーダーを使用する場合はここでピクセルシェーダーを設定する
-				if( GRH.UseShader && GRH.NormalDraw_NotUseShader == FALSE )
-				{
-					GRH.SetPS = GRH.MaskEffectPixelShader ;
-					GraphicsDevice_SetPixelShader( GRH.SetPS ) ;
-					GRH.NormalPS = FALSE ;
-					GRH.DrawPrepAlwaysFlag = TRUE ;
-				}
-
-				// 描画準備
-				BeginScene() ;
-
-				// 頂点の準備
-				Vert[ 2 ].pos.x = Vert[ 0 ].pos.x = ( float )Rect.left   - 0.5f ;
-				Vert[ 1 ].pos.y = Vert[ 0 ].pos.y = ( float )Rect.top    - 0.5f ;
-
-				Vert[ 3 ].pos.x = Vert[ 1 ].pos.x = ( float )Rect.right  - 0.5f ;
-				Vert[ 3 ].pos.y = Vert[ 2 ].pos.y = ( float )Rect.bottom - 0.5f ;
-
-				Vert[ 2 ].u = Vert[ 0 ].u = ( float )Rect.left   / ( float )MASKD.MaskTextureSizeX ;
-				Vert[ 1 ].v = Vert[ 0 ].v = ( float )Rect.top    / ( float )MASKD.MaskTextureSizeY ;
-				Vert[ 3 ].u = Vert[ 1 ].u = ( float )Rect.right  / ( float )MASKD.MaskTextureSizeX ;
-				Vert[ 3 ].v = Vert[ 2 ].v = ( float )Rect.bottom / ( float )MASKD.MaskTextureSizeY ;
-
-				Vert[ 0 ].color =
-				Vert[ 1 ].color =
-				Vert[ 2 ].color =
-				Vert[ 3 ].color = 0xffffffff ;
-
-				Vert[ 0 ].pos.z = 
-				Vert[ 1 ].pos.z = 
-				Vert[ 2 ].pos.z = 
-				Vert[ 3 ].pos.z = 0.0f ;
-
-				Vert[ 0 ].rhw = 
-				Vert[ 1 ].rhw = 
-				Vert[ 2 ].rhw = 
-				Vert[ 3 ].rhw = 1.0f ;
-
-				// 描画
-				SETFVF( VERTEXFVF_2D ) ;
-				GraphicsDevice_DrawPrimitiveUP( D_D3DPT_TRIANGLESTRIP, 2, Vert, sizeof( VERTEX_2D ) ) ;
-				EndScene() ;
-				BeginScene() ;
-
-				// ブレンド情報を元に戻す
-				SetUserBlendInfo( NULL ) ;
-
-				// シェーダーを使用する場合はここでピクセルシェーダーを無効にする
-				if( GRH.UseShader && GRH.NormalDraw_NotUseShader == FALSE )
-				{
-					GRH.SetPS = NULL ;
-					GraphicsDevice_SetPixelShader( GRH.SetPS ) ;
-				}
-
-				// Ｚバッファの設定を元に戻す
-				D_SetUseZBufferFlag( UseZBufferFlag ) ;
-
-#else
-				// 書き出す
-				RenderVertexHardware() ;
-				EndScene() ;
-
-				GraphicsDevice_StretchRect(
-					UseBackupSurface,  &Rect,
-					DestTargetSurface, &Rect, D_D3DTEXF_NONE ) ;
-#endif
-
-				// 描画先をマスクサーフェスにする
-				SetRenderTargetHardware( MASKD.MaskScreenSurface ) ;
-
-				// ビューポートを元に戻す
-				GRH.InitializeFlag = TRUE ;
-				SetViewportHardwareEasy( GBASE.DrawArea.left, GBASE.DrawArea.top, GBASE.DrawArea.right, GBASE.DrawArea.bottom ) ;
-				GRH.InitializeFlag = FALSE ;
-			}
+			Mask_DrawAfterFunction_PF( &Rect ) ;
 		}
 		else
 		{
+			IMAGEDATA *Image ;
+
 			// ハードウエアを使用しない場合
 
 			// マスクが掛かっていない部分を描画先に転送する
@@ -2087,16 +2121,19 @@ extern int MaskDrawAfterFunction( RECT Rect )
 				int DestWidth, DestHeight ;
 				MEMIMG *TargetMemImg ;
 				int PixelByte ;
+
+				// 描画先の画像データアドレスを取得する
+				Image = Graphics_Image_GetData( GSYS.DrawSetting.TargetScreen[ 0 ] ) ;
 				
-				TargetMemImg = Image2 ? &Image2->Soft.MemImg : &GRS.MainBufferMemImg ;
+				TargetMemImg = Image ? &Image->Soft.MemImg : &GSYS.SoftRender.MainBufferMemImg ;
 				PixelByte = TargetMemImg->Base->ColorDataP->PixelByte ;
 
 				DestWidth = Rect.right - Rect.left ;
 				DestHeight = Rect.bottom - Rect.top ;
 
-				MaskAddPitch = MASKD.MaskBufferPitch            - DestWidth ;
-				SrcAddPitch  = MASKD.MaskDrawMemImg.Base->Pitch - PixelByte * DestWidth ;
-				DestAddPitch = TargetMemImg->Base->Pitch        - PixelByte * DestWidth ;
+				MaskAddPitch = MASKD.MaskBufferPitch                     - DestWidth ;
+				SrcAddPitch  = ( int )( MASKD.MaskDrawMemImg.Base->Pitch - PixelByte * DestWidth ) ;
+				DestAddPitch = ( int )( TargetMemImg->Base->Pitch        - PixelByte * DestWidth ) ;
 
 				Mask = ( BYTE * )MASKD.MaskBuffer              + Rect.left             + Rect.top * MASKD.MaskBufferPitch ;
 				Src  = ( BYTE * )MASKD.MaskDrawMemImg.UseImage + Rect.left * PixelByte + Rect.top * MASKD.MaskDrawMemImg.Base->Pitch ;
@@ -2361,12 +2398,12 @@ extern int NS_DrawMask( int x, int y, int MaskHandle, int TransMode )
 
 	// クリッピング処理
 	SETRECT( Rect, x, y, x + Mask->MaskWidth, y + Mask->MaskHeight ) ;
-	RectClipping( &Rect, &GBASE.DrawArea ) ;
+	RectClipping( &Rect, &GSYS.DrawSetting.DrawArea ) ;
 	MovRect = Rect ;
 	if( Rect.left == Rect.right || Rect.top == Rect.bottom ) return 0 ;
-	Rect.left -= x ;
-	Rect.right -= x ;
-	Rect.top -= y ;
+	Rect.left   -= x ;
+	Rect.right  -= x ;
+	Rect.top    -= y ;
 	Rect.bottom -= y ;
 	if( Rect.left > 0 ){ x += Rect.left ; }
 	if( Rect.top  > 0 ){ y += Rect.top  ; }
@@ -2592,9 +2629,9 @@ extern int NS_DrawMask( int x, int y, int MaskHandle, int TransMode )
 	}
 
 	// 更新
-	if( GRA2.ValidHardWare )
+	if( GSYS.Setting.ValidHardware )
 	{
-		UpdateMaskImageTexture( MovRect ) ;
+		Mask_UpdateMaskImageTexture_PF( &MovRect ) ;
 	}
 
 	// 終了
@@ -2619,12 +2656,11 @@ extern int NS_DrawFillMask( int x1, int y1, int x2, int y2, int MaskHandle )
 
 	if( x1 == x2 || y1 == y2 ) return 0 ;
 
-	if( WinData.ActiveFlag == FALSE )
-		DxActiveWait() ;
+	CheckActiveState() ;
 
 	// クリッピング処理
 	SETRECT( Rect, x1, y1, x2, y2 ) ;
-	RectClipping( &Rect, &GBASE.DrawArea ) ;
+	RectClipping( &Rect, &GSYS.DrawSetting.DrawArea ) ;
 	MovRect = Rect ;
 	if( Rect.left == Rect.right || Rect.top == Rect.bottom ) return 0 ;
 	Rect.left -= x1 ;
@@ -2647,26 +2683,26 @@ extern int NS_DrawFillMask( int x1, int y1, int x2, int y2, int MaskHandle )
 		DestWidth = Rect.right - Rect.left ;
 		DestHeight = Rect.bottom - Rect.top ;
 
-		FirstX = Mask->MaskWidth - Rect.left % Mask->MaskWidth ;
-		FirstY = Mask->MaskHeight - Rect.top % Mask->MaskHeight ;
+		FirstX = ( DWORD )( Mask->MaskWidth  - Rect.left % Mask->MaskWidth  ) ;
+		FirstY = ( DWORD )( Mask->MaskHeight - Rect.top  % Mask->MaskHeight ) ;
 
 		Dest = MASKD.MaskBuffer + x1 + y1 * MASKD.MaskBufferPitch ;
 		Src = Mask->SrcData + ( Rect.left % Mask->MaskWidth ) + ( Rect.top % Mask->MaskHeight ) * Mask->SrcDataPitch ;
 		Src2 = Mask->SrcData ;
 		Src3 = Mask->SrcData + ( Rect.left % Mask->MaskWidth ) ;
 
-		SrcAddPitch = Mask->SrcDataPitch - ( ( DestWidth + Rect.left % Mask->MaskWidth ) % Mask->MaskWidth == 0 ? 0 : ( DestWidth + Rect.left % Mask->MaskWidth ) % Mask->MaskWidth ) + Rect.left % Mask->MaskWidth ;
-		DestAddPitch = MASKD.MaskBufferPitch - DestWidth ;
+		SrcAddPitch  = ( DWORD )( Mask->SrcDataPitch - ( ( DestWidth + Rect.left % Mask->MaskWidth ) % Mask->MaskWidth == 0 ? 0 : ( DestWidth + Rect.left % Mask->MaskWidth ) % Mask->MaskWidth ) + Rect.left % Mask->MaskWidth ) ;
+		DestAddPitch = ( DWORD )( MASKD.MaskBufferPitch - DestWidth ) ;
 
 		CounterY = FirstY ;
 
 #ifdef DX_NON_INLINE_ASM
 		int i, TempWidth, TempHeight ;
 
-		TempHeight = FirstY ;
+		TempHeight = ( int )FirstY ;
 		do
 		{
-			TempWidth = FirstX ;
+			TempWidth = ( int )FirstX ;
 			i = DestWidth ;
 			do
 			{
@@ -2734,9 +2770,9 @@ extern int NS_DrawFillMask( int x1, int y1, int x2, int y2, int MaskHandle )
 #endif
 	}
 
-	if( GRA2.ValidHardWare )
+	if( GSYS.Setting.ValidHardware )
 	{
-		UpdateMaskImageTexture( MovRect ) ;
+		Mask_UpdateMaskImageTexture_PF( &MovRect ) ;
 	}
 
 	// 終了
@@ -2755,8 +2791,7 @@ extern int NS_DrawMaskToDirectData( int x, int y, int Width, int Height, const v
 	// マスクデータがなかった場合は処理を終了
 	if( MaskData == NULL ) return 0 ;
 
-	if( WinData.ActiveFlag == FALSE )
-		DxActiveWait() ;
+	CheckActiveState() ;
 
 	// マスクスクリーンにマスクを展開
 	DrawMaskToDirectData_Base( x, y, MASKD.MaskBuffer, MASKD.MaskBufferPitch,
@@ -2764,14 +2799,14 @@ extern int NS_DrawMaskToDirectData( int x, int y, int Width, int Height, const v
 
 	RECT Rect ;
 
-	if( GRA2.ValidHardWare )
+	if( GSYS.Setting.ValidHardware )
 	{
 		// 更新
-		Rect.left = x ;
-		Rect.top = y ;
-		Rect.right = x + Width ;
+		Rect.left   = x ;
+		Rect.top    = y ;
+		Rect.right  = x + Width ;
 		Rect.bottom = y + Height ;
-		UpdateMaskImageTexture( Rect ) ;
+		Mask_UpdateMaskImageTexture_PF( &Rect ) ;
 	}
 
 	// 終了
@@ -2787,37 +2822,14 @@ extern int NS_FillMaskScreen( int Flag )
 	// マスクスクリーンがない場合はここで処理を終了
 	if( MASKD.MaskBuffer == NULL ) return -1 ;
 
-	if( WinData.ActiveFlag == FALSE )
-		DxActiveWait() ;
+	CheckActiveState() ;
 
 	// マスクスクリーンをクリアする
-	_MEMSET( MASKD.MaskBuffer, Flag ? 0xff : 0, MASKD.MaskBufferPitch * GBASE.DrawSizeY ) ;
+	_MEMSET( MASKD.MaskBuffer, ( unsigned char )( Flag ? 0xff : 0 ), ( size_t )( MASKD.MaskBufferPitch * GSYS.DrawSetting.DrawSizeY ) ) ;
 
-	if( GRA2.ValidHardWare )
+	if( GSYS.Setting.ValidHardware )
 	{
-		D_D3DLOCKED_RECT LockRect ;
-		int i, Width = 0 ;
-		BYTE *Dest ;
-
-		if( MASKD.MaskImageTexture->LockRect( 0, &LockRect, NULL, 0 ) == D_D3D_OK )
-		{
-			Flag = Flag ? 0xff : 0 ;
-
-			switch( GRH.MaskAlphaFormat )
-			{
-			case D_D3DFMT_A8R8G8B8 : Width = GRA2.MainScreenSizeX * 4 ; break ;
-			case D_D3DFMT_A4R4G4B4 : Width = GRA2.MainScreenSizeX * 2 ; break ;
-			case D_D3DFMT_A1R5G5B5 : Width = GRA2.MainScreenSizeX * 2 ; break ;
-			}
-
-			Dest = ( BYTE * )LockRect.pBits ;
-			for( i = 0 ; i < GRA2.MainScreenSizeY ; i ++, Dest += LockRect.Pitch )
-			{
-				_MEMSET( Dest, ( unsigned char )Flag, Width ) ;
-			}
-
-			MASKD.MaskImageTexture->UnlockRect( 0 ) ;
-		}
+		Mask_FillMaskScreen_PF( Flag ) ;
 	}
 
 	// 終了
@@ -2832,130 +2844,11 @@ extern int NS_FillMaskScreen( int Flag )
 
 
 
-
-
-
-// DirectX バージョン依存がある関数
-
-// DirectX9 用
-
-// 指定領域のマスクイメージテクスチャを更新する
-static int UpdateMaskImageTexture( RECT Rect )
-{
-	D_D3DLOCKED_RECT LockRect ;
-	int Width, Height ;
-	BYTE *Dest, *Src ;
-	DWORD DestAdd, SrcAdd ;
-#ifdef DX_NON_INLINE_ASM
-	int i ;
-#endif
-
-	RectClipping( &Rect, &GBASE.DrawArea ) ;
-	if( Rect.left == Rect.right || Rect.top == Rect.bottom ) return 0 ;
-
-	Width = Rect.right - Rect.left ;
-	Height = Rect.bottom - Rect.top ;
-
-	// マスクイメージテクスチャをロックする
-	if( MASKD.MaskImageTexture->LockRect( 0, &LockRect, &Rect, 0 ) != D_D3D_OK )
-		return -1 ;
-
-	// 転送元の準備
-	Src = MASKD.MaskBuffer + MASKD.MaskBufferPitch * Rect.top + Rect.left ;
-	SrcAdd = MASKD.MaskBufferPitch - Width ;
-
-	// 指定部分イメージの転送
-	Dest = ( BYTE * )LockRect.pBits ;
-	switch( GRH.MaskAlphaFormat )
-	{
-	case D_D3DFMT_A8R8G8B8 :
-		DestAdd = LockRect.Pitch - Width * 4 ;
-#ifdef DX_NON_INLINE_ASM
-		do
-		{
-			i = Width ;
-			do
-			{
-				Dest[ 3 ] = *Src ;
-				Dest += 4 ;
-				Src ++ ;
-			}while( -- i != 0 ) ;
-			Dest += DestAdd ;
-			Src += SrcAdd ;
-		}while( -- Height != 0 ) ;
-#else
-		__asm
-		{
-			MOV		EDI, Dest
-			MOV		ESI, Src
-			MOV		ECX, Height
-LOOP_A8R8G8B8_1:
-			MOV		EDX, Width
-LOOP_A8R8G8B8_2:
-			MOV		AL, [ ESI ]
-			MOV		[ EDI + 3 ], AL
-			INC		ESI
-			ADD		EDI, 4
-			DEC		EDX
-			JNZ		LOOP_A8R8G8B8_2
-
-			ADD		EDI, DestAdd
-			ADD		ESI, SrcAdd
-			DEC		Height
-			JNZ		LOOP_A8R8G8B8_1
-		}
-#endif
-		break ;
-
-	case D_D3DFMT_A1R5G5B5 :
-	case D_D3DFMT_A4R4G4B4 :
-		DestAdd = LockRect.Pitch - Width * 2 ;
-#ifdef DX_NON_INLINE_ASM
-		do
-		{
-			i = Width ;
-			do
-			{
-				Dest[ 1 ] = *Src ;
-				Dest += 2 ;
-				Src ++ ;
-			}while( -- i != 0 ) ;
-			Dest += DestAdd ;
-			Src += SrcAdd ;
-		}while( -- Height != 0 ) ;
-#else
-		__asm
-		{
-			MOV		EDI, Dest
-			MOV		ESI, Src
-			MOV		ECX, Height
-LOOP_A1R5G5B5_1:
-			MOV		EDX, Width
-LOOP_A1R5G5B5_2:
-			MOV		AL, [ ESI ]
-			MOV		[ EDI + 1 ], AL
-			INC		ESI
-			ADD		EDI, 2
-			DEC		EDX
-			JNZ		LOOP_A1R5G5B5_2
-
-			ADD		EDI, DestAdd
-			ADD		ESI, SrcAdd
-			DEC		Height
-			JNZ		LOOP_A1R5G5B5_1
-		}
-#endif
-		break ;
-	}
-
-	// ロックを解除する
-	MASKD.MaskImageTexture->UnlockRect( 0 ) ;
-
-	// 終了
-	return 0 ;
-}
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif
 

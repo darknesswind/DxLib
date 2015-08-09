@@ -2,24 +2,28 @@
 // 
 // 		ＤＸライブラリ		メモリイメージ制御用プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 // インクルード----------------------------------------------------------------
 #include "DxMemImg.h"
 #include "DxLib.h"
 #include "DxStatic.h"
-#include "DxGraphicsBase.h"
+#include "DxBaseFunc.h"
 #ifndef DX_NON_INLINE_ASM
 #include "Windows/DxWindow.h"
 #endif // DX_NON_INLINE_ASM
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義------------------------------------------------------------------
 
@@ -48,7 +52,7 @@ extern void DrawEnlargeMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT
 #define DRAWMEMIMG_UBI_UAC_FD( DRAW, ALPHAMAXDRAW, SRCADDNUM, DESTADDNUM )	\
 	do{\
 		while( ( (*AnaBP) >> 6 ) != 3 ){\
-			LoopNum = ( *AnaBP & 0x3f ) + 1 ;\
+			LoopNum = ( DWORD )( ( *AnaBP & 0x3f ) + 1 ) ;\
 			switch( (*AnaBP) >> 6 )\
 			{\
 			case 0 :\
@@ -87,7 +91,7 @@ extern void DrawEnlargeMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT
 #define DRAWMEMIMG_UBI_NAC_FD( DRAW, SRCADDNUM, DESTADDNUM )	\
 	do{\
 		while( ( (*AnaBP) >> 6 ) != 3 ){\
-			LoopNum = ( *AnaBP & 0x3f ) + 1 ;\
+			LoopNum = ( DWORD )( ( *AnaBP & 0x3f ) + 1 ) ;\
 			if( (*AnaBP) >> 6 )\
 			{\
 				do{\
@@ -113,7 +117,7 @@ extern void DrawEnlargeMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT
 #define DRAWMEMIMG_NBI_UAC_FD( DRAW, ALPHAMAXDRAW, SRCADDNUM, DESTADDNUM )	\
 	do{\
 		while( ( (*AnaBP) >> 6 ) != 3 ){\
-			LoopNum = ( *AnaBP & 0x3f ) + 1 ;\
+			LoopNum = ( DWORD )( ( *AnaBP & 0x3f ) + 1 ) ;\
 			switch( (*AnaBP) >> 6 )\
 			{\
 			case 0 :\
@@ -148,7 +152,7 @@ extern void DrawEnlargeMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT
 #define DRAWMEMIMG_NBI_NAC_FD( DRAW, SRCADDNUM, DESTADDNUM )	\
 	do{\
 		while( ( (*AnaBP) >> 6 ) != 3 ){\
-			LoopNum = ( *AnaBP & 0x3f ) + 1 ;\
+			LoopNum = ( DWORD )( ( *AnaBP & 0x3f ) + 1 ) ;\
 			if( (*AnaBP) >> 6 ){\
 				do{\
 					DRAW\
@@ -206,24 +210,24 @@ extern void DrawTurnMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, int XTurnFlag
 	
 	if( XTurnFlag )
 	{
-		x1 = DestX + SrcImg->Width ;
+		x1 = ( int )( DestX + SrcImg->Width ) ;
 		x2 = DestX ;
 	}
 	else
 	{
 		x1 = DestX ;
-		x2 = DestX + SrcImg->Width ;
+		x2 = ( int )( DestX + SrcImg->Width ) ;
 	}
 
 	if( YTurnFlag )
 	{
-		y1 = DestY + SrcImg->Height ;
+		y1 = ( int )( DestY + SrcImg->Height ) ;
 		y2 = DestY ;
 	}
 	else
 	{
 		y1 = DestY ;
-		y2 = DestY + SrcImg->Height ;
+		y2 = ( int )( DestY + SrcImg->Height ) ;
 	}
 
 	DrawEnlargeMemImg( DestImg, SrcImg, x1, y1, x2, y2, TransFlag, BlendImg ) ;
@@ -293,16 +297,16 @@ extern void DrawMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, int DestX, int De
 
 		DrawRect.left   = DestX ;
 		DrawRect.top    = DestY ;
-		DrawRect.right  = DestX + SrcImg->Width  ;
-		DrawRect.bottom = DestY + SrcImg->Height ;
+		DrawRect.right  = ( LONG )( DestX + SrcImg->Width  ) ;
+		DrawRect.bottom = ( LONG )( DestY + SrcImg->Height ) ;
 
 		RectClipping( &DrawRect, &MemImgManage.DrawArea ) ;
 		Width  = ( DWORD )( DrawRect.right  - DrawRect.left ) ;
 		Height = ( DWORD )( DrawRect.bottom - DrawRect.top  ) ;
 		SrcX   = ( DWORD )( DrawRect.left   - DestX ) ;
 		SrcY   = ( DWORD )( DrawRect.top    - DestY ) ;
-		DestX  = ( DWORD )DrawRect.left ;
-		DestY  = ( DWORD )DrawRect.top  ;
+		DestX  = DrawRect.left ;
+		DestY  = DrawRect.top  ;
 
 		if( Width == 0 || Height == 0 ) return ;
 	}
@@ -343,7 +347,7 @@ extern void DrawMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, int DestX, int De
 		TransCode =   SrcImg->Base->TransColor         | ( SrcImg->Base->TransColor <<  8 ) |
 					( SrcImg->Base->TransColor << 16 ) | ( SrcImg->Base->TransColor << 24 ) ;
 
-		memcpy( PaletteTemp, SrcImg->Base->Palette, SrcImg->Base->ColorNum * ( SrcImg->Base->ColorType == 0 ? 2 : 4 ) ) ;
+		_MEMCPY( PaletteTemp, SrcImg->Base->Palette, ( size_t )( SrcImg->Base->ColorNum * ( SrcImg->Base->ColorType == 0 ? 2 : 4 ) ) ) ;
 	}
 	else
 	{
@@ -526,7 +530,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C16_USEPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -836,7 +840,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_ADD :			// 加法混合
+				case DX_BLENDMODE_ADD :			// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -1069,7 +1073,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :			// 减法混合
+				case DX_BLENDMODE_SUB :			// 減算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( TransFlag )		DRAWMEMIMG_UBI_ND( if( *SrcBP != TransColor )	CODE_UBI_C16_NBR_NAC_BSB( PAL16, DST16, DSTP16, BLND ), 1, 2 )
@@ -1284,7 +1288,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_MUL :			// 乘法混合
+				case DX_BLENDMODE_MUL :			// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( TransFlag )		DRAWMEMIMG_UBI_ND( if( *SrcBP != TransColor )	CODE_UBI_C16_NBR_NAC_BML( PAL16, DST16, DSTP16, BLND ), 1, 2 )
@@ -1484,7 +1488,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C16_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -1797,7 +1801,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -2016,7 +2020,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -2237,7 +2241,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( SrcImg->Base->UseAlpha == 1 ){
@@ -2488,7 +2492,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C32_USEPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -2589,7 +2593,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_ADD :			// 加法混合
+				case DX_BLENDMODE_ADD :			// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -2840,7 +2844,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :			// 减法混合
+				case DX_BLENDMODE_SUB :			// 減算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( TransFlag )		DRAWMEMIMG_UBI_ND( if( *SrcBP != TransColor )	CODE_UBI_C32_NBR_NAC_BSB( PALP32, DSTP32, BLND ), 1, 4 )
@@ -3089,7 +3093,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_MUL :			// 乘法混合
+				case DX_BLENDMODE_MUL :			// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( TransFlag )		DRAWMEMIMG_UBI_ND( if( *SrcBP != TransColor )	CODE_UBI_C32_NBR_NAC_BML( PALP32, DSTP32, BLND ), 1, 4 )
@@ -3287,7 +3291,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C32_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -3585,7 +3589,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -3839,7 +3843,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -4093,7 +4097,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( SrcImg->Base->UseAlpha == 1 ){
@@ -4247,7 +4251,7 @@ FD_C16_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto FD_C16_USEPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -4267,7 +4271,7 @@ FD_C16_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_ADD :			// 加法混合
+				case DX_BLENDMODE_ADD :			// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -4285,7 +4289,7 @@ FD_C16_USEPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :			// 减法混合
+				case DX_BLENDMODE_SUB :			// 減算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							DRAWMEMIMG_UBI_NAC_FD( CODE_UBI_C16_NBR_NAC_BSB( PAL16, DST16, DSTP16, BLND ), 1, 2 )
@@ -4301,7 +4305,7 @@ FD_C16_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_MUL :			// 乘法混合
+				case DX_BLENDMODE_MUL :			// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							DRAWMEMIMG_UBI_NAC_FD( CODE_UBI_C16_NBR_NAC_BML( PAL16, DST16, DSTP16, BLND ), 1, 2 )
@@ -4513,7 +4517,7 @@ FD_C16_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto FD_C16_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -4553,7 +4557,7 @@ FD_C16_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -4591,7 +4595,7 @@ FD_C16_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -4629,7 +4633,7 @@ FD_C16_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( SrcImg->Base->UseAlpha == 1 ){
@@ -4764,7 +4768,7 @@ FD_C32_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto FD_C32_USEPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -4784,7 +4788,7 @@ FD_C32_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_ADD :			// 加法混合
+				case DX_BLENDMODE_ADD :			// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -4802,7 +4806,7 @@ FD_C32_USEPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :			// 减法混合
+				case DX_BLENDMODE_SUB :			// 減算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							DRAWMEMIMG_UBI_NAC_FD( CODE_UBI_C32_NBR_NAC_BSB( PALP32, DSTP32, BLND ), 1, 4 )
@@ -4818,7 +4822,7 @@ FD_C32_USEPAL_BNO:
 					}
 					break ;
 					
-				case DX_BLENDMODE_MUL :			// 乘法混合
+				case DX_BLENDMODE_MUL :			// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							DRAWMEMIMG_UBI_NAC_FD( CODE_UBI_C32_NBR_NAC_BML( PALP32, DSTP32, BLND ), 1, 4 )
@@ -4910,7 +4914,7 @@ FD_C32_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto FD_C32_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -4950,7 +4954,7 @@ FD_C32_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -4988,7 +4992,7 @@ FD_C32_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -5026,7 +5030,7 @@ FD_C32_NOPAL_BNO:
 					}
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( SrcImg->Base->UseAlpha == 1 ){
@@ -5533,16 +5537,16 @@ extern void DrawEnlargeMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT
 	{
 		DWORD w, h ;
 		
-		w = DrawRect.right  - DrawRect.left ;
-		h = DrawRect.bottom - DrawRect.top  ;
+		w = ( DWORD )( DrawRect.right  - DrawRect.left ) ;
+		h = ( DWORD )( DrawRect.bottom - DrawRect.top  ) ;
 		if( w == 0 || h == 0 ) return ;
 		if( w == SrcImg->Width && h == SrcImg->Height && LBFlag == 1 && UDFlag == 1 )
 		{
 			DrawMemImg( DestImg, SrcImg, DrawRect.left, DrawRect.top, TransFlag, BlendImg ) ;
 			return ;
 		}
-		ExRateX = ( w << 16 ) / SrcImg->Width  ; 
-		ExRateY = ( h << 16 ) / SrcImg->Height ;
+		ExRateX = ( int )( ( w << 16 ) / SrcImg->Width  ) ;
+		ExRateY = ( int )( ( h << 16 ) / SrcImg->Height ) ;
 	}
 
 	// 描画矩形を作成
@@ -5550,12 +5554,12 @@ extern void DrawEnlargeMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT
 		RECT temp ;
 		temp = DrawRect ;
 		RectClipping( &DrawRect, &MemImgManage.DrawArea ) ;
-		DrawWidth  = DrawRect.right  - DrawRect.left ;
-		DrawHeight = DrawRect.bottom - DrawRect.top  ;
-		SrcX       = ( ( DrawRect.left - temp.left ) << 16 ) / ExRateX ;
-		SrcY       = ( ( DrawRect.top  - temp.top  ) << 16 ) / ExRateY ;
-		DestX      = DrawRect.left ;
-		DestY      = DrawRect.top  ;
+		DrawWidth  = ( DWORD )( DrawRect.right  - DrawRect.left ) ;
+		DrawHeight = ( DWORD )( DrawRect.bottom - DrawRect.top  ) ;
+		SrcX       = ( DWORD )( ( ( DrawRect.left - temp.left ) << 16 ) / ExRateX ) ;
+		SrcY       = ( DWORD )( ( ( DrawRect.top  - temp.top  ) << 16 ) / ExRateY ) ;
+		DestX      = ( DWORD )DrawRect.left ;
+		DestY      = ( DWORD )DrawRect.top  ;
 		FastExRateX = ExRateX - ( ( DrawRect.left - temp.left ) << 16 ) % ExRateX ;
 		FastExRateY = ExRateY - ( ( DrawRect.top  - temp.top  ) << 16 ) % ExRateY ;
 
@@ -5569,7 +5573,7 @@ extern void DrawEnlargeMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT
 		LBFlagB = LBFlag ;
 		if( LBFlag != 1 )
 		{
-			LBFlag = ~SrcImg->Base->ColorDataP->PixelByte + 1 ;
+			LBFlag = ( DWORD )( ~SrcImg->Base->ColorDataP->PixelByte + 1 ) ;
 			SrcBP += ( ( SrcImg->Width - 1 ) - SrcX ) * SrcImg->Base->ColorDataP->PixelByte ;
 		}
 		else
@@ -5620,7 +5624,7 @@ extern void DrawEnlargeMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT
 
 	TransCode = SrcImg->Base->TransColor ;
 	if( SrcImg->Base->UsePalette == TRUE )
-		memcpy( PaletteTemp, SrcImg->Base->Palette, SrcImg->Base->ColorNum * ( SrcImg->Base->ColorType == 0 ? 2 : 4 ) ) ;
+		_MEMCPY( PaletteTemp, SrcImg->Base->Palette, ( size_t )( SrcImg->Base->ColorNum * ( SrcImg->Base->ColorType == 0 ? 2 : 4 ) ) ) ;
 
 	PaletteBP  = (BYTE *)SrcImg->Base->Palette ;
 	TransColor = SrcImg->Base->TransColor ;
@@ -5773,7 +5777,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C16_USEPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -5797,7 +5801,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_ADD :			// 加法混合
+			case DX_BLENDMODE_ADD :			// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -5819,7 +5823,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_SUB :			// 减法混合
+			case DX_BLENDMODE_SUB :			// 減算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( TransFlag )	DRAWENLARGEMEMIMG_UBI_TCK_ND( CODE_UBI_C16_NBR_NAC_BSB( PAL16, DST16, DSTP16, BLND ), 2, SRC8 )
@@ -5970,7 +5974,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_MUL :			// 乘法混合
+			case DX_BLENDMODE_MUL :			// 乗算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( TransFlag )	DRAWENLARGEMEMIMG_UBI_TCK_ND( CODE_UBI_C16_NBR_NAC_BML( PAL16, DST16, DSTP16, BLND ), 2, SRC8 )
@@ -6182,7 +6186,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C16_NOPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -6226,7 +6230,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_ADD :		// 加法混合
+			case DX_BLENDMODE_ADD :		// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -6268,7 +6272,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_SUB :		// 减法混合
+			case DX_BLENDMODE_SUB :		// 減算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -6439,7 +6443,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_MUL :		// 乘法混合
+			case DX_BLENDMODE_MUL :		// 乗算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( SrcImg->Base->UseAlpha == 1 ){
@@ -6698,7 +6702,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C32_USEPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -6722,7 +6726,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_ADD :			// 加法混合
+			case DX_BLENDMODE_ADD :			// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -6744,7 +6748,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_SUB :			// 减法混合
+			case DX_BLENDMODE_SUB :			// 減算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( TransFlag )	DRAWENLARGEMEMIMG_UBI_TCK_ND( CODE_UBI_C32_NBR_NAC_BSB( PALP32, DSTP32, BLND ), 4, SRC8 )
@@ -7010,7 +7014,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_MUL :			// 乘法混合
+			case DX_BLENDMODE_MUL :			// 乗算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( TransFlag )	DRAWENLARGEMEMIMG_UBI_TCK_ND( CODE_UBI_C32_NBR_NAC_BML( PALP32, DSTP32, BLND ), 4, SRC8 )
@@ -7222,7 +7226,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C32_NOPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -7266,7 +7270,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_ADD :		// 加法混合
+			case DX_BLENDMODE_ADD :		// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -7308,7 +7312,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_SUB :		// 减法混合
+			case DX_BLENDMODE_SUB :		// 減算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -7592,7 +7596,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_MUL :		// 乘法混合
+			case DX_BLENDMODE_MUL :		// 乗算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( SrcImg->Base->UseAlpha == 1 ){
@@ -7735,5 +7739,9 @@ NOMALDRAW_C32_NOPAL_BNO:
 
 #endif
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 

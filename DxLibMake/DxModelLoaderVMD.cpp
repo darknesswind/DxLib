@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ＶＭＤデータ読み込みプログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -17,11 +17,14 @@
 #include "DxFile.h"
 #include "DxLog.h"
 #include "DxMemory.h"
-#include "Windows/DxGuid.h"
 
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 -----------------------------------
 
@@ -158,7 +161,7 @@ extern void QuaternionCreateEuler( FLOAT4 *Qt, const VECTOR *Angle )
 // ＶＭＤファイルの基本情報を読み込む( -1:エラー )
 extern int LoadVMDBaseData( VMD_READ_INFO * VmdData, void *DataBuffer, int /*DataSize*/ )
 {
-	int i, j, keynum ;
+	DWORD i, j, keynum ;
 	VMD_READ_NODE_INFO *VmdNode ;
 	VMD_READ_KEY_INFO *VmdKey, *VmdKeyTemp1, *VmdKeyTemp2 ;
 	VMD_READ_CAMERA_INFO *VmdCam ;
@@ -179,7 +182,7 @@ extern int LoadVMDBaseData( VMD_READ_INFO * VmdData, void *DataBuffer, int /*Dat
 	// VMDファイルかどうかを確認
 	if( _MEMCMP( Src, "Vocaloid Motion Data 0002", 26 ) != 0 )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : 対応していない VMD バージョンです\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xfe\x5b\xdc\x5f\x57\x30\x66\x30\x44\x30\x6a\x30\x44\x30\x20\x00\x56\x00\x4d\x00\x44\x00\x20\x00\xd0\x30\xfc\x30\xb8\x30\xe7\x30\xf3\x30\x67\x30\x59\x30\x0a\x00\x00"/*@ L"VMD Load Error : 対応していない VMD バージョンです\n" @*/ )) ;
 		return -1 ;
 	}
 	Src += 30 ;
@@ -192,7 +195,7 @@ extern int LoadVMDBaseData( VMD_READ_INFO * VmdData, void *DataBuffer, int /*Dat
 	VmdData->Node = ( VMD_READ_NODE_INFO * )DXALLOC( sizeof( VMD_READ_NODE_INFO ) * 2048 ) ;
 	if( VmdData->Node == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : ノード情報格納用のメモリの確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xce\x30\xfc\x30\xc9\x30\xc5\x60\x31\x58\x3c\x68\x0d\x7d\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : ノード情報格納用のメモリの確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 
@@ -205,7 +208,7 @@ extern int LoadVMDBaseData( VMD_READ_INFO * VmdData, void *DataBuffer, int /*Dat
 		VmdData->KeyBuffer = ( VMD_READ_KEY_INFO * )DXALLOC( sizeof( VMD_READ_KEY_INFO ) * keynum ) ;
 		if( VmdData->KeyBuffer == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : アニメーションキーを格納するメモリの確保に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : アニメーションキーを格納するメモリの確保に失敗しました\n" @*/ )) ;
 			goto ENDLABEL ;
 		}
 
@@ -337,7 +340,7 @@ extern int LoadVMDBaseData( VMD_READ_INFO * VmdData, void *DataBuffer, int /*Dat
 	VmdData->FaceKeySet = ( VMD_READ_FACE_KEY_SET_INFO * )DXALLOC( sizeof( VMD_READ_FACE_KEY_SET_INFO ) * 2048 ) ;
 	if( VmdData->Node == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : 表情キーセット情報格納用のメモリの確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x68\x88\xc5\x60\xad\x30\xfc\x30\xbb\x30\xc3\x30\xc8\x30\xc5\x60\x31\x58\x3c\x68\x0d\x7d\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : 表情キーセット情報格納用のメモリの確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 
@@ -350,7 +353,7 @@ extern int LoadVMDBaseData( VMD_READ_INFO * VmdData, void *DataBuffer, int /*Dat
 		VmdData->FaceKeyBuffer = ( VMD_READ_FACE_KEY_INFO * )DXALLOC( sizeof( VMD_READ_FACE_KEY_INFO ) * keynum ) ;
 		if( VmdData->FaceKeyBuffer == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : 表情キーを格納するメモリの確保に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x68\x88\xc5\x60\xad\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : 表情キーを格納するメモリの確保に失敗しました\n" @*/ )) ;
 			goto ENDLABEL ;
 		}
 
@@ -441,7 +444,7 @@ extern int LoadVMDBaseData( VMD_READ_INFO * VmdData, void *DataBuffer, int /*Dat
 		VmdData->Camera = ( VMD_READ_CAMERA_INFO * )DXALLOC( sizeof( VMD_READ_CAMERA_INFO ) ) ;
 		if( VmdData->Camera == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : カメラキーセット情報格納用のメモリの確保に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xab\x30\xe1\x30\xe9\x30\xad\x30\xfc\x30\xbb\x30\xc3\x30\xc8\x30\xc5\x60\x31\x58\x3c\x68\x0d\x7d\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : カメラキーセット情報格納用のメモリの確保に失敗しました\n" @*/ )) ;
 			goto ENDLABEL ;
 		}
 		_MEMSET( VmdData->Camera, 0, sizeof( VMD_READ_CAMERA_INFO ) ) ;
@@ -449,7 +452,7 @@ extern int LoadVMDBaseData( VMD_READ_INFO * VmdData, void *DataBuffer, int /*Dat
 		VmdData->CamKeyBuffer = ( VMD_READ_CAMERA_KEY_INFO * )DXALLOC( sizeof( VMD_READ_CAMERA_KEY_INFO ) * CameraKeyNum ) ;
 		if( VmdData->CamKeyBuffer == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : カメラアニメーションキーを格納するメモリの確保に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xab\x30\xe1\x30\xe9\x30\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : カメラアニメーションキーを格納するメモリの確保に失敗しました\n" @*/ )) ;
 			goto ENDLABEL ;
 		}
 
@@ -658,7 +661,7 @@ extern int TerminateVMDBaseData( VMD_READ_INFO *VmdData )
 
 
 // カメラのアニメーションを読み込みようデータに追加する
-extern int SetupVMDCameraAnim( VMD_READ_INFO *VmdData, MV1_MODEL_R *RModel, const char *Name, MV1_ANIMSET_R *AnimSet )
+extern int SetupVMDCameraAnim( VMD_READ_INFO *VmdData, MV1_MODEL_R *RModel, const wchar_t *Name, MV1_ANIMSET_R *AnimSet )
 {
 	MV1_FRAME_R *Frame ;
 	MV1_ANIM_R *Anim ;
@@ -668,7 +671,7 @@ extern int SetupVMDCameraAnim( VMD_READ_INFO *VmdData, MV1_MODEL_R *RModel, cons
 	float *KeyPosTime, *KeyRotTime, *KeyLenTime, *KeyViewAngTime, *KeyPersTime ;
 	float *KeyLen, *KeyViewAng, *KeyPers ;
 	VECTOR *KeyPos, *KeyRotOir ;
-	int j, k ;
+	DWORD j, k ;
 
 	// カメラのモーション情報がある場合はカメラ情報を追加する
 	if( VmdData->Camera == NULL )
@@ -678,10 +681,10 @@ extern int SetupVMDCameraAnim( VMD_READ_INFO *VmdData, MV1_MODEL_R *RModel, cons
 	VmdNode = VmdData->Node ;
 
 	// カメラノードの追加
-	Frame = MV1RAddFrame( RModel, Name, NULL ) ;
+	Frame = MV1RAddFrameW( RModel, Name, NULL ) ;
 	if( Frame == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : カメラ用フレームオブジェクトの追加に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xab\x30\xe1\x30\xe9\x30\x28\x75\xd5\x30\xec\x30\xfc\x30\xe0\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : カメラ用フレームオブジェクトの追加に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 
@@ -689,12 +692,11 @@ extern int SetupVMDCameraAnim( VMD_READ_INFO *VmdData, MV1_MODEL_R *RModel, cons
 	Anim = MV1RAddAnim( RModel, AnimSet ) ;
 	if( Anim == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : カメラ用アニメーションの追加に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xab\x30\xe1\x30\xe9\x30\x28\x75\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : カメラ用アニメーションの追加に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 
 	// 対象ノードのセット
-	Anim->TargetFrameName = MV1RAddString( RModel, Frame->Name ) ;
 	Anim->TargetFrameIndex = Frame->Index ;
 
 	// 最大時間をセット
@@ -704,31 +706,31 @@ extern int SetupVMDCameraAnim( VMD_READ_INFO *VmdData, MV1_MODEL_R *RModel, cons
 	KeyPosSet = MV1RAddAnimKeySet( RModel, Anim ) ;
 	if( KeyPosSet == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : アニメーションカメラ座標キーセットの追加に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xab\x30\xe1\x30\xe9\x30\xa7\x5e\x19\x6a\xad\x30\xfc\x30\xbb\x30\xc3\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : アニメーションカメラ座標キーセットの追加に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 	KeyRotSet = MV1RAddAnimKeySet( RModel, Anim ) ;
 	if( KeyRotSet == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : アニメーションカメラ回転キーセットの追加に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xab\x30\xe1\x30\xe9\x30\xde\x56\xe2\x8e\xad\x30\xfc\x30\xbb\x30\xc3\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : アニメーションカメラ回転キーセットの追加に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 	KeyLenSet = MV1RAddAnimKeySet( RModel, Anim ) ;
 	if( KeyLenSet == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : アニメーションカメラ距離キーセットの追加に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xab\x30\xe1\x30\xe9\x30\xdd\x8d\xe2\x96\xad\x30\xfc\x30\xbb\x30\xc3\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : アニメーションカメラ距離キーセットの追加に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 	KeyViewAngSet = MV1RAddAnimKeySet( RModel, Anim ) ;
 	if( KeyLenSet == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : アニメーションカメラ距離キーセットの追加に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xab\x30\xe1\x30\xe9\x30\xdd\x8d\xe2\x96\xad\x30\xfc\x30\xbb\x30\xc3\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : アニメーションカメラ距離キーセットの追加に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 	KeyPersSet = MV1RAddAnimKeySet( RModel, Anim ) ;
 	if( KeyLenSet == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : アニメーションカメラ距離キーセットの追加に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xab\x30\xe1\x30\xe9\x30\xdd\x8d\xe2\x96\xad\x30\xfc\x30\xbb\x30\xc3\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : アニメーションカメラ距離キーセットの追加に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 
@@ -736,7 +738,7 @@ extern int SetupVMDCameraAnim( VMD_READ_INFO *VmdData, MV1_MODEL_R *RModel, cons
 	KeyPosSet->DataType = MV1_ANIMKEY_DATATYPE_TRANSLATE ;
 	KeyPosSet->TimeType = MV1_ANIMKEY_TIME_TYPE_KEY ;
 	KeyPosSet->TotalTime = ( float )VmdNode->MaxFrame ;
-	KeyPosSet->Num = ( VmdData->Camera->MaxFrame - VmdData->Camera->MinFrame ) + 1 ;
+	KeyPosSet->Num = ( int )( ( VmdData->Camera->MaxFrame - VmdData->Camera->MinFrame ) + 1 ) ;
 
 	KeyRotSet->Type = MV1_ANIMKEY_TYPE_VECTOR ;
 	KeyRotSet->DataType = MV1_ANIMKEY_DATATYPE_ROTATE ;
@@ -765,65 +767,65 @@ extern int SetupVMDCameraAnim( VMD_READ_INFO *VmdData, MV1_MODEL_R *RModel, cons
 	KeyPosSet->KeyTime = ( float * )ADDMEMAREA( sizeof( float ) * KeyPosSet->Num, &RModel->Mem ) ;
 	if( KeyPosSet->KeyTime == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : カメラ座標アニメーションキータイムを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xab\x30\xe1\x30\xe9\x30\xa7\x5e\x19\x6a\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\xbf\x30\xa4\x30\xe0\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : カメラ座標アニメーションキータイムを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 	KeyPosSet->KeyVector = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * KeyPosSet->Num, &RModel->Mem ) ;
 	if( KeyPosSet->KeyVector == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : カメラ座標アニメーションキーを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xab\x30\xe1\x30\xe9\x30\xa7\x5e\x19\x6a\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : カメラ座標アニメーションキーを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 
 	KeyRotSet->KeyTime = ( float * )ADDMEMAREA( sizeof( float ) * KeyRotSet->Num, &RModel->Mem ) ;
 	if( KeyRotSet->KeyTime == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error :カメラ回転アニメーションキータイムを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\xab\x30\xe1\x30\xe9\x30\xde\x56\xe2\x8e\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\xbf\x30\xa4\x30\xe0\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error :カメラ回転アニメーションキータイムを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 	KeyRotSet->KeyVector = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * KeyRotSet->Num, &RModel->Mem ) ;
 	if( KeyRotSet->KeyVector == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : カメラ回転アニメーションキーを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xab\x30\xe1\x30\xe9\x30\xde\x56\xe2\x8e\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : カメラ回転アニメーションキーを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 
 	KeyLenSet->KeyTime = ( float * )ADDMEMAREA( sizeof( float ) * KeyLenSet->Num, &RModel->Mem ) ;
 	if( KeyLenSet->KeyTime == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error :カメラ距離アニメーションキータイムを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\xab\x30\xe1\x30\xe9\x30\xdd\x8d\xe2\x96\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\xbf\x30\xa4\x30\xe0\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error :カメラ距離アニメーションキータイムを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 	KeyLenSet->KeyLinear = ( float * )ADDMEMAREA( sizeof( float ) * KeyLenSet->Num, &RModel->Mem ) ;
 	if( KeyLenSet->KeyVector == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : カメラ距離アニメーションキーを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xab\x30\xe1\x30\xe9\x30\xdd\x8d\xe2\x96\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : カメラ距離アニメーションキーを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 
 	KeyViewAngSet->KeyTime = ( float * )ADDMEMAREA( sizeof( float ) * KeyViewAngSet->Num, &RModel->Mem ) ;
 	if( KeyViewAngSet->KeyTime == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error :カメラ視野角アニメーションキータイムを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\xab\x30\xe1\x30\xe9\x30\x96\x89\xce\x91\xd2\x89\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\xbf\x30\xa4\x30\xe0\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error :カメラ視野角アニメーションキータイムを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 	KeyViewAngSet->KeyLinear = ( float * )ADDMEMAREA( sizeof( float ) * KeyViewAngSet->Num, &RModel->Mem ) ;
 	if( KeyViewAngSet->KeyVector == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : カメラ視野角アニメーションキーを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xab\x30\xe1\x30\xe9\x30\x96\x89\xce\x91\xd2\x89\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : カメラ視野角アニメーションキーを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 
 	KeyPersSet->KeyTime = ( float * )ADDMEMAREA( sizeof( float ) * KeyPersSet->Num, &RModel->Mem ) ;
 	if( KeyPersSet->KeyTime == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error :カメラ射影アニメーションキータイムを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\xab\x30\xe1\x30\xe9\x30\x04\x5c\x71\x5f\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\xbf\x30\xa4\x30\xe0\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error :カメラ射影アニメーションキータイムを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 	KeyPersSet->KeyFlat = ( float * )ADDMEMAREA( sizeof( float ) * KeyPersSet->Num, &RModel->Mem ) ;
 	if( KeyPersSet->KeyVector == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "VMD Load Error : カメラ射影アニメーションキーを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x56\x00\x4d\x00\x44\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xab\x30\xe1\x30\xe9\x30\x04\x5c\x71\x5f\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"VMD Load Error : カメラ射影アニメーションキーを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		goto ENDLABEL ;
 	}
 
@@ -992,30 +994,33 @@ ENDLABEL:
 
 // VMDファイルバイナリをメモリに読み込む
 extern int LoadFile_VMD(
-	void **VmdData,
-	int *FileSize, 
-	int FileNumber,
-	MV1_FILE_READ_FUNC *FileReadFunc,
-	const TCHAR *Name,
-	int NameLen,
-	const TCHAR *CurrentDir,
-	int *LoopMotionFlag,
-	float *BaseGravity,
-	int *GravityNo,
-	int *GravityEnable,
-	VECTOR *Gravity
+	void **					VmdData,
+	int *					FileSize, 
+	int						FileNumber,
+	MV1_FILE_READ_FUNC *	FileReadFunc,
+	const wchar_t *			Name,
+	int						NameLen,
+	const wchar_t *			CurrentDir,
+	int *					LoopMotionFlag,
+	float *					BaseGravity,
+	int *					GravityNo,
+	int *					GravityEnable,
+	VECTOR *				Gravity
 )
 {
 	int j ;
 	int itemp ;
-	TCHAR *Strp ;
+	wchar_t *Strp ;
 	int GravityLoopEnd ;
 	int GravityNoStr[ 64 ] ;
 	int GravityNoNum ;
-	TCHAR StringT[ 1024 ] ;
+	wchar_t StringW[ 1024 ] ;
+#ifndef UNICODE
+	char StringA[ 2048 ] ;
+#endif
 	DWORD_PTR FileHandle ;
 	DWORD_PTR FindHandle ;
-	FILEINFO FindData ;
+	FILEINFOW FindData ;
 
 	*LoopMotionFlag = FALSE ;
 	*GravityNo = -1 ;
@@ -1025,24 +1030,36 @@ extern int LoadFile_VMD(
 	Gravity->z = 0.0f ;
 	if( CurrentDir == NULL )
 	{
-		_TSPRINTF( _DXWTP( StringT ),  _DXWTR( "%s%03dL.vmd" ), Name, FileNumber ) ;
+		_SWPRINTF( StringW,  L"%s%03dL.vmd", Name, FileNumber ) ;
 
-		if( FileReadFunc->Read( StringT, VmdData, FileSize, FileReadFunc->Data ) != -1 )
+#ifdef UNICODE
+		if( FileReadFunc->Read( StringW, VmdData, FileSize, FileReadFunc->Data ) != -1 )
+#else
+		ConvString( ( const char * )StringW, WCHAR_T_CODEPAGE, StringA, _TCODEPAGE ) ;
+		if( FileReadFunc->Read( StringA, VmdData, FileSize, FileReadFunc->Data ) != -1 )
+#endif
 		{
 			*LoopMotionFlag = TRUE ;
 		}
 		else
 		{
-			_TSPRINTF( _DXWTP( StringT ),  _DXWTR( "%s%03d.vmd" ), Name, FileNumber ) ;
-			if( FileReadFunc->Read( StringT, VmdData, FileSize, FileReadFunc->Data ) == -1 )
+			_SWPRINTF( StringW,  L"%s%03d.vmd", Name, FileNumber ) ;
+#ifdef UNICODE
+			if( FileReadFunc->Read( StringW, VmdData, FileSize, FileReadFunc->Data ) == -1 )
+#else
+			ConvString( ( const char * )StringW, WCHAR_T_CODEPAGE, StringA, _TCODEPAGE ) ;
+			if( FileReadFunc->Read( StringA, VmdData, FileSize, FileReadFunc->Data ) == -1 )
+#endif
+			{
 				return FALSE ;
+			}
 		}
 	}
 	else
 	{
-		_TSPRINTF( _DXWTP( StringT ), _DXWTR( "%s\\%s%03d*.vmd" ), CurrentDir, Name, FileNumber ) ;
+		_SWPRINTF( StringW, L"%s\\%s%03d*.vmd", CurrentDir, Name, FileNumber ) ;
 
-		FindHandle = FFINDFIRST( StringT, &FindData ) ;
+		FindHandle = FFINDFIRST( StringW, &FindData ) ;
 		if( FindHandle == ( DWORD_PTR )-1 )
 			return FALSE ;
 
@@ -1146,11 +1163,11 @@ extern int LoadFile_VMD(
 			Strp ++ ;
 		}
 
-		_TSPRINTF( _DXWTP( StringT ), _DXWTR( "%s\\%s" ), CurrentDir, FindData.Name ) ;
+		_SWPRINTF( StringW, L"%s\\%s", CurrentDir, FindData.Name ) ;
 
 		FFINDCLOSE( FindHandle ) ;
 
-		FileHandle = FOPEN( StringT ) ;
+		FileHandle = FOPEN( StringW ) ;
 		if( FileHandle == 0 )
 			return FALSE ;
 
@@ -1158,7 +1175,7 @@ extern int LoadFile_VMD(
 		*FileSize = ( int )FTELL( FileHandle ) ;
 		FSEEK( FileHandle, 0, SEEK_SET ) ;
 
-		*VmdData = DXALLOC( *FileSize ) ;
+		*VmdData = DXALLOC( ( size_t )*FileSize ) ;
 		if( *VmdData == NULL )
 		{
 			FCLOSE( FileHandle ) ;
@@ -1179,6 +1196,10 @@ extern int LoadFile_VMD(
 
 
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif

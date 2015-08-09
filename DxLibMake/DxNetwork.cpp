@@ -2,18 +2,18 @@
 // 
 // 		ＤＸライブラリ		通信関連プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 #include "DxNetwork.h"
 
 #ifndef DX_NON_NETWORK
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxStatic.h"
 #include "DxBaseFunc.h"
 #include "DxSystem.h"
@@ -29,10 +29,14 @@
 #include <winnls32.h>
 #endif
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
+
+// マクロ定義 --------------------------------------------------------------------
 
 // ネットワークハンドルの有効性チェック
 #define NETHCHK( HAND, NPOINT )			HANDLECHK(       DX_HANDLETYPE_NETWORK, HAND, *( ( HANDLEINFO ** )&NPOINT ) )
@@ -62,7 +66,7 @@ namespace DxLib
 // ＩＥのプロキシサーバアドレスが格納されているレジストリアドレス
 #define IEPROXY						"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // テーブル-----------------------------------------------------------------------
 
@@ -73,7 +77,7 @@ HTTPSYS HttpData ;										// HTTP 関係処理用データ
 
 // 関数プロトタイプ宣言-----------------------------------------------------------
 
-// 通信相关
+// 通信関係
 static	int			ConnectNetWorkBase( IPDATA *IPData_IPv4, IPDATA_IPv6 *IPData_IPv6, int Port, int ASync ) ;	// ConnectNetWork の処理を行う関数
 static	int			PreparationListenNetWork_Base( int IsIPv6, int Port ) ;					// 接続を受けられる状態にする
 static	int			MakeUDPSocketBase( int IsIPv6, int RecvPort ) ;							// UDPを使用した通信を行うソケットハンドルを作成する( RecvPort を -1 にすると送信専用のソケットハンドルになります )
@@ -81,8 +85,8 @@ static	int			MakeUDPSocketBase( int IsIPv6, int RecvPort ) ;							// UDPを使�
 static	int			RecvSocket( int NetHandle ) ;											// データの受信処理
 static	int			SendSocket( int NetHandle ) ;											// 溜まったデータの送信処理
 
-static	int			ErrorNetWork( const TCHAR *ErrorStr, ... ) ;								// 通信エラー処理関数
-static	int			ErrorNetLogAdd( const TCHAR *String ) ;									// 通信メッセージ出力関数
+static	int			ErrorNetWork( const char *ErrorStr, ... ) ;								// 通信エラー処理関数
+static	int			ErrorNetLogAdd( const char *String ) ;									// 通信メッセージ出力関数
 static	int			ErrorNetLogTabAdd( void ) ;												// 通信メッセージにタブを追加する関数
 static	int			ErrorNetLogTabSub( void ) ;												// 通信メッセージのタブを減らす関数
 
@@ -137,20 +141,20 @@ extern	int			URLParamAnalysis( char **ParamList, char **ParamStringP ) ;				// H
 
 // プログラム --------------------------------------------------------------------
 
-// 通信相关
+// 通信関係
 
 // 通信エラー処理関数
-static	int ErrorNetWork( const TCHAR *ErrorStr, ... )
+static	int ErrorNetWork( const char *ErrorStr, ... )
 {
 	va_list VaList ;
-	TCHAR String[ 1024 ] ;
+	char String[ 1024 ] ;
 	int ErrorNum ;
 
 	// ログ出力用のリストをセットする
 	va_start( VaList, ErrorStr ) ;
 
 	// 編集後の文字列を取得する
-	_TVSPRINTF( String, ErrorStr, VaList ) ;
+	CL_vsprintf( DX_CODEPAGE_UTF16LE, TRUE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, String, ErrorStr, VaList ) ;
 	
 	// 可変長リストのポインタをリセットする
 	va_end( VaList ) ;
@@ -158,7 +162,7 @@ static	int ErrorNetWork( const TCHAR *ErrorStr, ... )
 //	if( SockData.MessageWindow != NULL ) return -1 ;
 
 	ErrorNum = WinAPIData.WinSockFunc.WSAGetLastErrorFunc() ;
-	DXST_ERRORLOGFMT_ADD(( _T( "ネットワークログ。%s[%d]" ), String, ErrorNum )) ;
+	DXST_ERRORLOGFMT_ADDUTF16LE(( "\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xed\x30\xb0\x30\x02\x30\x25\x00\x73\x00\x5b\x00\x25\x00\x64\x00\x5d\x00\x00"/*@ L"ネットワークログ。%s[%d]" @*/, String, ErrorNum )) ;
 
 	// 終了
 	return -1 ;
@@ -166,11 +170,11 @@ static	int ErrorNetWork( const TCHAR *ErrorStr, ... )
 
 
 // 通信メッセージ出力関数
-static int ErrorNetLogAdd( const TCHAR *String )
+static int ErrorNetLogAdd( const char *String )
 {
 //	if( SockData.MessageWindow != NULL ) return 0 ;
 
-	return DXST_ERRORLOG_ADD( String ) ;
+	return ErrorNetWork( String ) ;
 }
 
 // 通信メッセージにタブを追加する関数
@@ -231,10 +235,10 @@ extern int NS_ProcessNetMessage( int RunReleaseProcess )
 		MSG msg;
 
 		// メッセージが何もないかあった場合はﾒｯｾｰｼﾞの処理が終わるまでループする（制限あり）
-		while( PeekMessage( &msg, SockData.MessageWindow, 0, 0, PM_REMOVE ) )
+		while( PeekMessageW( &msg, SockData.MessageWindow, 0, 0, PM_REMOVE ) )
 		{
 			TranslateMessage( &msg );
-			DispatchMessage( &msg );
+			DispatchMessageW( &msg );
 		}
 	}
 
@@ -254,15 +258,15 @@ extern 	int InitializeNetWork( HWND WindowHandle )
 
 	if( SockData.InitializeFlag ) return 0 ;
 
-	DXERRORNETLOG_ADD( _T( "ネットワーク関連を初期化します\n" ) ) ;
+	DXERRORNETLOG_ADD( "\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xa2\x95\x23\x90\x92\x30\x1d\x52\x1f\x67\x16\x53\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ネットワーク関連を初期化します\n" @*/ ) ;
 	ErrorNetLogTabAdd() ;
 
 	// ハンドル管理情報の初期化
-	InitializeHandleManage( DX_HANDLETYPE_NETWORK, sizeof( SOCKETDATA ), MAX_SOCKET_NUM, InitializeNetworkHandle, TerminateNetworkHandle, DXSTRING( _T( "ネットワーク" ) ) ) ;
+	InitializeHandleManage( DX_HANDLETYPE_NETWORK, sizeof( SOCKETDATA ), MAX_SOCKET_NUM, InitializeNetworkHandle, TerminateNetworkHandle, L"Network" ) ;
 
 	// WinSockets初期化
 	if( WinAPIData.WinSockFunc.WSAStartupFunc( MAKEWORD( 2 , 2 ), &wsaData ) != 0 ) 
-		return DXERRORNETLOG_ADD( _T( "ws2_32.dllが導入されていません\n" ) ) ;
+		return DXERRORNETLOG_ADD( "\x77\x00\x73\x00\x32\x00\x5f\x00\x33\x00\x32\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x4c\x30\x0e\x5c\x65\x51\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"ws2_32.dllが導入されていません\n" @*/ ) ;
 
 	// 指定バージョンで初期化されなかった場合は終了
 	if ( LOBYTE( wsaData.wVersion ) != 2 ||
@@ -270,25 +274,52 @@ extern 	int InitializeNetWork( HWND WindowHandle )
 	{
 		WinAPIData.WinSockFunc.WSACleanupFunc();
 
-		DXERRORNETLOG_ADD( _T( "ws2_32.dllのバージョンが違います\n" ) ) ;
+		DXERRORNETLOG_ADD( "\x77\x00\x73\x00\x32\x00\x5f\x00\x33\x00\x32\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x6e\x30\xd0\x30\xfc\x30\xb8\x30\xe7\x30\xf3\x30\x4c\x30\x55\x90\x44\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ws2_32.dllのバージョンが違います\n" @*/ ) ;
 		return -1;
 	}
 
 	// ＩＰアドレスを取得する
 	{
-		char IPStr[256] ;
+		char IPStr[ 1024 ] ;
 		HOSTENT *Host ;
 
-		_MEMSET( &SockData.MyIP, 0, sizeof( IPDATA ) ) ;
+//		_MEMSET( &SockData.MyIP, 0, sizeof( IPDATA ) ) ;
 		if( WinAPIData.WinSockFunc.gethostnameFunc( IPStr, 256 ) == 0 )
 		{
-			if( ( Host = WinAPIData.WinSockFunc.gethostbynameFunc( IPStr ) ) != NULL )
+			Host = WinAPIData.WinSockFunc.gethostbynameFunc( IPStr ) ;
+			if( Host != NULL )
 			{
-				// データセット
-				SockData.MyIP.d1 = Host->h_addr_list[0][0] ;
-				SockData.MyIP.d2 = Host->h_addr_list[0][1] ;
-				SockData.MyIP.d3 = Host->h_addr_list[0][2] ;
-				SockData.MyIP.d4 = Host->h_addr_list[0][3] ;
+				// ＩＰアドレスの数を数える
+				for( SockData.MyIPNum = 0 ; Host->h_addr_list[ SockData.MyIPNum ] != NULL ; SockData.MyIPNum ++ ){}
+
+				// ０個だった場合は NULL をセットして終了
+				if( SockData.MyIPNum == 0 )
+				{
+					SockData.MyIP = NULL ;
+				}
+				else
+				{
+					int i ;
+
+					// ＩＰアドレスを保存するメモリを確保する
+					SockData.MyIP = ( IPDATA * )DXALLOC( sizeof( IPDATA ) * SockData.MyIPNum ) ;
+					if( SockData.MyIP == NULL )
+					{
+						WinAPIData.WinSockFunc.WSACleanupFunc() ;
+
+						DXERRORNETLOG_ADD( "\x49\x00\x50\x00\xa2\x30\xc9\x30\xec\x30\xb9\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"IPアドレスを保存するメモリの確保に失敗しました\n" @*/ ) ;
+						return -1 ;
+					}
+
+					// ＩＰアドレスを保存
+					for( i = 0 ; i < SockData.MyIPNum ; i ++ )
+					{
+						SockData.MyIP[ i ].d1 = ( unsigned char )Host->h_addr_list[ i ][ 0 ] ;
+						SockData.MyIP[ i ].d2 = ( unsigned char )Host->h_addr_list[ i ][ 1 ] ;
+						SockData.MyIP[ i ].d3 = ( unsigned char )Host->h_addr_list[ i ][ 2 ] ;
+						SockData.MyIP[ i ].d4 = ( unsigned char )Host->h_addr_list[ i ][ 3 ] ;
+					}
+				}
 			}
 		}
 	}
@@ -305,10 +336,10 @@ extern 	int InitializeNetWork( HWND WindowHandle )
 
 	// メッセージ処理用子ウインドウを作成する
 	{
-		WNDCLASSEX wc ;
+		WNDCLASSEXW wc ;
 		HWND ParentWindow ;
 		HINSTANCE hInst = GetModuleHandle( NULL ) ;
-		TCHAR *Name = _T( "WinSockProc" ) ;
+		wchar_t *Name = L"WinSockProc" ;
 
 		// 子ウインドウのウインドウクラスを登録
 		_MEMSET( &wc, 0, sizeof( wc ) ) ;
@@ -319,16 +350,16 @@ extern 	int InitializeNetWork( HWND WindowHandle )
 			wc.cbWndExtra		= 0 ;
 			wc.hInstance		= hInst ;
 			wc.hIcon			= NULL ;
-			wc.hCursor			= LoadCursor( NULL , IDC_ARROW ) ;
+			wc.hCursor			= LoadCursorW( NULL , ( LPCWSTR )IDC_ARROW ) ;
 			wc.hbrBackground	= (HBRUSH)GetStockObject(NULL_BRUSH);
 			wc.lpszMenuName		= NULL ;
 			wc.lpszClassName	= Name ;
 			wc.cbSize			= sizeof( WNDCLASSEX );
 			wc.hIconSm			= NULL ;
 
-			if( !RegisterClassEx( &wc ) )
+			if( !RegisterClassExW( &wc ) )
 			{
-				DXST_ERRORLOG_ADD( _T( "ネットワーク処理用の子ウインドウクラスの登録に失敗しました\n" ) ) ;
+				DXST_ERRORLOG_ADDUTF16LE( "\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xe6\x51\x06\x74\x28\x75\x6e\x30\x50\x5b\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\xaf\x30\xe9\x30\xb9\x30\x6e\x30\x7b\x76\x32\x93\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ネットワーク処理用の子ウインドウクラスの登録に失敗しました\n" @*/ ) ;
 				return -1 ;
 			}
 		}
@@ -338,11 +369,11 @@ extern 	int InitializeNetWork( HWND WindowHandle )
 
 		// 子ウインドウを生成
 		SockData.MessageWindow = 
-			CreateWindowEx(
+			WinAPIData.Win32Func.CreateWindowExWFunc(
 				WS_EX_TRANSPARENT,
 				Name,
 				Name ,
-				( ParentWindow ? WS_CHILD : 0 ) | WS_MINIMIZE,
+				( DWORD )( ( ParentWindow ? WS_CHILD : 0 ) | WS_MINIMIZE ),
 				0, 0, 0, 0,
 				ParentWindow,
 				NULL,
@@ -350,7 +381,7 @@ extern 	int InitializeNetWork( HWND WindowHandle )
 				NULL );
 		if( SockData.MessageWindow == NULL )
 		{
-			DXST_ERRORLOG_ADD( _T( "ネットワーク処理用の子ウインドウの作成に失敗しました\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xe6\x51\x06\x74\x28\x75\x6e\x30\x50\x5b\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ネットワーク処理用の子ウインドウの作成に失敗しました\n" @*/ ) ;
 			return -1 ;
 		}
 		SockData.DestroyFlag = FALSE ;
@@ -364,7 +395,7 @@ extern 	int InitializeNetWork( HWND WindowHandle )
 	ResumeThread( SockData.ProcessNetMessageThreadHandle ) ;
 
 	ErrorNetLogTabSub() ;
-	DXERRORNETLOG_ADD( _T( "初期化を完了しました \n" ) ) ;
+	DXERRORNETLOG_ADD( "\x1d\x52\x1f\x67\x16\x53\x92\x30\x8c\x5b\x86\x4e\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x0a\x00\x00"/*@ L"初期化を完了しました \n" @*/ ) ;
 
 	// 終了
 	return 0 ;
@@ -377,7 +408,7 @@ extern int TerminateNetWork( void )
 
 	if( !SockData.InitializeFlag ) return 0 ;
 
-	DXERRORNETLOG_ADD( _T( "ネットワーク関連の終了処理を行います \n" ) ) ;
+	DXERRORNETLOG_ADD( "\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xa2\x95\x23\x90\x6e\x30\x42\x7d\x86\x4e\xe6\x51\x06\x74\x92\x30\x4c\x88\x44\x30\x7e\x30\x59\x30\x20\x00\x0a\x00\x00"/*@ L"ネットワーク関連の終了処理を行います \n" @*/ ) ;
 
 	// ProcessNetMessage をひたすら呼びつづけるスレッドを閉じる
 	if( SockData.ProcessNetMessageThreadHandle != NULL )
@@ -386,7 +417,7 @@ extern int TerminateNetWork( void )
 		SockData.ProcessNetMessageThreadEndRequest = TRUE ;
 		while( SockData.ProcessNetMessageThreadExitFlag == 0 )
 		{
-			Sleep( 1 ) ;
+			Thread_Sleep( 1 ) ;
 		}
 
 		// スレッドのハンドルを閉じる
@@ -414,10 +445,17 @@ extern int TerminateNetWork( void )
 		}
 	}
 */
+	// ＩＰアドレスを保存するためにメモリを確保していたら解放する
+	if( SockData.MyIP != NULL )
+	{
+		DXFREE( SockData.MyIP ) ;
+		SockData.MyIP = NULL ;
+	}
+
 	// ウインドウを削除する
 	if( SockData.MessageWindow != NULL )
 	{
-		PostMessage( SockData.MessageWindow, WM_CLOSE, 0, 0 );
+		PostMessageW( SockData.MessageWindow, WM_CLOSE, 0, 0 );
 		while( SockData.DestroyFlag == FALSE )
 		{
 			if( NS_ProcessNetMessage() <= 0 ) break ;
@@ -430,7 +468,7 @@ extern int TerminateNetWork( void )
 	// WinSocketsの使用を終了する
 	WinAPIData.WinSockFunc.WSACleanupFunc() ;
 
-	DXERRORNETLOG_ADD( _T( "ネットワーク関連の終了処理は完了しました\n" ) ) ;
+	DXERRORNETLOG_ADD( "\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xa2\x95\x23\x90\x6e\x30\x42\x7d\x86\x4e\xe6\x51\x06\x74\x6f\x30\x8c\x5b\x86\x4e\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ネットワーク関連の終了処理は完了しました\n" @*/ ) ;
 
 	// 終了
 	return 0 ;
@@ -463,7 +501,7 @@ extern int WinSockProc( HWND /*hWnd*/, UINT /*message*/, WPARAM wParam, LPARAM l
 		if( HandleManageArray[ DX_HANDLETYPE_NETWORK ].InitializeFlag != FALSE )
 			CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
 
-		DXST_ERRORLOG_ADD( _T( "通信エラー No.1\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x1a\x90\xe1\x4f\xa8\x30\xe9\x30\xfc\x30\x20\x00\x4e\x00\x6f\x00\x2e\x00\x31\x00\x0a\x00\x00"/*@ L"通信エラー No.1\n" @*/ ) ;
 		return FALSE ;
 	}
 	NetHandle = SockD->HandleInfo.Handle ;
@@ -579,7 +617,7 @@ extern LRESULT CALLBACK WinSockWindowProc( HWND hWnd, UINT message, WPARAM wPara
 	if( HandleManageArray[ DX_HANDLETYPE_NETWORK ].InitializeFlag != FALSE )
 		CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
 
-	return DefWindowProc( hWnd , message , wParam , lParam ) ;
+	return DefWindowProcW( hWnd , message , wParam , lParam ) ;
 }
 	
 
@@ -594,7 +632,7 @@ extern int NS_GetHostIPbyName( const TCHAR *HostName, IPDATA *IPDataBuf )
 #ifdef UNICODE
 	char TempHostName[ 1024 ] ;
 
-	WCharToMBChar( _GET_CODEPAGE(), ( DXWCHAR * )HostName, TempHostName, 1024 ) ;
+	ConvString( ( const char * )HostName, WCHAR_T_CODEPAGE, TempHostName, DX_CODEPAGE_ASCII ) ;
 	UseHostName = TempHostName ;
 #else
 	UseHostName = HostName ;
@@ -635,10 +673,10 @@ extern int NS_GetHostIPbyName( const TCHAR *HostName, IPDATA *IPDataBuf )
 		goto ENDLABEL ;
 	}
 		
-	IPDataBuf->d1 = HostInfo->h_addr_list[0][0] ;
-	IPDataBuf->d2 = HostInfo->h_addr_list[0][1] ;
-	IPDataBuf->d3 = HostInfo->h_addr_list[0][2] ;
-	IPDataBuf->d4 = HostInfo->h_addr_list[0][3] ;
+	IPDataBuf->d1 = ( unsigned char )HostInfo->h_addr_list[0][0] ;
+	IPDataBuf->d2 = ( unsigned char )HostInfo->h_addr_list[0][1] ;
+	IPDataBuf->d3 = ( unsigned char )HostInfo->h_addr_list[0][2] ;
+	IPDataBuf->d4 = ( unsigned char )HostInfo->h_addr_list[0][3] ;
 
 ENDLABEL :
 
@@ -661,7 +699,7 @@ extern int NS_GetHostIPbyName_IPv6( const TCHAR *HostName, IPDATA_IPv6 *IPDataBu
 #ifdef UNICODE
 	char TempHostName[ 1024 ] ;
 
-	WCharToMBChar( _GET_CODEPAGE(), ( DXWCHAR * )HostName, TempHostName, 1024 ) ;
+	ConvString( ( const char * )HostName, WCHAR_T_CODEPAGE, TempHostName, DX_CODEPAGE_ASCII ) ;
 	UseHostName = TempHostName ;
 #else
 	UseHostName = HostName ;
@@ -912,7 +950,7 @@ static int ConnectNetWorkBase_Static(
 	Sock->Socket = WinAPIData.WinSockFunc.socketFunc( IsIPv6 ? 23/*AF_INET6 は 23*/ : AF_INET , SOCK_STREAM , IPPROTO_TCP ) ;
 	if( Sock->Socket == INVALID_SOCKET )
 	{
-		DXERRORNETWORK(( _T( "ws2_32.dll が動作していません、ソケットの作成に失敗しました_2" ) )) ;
+		DXERRORNETWORK(( "\x77\x00\x73\x00\x32\x00\x5f\x00\x33\x00\x32\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x20\x00\x4c\x30\xd5\x52\x5c\x4f\x57\x30\x66\x30\x44\x30\x7e\x30\x5b\x30\x93\x30\x01\x30\xbd\x30\xb1\x30\xc3\x30\xc8\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x5f\x00\x32\x00\x00"/*@ L"ws2_32.dll が動作していません、ソケットの作成に失敗しました_2" @*/ )) ;
 		goto ERR ;
 	}
 
@@ -923,7 +961,7 @@ static int ConnectNetWorkBase_Static(
 			WSA_WINSOCKMESSAGE,
 			FD_CONNECT | FD_WRITE | FD_READ | FD_CLOSE ) == SOCKET_ERROR )
 	{
-		DXERRORNETWORK(( _T( "WSAAsyncSelectでエラーが発生しました" ) )) ;
+		DXERRORNETWORK(( "\x57\x00\x53\x00\x41\x00\x41\x00\x73\x00\x79\x00\x6e\x00\x63\x00\x53\x00\x65\x00\x6c\x00\x65\x00\x63\x00\x74\x00\x67\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"WSAAsyncSelectでエラーが発生しました" @*/ )) ;
 		goto ERR ;
 	}
 
@@ -962,7 +1000,7 @@ static int ConnectNetWorkBase_Static(
 	}
 
 	// 同期接続指定の場合はここで接続を一定時間接続を待つ
-	if( ASync == FALSE )
+	if( ASyncThread == FALSE && ASync == FALSE )
 	{
 		int StTime ;
 	
@@ -971,7 +1009,7 @@ static int ConnectNetWorkBase_Static(
 		while( ( ( NS_GetNowCount() - StTime ) < SockData.TimeOutWait ) && ( Sock->ConnectionFlag == FALSE ) )
 		{
 			if( NS_ProcessNetMessage() != 0 ) break ;
-			Sleep( 1 ) ;
+			Thread_Sleep( 1 ) ;
 		}
 		if( Sock->ConnectionFlag == FALSE )
 			goto ERR ;
@@ -1105,12 +1143,12 @@ extern int ConnectNetWorkBase_UseGParam(
 		// クリティカルセクションの解放
 		CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
 
-		// 返回句柄
+		// ハンドルを返す
 		return NetHandle ;
 	}
 
 	// ハンドルの作成
-	NetHandle = AddHandle( DX_HANDLETYPE_NETWORK ) ;
+	NetHandle = AddHandle( DX_HANDLETYPE_NETWORK, FALSE, -1 ) ;
 	if( NetHandle == -1 )
 	{
 		// クリティカルセクションの解放
@@ -1211,262 +1249,17 @@ static int ConnectNetWorkBase( IPDATA *IPData_IPv4, IPDATA_IPv6 *IPData_IPv6, in
 	{
 		if( IPData_IPv6 != NULL )
 		{
-			DXERRORNETWORK(( _T( "%x:%x:%x:%x:%x:%x:%x:%x への接続に失敗しました。\n" ),
+			DXERRORNETWORK(( "\x25\x00\x78\x00\x3a\x00\x25\x00\x78\x00\x3a\x00\x25\x00\x78\x00\x3a\x00\x25\x00\x78\x00\x3a\x00\x25\x00\x78\x00\x3a\x00\x25\x00\x78\x00\x3a\x00\x25\x00\x78\x00\x3a\x00\x25\x00\x78\x00\x20\x00\x78\x30\x6e\x30\xa5\x63\x9a\x7d\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x02\x30\x0a\x00\x00"/*@ L"%x:%x:%x:%x:%x:%x:%x:%x への接続に失敗しました。\n" @*/,
 				IPData_IPv6->Word[ 0 ], IPData_IPv6->Word[ 1 ], IPData_IPv6->Word[ 2 ], IPData_IPv6->Word[ 3 ],
 				IPData_IPv6->Word[ 4 ], IPData_IPv6->Word[ 5 ], IPData_IPv6->Word[ 6 ], IPData_IPv6->Word[ 7 ] ) ) ;
 		}
 		else
 		{
-			DXERRORNETWORK(( _T( "%d.%d.%d.%d への接続に失敗しました。\n" ),IPData_IPv4->d1 , IPData_IPv4->d2 , IPData_IPv4->d3 , IPData_IPv4->d4) ) ;
+			DXERRORNETWORK(( "\x25\x00\x64\x00\x2e\x00\x25\x00\x64\x00\x2e\x00\x25\x00\x64\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x78\x30\x6e\x30\xa5\x63\x9a\x7d\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x02\x30\x0a\x00\x00"/*@ L"%d.%d.%d.%d への接続に失敗しました。\n" @*/,IPData_IPv4->d1 , IPData_IPv4->d2 , IPData_IPv4->d3 , IPData_IPv4->d4) ) ;
 		}
 	}
 
 	return Result ;
-/*
-	int ReturnValue = 0 ;
-	SOCKETDATA * Sock = NULL ;
-	int SockNo ;
-	int i ;
-	unsigned int pt ;
-	HANDLELIST *List ;
-	int IsIPv6 ;
-
-	// 通信関係が初期化されていなかったら初期化
-	if( SockData.InitializeFlag == FALSE )
-	{
-		if( WinData.CloseMessagePostFlag != TRUE )	InitializeNetWork() ;
-		else										return -1 ;
-	}
-	if( SockData.InitializeFlag == FALSE ) return -1 ;
-
-	// クリティカルセクションの取得
-	CRITICALSECTION_LOCK( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-
-	// IPv6 かどうかをセット
-	IsIPv6 = IPData_IPv6 != NULL ? TRUE : FALSE ;
-
-	// 通信関係処理
-	NS_ProcessNetMessage() ;
-	
-	// ポートの値を決定
-	pt = Port == -1 ? WinAPIData.WinSockFunc.htonsFunc( WSA_DEFAULTPORT ) : WinAPIData.WinSockFunc.htonsFunc( ( unsigned short )Port ) ;
-
-	// 現在接続している中に指定のＩＰがあるか確認、あったらそのハンドルを返す
-	for( List = HandleManageArray[ DX_HANDLETYPE_NETWORK ].ListFirst.Next ; List->Next != NULL ; List = List->Next )
-	{
-		Sock = (SOCKETDATA *)List->Data ;
-		if( Sock->UseFlag == FALSE ||
-			Sock->IsIPv6 != IsIPv6 ||
-			Sock->IsUDP != FALSE ||
-			Sock->Port != pt ||
-			Sock->ConnectionFlag == FALSE )
-			continue ;
-
-		if( IsIPv6 )
-		{
-			for( i = 0 ; i < 8 ; i ++ )
-			{
-				if( Sock->AcceptedIP_IPv6.Word[ i ] != IPData_IPv6->Word[ i ] )
-					continue ;
-			}
-		}
-		else
-		{
-			if( Sock->AcceptedIP.d1 != IPData_IPv4->d1 ||
-				Sock->AcceptedIP.d2 != IPData_IPv4->d2 ||
-				Sock->AcceptedIP.d3 != IPData_IPv4->d3 ||
-				Sock->AcceptedIP.d4 != IPData_IPv4->d4 )
-				continue ;
-		}
-
-		ReturnValue = Sock->List.Handle ;
-		goto FUNCTIONEND ;
-	}
-
-	// 空きソケットを検索
-	for( SockNo = 0 ; SockNo != MAX_SOCKET_NUM && SockData.CSocket[ SockNo ] != NULL ; SockNo ++ ){}
-	if( SockNo == MAX_SOCKET_NUM )
-	{
-		ReturnValue = DXERRORNETLOG_ADD( _T( "ソケットに空きがありません\n" ) ) ;
-		goto FUNCTIONEND ;
-	}
-
-	// メモリの確保
-	Sock = SockData.CSocket[ SockNo ] = (SOCKETDATA *)DXALLOC( sizeof( SOCKETDATA ) ) ;
-	if( Sock == NULL )
-	{
-		ReturnValue = DXERRORNETLOG_ADD( _T( "ソケット用のメモリの確保に失敗しました\n" ) ) ;
-		goto FUNCTIONEND ;
-	}
-
-	// データを初期化
-	_MEMSET( Sock, 0, sizeof( SOCKETDATA ) ) ;						// とりあえず零初期化
-	Sock->IsUDP					= FALSE ;							// ＵＤＰは使用しない
-	Sock->IsIPv6				= IsIPv6 ;							// ＩＰｖ６かどうかを保存
-	Sock->ErrorFlag 			= FALSE ;							// エラーが発生したフラグを倒す
-	Sock->UseFlag				= TRUE ;							// データを使用中にする
-	Sock->ConnectionFlag		= FALSE ;							// 接続したかフラグを接続していない状態に
-	Sock->ConnectionLostFlag 	= FALSE ;							// 切断確認フラグはとりあえず倒しておく
-	Sock->AccepteConfirFlag 	= TRUE ;							// 接続確認フラグは自ら接続しているので把握済みということにしておく
-	Sock->AcceptFlag			= FALSE ;							// 相手から接続されたのかフラグを倒す
-	Sock->DXProtocolFlag 		= !SockData.NonUseDXProtocolFlag ;	// ＤＸライブラリ独自の通信方式を使うかどうかをセット
-	Sock->CloseAfterLostFlag	= !SockData.NonCloseAfterLostFlag ;	// 切断直後にハンドルを解放するかどうかのフラグをセット
-	if( IsIPv6 )
-	{
-		Sock->AcceptedIP_IPv6	= *IPData_IPv6 ;					// 接続先のＩＰを保存
-	}
-	else
-	{
-		Sock->AcceptedIP 		= *IPData_IPv4 ;					// 接続先のＩＰを保存
-	}
-	Sock->Port 					= pt ;								// 接続先のポートを保存
-
-	// リストに追加
-	AddHandleList( &SockData.SocketListFirst, &Sock->List, SockNo | DX_HANDLETYPE_MASK_NETWORK | ( SockData.HandleID << DX_HANDLECHECK_ADDRESS ), Sock ) ;
-
-	// ＤＸライブラリ独自の方式を取る場合は送受信用バッファを初期化
-	if( Sock->DXProtocolFlag == TRUE )
-	{
-		// ユーザーに渡すときに使うリングバッファの初期化
-		RingBufInitialize( &Sock->RecvBufferToUserR ) ;
-		Sock->RecvComDataVol = 0 ;
-		Sock->RecvComDataOriginalVol = 0 ;
-		Sock->RecvBufferToUserOpenSize = 0 ;
-
-		// 送信バッファ関連の初期化
-		RingBufInitialize( &Sock->SendBufferR ) ;
-		Sock->SendComDataVol = 0 ;
-		Sock->SendComDataComVol = 0 ;
-	}
-
-	// ソケットの作成
-	// AF_INET6 は 23
-	if( ( Sock->Socket = WinAPIData.WinSockFunc.socketFunc( IsIPv6 ? 23 : AF_INET , SOCK_STREAM , IPPROTO_TCP ) ) == INVALID_SOCKET )
-	{
-		DXERRORNETWORK(( _T( "ws2_32.dll が動作していません、ソケットの作成に失敗しました_2" ) )) ;
-		goto ERR ;
-	}
-
-	// WinSock メッセージ受け取り設定
-	if( WinAPIData.WinSockFunc.WSAAsyncSelectFunc(
-			Sock->Socket,
-			SockData.MessageWindow,
-			WSA_WINSOCKMESSAGE,
-			FD_CONNECT | FD_WRITE | FD_READ | FD_CLOSE ) == SOCKET_ERROR )
-	{
-		DXERRORNETWORK(( _T( "WSAAsyncSelectでエラーが発生しました" ) )) ;
-		goto ERR ;
-	}
-
-	// 接続
-	if( IsIPv6 )
-	{
-		_sockaddr_in6 con_v6 ;
-
-		// 接続パラメータセット
-		_MEMSET( &con_v6, 0, sizeof( con_v6 ) ) ;
-		// AF_INET6 は 23
-		con_v6.sin6_family = 23 ;
-		con_v6.sin6_port = Sock->Port ;
-		for( i = 0 ; i < 8 ; i ++ )
-			con_v6.sin6_addr.Word[ i ] = IPData_IPv6->Word[ i ] ;
-
-		// 接続
-		if( WinAPIData.WinSockFunc.connectFunc( Sock->Socket , (PSOCKADDR) &con_v6, sizeof( _sockaddr_in6 ) ) == SOCKET_ERROR )
-		{
-			if( WinAPIData.WinSockFunc.WSAGetLastErrorFunc() != WSAEWOULDBLOCK )
-				goto ERR ;
-		}
-	}
-	else
-	{
-		SOCKADDR_IN con;
-	
-		// 接続パラメータセット
-		_MEMSET( &con, 0, sizeof( con ) ) ;
-		con.sin_family = AF_INET;
-		con.sin_addr = *(( in_addr *)IPData_IPv4 ) ;
-		con.sin_port = Sock->Port ;
-
-		// 接続
-		if( WinAPIData.WinSockFunc.connectFunc( Sock->Socket , (PSOCKADDR) &con, sizeof( SOCKADDR_IN ) ) == SOCKET_ERROR )
-		{
-			if( WinAPIData.WinSockFunc.WSAGetLastErrorFunc() != WSAEWOULDBLOCK )
-				goto ERR ;
-		}
-	}
-
-	// ＩＤのセット
-	Sock->ID = SockData.HandleID ;
-	SockData.HandleID ++ ;
-	if( SockData.HandleID >= ( DX_HANDLECHECK_MASK >> DX_HANDLECHECK_ADDRESS ) )
-		SockData.HandleID = 0 ;
-
-	// ソケットの総数をインクリメント
-	SockData.SocketNum ++ ;
-
-	// ソケットハンドルを返す
-	ReturnValue = SockNo | DX_HANDLETYPE_MASK_NETWORK | ( Sock->ID << DX_HANDLECHECK_ADDRESS ) ;
-
-	// 同期接続指定の場合はここで接続を一定時間接続を待つ
-	if( ASync == FALSE )
-	{
-		int StTime ;
-	
-		StTime = NS_GetNowCount() ;
-		if( SockData.TimeOutWait == 0 ) SockData.TimeOutWait = WSA_TIMEOUTWAIT ;
-		while( ( ( NS_GetNowCount() - StTime ) < SockData.TimeOutWait ) && ( Sock->ConnectionFlag == FALSE ) )
-		{
-			if( NS_ProcessNetMessage() != 0 ) break ;
-		}
-		if( Sock->ConnectionFlag == FALSE )
-			goto ERR ;
-	}
-
-FUNCTIONEND :
-
-	// クリティカルセクションの解放
-	CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-
-	return ReturnValue ;
-
-	// エラー処理	
-ERR :
-	if( IsIPv6 )
-	{
-		DXERRORNETWORK(( _T( "%x:%x:%x:%x:%x:%x:%x:%x への接続に失敗しました。\n" ),
-			IPData_IPv6->Word[ 0 ], IPData_IPv6->Word[ 1 ], IPData_IPv6->Word[ 2 ], IPData_IPv6->Word[ 3 ],
-			IPData_IPv6->Word[ 4 ], IPData_IPv6->Word[ 5 ], IPData_IPv6->Word[ 6 ], IPData_IPv6->Word[ 7 ] ) ) ;
-	}
-	else
-	{
-		DXERRORNETWORK(( _T( "%d.%d.%d.%d への接続に失敗しました。\n" ),IPData_IPv4->d1 , IPData_IPv4->d2 , IPData_IPv4->d3 , IPData_IPv4->d4) ) ;
-	}
-
-	if( Sock != NULL )
-	{
-		// リストから外す
-		SubHandleList( &Sock->List ) ;
-
-		if( Sock->Socket != 0 && Sock->Socket != INVALID_SOCKET ) WinAPIData.WinSockFunc.closesocketFunc( Sock->Socket ) ;
-		Sock->Socket = 0 ;
-		if( Sock->DXProtocolFlag )
-		{
-			RingBufTerminate( &Sock->RecvBufferToUserR ) ;
-			RingBufTerminate( &Sock->SendBufferR ) ;
-		}
-		Sock->UseFlag = FALSE ;
-
-		// メモリの解放
-		DXFREE( Sock ) ;
-		SockData.CSocket[ SockNo ] = NULL ;
-	}
-
-	// クリティカルセクションの解放
-	CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-
-	return -1 ;
-*/
 }
 
 // 他マシンに接続する
@@ -1522,10 +1315,10 @@ static int PreparationListenNetWork_Base( int IsIPv6, int Port )
 	}
 
 	// 接続受付待ち用のハンドルを追加
-	SockData.ListenHandle = AddHandle( DX_HANDLETYPE_NETWORK ) ;
-	if( NETHCHK( SockData.ListenHandle, ListenSock ) )
+	SockData.ListenHandle = AddHandle( DX_HANDLETYPE_NETWORK, FALSE, -1 ) ;
+	if( NETHCHK_ASYNC( SockData.ListenHandle, ListenSock ) )
 	{
-		DXERRORNETWORK(( _T( "接続待ち用ネットハンドルの作成に失敗しました" ) )) ;
+		DXERRORNETWORK(( "\xa5\x63\x9a\x7d\x85\x5f\x61\x30\x28\x75\xcd\x30\xc3\x30\xc8\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"接続待ち用ネットハンドルの作成に失敗しました" @*/ )) ;
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -1539,14 +1332,14 @@ static int PreparationListenNetWork_Base( int IsIPv6, int Port )
 	ListenSock->Socket = WinAPIData.WinSockFunc.socketFunc( IsIPv6 ? 23/*AF_INET6 は 23*/ : AF_INET , SOCK_STREAM , IPPROTO_TCP ) ;
 	if( ListenSock->Socket == INVALID_SOCKET )
 	{
-		DXERRORNETWORK(( _T( "ソケットの作成に失敗しました。ws2_32.dllが作動していません" ) )) ;
+		DXERRORNETWORK(( "\xbd\x30\xb1\x30\xc3\x30\xc8\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x02\x30\x77\x00\x73\x00\x32\x00\x5f\x00\x33\x00\x32\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x4c\x30\x5c\x4f\xd5\x52\x57\x30\x66\x30\x44\x30\x7e\x30\x5b\x30\x93\x30\x00"/*@ L"ソケットの作成に失敗しました。ws2_32.dllが作動していません" @*/ )) ;
 		goto ERR ;
 	}
 
 	// WinSock メッセージ受け取り設定
 	if( WinAPIData.WinSockFunc.WSAAsyncSelectFunc( ListenSock->Socket, SockData.MessageWindow, WSA_WINSOCKMESSAGE , FD_READ | FD_WRITE | FD_CLOSE | FD_ACCEPT ) == SOCKET_ERROR )
 	{
-		DXERRORNETWORK(( _T( "WSAsyncSelectでエラーが発生しました" ) )) ;
+		DXERRORNETWORK(( "\x57\x00\x53\x00\x41\x00\x73\x00\x79\x00\x6e\x00\x63\x00\x53\x00\x65\x00\x6c\x00\x65\x00\x63\x00\x74\x00\x67\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"WSAsyncSelectでエラーが発生しました" @*/ )) ;
 		goto ERR ;
 	}
 
@@ -1563,7 +1356,7 @@ static int PreparationListenNetWork_Base( int IsIPv6, int Port )
 		{
 			if( WinAPIData.WinSockFunc.WSAGetLastErrorFunc() != WSAEWOULDBLOCK )
 			{
-				DXERRORNETWORK(( _T( "bind出来ません" ) )) ;
+				DXERRORNETWORK(( "\x62\x00\x69\x00\x6e\x00\x64\x00\xfa\x51\x65\x67\x7e\x30\x5b\x30\x93\x30\x00"/*@ L"bind出来ません" @*/ )) ;
 				goto ERR ;
 			}
 		}
@@ -1581,7 +1374,7 @@ static int PreparationListenNetWork_Base( int IsIPv6, int Port )
 		{
 			if( WinAPIData.WinSockFunc.WSAGetLastErrorFunc() != WSAEWOULDBLOCK )
 			{
-				DXERRORNETWORK(( _T( "bind出来ません" ) )) ;
+				DXERRORNETWORK(( "\x62\x00\x69\x00\x6e\x00\x64\x00\xfa\x51\x65\x67\x7e\x30\x5b\x30\x93\x30\x00"/*@ L"bind出来ません" @*/ )) ;
 				goto ERR ;
 			}
 		}
@@ -1590,7 +1383,7 @@ static int PreparationListenNetWork_Base( int IsIPv6, int Port )
 	// 接続待ち用ソケットを待機状態にする
 	if( WinAPIData.WinSockFunc.listenFunc( ListenSock->Socket, SOMAXCONN ) == SOCKET_ERROR )
 	{
-		DXERRORNETWORK(( _T( "listenを失敗しました" ) )) ;
+		DXERRORNETWORK(( "\x6c\x00\x69\x00\x73\x00\x74\x00\x65\x00\x6e\x00\x92\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"listenを失敗しました" @*/ )) ;
 		goto ERR ;
 	}
 
@@ -1652,10 +1445,10 @@ extern int AcceptNetWork( void )
 	}
 
 	// 新しいハンドルを追加
-	NewNetHandle = AddHandle( DX_HANDLETYPE_NETWORK ) ;
-	if( NETHCHK( NewNetHandle, Sock ) )
+	NewNetHandle = AddHandle( DX_HANDLETYPE_NETWORK, FALSE, -1 ) ;
+	if( NETHCHK_ASYNC( NewNetHandle, Sock ) )
 	{
-		DXST_ERRORLOG_ADD( _T( "accept 用のハンドル作成に失敗しました \n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x61\x00\x63\x00\x63\x00\x65\x00\x70\x00\x74\x00\x20\x00\x28\x75\x6e\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x0a\x00\x00"/*@ L"accept 用のハンドル作成に失敗しました \n" @*/ ) ;
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -1700,7 +1493,7 @@ extern int AcceptNetWork( void )
 			Len = sizeof( _sockaddr_in6 ) ;
 			if( ( Sock->Socket = WinAPIData.WinSockFunc.acceptFunc( ListenSock->Socket , ( SOCKADDR * )&AcIP_v6 , &Len ) ) == INVALID_SOCKET )
 			{
-				DXERRORNETWORK(( _T( "acceptに失敗しました" ) )) ;
+				DXERRORNETWORK(( "\x61\x00\x63\x00\x63\x00\x65\x00\x70\x00\x74\x00\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"acceptに失敗しました" @*/ )) ;
 				goto ERR ;
 			}
 
@@ -1720,7 +1513,7 @@ extern int AcceptNetWork( void )
 			Len = sizeof( SOCKADDR_IN ) ;
 			if( ( Sock->Socket = WinAPIData.WinSockFunc.acceptFunc( ListenSock->Socket , &AcIP , &Len ) ) == INVALID_SOCKET )
 			{
-				DXERRORNETWORK(( _T( "acceptに失敗しました" ) )) ;
+				DXERRORNETWORK(( "\x61\x00\x63\x00\x63\x00\x65\x00\x70\x00\x74\x00\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"acceptに失敗しました" @*/ )) ;
 				goto ERR ;
 			}
 
@@ -1739,7 +1532,7 @@ extern int AcceptNetWork( void )
 	// WinSock メッセージ受け取り設定
 	if( WinAPIData.WinSockFunc.WSAAsyncSelectFunc( Sock->Socket , SockData.MessageWindow, WSA_WINSOCKMESSAGE , FD_WRITE | FD_READ | FD_CLOSE ) == SOCKET_ERROR )
 	{
-		DXERRORNETWORK(( _T( "WSAAsyncSelectのエラー in AcceptNetWork" ) )) ;
+		DXERRORNETWORK(( "\x57\x00\x53\x00\x41\x00\x41\x00\x73\x00\x79\x00\x6e\x00\x63\x00\x53\x00\x65\x00\x6c\x00\x65\x00\x63\x00\x74\x00\x6e\x30\xa8\x30\xe9\x30\xfc\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x41\x00\x63\x00\x63\x00\x65\x00\x70\x00\x74\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x00"/*@ L"WSAAsyncSelectのエラー in AcceptNetWork" @*/ )) ;
 		goto ERR ;
 	}
 
@@ -1753,6 +1546,7 @@ FUNCTIONEND :
 	
 	// エラー処理	
 ERR :
+
 	// ハンドルを削除
 	SubHandle( NewNetHandle ) ;
 
@@ -1971,7 +1765,7 @@ static int RecvSocket( int NetHandle )
 	// 有効なソケットデータではなかったら何もせず終了
 	if( Sock->UseFlag == FALSE )
 	{
-		DXST_ERRORLOG_ADD( _T( "有効なネットワークハンドルではありません in RecvSocket\n" ) ) ; 
+		DXST_ERRORLOG_ADDUTF16LE( "\x09\x67\xb9\x52\x6a\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x67\x30\x6f\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x52\x00\x65\x00\x63\x00\x76\x00\x53\x00\x6f\x00\x63\x00\x6b\x00\x65\x00\x74\x00\x0a\x00\x00"/*@ L"有効なネットワークハンドルではありません in RecvSocket\n" @*/ ) ; 
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -1980,7 +1774,7 @@ static int RecvSocket( int NetHandle )
 	// 重大なエラーが発生している場合は何もせず終了
 	if( Sock->ErrorFlag == TRUE )
 	{
-		DXST_ERRORLOG_ADD( _T( "このネットワークハンドルにはエラーが発生しています in RecvSocket\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x53\x30\x6e\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6b\x30\x6f\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x52\x00\x65\x00\x63\x00\x76\x00\x53\x00\x6f\x00\x63\x00\x6b\x00\x65\x00\x74\x00\x0a\x00\x00"/*@ L"このネットワークハンドルにはエラーが発生しています in RecvSocket\n" @*/ ) ;
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -2012,7 +1806,7 @@ static int RecvSocket( int NetHandle )
 				// 新たに受信するデータが収まるようにバッファをリサイズ
 				if( RingBufReSize( &Sock->RecvBufferToUserR, Sock->RecvComDataVol ) < 0 )
 				{
-					DXST_ERRORLOGFMT_ADD(( _T( "受信データを保存するリングバッファのリサイズに失敗しました(データサイズ %d byte)" ), Sock->RecvComDataVol )) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd7\x53\xe1\x4f\xc7\x30\xfc\x30\xbf\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xea\x30\xf3\x30\xb0\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xea\x30\xb5\x30\xa4\x30\xba\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x28\x00\xc7\x30\xfc\x30\xbf\x30\xb5\x30\xa4\x30\xba\x30\x20\x00\x25\x00\x64\x00\x20\x00\x62\x00\x79\x00\x74\x00\x65\x00\x29\x00\x00"/*@ L"受信データを保存するリングバッファのリサイズに失敗しました(データサイズ %d byte)" @*/, Sock->RecvComDataVol )) ;
 
 					// 失敗したら重大なエラー
 					Sock->ErrorFlag = TRUE ;
@@ -2155,7 +1949,7 @@ extern int SendSocket( int NetHandle )
 	// 有効なソケットデータではなかったら何もせず終了
 	if( Sock->UseFlag == FALSE )
 	{
-		DXST_ERRORLOG_ADD( _T( "有効なネットワークハンドルではありません in SendSocket\n" ) ) ; 
+		DXST_ERRORLOG_ADDUTF16LE( "\x09\x67\xb9\x52\x6a\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x67\x30\x6f\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x53\x00\x65\x00\x6e\x00\x64\x00\x53\x00\x6f\x00\x63\x00\x6b\x00\x65\x00\x74\x00\x0a\x00\x00"/*@ L"有効なネットワークハンドルではありません in SendSocket\n" @*/ ) ; 
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -2163,7 +1957,7 @@ extern int SendSocket( int NetHandle )
 	// 重大なエラーが発生している場合は何もせず終了
 	if( Sock->ErrorFlag == TRUE )
 	{
-		DXST_ERRORLOG_ADD( _T( "このネットワークハンドルにはエラーが発生しています in SendSocket\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x53\x30\x6e\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6b\x30\x6f\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x53\x00\x65\x00\x6e\x00\x64\x00\x53\x00\x6f\x00\x63\x00\x6b\x00\x65\x00\x74\x00\x0a\x00\x00"/*@ L"このネットワークハンドルにはエラーが発生しています in SendSocket\n" @*/ ) ;
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -2336,14 +2130,14 @@ extern int NS_GetNetWorkAcceptState( int NetHandle )
 	// 有効なソケットデータではなかったら何もせず終了
 	if( Sock->UseFlag == FALSE )
 	{
-		DXST_ERRORLOG_ADD( _T( "有効なネットワークハンドルではありません in GetNetWorkAcceptState\n" ) ) ; 
+		DXST_ERRORLOG_ADDUTF16LE( "\x09\x67\xb9\x52\x6a\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x67\x30\x6f\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x47\x00\x65\x00\x74\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x41\x00\x63\x00\x63\x00\x65\x00\x70\x00\x74\x00\x53\x00\x74\x00\x61\x00\x74\x00\x65\x00\x0a\x00\x00"/*@ L"有効なネットワークハンドルではありません in GetNetWorkAcceptState\n" @*/ ) ; 
 		goto ENDLABEL ;
 	}
 
 	// 重大なエラーが発生している場合は何もせず終了
 	if( Sock->ErrorFlag == TRUE )
 	{
-		DXST_ERRORLOG_ADD( _T( "このネットワークハンドルにはエラーが発生しています in GetNetWorkAcceptStateh\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x53\x30\x6e\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6b\x30\x6f\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x47\x00\x65\x00\x74\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x41\x00\x63\x00\x63\x00\x65\x00\x70\x00\x74\x00\x53\x00\x74\x00\x61\x00\x74\x00\x65\x00\x68\x00\x0a\x00\x00"/*@ L"このネットワークハンドルにはエラーが発生しています in GetNetWorkAcceptStateh\n" @*/ ) ;
 		goto ENDLABEL ;
 	}
 	
@@ -2394,14 +2188,14 @@ extern int NS_GetNetWorkDataLength( int NetHandle )
 	// 有効なソケットデータではなかったら何もせず終了
 	if( Sock->UseFlag == FALSE )
 	{
-		DXST_ERRORLOG_ADD( _T( "有効なネットワークハンドルではありません in GetNetWorkDataLength\n" ) ) ; 
+		DXST_ERRORLOG_ADDUTF16LE( "\x09\x67\xb9\x52\x6a\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x67\x30\x6f\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x47\x00\x65\x00\x74\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x44\x00\x61\x00\x74\x00\x61\x00\x4c\x00\x65\x00\x6e\x00\x67\x00\x74\x00\x68\x00\x0a\x00\x00"/*@ L"有効なネットワークハンドルではありません in GetNetWorkDataLength\n" @*/ ) ; 
 		goto ENDLABEL ;
 	}
 
 	// 重大なエラーが発生している場合は何もせず終了
 	if( Sock->ErrorFlag == TRUE )
 	{
-		DXST_ERRORLOG_ADD( _T( "このネットワークハンドルにはエラーが発生しています in GetNetWorkDataLength\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x53\x30\x6e\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6b\x30\x6f\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x47\x00\x65\x00\x74\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x44\x00\x61\x00\x74\x00\x61\x00\x4c\x00\x65\x00\x6e\x00\x67\x00\x74\x00\x68\x00\x0a\x00\x00"/*@ L"このネットワークハンドルにはエラーが発生しています in GetNetWorkDataLength\n" @*/ ) ;
 		goto ENDLABEL ;
 	}
 
@@ -2453,14 +2247,14 @@ extern int NS_GetNetWorkSendDataLength( int NetHandle )
 	// 有効なソケットデータではなかったら何もせず終了
 	if( Sock->UseFlag == FALSE )
 	{
-		DXST_ERRORLOG_ADD( _T( "有効なネットワークハンドルではありません in GetNetWorkSendDataLength\n" ) ) ; 
+		DXST_ERRORLOG_ADDUTF16LE( "\x09\x67\xb9\x52\x6a\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x67\x30\x6f\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x47\x00\x65\x00\x74\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x53\x00\x65\x00\x6e\x00\x64\x00\x44\x00\x61\x00\x74\x00\x61\x00\x4c\x00\x65\x00\x6e\x00\x67\x00\x74\x00\x68\x00\x0a\x00\x00"/*@ L"有効なネットワークハンドルではありません in GetNetWorkSendDataLength\n" @*/ ) ; 
 		goto ENDLABEL ;
 	}
 
 	// 重大なエラーが発生している場合は何もせず終了
 	if( Sock->ErrorFlag == TRUE )
 	{
-		DXST_ERRORLOG_ADD( _T( "このネットワークハンドルにはエラーが発生しています in GetNetWorkSendDataLength\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x53\x30\x6e\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6b\x30\x6f\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x47\x00\x65\x00\x74\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x53\x00\x65\x00\x6e\x00\x64\x00\x44\x00\x61\x00\x74\x00\x61\x00\x4c\x00\x65\x00\x6e\x00\x67\x00\x74\x00\x68\x00\x0a\x00\x00"/*@ L"このネットワークハンドルにはエラーが発生しています in GetNetWorkSendDataLength\n" @*/ ) ;
 		goto ENDLABEL ;
 	}
 
@@ -2660,7 +2454,7 @@ extern int NS_GetNetWorkIP( int NetHandle , IPDATA *IpBuf )
 }
 
 // 自分のＩＰを得る
-extern int NS_GetMyIPAddress( IPDATA *IpBuf )
+extern int NS_GetMyIPAddress( IPDATA *IpBuf, int IpBufLength, int *IpNum )
 {
 	// 通信関係の初期化がまだ行われていない場合は初期化する
 	if( !SockData.InitializeFlag )
@@ -2673,7 +2467,21 @@ extern int NS_GetMyIPAddress( IPDATA *IpBuf )
 	CRITICALSECTION_LOCK( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
 
 	// ＩＰを書き込む
-	*IpBuf = SockData.MyIP ;
+	if( SockData.MyIP != NULL && IpBuf != NULL )
+	{
+		int i ;
+
+		for( i = 0 ; i < IpBufLength && i < SockData.MyIPNum ; i ++ )
+		{
+			IpBuf[ i ] = SockData.MyIP[ i ] ;
+		}
+	}
+
+	// ＩＰアドレスの数をセットする
+	if( IpNum != NULL )
+	{
+		*IpNum = SockData.MyIPNum ;
+	}
 
 	// クリティカルセクションの解放
 	CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
@@ -2910,7 +2718,7 @@ static int NetWorkRecv_Static(
 	// 有効なソケットデータではなかったら何もせず終了
 	if( Sock->UseFlag == FALSE )
 	{
-		DXST_ERRORLOG_ADD( _T( "有効なネットワークハンドルではありません in NetWorkRecv\n" ) ) ; 
+		DXST_ERRORLOG_ADDUTF16LE( "\x09\x67\xb9\x52\x6a\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x67\x30\x6f\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x52\x00\x65\x00\x63\x00\x76\x00\x0a\x00\x00"/*@ L"有効なネットワークハンドルではありません in NetWorkRecv\n" @*/ ) ; 
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -2918,7 +2726,7 @@ static int NetWorkRecv_Static(
 	// 重大なエラーが発生している場合は何もせず終了
 	if( Sock->ErrorFlag == TRUE )
 	{
-		DXST_ERRORLOG_ADD( _T( "このネットワークハンドルにはエラーが発生しています in NetWorkRecv\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x53\x30\x6e\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6b\x30\x6f\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x52\x00\x65\x00\x63\x00\x76\x00\x0a\x00\x00"/*@ L"このネットワークハンドルにはエラーが発生しています in NetWorkRecv\n" @*/ ) ;
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -3108,7 +2916,7 @@ extern int NS_NetWorkRecv( int NetHandle, void *Buffer, int Length )
 	// 有効なソケットデータではなかったら何もせず終了
 	if( Sock->UseFlag == FALSE )
 	{
-		DXST_ERRORLOG_ADD( _T( "有効なネットワークハンドルではありません in NetWorkRecv\n" ) ) ; 
+		DXST_ERRORLOG_ADDUTF16LE( L"有効なネットワークハンドルではありません in NetWorkRecv\n" ) ; 
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -3116,7 +2924,7 @@ extern int NS_NetWorkRecv( int NetHandle, void *Buffer, int Length )
 	// 重大なエラーが発生している場合は何もせず終了
 	if( Sock->ErrorFlag == TRUE )
 	{
-		DXST_ERRORLOG_ADD( _T( "このネットワークハンドルにはエラーが発生しています in NetWorkRecv\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( L"このネットワークハンドルにはエラーが発生しています in NetWorkRecv\n" ) ;
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -3196,7 +3004,7 @@ extern int NS_NetWorkRecvToPeek( int NetHandle , void *Buffer , int Length )
 	// 有効なソケットデータではなかったら何もせず終了
 	if( Sock->UseFlag == FALSE )
 	{
-		DXST_ERRORLOG_ADD( _T( "有効なネットワークハンドルではありません in NetWorkRecvToPeek\n" ) ) ; 
+		DXST_ERRORLOG_ADDUTF16LE( L"有効なネットワークハンドルではありません in NetWorkRecvToPeek\n" ) ; 
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -3204,7 +3012,7 @@ extern int NS_NetWorkRecvToPeek( int NetHandle , void *Buffer , int Length )
 	// 重大なエラーが発生している場合は何もせず終了
 	if( Sock->ErrorFlag == TRUE )
 	{
-		DXST_ERRORLOG_ADD( _T( "このネットワークハンドルにはエラーが発生しています in NetWorkRecvToPeek\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( L"このネットワークハンドルにはエラーが発生しています in NetWorkRecvToPeek\n" ) ;
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -3280,7 +3088,7 @@ extern int NS_NetWorkRecvBufferClear( int NetHandle )
 	// 有効なソケットデータではなかったら何もせず終了
 	if( Sock->UseFlag == FALSE )
 	{
-		DXST_ERRORLOG_ADD( _T( "有効なネットワークハンドルではありません in NetWorkRecvBufferClear\n" ) ) ; 
+		DXST_ERRORLOG_ADDUTF16LE( "\x09\x67\xb9\x52\x6a\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x67\x30\x6f\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x52\x00\x65\x00\x63\x00\x76\x00\x42\x00\x75\x00\x66\x00\x66\x00\x65\x00\x72\x00\x43\x00\x6c\x00\x65\x00\x61\x00\x72\x00\x0a\x00\x00"/*@ L"有効なネットワークハンドルではありません in NetWorkRecvBufferClear\n" @*/ ) ; 
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -3288,7 +3096,7 @@ extern int NS_NetWorkRecvBufferClear( int NetHandle )
 	// 重大なエラーが発生している場合は何もせず終了
 	if( Sock->ErrorFlag == TRUE )
 	{
-		DXST_ERRORLOG_ADD( _T( "このネットワークハンドルにはエラーが発生しています in NetWorkRecvBufferClear\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x53\x30\x6e\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6b\x30\x6f\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x52\x00\x65\x00\x63\x00\x76\x00\x42\x00\x75\x00\x66\x00\x66\x00\x65\x00\x72\x00\x43\x00\x6c\x00\x65\x00\x61\x00\x72\x00\x0a\x00\x00"/*@ L"このネットワークハンドルにはエラーが発生しています in NetWorkRecvBufferClear\n" @*/ ) ;
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -3372,7 +3180,7 @@ static int NetWorkSend_Static(
 	// 有効なソケットデータではなかったら何もせず終了
 	if( Sock->UseFlag == FALSE )
 	{
-		DXST_ERRORLOG_ADD( _T( "有効なネットワークハンドルではありません in NetWorkSend\n" ) ) ; 
+		DXST_ERRORLOG_ADDUTF16LE( "\x09\x67\xb9\x52\x6a\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x67\x30\x6f\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x53\x00\x65\x00\x6e\x00\x64\x00\x0a\x00\x00"/*@ L"有効なネットワークハンドルではありません in NetWorkSend\n" @*/ ) ; 
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -3380,7 +3188,7 @@ static int NetWorkSend_Static(
 	// 重大なエラーが発生している場合は何もせず終了
 	if( Sock->ErrorFlag == TRUE )
 	{
-		DXST_ERRORLOG_ADD( _T( "このネットワークハンドルにはエラーが発生しています in NetWorkSend\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x53\x30\x6e\x30\xcd\x30\xc3\x30\xc8\x30\xef\x30\xfc\x30\xaf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6b\x30\x6f\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x4e\x00\x65\x00\x74\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x53\x00\x65\x00\x6e\x00\x64\x00\x0a\x00\x00"/*@ L"このネットワークハンドルにはエラーが発生しています in NetWorkSend\n" @*/ ) ;
 		ReturnValue = -1 ;
 		goto FUNCTIONEND ;
 	}
@@ -3411,7 +3219,7 @@ static int NetWorkSend_Static(
 		// 送信バッファにデータ追加
 		if( RingBufDataAdd( &Sock->SendBufferR, Buffer, Length ) < 0 )
 		{
-			DXST_ERRORLOGFMT_ADD(( _T( "送信データ %d byte の追加に失敗しました in NewWorkSend" ), Length )) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x01\x90\xe1\x4f\xc7\x30\xfc\x30\xbf\x30\x20\x00\x25\x00\x64\x00\x20\x00\x62\x00\x79\x00\x74\x00\x65\x00\x20\x00\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x69\x00\x6e\x00\x20\x00\x4e\x00\x65\x00\x77\x00\x57\x00\x6f\x00\x72\x00\x6b\x00\x53\x00\x65\x00\x6e\x00\x64\x00\x00"/*@ L"送信データ %d byte の追加に失敗しました in NewWorkSend" @*/, Length )) ;
 			ReturnValue = -1 ;
 			goto FUNCTIONEND ;
 		}
@@ -3529,86 +3337,6 @@ END :
 extern int NS_NetWorkSend( int NetHandle, const void *Buffer, int Length )
 {
 	return NetWorkSend_UseGParam( NetHandle, Buffer, Length, GetASyncLoadFlag() ) ;
-/*
-	int ReturnValue = 0 ;
-	SOCKETDATA * Sock ;
-
-	// 通信関係の初期化がされていなかったら何もせず終了
-	if( SockData.InitializeFlag == FALSE ) return -1 ;
-
-	// クリティカルセクションの取得
-	CRITICALSECTION_LOCK( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-
-	// ネットワークハンドルのチェック
-	if( TCPNETHCHK( NetHandle, Sock ) )
-	{
-		// クリティカルセクションの解放
-		CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-		return -1 ;
-	}
-
-	// 通信関係処理
-	NS_ProcessNetMessage() ;
-
-	// 有効なソケットデータではなかったら何もせず終了
-	if( Sock->UseFlag == FALSE )
-	{
-		DXST_ERRORLOG_ADD( _T( "有効なネットワークハンドルではありません in NetWorkSend\n" ) ) ; 
-		ReturnValue = -1 ;
-		goto FUNCTIONEND ;
-	}
-
-	// 重大なエラーが発生している場合は何もせず終了
-	if( Sock->ErrorFlag == TRUE )
-	{
-		DXST_ERRORLOG_ADD( _T( "このネットワークハンドルにはエラーが発生しています in NetWorkSend\n" ) ) ;
-		ReturnValue = -1 ;
-		goto FUNCTIONEND ;
-	}
-	
-	// 接続が断たれている場合も何もせず終了
-	if( Sock->ConnectionFlag == FALSE )
-	{
-		ReturnValue = -1 ;
-		goto FUNCTIONEND ;
-	}
-
-	// 内部送信プロセスを実行する
-	SendSocket( NetHandle ) ;
-
-	// ＤＸライブラリ独自の方式かどうかで処理を分岐
-	if( Sock->DXProtocolFlag == FALSE )
-	{
-		int SendVol ;
-	
-		SendVol = WinAPIData.WinSockFunc.sendFunc( Sock->Socket, (char *)Buffer, Length, 0 ) ;
-
-		// 終了
-		ReturnValue = SendVol ;
-		goto FUNCTIONEND ;
-	}
-	else
-	{
-		// 送信バッファにデータ追加
-		if( RingBufDataAdd( &Sock->SendBufferR, Buffer, Length ) < 0 )
-		{
-			DXST_ERRORLOGFMT_ADD(( _T( "送信データ %d byte の追加に失敗しました in NewWorkSend" ), Length )) ;
-			ReturnValue = -1 ;
-			goto FUNCTIONEND ;
-		}
-
-		// 内部送信プロセスを実行する
-		SendSocket( NetHandle ) ;
-	}
-
-FUNCTIONEND :
-
-	// クリティカルセクションの解放
-	CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-
-	// 終了
-	return ReturnValue ;
-*/
 }
 
 // MakeUDPSocketBase の実処理関数
@@ -3638,7 +3366,7 @@ static int MakeUDPSocketBase_Static(
 	}
 
 	// ポートの値を決定
-	pt = RecvPort == -1 ? -1 : WinAPIData.WinSockFunc.htonsFunc( ( unsigned short )RecvPort ) ;
+	pt = ( unsigned int )( RecvPort == -1 ? -1 : WinAPIData.WinSockFunc.htonsFunc( ( unsigned short )RecvPort ) ) ;
 
 	// データを初期化
 	Sock->IsUDP					= TRUE ;							// ＵＤＰを使用する
@@ -3651,7 +3379,7 @@ static int MakeUDPSocketBase_Static(
 	Sock->Socket = WinAPIData.WinSockFunc.socketFunc( IsIPv6 ? 23/*AF_INET6 は 23*/ : AF_INET , SOCK_DGRAM , IPPROTO_UDP ) ;
 	if( Sock->Socket == INVALID_SOCKET )
 	{
-		DXERRORNETWORK(( _T( "ws2_32.dllが動作していません、ソケットの作成に失敗しました_1" ) )) ;
+		DXERRORNETWORK(( "\x77\x00\x73\x00\x32\x00\x5f\x00\x33\x00\x32\x00\x2e\x00\x64\x00\x6c\x00\x6c\x00\x4c\x30\xd5\x52\x5c\x4f\x57\x30\x66\x30\x44\x30\x7e\x30\x5b\x30\x93\x30\x01\x30\xbd\x30\xb1\x30\xc3\x30\xc8\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x5f\x00\x31\x00\x00"/*@ L"ws2_32.dllが動作していません、ソケットの作成に失敗しました_1" @*/ )) ;
 		goto ERR ;
 	}
 
@@ -3670,7 +3398,7 @@ static int MakeUDPSocketBase_Static(
 			{
 				if( WinAPIData.WinSockFunc.WSAGetLastErrorFunc() != WSAEWOULDBLOCK )
 				{
-					DXERRORNETWORK(( _T( "bind出来ません" ) )) ;
+					DXERRORNETWORK(( "\x62\x00\x69\x00\x6e\x00\x64\x00\xfa\x51\x65\x67\x7e\x30\x5b\x30\x93\x30\x00"/*@ L"bind出来ません" @*/ )) ;
 					goto ERR ;
 				}
 			}
@@ -3688,7 +3416,7 @@ static int MakeUDPSocketBase_Static(
 			{
 				if( WinAPIData.WinSockFunc.WSAGetLastErrorFunc() != WSAEWOULDBLOCK )
 				{
-					DXERRORNETWORK(( _T( "bind出来ません" ) )) ;
+					DXERRORNETWORK(( "\x62\x00\x69\x00\x6e\x00\x64\x00\xfa\x51\x65\x67\x7e\x30\x5b\x30\x93\x30\x00"/*@ L"bind出来ません" @*/ )) ;
 					goto ERR ;
 				}
 			}
@@ -3702,7 +3430,7 @@ static int MakeUDPSocketBase_Static(
 			WSA_WINSOCKMESSAGE,
 			FD_WRITE | FD_READ ) == SOCKET_ERROR )
 	{
-		DXERRORNETWORK(( _T( "WSAAsyncSelectでエラーが発生しました" ) )) ;
+		DXERRORNETWORK(( "\x57\x00\x53\x00\x41\x00\x41\x00\x73\x00\x79\x00\x6e\x00\x63\x00\x53\x00\x65\x00\x6c\x00\x65\x00\x63\x00\x74\x00\x67\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"WSAAsyncSelectでエラーが発生しました" @*/ )) ;
 		goto ERR ;
 	}
 
@@ -3768,7 +3496,7 @@ extern int MakeUDPSocketBase_UseGParam(
 	CRITICALSECTION_LOCK( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
 
 	// ハンドルの作成
-	NetHandle = AddHandle( DX_HANDLETYPE_NETWORK ) ;
+	NetHandle = AddHandle( DX_HANDLETYPE_NETWORK, FALSE, -1 ) ;
 	if( NetHandle == -1 )
 	{
 		// クリティカルセクションの解放
@@ -3837,152 +3565,6 @@ ERR :
 static int MakeUDPSocketBase( int IsIPv6, int RecvPort )
 {
 	return MakeUDPSocketBase_UseGParam( IsIPv6, RecvPort, GetASyncLoadFlag() ) ;
-/*
-	int ReturnValue = 0 ;
-	SOCKETDATA * Sock = NULL ;
-	int SockNo ;
-	unsigned int pt ;
-
-	// 通信関係が初期化されていなかったら初期化
-	if( SockData.InitializeFlag == FALSE )
-	{
-		if( WinData.CloseMessagePostFlag != TRUE )	InitializeNetWork() ;
-		else										return -1 ;
-	}
-	if( SockData.InitializeFlag == FALSE ) return -1 ;
-
-	// クリティカルセクションの取得
-	CRITICALSECTION_LOCK( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-
-	// ポートの値を決定
-	pt = RecvPort == -1 ? -1 : WinAPIData.WinSockFunc.htonsFunc( ( unsigned short )RecvPort ) ;
-
-	// 空きソケットを検索
-	for( SockNo = 0 ; SockNo != MAX_SOCKET_NUM && SockData.CSocket[ SockNo ] != NULL ; SockNo ++ ){}
-	if( SockNo == MAX_SOCKET_NUM )
-	{
-		ReturnValue = DXERRORNETLOG_ADD( _T( "ソケットに空きがありません\n" ) ) ;
-		goto FUNCTIONEND ;
-	}
-
-	// メモリの確保
-	Sock = SockData.CSocket[ SockNo ] = (SOCKETDATA *)DXALLOC( sizeof( SOCKETDATA ) ) ;
-	if( Sock == NULL )
-	{
-		ReturnValue = DXERRORNETLOG_ADD( _T( "ソケット用のメモリの確保に失敗しました\n" ) ) ;
-		goto FUNCTIONEND ;
-	}
-
-	// データを初期化
-	_MEMSET( Sock, 0, sizeof( SOCKETDATA ) ) ;						// とりあえず零初期化
-	Sock->IsUDP					= TRUE ;							// ＵＤＰを使用する
-	Sock->IsIPv6				= IsIPv6 ? TRUE : FALSE ;			// IPv6を使用するかどうかを保存する
-	Sock->Port 					= pt ;								// 接続先のポートを保存
-	Sock->UDPReadFlag			= FALSE ;							// 受信データが存在するか、フラグを倒す
-	Sock->UDPWriteFlag			= TRUE ;							// 送信可能な状態か、フラグを立てる
-
-	// リストに追加
-	AddHandleList( &SockData.SocketListFirst, &Sock->List, SockNo | DX_HANDLETYPE_MASK_NETWORK | ( SockData.HandleID << DX_HANDLECHECK_ADDRESS ), Sock ) ;
-
-	// ソケットの作成
-	// AF_INET6 は 23
-	if( ( Sock->Socket = WinAPIData.WinSockFunc.socketFunc( IsIPv6 ? 23 : AF_INET , SOCK_DGRAM , IPPROTO_UDP ) ) == INVALID_SOCKET )
-	{
-		DXERRORNETWORK(( _T( "ws2_32.dllが動作していません、ソケットの作成に失敗しました_1" ) )) ;
-		goto ERR ;
-	}
-
-	// RecvPort が -1 以外の場合は作成したソケットとポート番号の関連付けを行う
-	if( RecvPort != -1 )
-	{
-		if( IsIPv6 )
-		{
-			_sockaddr_in6 local_v6;
-		
-			_MEMSET( &local_v6, 0, sizeof( local_v6 ) ) ;
-			// AF_INET6 は 23
-			local_v6.sin6_family = 23 ;
-			local_v6.sin6_port = pt ;
-
-			if( WinAPIData.WinSockFunc.bindFunc( Sock->Socket , (struct sockaddr FAR *) &local_v6, sizeof( local_v6 ) ) == SOCKET_ERROR )
-			{
-				if( WinAPIData.WinSockFunc.WSAGetLastErrorFunc() != WSAEWOULDBLOCK )
-				{
-					DXERRORNETWORK(( _T( "bind出来ません" ) )) ;
-					goto ERR ;
-				}
-			}
-		}
-		else
-		{
-			SOCKADDR_IN	local;
-		
-			_MEMSET( &local, 0, sizeof( local ) ) ;
-			local.sin_family = AF_INET;
-			local.sin_port = pt ;
-			local.sin_addr.s_addr = INADDR_ANY;
-
-			if( WinAPIData.WinSockFunc.bindFunc( Sock->Socket , (struct sockaddr FAR *) &local, sizeof( local ) ) == SOCKET_ERROR )
-			{
-				if( WinAPIData.WinSockFunc.WSAGetLastErrorFunc() != WSAEWOULDBLOCK )
-				{
-					DXERRORNETWORK(( _T( "bind出来ません" ) )) ;
-					goto ERR ;
-				}
-			}
-		}
-	}
-
-	// WinSock メッセージ受け取り設定
-	if( WinAPIData.WinSockFunc.WSAAsyncSelectFunc(
-			Sock->Socket,
-			SockData.MessageWindow,
-			WSA_WINSOCKMESSAGE,
-			FD_WRITE | FD_READ ) == SOCKET_ERROR )
-	{
-		DXERRORNETWORK(( _T( "WSAAsyncSelectでエラーが発生しました" ) )) ;
-		goto ERR ;
-	}
-
-	// ＩＤのセット
-	Sock->ID = SockData.HandleID ;
-	SockData.HandleID ++ ;
-	if( SockData.HandleID >= ( DX_HANDLECHECK_MASK >> DX_HANDLECHECK_ADDRESS ) )
-		SockData.HandleID = 0 ;
-
-	// ソケットの総数をインクリメント
-	SockData.SocketNum ++ ;
-
-	// ソケットハンドルを返す
-	ReturnValue = SockNo | DX_HANDLETYPE_MASK_NETWORK | ( Sock->ID << DX_HANDLECHECK_ADDRESS ) ;
-
-FUNCTIONEND :
-
-	// クリティカルセクションの解放
-	CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-
-	return ReturnValue ;
-
-	// エラー処理	
-ERR :
-	if( Sock != NULL )
-	{
-		// リストから外す
-		SubHandleList( &Sock->List ) ;
-
-		if( Sock->Socket != 0 && Sock->Socket != INVALID_SOCKET ) WinAPIData.WinSockFunc.closesocketFunc( Sock->Socket ) ;
-		Sock->Socket = 0 ;
-
-		// メモリの解放
-		DXFREE( Sock ) ;
-		SockData.CSocket[ SockNo ] = NULL ;
-	}
-
-	// クリティカルセクションの解放
-	CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-
-	return -1 ;
-*/
 }
 
 // UDPを使用した通信を行うソケットハンドルを作成する( RecvPort を -1 にすると送信専用のソケットハンドルになります )
@@ -4001,47 +3583,6 @@ extern int NS_MakeUDPSocket_IPv6( int RecvPort )
 extern int NS_DeleteUDPSocket( int NetUDPHandle )
 {
 	return SubHandle( NetUDPHandle ) ;
-/*
-	int ReturnValue = 0 ;
-	SOCKETDATA * Sock ;
-
-	// 通信関係の初期化がされていなかったら何もせず終了
-	if( SockData.InitializeFlag == FALSE ) return -1 ;
-
-	// クリティカルセクションの取得
-	CRITICALSECTION_LOCK( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-
-	// 有効なハンドルではなかったらエラー
-	if( UDPNETHCHK( NetUDPHandle, Sock ) )
-	{
-		// クリティカルセクションの解放
-		CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-		return -1 ;
-	}
-
-	// 非ブロッキング解除
-	WinAPIData.WinSockFunc.WSAAsyncSelectFunc( Sock->Socket, SockData.MessageWindow, 0, 0 );
-
-	// ソケットを閉じる
-	WinAPIData.WinSockFunc.closesocketFunc( Sock->Socket );
-	Sock->Socket = 0 ;
-
-	// リストから外す
-	SubHandleList( &Sock->List ) ;
-
-	// メモリの解放
-	DXFREE( Sock ) ;
-	SockData.CSocket[ NetUDPHandle & DX_HANDLEINDEX_MASK ] = NULL ;
-
-	// ソケットの総数をデクリメント
-	SockData.SocketNum -- ;
-
-	// クリティカルセクションの解放
-	CriticalSection_Unlock( &HandleManageArray[ DX_HANDLETYPE_NETWORK ].CriticalSection ) ;
-
-	// 終了
-	return ReturnValue ;
-*/
 }
 
 // NetWorkSendUDP の実処理関数
@@ -4977,7 +4518,7 @@ DWORD WINAPI ProcessNetMessageThreadFunction( LPVOID )
 		NS_ProcessNetMessage() ;
 
 		// 待ち
-		Sleep( 8 ) ;
+		Thread_Sleep( 8 ) ;
 	}
 
 	// スレッド終了
@@ -5038,9 +4579,9 @@ extern int NS_HTTP_FileDownload( const char *FileURL, const char *SavePath, void
 	char FileName[64] ;
 	const int CommentY = -32, MeterX = -15, MeterY = 32, MeterH = 8, MeterW = 110, SpeedX = 30, SpeedY = 8 ;
 	const int DownSizeX = 10, DownSizeY = 8, SecY = -10, FontSize = 10, BlackW = 320, BlackH = 120 ;
-	const char *Message1 = "接続中です" ;
-	const char *Message2 = "%s をダウンロード中です" ;
-	const char *Message3 = "あと %s" ;
+	const char *Message1 = "\x90\xda\x91\xb1\x92\x86\x82\xc5\x82\xb7"/*@ "接続中です" @*/ ;
+	const char *Message2 = "%s \x82\xf0\x83\x5f\x83\x45\x83\x93\x83\x8d\x81\x5b\x83\x68\x92\x86\x82\xc5\x82\xb7"/*@ "%s をダウンロード中です" @*/ ;
+	const char *Message3 = "\x82\xa0\x82\xc6 %s"/*@ "あと %s" @*/ ;
 	const char *Message4 = "%s %cbyte/sec" ;
 	const char *Message5 = "%s %cbyte/%s %cbyte" ;
 
@@ -5106,7 +4647,7 @@ extern int NS_HTTP_FileDownload( const char *FileURL, const char *SavePath, void
 	DHandle = HTTP_StartFileDownload( FileURL, SavePath, SaveBufferP, ParamList ) ;
 	if( DHandle == -1 )
 	{
-		ErrorLogFmtAdd( "ファイル %s のダウンロードに失敗しました", FileName ) ;
+		ErrorLogFmtAdd( "\x83\x74\x83\x40\x83\x43\x83\x8b %s \x82\xcc\x83\x5f\x83\x45\x83\x93\x83\x8d\x81\x5b\x83\x68\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "ファイル %s のダウンロードに失敗しました" @*/, FileName ) ;
 		goto ERR ;
 	}
 
@@ -5185,8 +4726,8 @@ extern int NS_HTTP_FileDownload( const char *FileURL, const char *SavePath, void
 	{
 		switch( HTTP_GetState( DHandle ) )
 		{
-		case HTTP_RES_STOP : ErrorLogFmtAdd( "ファイル %s のダウンロードは中止されました", FileName ) ; break ;
-		case HTTP_RES_ERROR : ErrorLogFmtAdd( "ファイル %s のダウンロードでエラーが発生しました", FileName ) ; break ;
+		case HTTP_RES_STOP : ErrorLogFmtAdd( "\x83\x74\x83\x40\x83\x43\x83\x8b %s \x82\xcc\x83\x5f\x83\x45\x83\x93\x83\x8d\x81\x5b\x83\x68\x82\xcd\x92\x86\x8e\x7e\x82\xb3\x82\xea\x82\xdc\x82\xb5\x82\xbd"/*@ "ファイル %s のダウンロードは中止されました" @*/, FileName ) ; break ;
+		case HTTP_RES_ERROR : ErrorLogFmtAdd( "\x83\x74\x83\x40\x83\x43\x83\x8b %s \x82\xcc\x83\x5f\x83\x45\x83\x93\x83\x8d\x81\x5b\x83\x68\x82\xc5\x83\x47\x83\x89\x81\x5b\x82\xaa\x94\xad\x90\xb6\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "ファイル %s のダウンロードでエラーが発生しました" @*/, FileName ) ; break ;
 		}
 		goto ERR ;
 	}
@@ -5319,14 +4860,14 @@ static int HTTP_ConnectHost( const char *URL, int UseProxy, IPDATA *HostIPBuf,
 	// 接続先ホスト、ホストへのアクセスパス、アクセスポートを得る
 	if( HTTP_GetConnectInfo( URL, UseProxy, Host, Path, FileName, &Port ) < 0 )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "ＵＲＬ %s の解析に失敗しました\n" ), URL )) ;
+		DXST_ERRORLOGFMT_ADDA(( "\x82\x74\x82\x71\x82\x6b %s \x82\xcc\x89\xf0\x90\xcd\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\n"/*@ "ＵＲＬ %s の解析に失敗しました\n" @*/, URL )) ;
 		return -1 ;
 	}
 
 	// 指定のホストが存在するか得る
 	if( NS_GetHostIPbyName( Host, &HostIP ) == -1 )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "ダウンロード先ホスト %s が見つかりませんでした" ), Host )) ;
+		DXST_ERRORLOGFMT_ADDA(( "\x83\x5f\x83\x45\x83\x93\x83\x8d\x81\x5b\x83\x68\x90\xe6\x83\x7a\x83\x58\x83\x67 %s \x82\xaa\x8c\xa9\x82\xc2\x82\xa9\x82\xe8\x82\xdc\x82\xb9\x82\xf1\x82\xc5\x82\xb5\x82\xbd"/*@ "ダウンロード先ホスト %s が見つかりませんでした" @*/, Host )) ;
 		return -1 ;
 	}
 
@@ -5352,7 +4893,7 @@ static int HTTP_ConnectHost( const char *URL, int UseProxy, IPDATA *HostIPBuf,
 		// 失敗の判定
 		if( NetHandle == -1 )
 		{
-			DXST_ERRORLOGFMT_ADD(( _T( "ダウンロード先ホスト %s への接続に失敗しました" ), Host )) ;
+			DXST_ERRORLOGFMT_ADDA(( "\x83\x5f\x83\x45\x83\x93\x83\x8d\x81\x5b\x83\x68\x90\xe6\x83\x7a\x83\x58\x83\x67 %s \x82\xd6\x82\xcc\x90\xda\x91\xb1\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "ダウンロード先ホスト %s への接続に失敗しました" @*/, Host )) ;
 			return -1 ;
 		}
 	}
@@ -5377,7 +4918,7 @@ static	int			HTTP_AddHandle( void )
 	// 既にHTTPハンドルが一杯の場合はエラー
 	if( HttpData.Num == MAX_HTTPHANDLE_NUM )
 	{
-		DXST_ERRORLOG_ADD( _T( "同時にダウンロードしているファイルが限界に達していたためダウンロードを開始できませんでした\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x0c\x54\x42\x66\x6b\x30\xc0\x30\xa6\x30\xf3\x30\xed\x30\xfc\x30\xc9\x30\x57\x30\x66\x30\x44\x30\x8b\x30\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x4c\x30\x50\x96\x4c\x75\x6b\x30\x54\x90\x57\x30\x66\x30\x44\x30\x5f\x30\x5f\x30\x81\x30\xc0\x30\xa6\x30\xf3\x30\xed\x30\xfc\x30\xc9\x30\x92\x30\x8b\x95\xcb\x59\x67\x30\x4d\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"同時にダウンロードしているファイルが限界に達していたためダウンロードを開始できませんでした\n" @*/ ) ;
 		return -1 ;
 	}
 	
@@ -5388,7 +4929,7 @@ static	int			HTTP_AddHandle( void )
 	HttpData.Data[NewHandle] = http = ( HTTPDATA * )DXALLOC( sizeof( HTTPDATA ) ) ;
 	if( http == NULL )
 	{
-		DXST_ERRORLOG_ADD( _T( "ダウンロード処理用データ領域の確保に失敗しました\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\xc0\x30\xa6\x30\xf3\x30\xed\x30\xfc\x30\xc9\x30\xe6\x51\x06\x74\x28\x75\xc7\x30\xfc\x30\xbf\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ダウンロード処理用データ領域の確保に失敗しました\n" @*/ ) ;
 		return -1 ;
 	}
 	
@@ -5398,7 +4939,7 @@ static	int			HTTP_AddHandle( void )
 	// ハンドルの数を増やす
 	HttpData.Num ++ ;
 
-	// 返回句柄
+	// ハンドルを返す
 	return NewHandle ;
 }
 
@@ -5430,7 +4971,7 @@ extern int NS_HTTP_StartFileDownload( const char *FileURL, const char *SavePath,
 	// 保存先の指定が不正な場合はエラー
 	if( SavePath == NULL && SaveBufferP == NULL )
 	{
-		DXST_ERRORLOG_ADD( _T( "保存先の指定が不正なためダウンロード出来ません\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\xdd\x4f\x58\x5b\x48\x51\x6e\x30\x07\x63\x9a\x5b\x4c\x30\x0d\x4e\x63\x6b\x6a\x30\x5f\x30\x81\x30\xc0\x30\xa6\x30\xf3\x30\xed\x30\xfc\x30\xc9\x30\xfa\x51\x65\x67\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"保存先の指定が不正なためダウンロード出来ません\n" @*/ ) ;
 		return -1 ;
 	}
 
@@ -5444,7 +4985,7 @@ extern int NS_HTTP_StartFileDownload( const char *FileURL, const char *SavePath,
 								&http->HostIP, http->Host, http->Path, http->FileName, &http->Port ) ;
 	if( http->NetHandle < 0 )
 	{
-		DXST_ERRORLOG_ADD( _T( "HTTP ホストへの接続に失敗しました\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x48\x00\x54\x00\x54\x00\x50\x00\x20\x00\xdb\x30\xb9\x30\xc8\x30\x78\x30\x6e\x30\xa5\x63\x9a\x7d\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"HTTP ホストへの接続に失敗しました\n" @*/ ) ;
 		goto ERR ;
 	}
 
@@ -5454,7 +4995,7 @@ extern int NS_HTTP_StartFileDownload( const char *FileURL, const char *SavePath,
 		http->ParamLength = NS_URLParamAnalysis( ParamList, &http->Param ) ;
 		if( http->ParamLength < 0 )
 		{
-			DXST_ERRORLOG_ADD( _T( "HTTP のパラメータ解析に失敗しました\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x48\x00\x54\x00\x54\x00\x50\x00\x20\x00\x6e\x30\xd1\x30\xe9\x30\xe1\x30\xfc\x30\xbf\x30\xe3\x89\x90\x67\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"HTTP のパラメータ解析に失敗しました\n" @*/ ) ;
 			goto ERR ;
 		}
 	}
@@ -5489,7 +5030,7 @@ extern int NS_HTTP_StartFileDownload( const char *FileURL, const char *SavePath,
 		http->FilePoint = CreateFile( http->FileName, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL ) ;
 		if( http->FilePoint == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD(( _T( "ダウンロードしたファイルを保存するファイル %s を開けませんでした\n" ), http->FileName )) ;
+			DXST_ERRORLOGFMT_ADDA(( "\x83\x5f\x83\x45\x83\x93\x83\x8d\x81\x5b\x83\x68\x82\xb5\x82\xbd\x83\x74\x83\x40\x83\x43\x83\x8b\x82\xf0\x95\xdb\x91\xb6\x82\xb7\x82\xe9\x83\x74\x83\x40\x83\x43\x83\x8b %s \x82\xf0\x8a\x4a\x82\xaf\x82\xdc\x82\xb9\x82\xf1\x82\xc5\x82\xb5\x82\xbd\n"/*@ "ダウンロードしたファイルを保存するファイル %s を開けませんでした\n" @*/, http->FileName )) ;
 			goto ERR ;
 		}
 	}
@@ -5744,7 +5285,7 @@ static	int			HTTP_ProcessForGET( int HttpHandle )
 			default : err = HTTP_ERR_SERVER ; break ;
 			}
 			
-			DXST_ERRORLOGFMT_ADD(( _T( "接続に失敗しました (戻り値:%d)" ), i )) ;
+			DXST_ERRORLOGFMT_ADDA(( "\x90\xda\x91\xb1\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd (\x96\xdf\x82\xe8\x92\x6c:%d)"/*@ "接続に失敗しました (戻り値:%d)" @*/, i )) ;
 			
 			HTTP_ReleaseResource( HttpHandle, HTTP_RES_ERROR, err ) ;
 			break ;
@@ -5861,7 +5402,7 @@ static	int			HTTP_ProcessForPOST( int HttpHandle )
 //		NS_NetWorkSend( http->NetHandle, "\n", 1 ) ;
 /*
 		_SPRINTF( str, "GET %s?%s HTTP/1.0\nHost: %s:%d\n\n", http->Path, http->Param, http->Host, http->Port ) ;
-		DXST_ERRORLOG_ADD( _T( str ) ;
+		DXST_ERRORLOG_ADDA( str ) ;
 		NS_NetWorkSend( http->NetHandle, str, lstrlenA( str ) ) ;
 */		
 		http->Step ++ ;
@@ -6341,7 +5882,7 @@ static	int			GetTimeLengthString( int MillSec, char *LengthString )
 	LengthString[0] = '\0' ;
 	if( MillSec >= Day )
 	{
-		_SPRINTF( LengthString, "%d日 ", MillSec / Day ) ;
+		_SPRINTF( LengthString, "%d\x93\xfa "/*@ "%d日 " @*/, MillSec / Day ) ;
 		MillSec %= Day ;
 		LengthString += lstrlenA( LengthString ) ;
 		
@@ -6350,7 +5891,7 @@ static	int			GetTimeLengthString( int MillSec, char *LengthString )
 
 	if( MillSec >= Hour )
 	{
-		_SPRINTF( LengthString, "%d時間 ", MillSec / Hour ) ;
+		_SPRINTF( LengthString, "%d\x8e\x9e\x8a\xd4 "/*@ "%d時間 " @*/, MillSec / Hour ) ;
 		MillSec %= Hour ;
 		LengthString += lstrlenA( LengthString ) ;
 		
@@ -6359,7 +5900,7 @@ static	int			GetTimeLengthString( int MillSec, char *LengthString )
 
 	if( MillSec >= Min && DayFlag == FALSE )
 	{
-		_SPRINTF( LengthString, "%d分 ", MillSec / Min ) ;
+		_SPRINTF( LengthString, "%d\x95\xaa "/*@ "%d分 " @*/, MillSec / Min ) ;
 		MillSec %= Hour ;
 		LengthString += lstrlenA( LengthString ) ;
 		
@@ -6368,7 +5909,7 @@ static	int			GetTimeLengthString( int MillSec, char *LengthString )
 
 	if( DayFlag == FALSE && HourFlag == FALSE )
 	{
-		_SPRINTF( LengthString, "%d秒", MillSec / Sec ) ;
+		_SPRINTF( LengthString, "%d\x95\x62"/*@ "%d秒" @*/, MillSec / Sec ) ;
 		MillSec %= Sec ;
 		LengthString += lstrlenA( LengthString ) ;
 	}
@@ -6379,6 +5920,10 @@ static	int			GetTimeLengthString( int MillSec, char *LengthString )
 
 #endif
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // DX_NON_NETWORK

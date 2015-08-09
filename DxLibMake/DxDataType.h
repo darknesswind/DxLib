@@ -2,29 +2,41 @@
 // 
 // 		ＤＸライブラリ		データタイプ定義ヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 #ifndef __DXDATATYPE_H__
 #define __DXDATATYPE_H__
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxCompileConfig.h"
 #include <stdio.h>
 
-#if !defined( __ANDROID )
+#ifdef __WINDOWS__
 #include "DxDataTypeWin.h"
 #endif
 
-#if defined( __ANDROID )
+#ifdef __PSVITA
+#include "DxDataTypePSVita.h"
+#endif
+
+#ifdef __PS4
+#include "DxDataTypePS4.h"
+#endif
+
+#ifdef __ANDROID
 #include "DxDataTypeAndroid.h"
 #endif
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
+
+// マクロ定義 --------------------------------------------------------------------
 
 #define SETRECT( Dest, Left, Top, Right, Bottom )	\
 	( Dest ).left   = Left ;\
@@ -32,7 +44,7 @@ namespace DxLib
 	( Dest ).right  = Right ;\
 	( Dest ).bottom = Bottom ;
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // ＲＧＢＡ色構造体
 struct RGBCOLOR
@@ -46,6 +58,10 @@ struct RGBCOLOR
 
 // 関数プロトタイプ宣言-----------------------------------------------------------
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // __DXDATATYPE_H__

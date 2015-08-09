@@ -2,11 +2,11 @@
 // 
 // 		ＤＸライブラリ		メモリイメージ制御用プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 // インクルード----------------------------------------------------------------
@@ -15,10 +15,13 @@
 #include "DxStatic.h"
 #include "DxBaseFunc.h"
 #include "DxMemory.h"
-#include "DxGraphicsBase.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義------------------------------------------------------------------
 
@@ -38,17 +41,17 @@ struct PAINTDATA
 
 #ifdef DX_NON_2DDRAW
 
-extern void DrawFillBoxMemImg( MEMIMG *DestImg, const RECT *FillRect, int Color )
+extern void DrawFillBoxMemImg( MEMIMG *DestImg, const RECT *FillRect, unsigned int Color )
 {
 	return ;
 }
 
-extern void DrawLineMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, int Color )
+extern void DrawLineMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, unsigned int Color )
 {
 	return ;
 }
 
-extern void DrawLineBoxMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, int Color )
+extern void DrawLineBoxMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, unsigned int Color )
 {
 	return ;
 }
@@ -63,22 +66,22 @@ extern void DrawLineSetMemImg( MEMIMG *DestImg, const LINEDATA *LineData, int Nu
 	return ;
 }
 
-extern void DrawPixelMemImg( MEMIMG *DestImg, int x, int y, int Color )
+extern void DrawPixelMemImg( MEMIMG *DestImg, int x, int y, unsigned int Color )
 {
 	return ;
 }
 
-extern void PaintMemImg( MEMIMG *DestImg, int x, int y, int FillColor, int BoundaryColor )
+extern void PaintMemImg( MEMIMG *DestImg, int x, int y, unsigned int FillColor, ULONGLONG BoundaryColor )
 {
 	return ;
 }
 
-extern void DrawCircleMemImg( MEMIMG *DestImg, int x, int y, int r, int Color, int FillFlag )
+extern void DrawCircleMemImg( MEMIMG *DestImg, int x, int y, int r, unsigned int Color, int FillFlag )
 {
 	return ;
 }
 
-extern void DrawOvalMemImg( MEMIMG *DestImg, int x, int y, int rx, int ry, int Color, int FillFlag )
+extern void DrawOvalMemImg( MEMIMG *DestImg, int x, int y, int rx, int ry, unsigned int Color, int FillFlag )
 {
 	return ;
 }
@@ -100,16 +103,16 @@ while( PWriteIndex != PReadIndex )\
 	DestBPT = DestBP + ( x2 * (ADDNUM) ) + y2 * DestPitch ;\
 \
 	/* もし既にサーチされ終わっていたら次に移る */\
-	if( *((TYPE *)SrcBPT) == (DWORD)BoundaryColor ) continue ;\
+	if( *((TYPE *)SrcBPT) == (DWORD)BoundaryColorD ) continue ;\
 \
 	/* 左端まで移動 */\
-	while( *((TYPE *)SrcBPT) != (DWORD)BoundaryColor && x2 > MemImgManage.DrawArea.left )\
+	while( *((TYPE *)SrcBPT) != (DWORD)BoundaryColorD && x2 > MemImgManage.DrawArea.left )\
 	{\
 		x2 -- ;\
 		SrcBPT  -= (ADDNUM) ;\
 		DestBPT -= (ADDNUM) ;\
 	}\
-	if( *((TYPE *)SrcBPT) == (DWORD)BoundaryColor )\
+	if( *((TYPE *)SrcBPT) == (DWORD)BoundaryColorD )\
 	{\
 		x2 ++ ;\
 		SrcBPT  += (ADDNUM) ;\
@@ -120,17 +123,17 @@ while( PWriteIndex != PReadIndex )\
 	UpSarchFlag = DownSarchFlag = FALSE ;\
 \
 	/* 右に向かって走査開始 */\
-	while( MemImgManage.DrawArea.right > x2 && *((TYPE *)SrcBPT) != (DWORD)BoundaryColor )\
+	while( MemImgManage.DrawArea.right > x2 && *((TYPE *)SrcBPT) != (DWORD)BoundaryColorD )\
 	{\
 		/* 現在の座標を塗る */\
-		*((TYPE *)SrcBPT)  = (TYPE)BoundaryColor ;\
+		*((TYPE *)SrcBPT)  = (TYPE)BoundaryColorD ;\
 		*((TYPE *)DestBPT) = (TYPE)FillColor ;\
 \
 		/* 上調べフラグが倒れていて、更に上に境界色がない場合は、上のピクセルを */\
 		/* 新たなサーチポイントとしてスタックに積む */\
 		if( y2 - 1 >= MemImgManage.DrawArea.top )\
 		{\
-			if( *((TYPE *)( SrcBPT - SrcPitch )) != (DWORD)BoundaryColor )\
+			if( *((TYPE *)( SrcBPT - SrcPitch )) != (DWORD)BoundaryColorD )\
 			{\
 				if( UpSarchFlag == FALSE )\
 				{\
@@ -152,7 +155,7 @@ while( PWriteIndex != PReadIndex )\
 		/* 新たなサーチポイントとしてスタックに積む */\
 		if( y2 + 1 < MemImgManage.DrawArea.bottom )\
 		{\
-			if( *((TYPE *)( SrcBPT + SrcPitch )) != (DWORD)BoundaryColor )\
+			if( *((TYPE *)( SrcBPT + SrcPitch )) != (DWORD)BoundaryColorD )\
 			{\
 				if( DownSarchFlag == FALSE )\
 				{\
@@ -180,8 +183,8 @@ while( PWriteIndex != PReadIndex )\
 
 #define PAINTMEMIMG2_ND( TYPE, ADDNUM )	\
 /* 指定点の色を取得する */\
-BoundaryColor = (int)*((TYPE *)(DestBP  + ( x * (ADDNUM) ) + y * DestPitch))  ;\
-if( FillColor != BoundaryColor )\
+BoundaryColorD = (DWORD)*((TYPE *)(DestBP  + ( x * (ADDNUM) ) + y * DestPitch))  ;\
+if( FillColor != BoundaryColorD )\
 {\
 	/* 描画ループに掛ける */\
 	while( PWriteIndex != PReadIndex )\
@@ -196,15 +199,15 @@ if( FillColor != BoundaryColor )\
 		DestBPT = DestBP + ( x2 * (ADDNUM) ) + y2 * DestPitch ;\
 	\
 		/* もし既にサーチされ終わっていたら次に移る */\
-		if( *((TYPE *)DestBPT) != (DWORD)BoundaryColor ) continue ;\
+		if( *((TYPE *)DestBPT) != (DWORD)BoundaryColorD ) continue ;\
 	\
 		/* 左端まで移動 */\
-		while( *((TYPE *)DestBPT) == (DWORD)BoundaryColor && x2 > MemImgManage.DrawArea.left )\
+		while( *((TYPE *)DestBPT) == (DWORD)BoundaryColorD && x2 > MemImgManage.DrawArea.left )\
 		{\
 			x2 -- ;\
 			DestBPT -= (ADDNUM) ;\
 		}\
-		if( *((TYPE *)DestBPT) != (DWORD)BoundaryColor )\
+		if( *((TYPE *)DestBPT) != (DWORD)BoundaryColorD )\
 		{\
 			x2 ++ ;\
 			DestBPT += (ADDNUM) ;\
@@ -214,7 +217,7 @@ if( FillColor != BoundaryColor )\
 		UpSarchFlag = DownSarchFlag = FALSE ;\
 	\
 		/* 右に向かって走査開始 */\
-		while( MemImgManage.DrawArea.right > x2 && *((TYPE *)DestBPT) == (DWORD)BoundaryColor )\
+		while( MemImgManage.DrawArea.right > x2 && *((TYPE *)DestBPT) == (DWORD)BoundaryColorD )\
 		{\
 			/* 現在の座標を塗る */\
 			*((TYPE *)DestBPT) = (TYPE)FillColor ;\
@@ -223,7 +226,7 @@ if( FillColor != BoundaryColor )\
 			/* 新たなサーチポイントとしてスタックに積む */\
 			if( y2 - 1 >= MemImgManage.DrawArea.top )\
 			{\
-				if( *((TYPE *)( DestBPT - DestPitch )) == (DWORD)BoundaryColor )\
+				if( *((TYPE *)( DestBPT - DestPitch )) == (DWORD)BoundaryColorD )\
 				{\
 					if( UpSarchFlag == FALSE )\
 					{\
@@ -245,7 +248,7 @@ if( FillColor != BoundaryColor )\
 			/* 新たなサーチポイントとしてスタックに積む */\
 			if( y2 + 1 < MemImgManage.DrawArea.bottom )\
 			{\
-				if( *((TYPE *)( DestBPT + DestPitch )) == (DWORD)BoundaryColor )\
+				if( *((TYPE *)( DestBPT + DestPitch )) == (DWORD)BoundaryColorD )\
 				{\
 					if( DownSarchFlag == FALSE )\
 					{\
@@ -271,7 +274,7 @@ if( FillColor != BoundaryColor )\
 }
 
 // 指定点から境界色があるところまで塗りつぶす
-extern void PaintMemImg( MEMIMG *DestImg, int x, int y, int FillColor, int BoundaryColor )
+extern void PaintMemImg( MEMIMG *DestImg, int x, int y, unsigned int FillColor, ULONGLONG BoundaryColor )
 {
 	int x2, y2 ;
 	int DestPitch, SrcPitch ;
@@ -279,6 +282,7 @@ extern void PaintMemImg( MEMIMG *DestImg, int x, int y, int FillColor, int Bound
 	int PWriteIndex, PReadIndex ;
 	int UpSarchFlag, DownSarchFlag ;
 	MEMIMG WorkImg ;
+	unsigned int BoundaryColorD = ( DWORD )BoundaryColor ;
 
 	union
 	{
@@ -324,7 +328,7 @@ extern void PaintMemImg( MEMIMG *DestImg, int x, int y, int FillColor, int Bound
 	if( BoundaryColor == -1 )
 	{
 		// １ラインのピッチ長を保存
-		DestPitch = DestImg->Base->Pitch ;
+		DestPitch = ( int )DestImg->Base->Pitch ;
 
 		// 描画先と描画元の基点データアドレスを取得
 		DestBP = DestImg->UseImage ;
@@ -344,12 +348,12 @@ extern void PaintMemImg( MEMIMG *DestImg, int x, int y, int FillColor, int Bound
 	{
 		// 作業用イメージを作成する
 		_MEMSET( &WorkImg, 0, sizeof( WorkImg ) ) ;
-		if( InitializeMemImg( &WorkImg, DestImg->Width, DestImg->Height, -1, 0, DestImg->Base->ColorType, FALSE, FALSE ) == -1 )
+		if( InitializeMemImg( &WorkImg, ( int )DestImg->Width, ( int )DestImg->Height, -1, 0, DestImg->Base->ColorType, FALSE, FALSE ) == -1 )
 			return ;
 
 		// １ラインのピッチ長を保存
-		SrcPitch  = WorkImg.Base->Pitch ;
-		DestPitch = DestImg->Base->Pitch ;
+		SrcPitch  = ( int )WorkImg.Base->Pitch ;
+		DestPitch = ( int )DestImg->Base->Pitch ;
 
 		// 描画先と描画元の基点データアドレスを取得
 		SrcBP  = WorkImg.UseImage ;
@@ -387,7 +391,7 @@ extern void PaintMemImg( MEMIMG *DestImg, int x, int y, int FillColor, int Bound
 
 #define SRCP32	(BYTE *)&Color
 #define DSTP32	DestBP
-extern void DrawPixelMemImg( MEMIMG *DestImg, int x, int y, int Color )
+extern void DrawPixelMemImg( MEMIMG *DestImg, int x, int y, unsigned int Color )
 {
 	DWORD *RateTable1 ;
 	int *RateTable2 ;
@@ -438,7 +442,7 @@ NOTEX_NOMALDRAW_C16_NOPAL_BNO:
 			CODE_NBI_C16_NBR_NAC_BNO( SRC16, DST16, DSTP16 )
 			break ;
 
-		case DX_BLENDMODE_ALPHA :		// α混合
+		case DX_BLENDMODE_ALPHA :		// αブレンド
 			if( MemImgManage.BlendParam == 255 ) goto NOTEX_NOMALDRAW_C16_NOPAL_BNO ;
 			else
 			if( MemImgManage.BlendParam == 0 ) return ;
@@ -446,19 +450,19 @@ NOTEX_NOMALDRAW_C16_NOPAL_BNO:
 			CODE_NBI_C16_NBR_NAC_BAL( SRC16, DST16, DSTP16 )
 			break ;
 
-		case DX_BLENDMODE_ADD :		// 加法混合
+		case DX_BLENDMODE_ADD :		// 加算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			CODE_NBI_C16_NBR_NAC_BAD( SRC16, DST16, DSTP16 )
 			break ;
 
-		case DX_BLENDMODE_SUB :		// 减法混合
+		case DX_BLENDMODE_SUB :		// 減算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			CODE_NBI_C16_NBR_NAC_BSB( SRC16, DST16, DSTP16 )
 			break ;
 
-		case DX_BLENDMODE_MUL :		// 乘法混合
+		case DX_BLENDMODE_MUL :		// 乗算ブレンド
 			CODE_NBI_C16_NBR_NAC_BML( SRC16, DST16, DSTP16 )
 			break ;
 
@@ -476,9 +480,9 @@ NOTEX_NOMALDRAW_C16_NOPAL_BNO:
 		// 描画輝度を反映
 		if( ( MemImgManage.bDrawBright & 0xffffff ) != 0xffffff )
 		{
-			((BYTE *)&Color)[2] = ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ;
-			((BYTE *)&Color)[1] = ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ;
-			((BYTE *)&Color)[0] = ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ;
+			((BYTE *)&Color)[2] = ( BYTE )( ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ) ;
+			((BYTE *)&Color)[1] = ( BYTE )( ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ) ;
+			((BYTE *)&Color)[0] = ( BYTE )( ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ) ;
 		}
 		
 		// ブレンドモードによって処理を分岐
@@ -489,7 +493,7 @@ NOTEX_NOMALDRAW_C32_NOPAL_BNO:
 			CODE_NBI_C32_NBR_NAC_BNO( SRCP32, DSTP32 )
 			break ;
 
-		case DX_BLENDMODE_ALPHA :		// α混合
+		case DX_BLENDMODE_ALPHA :		// αブレンド
 			if( MemImgManage.BlendParam == 255 ) goto NOTEX_NOMALDRAW_C32_NOPAL_BNO ;
 			else
 			if( MemImgManage.BlendParam == 0 ) return ;
@@ -497,19 +501,19 @@ NOTEX_NOMALDRAW_C32_NOPAL_BNO:
 			CODE_NBI_C32_NBR_NAC_BAL( SRCP32, DSTP32 )
 			break ;
 
-		case DX_BLENDMODE_ADD :		// 加法混合
+		case DX_BLENDMODE_ADD :		// 加算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			CODE_NBI_C32_NBR_NAC_BAD( SRCP32, DSTP32 )
 			break ;
 
-		case DX_BLENDMODE_SUB :		// 减法混合
+		case DX_BLENDMODE_SUB :		// 減算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			CODE_NBI_C32_NBR_NAC_BSB( SRCP32, DSTP32 )
 			break ;
 
-		case DX_BLENDMODE_MUL :		// 乘法混合
+		case DX_BLENDMODE_MUL :		// 乗算ブレンド
 			CODE_NBI_C32_NBR_NAC_BML( SRCP32, DSTP32 )
 			break ;
 
@@ -537,7 +541,7 @@ NOTEX_NOMALDRAW_C32_NOPAL_BNO:
 
 
 // イメージに中身のあるボックスを描画する
-extern void DrawFillBoxMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, int Color )
+extern void DrawFillBoxMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, unsigned int Color )
 {
 	RECT rect ;
 
@@ -567,10 +571,10 @@ do{\
 
 #define SRCP32	(BYTE *)&Color
 #define DSTP32	DestBP
-extern void DrawFillBoxMemImg( MEMIMG *DestImg, const RECT *FillRect, int Color )
+extern void DrawFillBoxMemImg( MEMIMG *DestImg, const RECT *FillRect, unsigned int Color )
 {
 	RECT DrawRect, TempRect ;
-	int Width, Height ;
+	DWORD Width, Height ;
 	DWORD *RateTable1 ;
 	int *RateTable2 ;
 	DWORD Src1, Data, DataD ;
@@ -597,8 +601,8 @@ extern void DrawFillBoxMemImg( MEMIMG *DestImg, const RECT *FillRect, int Color 
 		FillRect = &TempRect ;
 		TempRect.left   = 0 ;
 		TempRect.top    = 0 ;
-		TempRect.right  = DestImg->Width ;
-		TempRect.bottom = DestImg->Height ;
+		TempRect.right  = ( LONG )DestImg->Width ;
+		TempRect.bottom = ( LONG )DestImg->Height ;
 		DrawRect = TempRect ;
 	}
 	else
@@ -629,9 +633,9 @@ extern void DrawFillBoxMemImg( MEMIMG *DestImg, const RECT *FillRect, int Color 
 
 	// クリッピング
 	RectClipping( &DrawRect , &MemImgManage.DrawArea ) ;
-	Width  = DrawRect.right  - DrawRect.left ;
-	Height = DrawRect.bottom - DrawRect.top  ;
-	if( ( Width == 0 ) | ( Height == 0 ) ) return ;
+	Width  = ( DWORD )( DrawRect.right  - DrawRect.left ) ;
+	Height = ( DWORD )( DrawRect.bottom - DrawRect.top  ) ;
+	if( ( Width == 0 ) || ( Height == 0 ) ) return ;
 
 	// 転送先アドレスのセット
 	DestBP       = DestImg->UseImage + DrawRect.left * DestImg->Base->ColorDataP->PixelByte + DrawRect.top * DestImg->Base->Pitch ;
@@ -693,7 +697,7 @@ NOTEX_NOMALDRAW_C16_NOPAL_BNO:
 #endif
 			break ;
 
-		case DX_BLENDMODE_ALPHA :		// α混合
+		case DX_BLENDMODE_ALPHA :		// αブレンド
 			if( MemImgManage.BlendParam == 255 ) goto NOTEX_NOMALDRAW_C16_NOPAL_BNO ;
 			else
 			if( MemImgManage.BlendParam == 0 ) return ;
@@ -701,19 +705,19 @@ NOTEX_NOMALDRAW_C16_NOPAL_BNO:
 			DRAWFILLBOXMEMIMG_ND( CODE_NBI_C16_NBR_NAC_BAL( SRC16, DST16, DSTP16 ), 2 )
 			break ;
 
-		case DX_BLENDMODE_ADD :		// 加法混合
+		case DX_BLENDMODE_ADD :		// 加算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			DRAWFILLBOXMEMIMG_ND( CODE_NBI_C16_NBR_NAC_BAD( SRC16, DST16, DSTP16 ), 2 )
 			break ;
 
-		case DX_BLENDMODE_SUB :		// 减法混合
+		case DX_BLENDMODE_SUB :		// 減算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			DRAWFILLBOXMEMIMG_ND( CODE_NBI_C16_NBR_NAC_BSB( SRC16, DST16, DSTP16 ), 2 )
 			break ;
 
-		case DX_BLENDMODE_MUL :		// 乘法混合
+		case DX_BLENDMODE_MUL :		// 乗算ブレンド
 			DRAWFILLBOXMEMIMG_ND( CODE_NBI_C16_NBR_NAC_BML( SRC16, DST16, DSTP16 ), 2 )
 			break ;
 
@@ -730,9 +734,9 @@ NOTEX_NOMALDRAW_C16_NOPAL_BNO:
 	case 1 :	// 32bit モード
 		if( ( MemImgManage.bDrawBright & 0xffffff ) != 0xffffff )
 		{
-			((BYTE *)&Color)[2] = ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ;
-			((BYTE *)&Color)[1] = ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ;
-			((BYTE *)&Color)[0] = ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ;
+			((BYTE *)&Color)[2] = ( BYTE )( ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ) ;
+			((BYTE *)&Color)[1] = ( BYTE )( ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ) ;
+			((BYTE *)&Color)[0] = ( BYTE )( ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ) ;
 		}
 		
 		// ブレンドモードによって処理を分岐
@@ -762,7 +766,7 @@ NOTEX_NOMALDRAW_C32_NOPAL_BNO:
 #endif
 			break ;
 
-		case DX_BLENDMODE_ALPHA :		// α混合
+		case DX_BLENDMODE_ALPHA :		// αブレンド
 			if( MemImgManage.BlendParam == 255 ) goto NOTEX_NOMALDRAW_C32_NOPAL_BNO ;
 			else
 			if( MemImgManage.BlendParam == 0 ) return ;
@@ -770,19 +774,19 @@ NOTEX_NOMALDRAW_C32_NOPAL_BNO:
 			DRAWFILLBOXMEMIMG_ND( CODE_NBI_C32_NBR_NAC_BAL( SRCP32, DSTP32 ), 4 )
 			break ;
 
-		case DX_BLENDMODE_ADD :		// 加法混合
+		case DX_BLENDMODE_ADD :		// 加算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			DRAWFILLBOXMEMIMG_ND( CODE_NBI_C32_NBR_NAC_BAD( SRCP32, DSTP32 ), 4 )
 			break ;
 
-		case DX_BLENDMODE_SUB :		// 减法混合
+		case DX_BLENDMODE_SUB :		// 減算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			DRAWFILLBOXMEMIMG_ND( CODE_NBI_C32_NBR_NAC_BSB( SRCP32, DSTP32 ), 4 )
 			break ;
 
-		case DX_BLENDMODE_MUL :		// 乘法混合
+		case DX_BLENDMODE_MUL :		// 乗算ブレンド
 			DRAWFILLBOXMEMIMG_ND( CODE_NBI_C32_NBR_NAC_BML( SRCP32, DSTP32 ), 4 )
 			break ;
 
@@ -845,7 +849,7 @@ NOTEX_NOMALDRAW_C32_NOPAL_BNO:
 
 #define SRCP32	(BYTE *)&Color
 #define DSTP32	DestBP
-extern void DrawLineMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, int Color )
+extern void DrawLineMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, unsigned int Color )
 {
 	RECT DrawArea ;
 	int i, j ;
@@ -966,7 +970,7 @@ NOTEX_NOMALDRAW_C16_NOPAL_BNO:
 			DRAWLINEMEMIMG_ND( CODE_NBI_C16_NBR_NAC_BNO( SRC16, DST16, DSTP16 ) )
 			break ;
 
-		case DX_BLENDMODE_ALPHA :		// α混合
+		case DX_BLENDMODE_ALPHA :		// αブレンド
 			if( MemImgManage.BlendParam == 255 ) goto NOTEX_NOMALDRAW_C16_NOPAL_BNO ;
 			else
 			if( MemImgManage.BlendParam == 0 ) return ;
@@ -974,19 +978,19 @@ NOTEX_NOMALDRAW_C16_NOPAL_BNO:
 			DRAWLINEMEMIMG_ND( CODE_NBI_C16_NBR_NAC_BAL( SRC16, DST16, DSTP16 ) )
 			break ;
 
-		case DX_BLENDMODE_ADD :		// 加法混合
+		case DX_BLENDMODE_ADD :		// 加算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			DRAWLINEMEMIMG_ND( CODE_NBI_C16_NBR_NAC_BAD( SRC16, DST16, DSTP16 ) )
 			break ;
 
-		case DX_BLENDMODE_SUB :		// 减法混合
+		case DX_BLENDMODE_SUB :		// 減算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			DRAWLINEMEMIMG_ND( CODE_NBI_C16_NBR_NAC_BSB( SRC16, DST16, DSTP16 ) )
 			break ;
 
-		case DX_BLENDMODE_MUL :		// 乘法混合
+		case DX_BLENDMODE_MUL :		// 乗算ブレンド
 			DRAWLINEMEMIMG_ND( CODE_NBI_C16_NBR_NAC_BML( SRC16, DST16, DSTP16 ) )
 			break ;
 
@@ -1004,9 +1008,9 @@ NOTEX_NOMALDRAW_C16_NOPAL_BNO:
 		// 描画輝度を反映
 		if( ( MemImgManage.bDrawBright & 0xffffff ) != 0xffffff )
 		{
-			((BYTE *)&Color)[2] = ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ;
-			((BYTE *)&Color)[1] = ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ;
-			((BYTE *)&Color)[0] = ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ;
+			((BYTE *)&Color)[2] = ( BYTE )( ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ) ;
+			((BYTE *)&Color)[1] = ( BYTE )( ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ) ;
+			((BYTE *)&Color)[0] = ( BYTE )( ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ) ;
 		}
 		
 		// ブレンドモードによって処理を分岐
@@ -1017,7 +1021,7 @@ NOTEX_NOMALDRAW_C32_NOPAL_BNO:
 			DRAWLINEMEMIMG_ND( CODE_NBI_C32_NBR_NAC_BNO( SRCP32, DSTP32 ) )
 			break ;
 
-		case DX_BLENDMODE_ALPHA :		// α混合
+		case DX_BLENDMODE_ALPHA :		// αブレンド
 			if( MemImgManage.BlendParam == 255 ) goto NOTEX_NOMALDRAW_C32_NOPAL_BNO ;
 			else
 			if( MemImgManage.BlendParam == 0 ) return ;
@@ -1025,19 +1029,19 @@ NOTEX_NOMALDRAW_C32_NOPAL_BNO:
 			DRAWLINEMEMIMG_ND( CODE_NBI_C32_NBR_NAC_BAL( SRCP32, DSTP32 ) )
 			break ;
 
-		case DX_BLENDMODE_ADD :		// 加法混合
+		case DX_BLENDMODE_ADD :		// 加算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			DRAWLINEMEMIMG_ND( CODE_NBI_C32_NBR_NAC_BAD( SRCP32, DSTP32 ) )
 			break ;
 
-		case DX_BLENDMODE_SUB :		// 减法混合
+		case DX_BLENDMODE_SUB :		// 減算ブレンド
 			if( MemImgManage.BlendParam == 0 ) return ;
 			
 			DRAWLINEMEMIMG_ND( CODE_NBI_C32_NBR_NAC_BSB( SRCP32, DSTP32 ) )
 			break ;
 
-		case DX_BLENDMODE_MUL :		// 乘法混合
+		case DX_BLENDMODE_MUL :		// 乗算ブレンド
 			DRAWLINEMEMIMG_ND( CODE_NBI_C32_NBR_NAC_BML( SRCP32, DSTP32 ) )
 			break ;
 
@@ -1064,7 +1068,7 @@ NOTEX_NOMALDRAW_C32_NOPAL_BNO:
 
 
 // イメージに枠だけのボックスを描画する
-extern void DrawLineBoxMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, int Color )
+extern void DrawLineBoxMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, unsigned int Color )
 {
 	DrawLineMemImg( DestImg, x1,		y1,		x2,		y1,		Color ) ;
 	DrawLineMemImg( DestImg, x2 - 1,	y1 + 1, x2 - 1, y2,		Color ) ;
@@ -1272,7 +1276,7 @@ extern void DrawLineSetMemImg( MEMIMG *DestImg, const LINEDATA *LineData, int Nu
 
 #define SRCP32	(BYTE *)&Color
 #define DSTP32	DrawBP
-extern void DrawCircleMemImg( MEMIMG *DestImg, int x, int y, int r, int Color, int FillFlag )
+extern void DrawCircleMemImg( MEMIMG *DestImg, int x, int y, int r, unsigned int Color, int FillFlag )
 {
 	BYTE *LineDrawBuf ;
 	RECT DrawArea ;
@@ -1321,7 +1325,7 @@ extern void DrawCircleMemImg( MEMIMG *DestImg, int x, int y, int r, int Color, i
 	// 塗りつぶすかどうかで処理を分岐
 	if( FillFlag )
 	{
-		if( ( LineDrawBuf = (BYTE *)DXCALLOC( DrawArea.bottom + 1 ) ) == NULL )
+		if( ( LineDrawBuf = (BYTE *)DXCALLOC( ( size_t )( DrawArea.bottom + 1 ) ) ) == NULL )
 			return ;
 
 		// カラーモードによって処理を分岐
@@ -1344,7 +1348,7 @@ FILL_NOMALDRAW_C16_NOPAL_BNO:
 				DRAWCIRCLEMEMIMG_FILL_ND( CODE_NBI_C16_NBR_NAC_BNO( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto FILL_NOMALDRAW_C16_NOPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
@@ -1352,19 +1356,19 @@ FILL_NOMALDRAW_C16_NOPAL_BNO:
 				DRAWCIRCLEMEMIMG_FILL_ND( CODE_NBI_C16_NBR_NAC_BAL( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_ADD :		// 加法混合
+			case DX_BLENDMODE_ADD :		// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 				
 				DRAWCIRCLEMEMIMG_FILL_ND( CODE_NBI_C16_NBR_NAC_BAD( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_SUB :		// 减法混合
+			case DX_BLENDMODE_SUB :		// 減算ブレンド
 				if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 				
 				DRAWCIRCLEMEMIMG_FILL_ND( CODE_NBI_C16_NBR_NAC_BSB( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_MUL :		// 乘法混合
+			case DX_BLENDMODE_MUL :		// 乗算ブレンド
 				DRAWCIRCLEMEMIMG_FILL_ND( CODE_NBI_C16_NBR_NAC_BML( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
@@ -1381,9 +1385,9 @@ FILL_NOMALDRAW_C16_NOPAL_BNO:
 		case 1 :	// 32bit モード
 			if( ( MemImgManage.bDrawBright & 0xffffff ) != 0xffffff )
 			{
-				((BYTE *)&Color)[2] = ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ;
-				((BYTE *)&Color)[1] = ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ;
-				((BYTE *)&Color)[0] = ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ;
+				((BYTE *)&Color)[2] = ( BYTE )( ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ) ;
+				((BYTE *)&Color)[1] = ( BYTE )( ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ) ;
+				((BYTE *)&Color)[0] = ( BYTE )( ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ) ;
 			}
 			
 			// ブレンドモードによって処理を分岐
@@ -1394,7 +1398,7 @@ FILL_NOMALDRAW_C32_NOPAL_BNO:
 				DRAWCIRCLEMEMIMG_FILL_ND( CODE_NBI_C32_NBR_NAC_BNO( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto FILL_NOMALDRAW_C32_NOPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
@@ -1402,19 +1406,19 @@ FILL_NOMALDRAW_C32_NOPAL_BNO:
 				DRAWCIRCLEMEMIMG_FILL_ND( CODE_NBI_C32_NBR_NAC_BAL( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_ADD :		// 加法混合
+			case DX_BLENDMODE_ADD :		// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 				
 				DRAWCIRCLEMEMIMG_FILL_ND( CODE_NBI_C32_NBR_NAC_BAD( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_SUB :		// 减法混合
+			case DX_BLENDMODE_SUB :		// 減算ブレンド
 				if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 				
 				DRAWCIRCLEMEMIMG_FILL_ND( CODE_NBI_C32_NBR_NAC_BSB( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_MUL :		// 乘法混合
+			case DX_BLENDMODE_MUL :		// 乗算ブレンド
 				DRAWCIRCLEMEMIMG_FILL_ND( CODE_NBI_C32_NBR_NAC_BML( SRCP32, DSTP32 ), 4 )
 				break ;
 
@@ -1454,7 +1458,7 @@ PSET_NOMALDRAW_C16_NOPAL_BNO:
 				DRAWCIRCLEMEMIMG_PSET_ND( CODE_NBI_C16_NBR_NAC_BNO( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto PSET_NOMALDRAW_C16_NOPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -1462,19 +1466,19 @@ PSET_NOMALDRAW_C16_NOPAL_BNO:
 				DRAWCIRCLEMEMIMG_PSET_ND( CODE_NBI_C16_NBR_NAC_BAL( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_ADD :		// 加法混合
+			case DX_BLENDMODE_ADD :		// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				DRAWCIRCLEMEMIMG_PSET_ND( CODE_NBI_C16_NBR_NAC_BAD( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_SUB :		// 减法混合
+			case DX_BLENDMODE_SUB :		// 減算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				DRAWCIRCLEMEMIMG_PSET_ND( CODE_NBI_C16_NBR_NAC_BSB( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_MUL :		// 乘法混合
+			case DX_BLENDMODE_MUL :		// 乗算ブレンド
 				DRAWCIRCLEMEMIMG_PSET_ND( CODE_NBI_C16_NBR_NAC_BML( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
@@ -1491,9 +1495,9 @@ PSET_NOMALDRAW_C16_NOPAL_BNO:
 		case 1 :	// 32bit モード
 			if( ( MemImgManage.bDrawBright & 0xffffff ) != 0xffffff )
 			{
-				((BYTE *)&Color)[2] = ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ;
-				((BYTE *)&Color)[1] = ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ;
-				((BYTE *)&Color)[0] = ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ;
+				((BYTE *)&Color)[2] = ( BYTE )( ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ) ;
+				((BYTE *)&Color)[1] = ( BYTE )( ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ) ;
+				((BYTE *)&Color)[0] = ( BYTE )( ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ) ;
 			}
 			
 			// ブレンドモードによって処理を分岐
@@ -1504,7 +1508,7 @@ PSET_NOMALDRAW_C32_NOPAL_BNO:
 				DRAWCIRCLEMEMIMG_PSET_ND( CODE_NBI_C32_NBR_NAC_BNO( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto PSET_NOMALDRAW_C32_NOPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -1512,19 +1516,19 @@ PSET_NOMALDRAW_C32_NOPAL_BNO:
 				DRAWCIRCLEMEMIMG_PSET_ND( CODE_NBI_C32_NBR_NAC_BAL( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_ADD :		// 加法混合
+			case DX_BLENDMODE_ADD :		// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				DRAWCIRCLEMEMIMG_PSET_ND( CODE_NBI_C32_NBR_NAC_BAD( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_SUB :		// 减法混合
+			case DX_BLENDMODE_SUB :		// 減算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				DRAWCIRCLEMEMIMG_PSET_ND( CODE_NBI_C32_NBR_NAC_BSB( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_MUL :		// 乘法混合
+			case DX_BLENDMODE_MUL :		// 乗算ブレンド
 				DRAWCIRCLEMEMIMG_PSET_ND( CODE_NBI_C32_NBR_NAC_BML( SRCP32, DSTP32 ), 4 )
 				break ;
 
@@ -1904,7 +1908,7 @@ PSET_NOMALDRAW_C32_NOPAL_BNO:
 
 #define SRCP32	(BYTE *)&Color
 #define DSTP32	DrawBP
-extern void DrawOvalMemImg( MEMIMG *DestImg, int x, int y, int rx, int ry, int Color, int FillFlag )
+extern void DrawOvalMemImg( MEMIMG *DestImg, int x, int y, int rx, int ry, unsigned int Color, int FillFlag )
 {
 	int DestPitch ;
 	DWORD Src1, Data, DataD ;
@@ -1948,7 +1952,7 @@ extern void DrawOvalMemImg( MEMIMG *DestImg, int x, int y, int rx, int ry, int C
 
 	// 転送先のアドレスをセット
 	DestBP    = DestImg->UseImage ;
-	DestPitch = DestImg->Base->Pitch ;
+	DestPitch = ( int )DestImg->Base->Pitch ;
 
 	// 描画の準備
 	RateTable1 = MemImgManage.RateTable[MemImgManage.BlendParam] ;
@@ -1957,7 +1961,7 @@ extern void DrawOvalMemImg( MEMIMG *DestImg, int x, int y, int rx, int ry, int C
 	// 描画開始
 	if( FillFlag )
 	{
-		if( ( LineDrawBuf = ( BYTE * )DXCALLOC( DrawArea.bottom + 1 ) ) == NULL )
+		if( ( LineDrawBuf = ( BYTE * )DXCALLOC( ( size_t )( DrawArea.bottom + 1 ) ) ) == NULL )
 			return ;
 
 		if( rx >= ry )
@@ -1994,7 +1998,7 @@ FILL_RX_NOMALDRAW_C16_NOPAL_BNO:
 					DRAWOVALMEMIMG_FILL_RX_ND( CODE_NBI_C16_NBR_NAC_BNO( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto FILL_RX_NOMALDRAW_C16_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
@@ -2002,19 +2006,19 @@ FILL_RX_NOMALDRAW_C16_NOPAL_BNO:
 					DRAWOVALMEMIMG_FILL_RX_ND( CODE_NBI_C16_NBR_NAC_BAL( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 					
 					DRAWOVALMEMIMG_FILL_RX_ND( CODE_NBI_C16_NBR_NAC_BAD( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 					
 					DRAWOVALMEMIMG_FILL_RX_ND( CODE_NBI_C16_NBR_NAC_BSB( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					DRAWOVALMEMIMG_FILL_RX_ND( CODE_NBI_C16_NBR_NAC_BML( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
@@ -2031,9 +2035,9 @@ FILL_RX_NOMALDRAW_C16_NOPAL_BNO:
 			case 1 :	// 32bit モード
 				if( ( MemImgManage.bDrawBright & 0xffffff ) != 0xffffff )
 				{
-					((BYTE *)&Color)[2] = ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ;
-					((BYTE *)&Color)[1] = ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ;
-					((BYTE *)&Color)[0] = ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ;
+					((BYTE *)&Color)[2] = ( BYTE )( ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ) ;
+					((BYTE *)&Color)[1] = ( BYTE )( ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ) ;
+					((BYTE *)&Color)[0] = ( BYTE )( ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ) ;
 				}
 				
 				// ブレンドモードによって処理を分岐
@@ -2044,7 +2048,7 @@ FILL_RX_NOMALDRAW_C32_NOPAL_BNO:
 					DRAWOVALMEMIMG_FILL_RX_ND( CODE_NBI_C32_NBR_NAC_BNO( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto FILL_RX_NOMALDRAW_C32_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
@@ -2052,19 +2056,19 @@ FILL_RX_NOMALDRAW_C32_NOPAL_BNO:
 					DRAWOVALMEMIMG_FILL_RX_ND( CODE_NBI_C32_NBR_NAC_BAL( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 					
 					DRAWOVALMEMIMG_FILL_RX_ND( CODE_NBI_C32_NBR_NAC_BAD( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 					
 					DRAWOVALMEMIMG_FILL_RX_ND( CODE_NBI_C32_NBR_NAC_BSB( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					DRAWOVALMEMIMG_FILL_RX_ND( CODE_NBI_C32_NBR_NAC_BML( SRCP32, DSTP32 ), 4 )
 					break ;
 
@@ -2113,7 +2117,7 @@ FILL_RY_NOMALDRAW_C16_NOPAL_BNO:
 					DRAWOVALMEMIMG_FILL_RY_ND( CODE_NBI_C16_NBR_NAC_BNO( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto FILL_RY_NOMALDRAW_C16_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
@@ -2121,19 +2125,19 @@ FILL_RY_NOMALDRAW_C16_NOPAL_BNO:
 					DRAWOVALMEMIMG_FILL_RY_ND( CODE_NBI_C16_NBR_NAC_BAL( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 					
 					DRAWOVALMEMIMG_FILL_RY_ND( CODE_NBI_C16_NBR_NAC_BAD( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 					
 					DRAWOVALMEMIMG_FILL_RY_ND( CODE_NBI_C16_NBR_NAC_BSB( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					DRAWOVALMEMIMG_FILL_RY_ND( CODE_NBI_C16_NBR_NAC_BML( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
@@ -2150,9 +2154,9 @@ FILL_RY_NOMALDRAW_C16_NOPAL_BNO:
 			case 1 :	// 32bit モード
 				if( ( MemImgManage.bDrawBright & 0xffffff ) != 0xffffff )
 				{
-					((BYTE *)&Color)[2] = ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ;
-					((BYTE *)&Color)[1] = ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ;
-					((BYTE *)&Color)[0] = ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ;
+					((BYTE *)&Color)[2] = ( BYTE )( ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ) ;
+					((BYTE *)&Color)[1] = ( BYTE )( ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ) ;
+					((BYTE *)&Color)[0] = ( BYTE )( ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ) ;
 				}
 				
 				// ブレンドモードによって処理を分岐
@@ -2163,7 +2167,7 @@ FILL_RY_NOMALDRAW_C32_NOPAL_BNO:
 					DRAWOVALMEMIMG_FILL_RY_ND( CODE_NBI_C32_NBR_NAC_BNO( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto FILL_RY_NOMALDRAW_C32_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
@@ -2171,19 +2175,19 @@ FILL_RY_NOMALDRAW_C32_NOPAL_BNO:
 					DRAWOVALMEMIMG_FILL_RY_ND( CODE_NBI_C32_NBR_NAC_BAL( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 					
 					DRAWOVALMEMIMG_FILL_RY_ND( CODE_NBI_C32_NBR_NAC_BAD( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) goto LINEEND ;
 					
 					DRAWOVALMEMIMG_FILL_RY_ND( CODE_NBI_C32_NBR_NAC_BSB( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					DRAWOVALMEMIMG_FILL_RY_ND( CODE_NBI_C32_NBR_NAC_BML( SRCP32, DSTP32 ), 4 )
 					break ;
 
@@ -2238,7 +2242,7 @@ PSET_RX_NOMALDRAW_C16_NOPAL_BNO:
 					DRAWOVALMEMIMG_PSET_RX_ND( CODE_NBI_C16_NBR_NAC_BNO( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto PSET_RX_NOMALDRAW_C16_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -2246,19 +2250,19 @@ PSET_RX_NOMALDRAW_C16_NOPAL_BNO:
 					DRAWOVALMEMIMG_PSET_RX_ND( CODE_NBI_C16_NBR_NAC_BAL( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					DRAWOVALMEMIMG_PSET_RX_ND( CODE_NBI_C16_NBR_NAC_BAD( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					DRAWOVALMEMIMG_PSET_RX_ND( CODE_NBI_C16_NBR_NAC_BSB( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					DRAWOVALMEMIMG_PSET_RX_ND( CODE_NBI_C16_NBR_NAC_BML( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
@@ -2275,9 +2279,9 @@ PSET_RX_NOMALDRAW_C16_NOPAL_BNO:
 			case 1 :	// 32bit モード
 				if( ( MemImgManage.bDrawBright & 0xffffff ) != 0xffffff )
 				{
-					((BYTE *)&Color)[2] = ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ;
-					((BYTE *)&Color)[1] = ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ;
-					((BYTE *)&Color)[0] = ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ;
+					((BYTE *)&Color)[2] = ( BYTE )( ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ) ;
+					((BYTE *)&Color)[1] = ( BYTE )( ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ) ;
+					((BYTE *)&Color)[0] = ( BYTE )( ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ) ;
 				}
 				
 				// ブレンドモードによって処理を分岐
@@ -2288,7 +2292,7 @@ PSET_RX_NOMALDRAW_C32_NOPAL_BNO:
 					DRAWOVALMEMIMG_PSET_RX_ND( CODE_NBI_C32_NBR_NAC_BNO( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto PSET_RX_NOMALDRAW_C32_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -2296,19 +2300,19 @@ PSET_RX_NOMALDRAW_C32_NOPAL_BNO:
 					DRAWOVALMEMIMG_PSET_RX_ND( CODE_NBI_C32_NBR_NAC_BAL( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					DRAWOVALMEMIMG_PSET_RX_ND( CODE_NBI_C32_NBR_NAC_BAD( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					DRAWOVALMEMIMG_PSET_RX_ND( CODE_NBI_C32_NBR_NAC_BSB( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					DRAWOVALMEMIMG_PSET_RX_ND( CODE_NBI_C32_NBR_NAC_BML( SRCP32, DSTP32 ), 4 )
 					break ;
 
@@ -2357,7 +2361,7 @@ PSET_RY_NOMALDRAW_C16_NOPAL_BNO:
 					DRAWOVALMEMIMG_PSET_RY_ND( CODE_NBI_C16_NBR_NAC_BNO( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto PSET_RY_NOMALDRAW_C16_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -2365,19 +2369,19 @@ PSET_RY_NOMALDRAW_C16_NOPAL_BNO:
 					DRAWOVALMEMIMG_PSET_RY_ND( CODE_NBI_C16_NBR_NAC_BAL( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					DRAWOVALMEMIMG_PSET_RY_ND( CODE_NBI_C16_NBR_NAC_BAD( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					DRAWOVALMEMIMG_PSET_RY_ND( CODE_NBI_C16_NBR_NAC_BSB( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					DRAWOVALMEMIMG_PSET_RY_ND( CODE_NBI_C16_NBR_NAC_BML( SRC16, DST16, DSTP16 ), 2 )
 					break ;
 
@@ -2394,9 +2398,9 @@ PSET_RY_NOMALDRAW_C16_NOPAL_BNO:
 			case 1 :	// 32bit モード
 				if( ( MemImgManage.bDrawBright & 0xffffff ) != 0xffffff )
 				{
-					((BYTE *)&Color)[2] = ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ;
-					((BYTE *)&Color)[1] = ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ;
-					((BYTE *)&Color)[0] = ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ;
+					((BYTE *)&Color)[2] = ( BYTE )( ( ((BYTE *)&Color)[2] * MemImgManage.DrawBright.Red   ) >> 8 ) ;
+					((BYTE *)&Color)[1] = ( BYTE )( ( ((BYTE *)&Color)[1] * MemImgManage.DrawBright.Green ) >> 8 ) ;
+					((BYTE *)&Color)[0] = ( BYTE )( ( ((BYTE *)&Color)[0] * MemImgManage.DrawBright.Blue  ) >> 8 ) ;
 				}
 				
 				// ブレンドモードによって処理を分岐
@@ -2407,7 +2411,7 @@ PSET_RY_NOMALDRAW_C32_NOPAL_BNO:
 					DRAWOVALMEMIMG_PSET_RY_ND( CODE_NBI_C32_NBR_NAC_BNO( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto PSET_RY_NOMALDRAW_C32_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -2415,19 +2419,19 @@ PSET_RY_NOMALDRAW_C32_NOPAL_BNO:
 					DRAWOVALMEMIMG_PSET_RY_ND( CODE_NBI_C32_NBR_NAC_BAL( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					DRAWOVALMEMIMG_PSET_RY_ND( CODE_NBI_C32_NBR_NAC_BAD( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					DRAWOVALMEMIMG_PSET_RY_ND( CODE_NBI_C32_NBR_NAC_BSB( SRCP32, DSTP32 ), 4 )
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					DRAWOVALMEMIMG_PSET_RY_ND( CODE_NBI_C32_NBR_NAC_BML( SRCP32, DSTP32 ), 4 )
 					break ;
 
@@ -2458,4 +2462,8 @@ PSET_RY_NOMALDRAW_C32_NOPAL_BNO:
 
 #endif
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE

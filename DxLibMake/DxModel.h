@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ制御プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -17,14 +17,17 @@
 #include "DxLib.h"
 #include "DxStatic.h"
 #include "DxBaseFunc.h"
-#include "DxGraphicsBase.h"
+#include "DxGraphics.h"
 #include "DxUseCLib.h"
 #include "DxMemory.h"
-#include "DxVertexShader.h"
-#include "DxGraphicsAPI.h"
+//#include "DxVertexShader.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 -----------------------------------
 
@@ -33,11 +36,13 @@ namespace DxLib
 #define MV1_TRIANGLE_MAX_INDEX				(65500)				// １トライアングルリスト辺りの最大インデックス数
 
 #define MV1_VERTEXBUFFER_MAX_VERTNUM		(65536 * 6)			// 一つの頂点バッファに格納する最大頂点数
-#define MV1_INDEXBUFFER_MAX_IDXNUM			(65536 * 12)		// 一つの頂点バッファに格納する最大インデックス数
+#define MV1_INDEXBUFFER_MAX_INDEXNUM		(65536 * 12)		// 一つの頂点バッファに格納する最大インデックス数
 
 #define MV1_ADD_LOAD_FUNC_MAXNUM			(128)				// 追加できるロード関数の最大数
 
 #define MV1_LOADCALC_PHYSICS_GRAVITY_NUM	(256)				// 読み込み時に適用できる重力の種類数
+
+#define MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM	(54)				// 一つのトライアングルリストが使えるボーンの最大数
 
 #define MV1_SINTABLE_DIV					(65536)				// サインテーブルの精度
 
@@ -46,6 +51,7 @@ namespace DxLib
 #define MV1_FRAMEFLAG_IGNOREPARENTTRANS		(0x00000002)		// 親の座標変換を無視するかどうか( 1:無視する 0:無視しない )
 #define MV1_FRAMEFLAG_PREROTATE				(0x00000004)		// 前回転が有効かどうか( 1:有効  0:無効 )
 #define MV1_FRAMEFLAG_POSTROTATE			(0x00000008)		// 後回転が有効かどうか( 1:有効  0:無効 )
+#define MV1_FRAMEFLAG_TANGENT_BINORMAL		(0x00000010)		// MV1_MESH_NORMAL に含まれる Tangent と Binormal が有効な値かどうか( 1:有効な値  0:無効な値 )
 
 // ライトのタイプ
 #define MV1_LIGHT_TYPE_POINT				(0)					// ポイントライト
@@ -126,6 +132,21 @@ namespace DxLib
 //#define MDFREEMEM( mem )						MDFreeMem( (mem) )
 #define MDFREEMEM( mem )						NS_DxFree( (mem) )
 
+
+// １６バイト境界にあわせるマクロ
+#define ADDR16( addr )		( ( BYTE * )( ( ( DWORD_PTR )( addr ) + 15 ) / 16 * 16 ) )
+
+// モデル基本データハンドル有効性チェック
+#define MV1BMDLCHK( HAND, MPOINT )			HANDLECHK(       DX_HANDLETYPE_MODEL_BASE, HAND, *( ( HANDLEINFO ** )&MPOINT ) )
+#define MV1BMDLCHK_ASYNC( HAND, MPOINT )	HANDLECHK_ASYNC( DX_HANDLETYPE_MODEL_BASE, HAND, *( ( HANDLEINFO ** )&MPOINT ) )
+
+// モデルハンドル有効性チェック
+#define MV1MDLCHK( HAND, MPOINT )			HANDLECHK(       DX_HANDLETYPE_MODEL, HAND, *( ( HANDLEINFO ** )&MPOINT ) )
+#define MV1MDLCHK_ASYNC( HAND, MPOINT )		HANDLECHK_ASYNC( DX_HANDLETYPE_MODEL, HAND, *( ( HANDLEINFO ** )&MPOINT ) )
+
+// トライアングルリスト基データの環境依存用情報用バッファのサイズ
+#define MV1_TRIANGLE_LIST_BASE_PF_BUFFER_SIZE		(16)
+
 // 構造体定義 -----------------------------------
 
 // トライアングルリスト構築時頂点チェック用構造体
@@ -172,10 +193,22 @@ struct BITLIST
 // 4x4構造体の4列目が(0,0,0,1)決め打ちの行列
 // 更に普通の MATRIX とは配列の要素の意味が一次元目と二次元目が逆
 // MATRIX.m[ 行 ][ 列 ],  MATRIX_4X4CT.m[ 列 ][ 行 ]
-struct MATRIX_4X4CT
+struct MATRIX_4X4CT_F
 {
 	float					m[ 3 ][ 4 ] ;
 } ;
+
+struct MATRIX_4X4CT_D
+{
+	double					m[ 3 ][ 4 ] ;
+} ;
+
+union MATRIX_4X4CT
+{
+	MATRIX_4X4CT_F			mf ;
+	MATRIX_4X4CT_D			md ;
+} ;
+
 
 // コリジョン用ポリゴン情報構造体
 struct MV1_COLL_POLYGON
@@ -221,7 +254,7 @@ struct MV1_ROTATE
 		} ZAxis ;												// Ｚ軸方向＋捻り角度用
 		VECTOR				XYZRot ;							// X軸回転→Y軸回転→Z軸回転用
 		FLOAT4				Qt ;								// クォータニオン回転用
-		MATRIX_4X4CT		Mat ;								// 行列回転用
+		MATRIX_4X4CT_F		Mat ;								// 行列回転用
 	} ;
 } ;
 
@@ -229,17 +262,23 @@ struct MV1_ROTATE
 struct MV1_TEXTURE_BASE
 {
 	int						NameAllocMem ;						// テクスチャの名前を保存するメモリを確保しているかどうか( TRUE:確保している  FALSE:していない )
-	char					*Name ;								// テクスチャの名前
+#ifndef UNICODE
+	char					*NameA ;							// テクスチャの名前
+#endif
 	wchar_t					*NameW ;							// テクスチャの名前
 
 	int						AlphaImageFilePathAllocMem ;		// アルファチャンネル用画像のファイルパス用にメモリを確保しているかどうか( TRUE:確保している  FALSE:していない )
-	char					*AlphaFilePath ;					// アルファチャンネル用画像のファイルパス
+#ifndef UNICODE
+	char					*AlphaFilePathA ;					// アルファチャンネル用画像のファイルパス
+#endif
 	wchar_t					*AlphaFilePathW ;
 	void					*AlphaImage ;						// アルファチャンネル画像のファイルイメージへのポインタ
 	int						AlphaImageSize ;					// アルファチャンネル画像のファイルイメージのサイズ
 
 	int						ColorImageFilePathAllocMem ;		// アルファチャンネル用画像のファイルパス用にメモリを確保しているかどうか( TRUE:確保している  FALSE:していない )
-	char					*ColorFilePath ;					// カラーチャンネル用画像のファイルパス
+#ifndef UNICODE
+	char					*ColorFilePathA ;					// カラーチャンネル用画像のファイルパス
+#endif
 	wchar_t					*ColorFilePathW ;
 	void					*ColorImage ;						// カラーチャンネル用画像のファイルイメージへのポインタ
 	int						ColorImageSize ;					// カラーチャンネル用画像のファイルイメージのサイズ
@@ -259,6 +298,8 @@ struct MV1_TEXTURE_BASE
 
 	int						AddressModeU ;						// アドレスモード( DX_TEXADDRESS_WRAP 等 )
 	int						AddressModeV ;						// アドレスモード( DX_TEXADDRESS_WRAP 等 )
+	float					ScaleU ;							// Ｕ座標のスケーリング値
+	float					ScaleV ;							// Ｖ座標のスケーリング値
 	int						FilterMode ;						// フィルタリングモード( DX_DRAWMODE_BILINEAR 等 )
 
 	int						ReverseFlag ;						// 画像を反転するかどうか( 1:反転する  0:反転しない )
@@ -279,7 +320,9 @@ struct MV1_MATERIAL_LAYER
 // マテリアル基データ構造体
 struct MV1_MATERIAL_BASE
 {
-	char					*Name ;								// 名前
+#ifndef UNICODE
+	char					*NameA ;							// 名前
+#endif
 	wchar_t					*NameW ;
 
 	int						Type ;								// マテリアルタイプ( DX_MATERIAL_TYPE_NORMAL など )
@@ -320,7 +363,10 @@ struct MV1_MATERIAL_BASE
 // ライト構造体
 struct MV1_LIGHT
 {
-	char					*Name ;								// 名前
+#ifndef UNICODE
+	char					*NameA ;							// 名前
+#endif
+	wchar_t					*NameW ;							// 名前
 	int						Index ;								// インデックス
 
 	int						FrameIndex ;						// ライトを持っているフレームのインデックス
@@ -403,7 +449,6 @@ struct MV1_ANIM_BASE
 	struct MV1_ANIMSET_BASE	*Container ;						// このアニメーションを持っているアニメーションセットへのポインタ
 
 	struct MV1_FRAME_BASE	*TargetFrame ;						// 対象となるフレーム
-//	char					*TargetFrameName ;					// 対象となるフレームの名前
 	int						TargetFrameIndex ;					// 対象となるフレームのインデックス
 	float					MaxTime ;							// 各キーセットの中で一番長いキーセットの時間値
 	int						RotateOrder ;						// 回転オーダー( MV1_ROTATE_ORDER_XYZ 等 )
@@ -418,7 +463,9 @@ struct MV1_ANIM_BASE
 struct MV1_ANIMSET_BASE
 {
 	int						NameAllocMem ;						// アニメーションの名前を保存するメモリを確保しているかどうか( TRUE:確保している  FALSE:していない )
-	char					*Name ;								// アニメーションセット名
+#ifndef UNICODE
+	char					*NameA ;							// アニメーションセット名
+#endif
 	wchar_t					*NameW ;
 
 	DWORD					KeyDataSize ;						// アニメーションキーデータサイズ
@@ -430,87 +477,6 @@ struct MV1_ANIMSET_BASE
 	int						IsMatrixLinearBlend ;				// 各キーの補間を行列単位で線形補間を刷るかどうかのフラグ( 1:行列で線形補間  0:要素単位で補間 )
 
 	DWORD					UserData[ 4 ] ;						// 外部定義の情報
-} ;
-
-// 剛体メッシュタイプ頂点構造体
-struct MV1_VERTEX_SIMPLE
-{
-	VECTOR					Position ;							// 座標
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 3 ][ 4 ] ;						// テクスチャ座標
-} ;
-
-// 剛体メッシュタイプ輪郭線用頂点構造体
-struct MV1_VERTEX_SIMPLE_TOL
-{
-	VECTOR					Position ;							// 座標
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-} ;
-
-// 剛体メッシュタイプバンプマップ用頂点構造体
-struct MV1_VERTEX_SIMPLE_BUMP
-{
-	VECTOR					Position ;							// 座標
-	VECTOR					Tangent ;							// 頂点の接線
-	VECTOR					Binormal ;							// 頂点の従法線
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 1 ][ 4 ] ;						// テクスチャ座標
-} ;
-
-// スキンメッシュタイプ頂点構造体(関連ボーン４つ以内)
-struct MV1_VERTEX_SKIN_B4
-{
-	VECTOR					Position ;							// 座標
-	unsigned char			MatrixIndex[ 4 ] ;					// 行列インデックス( 行列番号×４ )
-	float					MatrixWeight[ 4 ] ;					// 行列ウエイト
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 1 ][ 4 ] ;						// テクスチャ座標
-} ;
-
-// スキンメッシュタイプバンプマップ用頂点構造体(関連ボーン４つ以内)
-struct MV1_VERTEX_SKIN_B4_BUMP
-{
-	VECTOR					Position ;							// 座標
-	unsigned char			MatrixIndex[ 4 ] ;					// 行列インデックス( 行列番号×４ )
-	float					MatrixWeight[ 4 ] ;					// 行列ウエイト
-	VECTOR					Tangent ;							// 頂点の接線
-	VECTOR					Binormal ;							// 頂点の従法線
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 1 ][ 4 ] ;						// テクスチャ座標
-} ;
-
-// スキンメッシュタイプ頂点構造体(関連ボーン８つ以内)
-struct MV1_VERTEX_SKIN_B8
-{
-	VECTOR					Position ;							// 座標
-	unsigned char			MatrixIndex[ 8 ] ;					// 行列インデックス( 行列番号×４ )
-	float					MatrixWeight[ 8 ] ;					// 行列ウエイト
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 1 ][ 4 ] ;						// テクスチャ座標
-} ;
-
-// スキンメッシュタイプバンプマップ用頂点構造体(関連ボーン８つ以内)
-struct MV1_VERTEX_SKIN_B8_BUMP
-{
-	VECTOR					Position ;							// 座標
-	unsigned char			MatrixIndex[ 8 ] ;					// 行列インデックス( 行列番号×８ )
-	float					MatrixWeight[ 8 ] ;					// 行列ウエイト
-	VECTOR					Tangent ;							// 頂点の接線
-	VECTOR					Binormal ;							// 頂点の従法線
-	VECTOR					Normal ;							// 法線
-	COLOR_U8				DiffuseColor ;						// ディフューズ色
-	COLOR_U8				SpecularColor ;						// スペキュラー色
-	float					UVs[ 1 ][ 4 ] ;						// テクスチャ座標
 } ;
 
 // ボーン数無制限スキンメッシュ用ブレンド情報
@@ -562,15 +528,14 @@ struct MV1_TRIANGLE_LIST_BASE
 	unsigned short			PosUnitSize ;						// 頂点座標情報一つ辺りのデータサイズ
 	unsigned short			TempUnitSize ;						// テンポラリ頂点バッファの１頂点辺りのサイズ
 	int						VertexNum ;							// 頂点の数
-	int						MaxBoneNum ;						// 関わるボーンの最大数( MV1_VERTEX_TYPE_SKIN_4OVERBONE の際に使用 )
+	int						MaxBoneNum ;						// 関わるボーンの最大数( MV1_VERTEX_TYPE_SKIN_FREEBONE の際に使用 )
 	int						UseBoneNum ;						// 使用しているボーンの数( MV1_VERTEX_TYPE_SKIN_2_4BONE の際に使用 )
-	int						UseBone[ DX_VS_CONSTF_WORLD_MAT_NUM ] ;	// 使用するボーンの配列、-1の場合は使用しないということ( MV1_FRAME.UseSkinBone 配列のインデックス )( MV1_VERTEX_TYPE_SKIN_4BONE, MV1_VERTEX_TYPE_SKIN_8BONE, MV1_VERTEX_TYPE_SKIN_FREE の際に使用 )
+	int						UseBone[ MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM ] ;	// 使用するボーンの配列、-1の場合は使用しないということ( MV1_FRAME.UseSkinBone 配列のインデックス )( MV1_VERTEX_TYPE_SKIN_4BONE, MV1_VERTEX_TYPE_SKIN_8BONE, MV1_VERTEX_TYPE_SKIN_FREE の際に使用 )
 
 	DWORD					*MeshVertexIndex ;					// 座標頂点データの素となっているメッシュの頂点データインデックスの配列( MV1_MESH_BASE.Vertex のインデックス、VertexNum の数だけ存在する )
 	int						MeshVertexIndexAllocMem ;			// MeshVertexIndex 用にメモリを確保しているかどうか( TRUE:確保している  FALSE:していない )
 
-	MV1_VERTEX_SIMPLE		*TempSimpleVertex ;					// シェーダーを使用せずに描画する場合の頂点データ
-	MV1_VERTEX_SIMPLE_TOL	*TempToonOutLineSimpleVertex ;		// シェーダーを使用せずに描画する場合のトゥーンの輪郭線描画用頂点データ
+	BYTE					PFBuffer[ MV1_TRIANGLE_LIST_BASE_PF_BUFFER_SIZE ] ;	// 環境依存データ格納用バッファ( MV1_TRIANGLE_LIST_BASE_PF を格納する )
 	union
 	{
 		MV1_TLIST_NORMAL_POS     *NormalPosition ;				// ボーン情報無し頂点座標データ
@@ -586,9 +551,12 @@ struct MV1_TRIANGLE_LIST_BASE
 	unsigned short			ToonOutLineIndexNum ;				// トゥーン輪郭線用頂点インデックスの数
 	unsigned short			*ToonOutLineIndex ;					// トゥーン輪郭線用頂点インデックス
 
+	int						PackDrawMaxNum ;					// 同時複数描画の最大数
+
 	struct MV1_VERTEXBUFFER	*VertexBuffer ;						// 使用する頂点バッファ
 	int						VBStartVertex ;						// バーテックスバッファ上で使用している頂点の開始番号
 	int						VBStartIndex ;						// バーテックスバッファ上で使用しているインデックスの開始番号
+	int						ToonOutLineVBStartIndex ;			// バーテックスバッファ上で使用しているトゥーン輪郭線用頂点インデックスの開始番号
 	int						ObjectDuplicateNum ;				// バーテックスバッファに格納されているコピーの数
 } ;
 
@@ -602,7 +570,7 @@ struct MV1_SKIN_BONE_USE_FRAME
 // スキンメッシュ用ボーン情報
 struct MV1_SKIN_BONE
 {
-	MATRIX_4X4CT			ModelLocalMatrix ;					// モデル座標からボーンのローカル座標に変換するための行列
+	MATRIX_4X4CT_F			ModelLocalMatrix ;					// モデル座標からボーンのローカル座標に変換するための行列
 	int						ModelLocalMatrixIsTranslateOnly ;	// モデル座標からボーンのローカル座標に変換するための行列が平行移動のみかどうか( 1:平行移動のみ  0:回転も含む )
 	int						BoneFrame ;							// ボーンとして使用するフレーム
 	int						UseFrameNum ;						// このボーンを使用するフレームの数
@@ -674,6 +642,7 @@ struct MV1_MESH_BASE
 	BYTE					Visible ;							// 表示フラグ( 1:表示する  0:表示しない )
 	BYTE					BackCulling ;						// バックカリングをするかどうか( 1:する  0:しない )
 	BYTE					Shape ;								// シェイプメッシュかどうか( 1:シェイプメッシュ  0:通常メッシュ )
+	BYTE					SemiTransState ;					// 半透明要素があるかどうか( 1:半透明要素がある  0:不透明 )
 
 	int						UVSetUnitNum ;						// 一つの座標データに含まれるテクスチャ座標セットの数
 	int						UVUnitNum ;							// 一つの座標データに含まれるテクスチャ座標の数
@@ -712,7 +681,9 @@ struct MV1_SHAPE_BASE
 {
 	struct MV1_FRAME_BASE	*Container ;						// このシェイプを持っているフレームのポインタ
 
-	char					*Name ;								// 名前
+#ifndef UNICODE
+	char					*NameA ;							// 名前
+#endif
 	wchar_t					*NameW ;
 
 	int						MeshNum ;							// シェイプメッシュの数
@@ -723,7 +694,10 @@ struct MV1_SHAPE_BASE
 struct MV1_PHYSICS_RIGIDBODY_BASE
 {
 	int						Index ;								// インデックス
-	char					*Name ;								// 名前
+#ifndef UNICODE
+	char					*NameA ;							// 名前
+#endif
+	wchar_t					*NameW ;							// 名前
 
 	struct MV1_FRAME_BASE	*TargetFrame ;						// 対象となるフレーム
 
@@ -748,7 +722,10 @@ struct MV1_PHYSICS_RIGIDBODY_BASE
 struct MV1_PHYSICS_JOINT_BASE
 {
 	int						Index ;								// インデックス
-	char					*Name ;								// 名前
+#ifndef UNICODE
+	char					*NameA ;							// 名前
+#endif
+	wchar_t					*NameW ;							// 名前
 
 	MV1_PHYSICS_RIGIDBODY_BASE	*RigidBodyA ;					// 接続先剛体Ａ
 	MV1_PHYSICS_RIGIDBODY_BASE	*RigidBodyB ;					// 接続先剛体Ｂ
@@ -770,7 +747,9 @@ struct MV1_FRAME_BASE
 	int						CheckID ;							// チェックＩＤ
 	int						CheckNo ;							// チェック番号
 
-	char					*Name ;								// 名前
+#ifndef UNICODE
+	char					*NameA ;							// 名前
+#endif
 	wchar_t					*NameW ;
 	int						Index ;								// インデックス
 
@@ -786,11 +765,12 @@ struct MV1_FRAME_BASE
 	MV1_FRAME_BASE			*Next ;								// 弟階層へのポインタ
 
 	int						TransformMatrixType ;				// 変換行列のタイプ( 0:単位行列  1:平行移動のみ 2:それ以外 )
-	MATRIX_4X4CT			TransformMatrix ;					// 初期状態のローカル→ワールド行列
-	MATRIX_4X4CT			InverseTransformMatrix ;			// 初期状態のローカル→ワールド行列の逆行列
+	MATRIX_4X4CT_F			TransformMatrix ;					// 初期状態のローカル→ワールド行列
+	MATRIX_4X4CT_F			InverseTransformMatrix ;			// 初期状態のローカル→ワールド行列の逆行列
 
 	int						LocalTransformMatrixType ;			// 変換行列のタイプ( 0:単位行列  1:平行移動のみ 2:それ以外 )
-	MATRIX_4X4CT			LocalTransformMatrix ;				// 変換行列
+	MATRIX_4X4CT_F			LocalTransformMatrix ;				// 変換行列
+	bool					LocalTransformMatrixUseScaling ;	// 変換行列でスケーリングを使用しているかどうかのフラグ( true:使用している  false:使用していない )
 
 	VECTOR					Translate ;							// 平行移動
 	VECTOR					Scale ;								// スケール
@@ -849,14 +829,13 @@ struct MV1_FRAME_BASE
 // 頂点バッファ情報
 struct MV1_VERTEXBUFFER
 {
-	DX_DIRECT3DVERTEXBUFFER9	*VertexBuffer ;					// 頂点バッファ
-	DX_DIRECT3DINDEXBUFFER9		*IndexBuffer ;					// インデックスバッファ
 	int						VertexCount ;						// 頂点数
 	int						IndexCount ;						// インデックス数
 	void					*VertexBufferL ;					// 頂点バッファロック時にアドレスを格納するポインタ
 	void					*IndexBufferL ;						// インデックスバッファロック時にアドレスを格納するポインタ
-	DWORD					FVF ;								// 頂点バッファ作成時に使用したＦＶＦ
 	DWORD					UnitSize ;							// 頂点データ一つ辺りのサイズ
+
+	struct MV1_VERTEXBUFFER_PF	*PF ;							// 環境依存データ
 
 	struct MV1_VERTEXBUFFER	*DataNext ;							// 次の頂点データへのポインタ
 	struct MV1_VERTEXBUFFER	*DataPrev ;							// 前の頂点データへのポインタ
@@ -874,13 +853,17 @@ struct MV1_MODEL_BASE
 	int						UseNum ;							// この基データを使用しているモデルデータの数
 	struct MV1_MODEL		*UseFirst, *UseLast ;				// この基データを使用しているモデルデータの先端と終端へのポインタ
 
+	int						UsePackDraw ;						// 同時複数描画に対応するかどうか( TRUE:対応する  FLASE:対応しない )
+	int						PackDrawMaxNum ;					// 同時に行える描画の最大数
+	int						PackDrawMatrixUnitNum ;				// 同時複数描画の一描画分で使用する行列の数
+
 	int						RightHandType ;						// 右手座標系かどうか( TRUE:右手座標系  FALSE:左手座標系 )
 	int						Ignore32bitBmpAlpha ;				// 32bitＢＭＰのアルファ成分を無視するかどうか( TRUE:無視する FALSE:アルファ成分として扱う )
 	int						MaterialNumberOrderDraw ;			// 割り当てられているマテリアルの番号が低いメッシュから描画するかどうか( 1:する  0:しない )
 
-	TCHAR					*Name ;								// モデルの名前
-	TCHAR					*FilePath ;							// モデルのファイルパス
-	TCHAR					*DirectoryPath ;					// モデルのファイルが存在するディレクトリパス( 末端に \ 付き )
+	wchar_t					*Name ;								// モデルの名前
+	wchar_t					*FilePath ;							// モデルのファイルパス
+	wchar_t					*DirectoryPath ;					// モデルのファイルが存在するディレクトリパス( 末端に \ 付き )
 	int						RefCount ;							// 参照カウント
 
 	int						ChangeDrawMaterialTableSize ;		// 描画マテリアルの変更情報管理用に必要なデータの総容量
@@ -939,6 +922,13 @@ struct MV1_MODEL_BASE
 	int						TriangleListNum ;					// トライアングルリストの数
 	MV1_TRIANGLE_LIST_BASE	*TriangleList ;						// トライアングルリストデータ配列へのポインタ
 
+	int						TriangleListMaxVertexNum ;			// 一番頂点数が多いトライアングルリストの頂点数
+	int						TriangleListMinVertexNum ;			// 一番頂点数が少ないトライアングルリストの頂点数
+	int						TriangleListMaxIndexNum ;			// 一番インデックス数が多いトライアングルリストのインデックス数
+	int						TriangleListMinIndexNum ;			// 一番インデックス数が少ないトライアングルリストのインデックス数
+	int						TriangleListMaxMatrixNum ;			// 一番使用している行列の数が多いトライアングルリストの行列数
+	int						TriangleListMinMatrixNum ;			// 一番使用している行列の数が少ないトライアングルリストの行列数
+
 	int						TriangleListNormalPositionNum ;		// トライアングルリストのボーン情報無し座標データの数
 	int						TriangleListSkinPosition4BNum ;		// トライアングルリストの４ボーンスキニングメッシュ座標データの数
 	int						TriangleListSkinPosition8BNum ;		// トライアングルリストの８ボーンスキニングメッシュ座標データの数
@@ -968,8 +958,12 @@ struct MV1_MODEL_BASE
 	int						TriangleNum ;						// 三角形の数
 	int						TriangleListVertexNum ;				// トライアングルリストの頂点データの数
 
-	int						StringSize ;						// 文字列を保存するバッファのサイズ
-	char					*StringBuffer ;						// 文字列を保存するバッファへのポインタ
+#ifndef UNICODE
+	int						StringSizeA ;						// 文字列を保存するバッファのサイズ
+	char					*StringBufferA ;					// 文字列を保存するバッファへのポインタ
+#endif
+	int						StringSizeW ;						// 文字列を保存するバッファのサイズ
+	wchar_t					*StringBufferW ;					// 文字列を保存するバッファへのポインタ
 
 	int						AnimKeyDataSize ;					// アニメーションキーデータのサイズ
 	void					*AnimKeyData ;						// アニメーションキーデータのバッファ
@@ -1023,11 +1017,12 @@ struct MV1_ANIM
 	int						RotateOrder ;						// 回転オーダー( MV1_ROTATE_ORDER_XYZ 等 )
 	VECTOR					Rotate ;							// 回転値
 	FLOAT4					Quaternion ;						// 回転値( クォータニオン )
-	MATRIX_4X4CT			Matrix ;							// 行列
+	MATRIX_4X4CT_F			Matrix ;							// 行列
 	float					*ShapeRate ;						// シェイプのブレンド率
 
 	bool					ValidBlendMatrix ;					// BlendMatrix が有効かどうか
-	MATRIX_4X4CT			BlendMatrix ;						// キーセットの状態を反映した行列
+	MATRIX_4X4CT_F			BlendMatrix ;						// キーセットの状態を反映した行列
+	bool					BlendMatrixUseScaling ;				// キーセットの状態を反映した行列でスケーリングが使用されているかどうか( true:使用されている  false:使用されていない )
 	MV1_ANIM_KEYSET			*KeySet ;							// キーセット配列へのポインタ
 } ;
 
@@ -1067,13 +1062,17 @@ struct MV1_TEXTURE
 {
 	MV1_TEXTURE_BASE		*BaseData ;							// テクスチャの基本データへのポインタ
 
-	char					*AlphaFilePath ;					// アルファチャンネル用画像のファイルパス
-	wchar_t					*AlphaFilePathW ;
+#ifndef UNICODE
+	char					*AlphaFilePathA_ ;					// アルファチャンネル用画像のファイルパス
+#endif
+	wchar_t					*AlphaFilePathW_ ;
 	void					*AlphaImage ;						// アルファチャンネル画像のファイルイメージへのポインタ
 	int						AlphaImageSize ;					// アルファチャンネル画像のファイルイメージのサイズ
 
-	char					*ColorFilePath ;					// カラーチャンネル用画像のファイルパス
-	wchar_t					*ColorFilePathW ;
+#ifndef UNICODE
+	char					*ColorFilePathA_ ;					// カラーチャンネル用画像のファイルパス
+#endif
+	wchar_t					*ColorFilePathW_ ;
 	void					*ColorImage ;						// カラーチャンネル用画像のファイルイメージへのポインタ
 	int						ColorImageSize ;					// カラーチャンネル用画像のファイルイメージのサイズ
 
@@ -1093,6 +1092,8 @@ struct MV1_TEXTURE
 
 	int						AddressModeU ;						// アドレスモード( DX_TEXADDRESS_WRAP 等 )
 	int						AddressModeV ;						// アドレスモード( DX_TEXADDRESS_WRAP 等 )
+	float					ScaleU ;							// Ｕ座標のスケーリング値
+	float					ScaleV ;							// Ｖ座標のスケーリング値
 	int						FilterMode ;						// フィルタリングモード( DX_DRAWMODE_BILINEAR 等 )
 
 	int						ReverseFlag ;						// 画像を反転するかどうか( 1:反転する  0:反転しない )
@@ -1146,7 +1147,8 @@ struct MV1_TRIANGLE_LIST
 		MV1_TLIST_SKIN_POS_8B    *SkinPosition8B ;				// ８ボーンスキニング処理用頂点座標データ
 		MV1_TLIST_SKIN_POS_FREEB *SkinPositionFREEB ;			// ９ボーン以上のスキニング処理用頂点座標データ
 	} ;
-	DX_DIRECT3DVERTEXBUFFER9	*VertexBuffer ;					// 頂点バッファ
+
+	struct MV1_TRIANGLE_LIST_PF	*PF ;							// 環境依存データ
 } ;
 
 // シェイプ頂点データ構造体
@@ -1224,6 +1226,7 @@ struct MV1_FRAME
 	MATRIX_4X4CT			UserLocalTransformMatrix ;			// 外部指定の行列
 	MV1_CHANGE				LocalWorldMatrixChange ;			// 行列の状態変化チェック用情報
 	MATRIX_4X4CT			LocalWorldMatrix ;					// ローカル→ワールド行列
+	bool					LocalWorldMatrixUseScaling ;		// ローカル→ワールド行列でスケーリングが使用されているかどうか( true:使用されている  false:使用されていない )
 	bool					ValidLocalWorldMatrixNM ;			// LocalWorldMatrixNM が有効かどうか( true:有効  false:無効 )
 	MATRIX					LocalWorldMatrixNM ;				// ローカル→ワールド行列( 固定機能シェーダー用 )
 
@@ -1295,7 +1298,7 @@ struct MV1_MODEL
 	DWORD					ChangeDrawMaterialFlagSize ;		// 描画用マテリアル変更確認用ビットデータのサイズ( バイト単位 )
 	DWORD					ChangeMatrixFlagSize ;				// 行列変更確認用ビットデータのサイズ( バイト単位 )
 
-	VECTOR					Translation ;						// 平行移動値
+	VECTOR_D				Translation ;						// 平行移動値
 	MV1_ROTATE				Rotation ;							// 回転値
 	VECTOR					Scale ;								// 拡大値
 	MATRIX_4X4CT			Matrix ;							// 行列
@@ -1303,6 +1306,7 @@ struct MV1_MODEL
 
 	bool					LocalWorldMatrixSetupFlag ;			// モデルとモデル中のフレームの行列のセットアップが完了しているかどうか( true:完了している  false:していない )
 	MATRIX_4X4CT			LocalWorldMatrix ;					// ローカル→ワールド行列
+	bool					LocalWorldMatrixUseScaling ;		// ローカル→ワールド行列でスケーリングを使用しているかどうか( true:使用している  false:使用していない )
 
 	MV1_FRAME				*Frame ;							// フレーム情報へのポインタ
 	int						TopFrameNum ;						// 最上位フレームの数
@@ -1310,6 +1314,9 @@ struct MV1_MODEL
 	MATRIX_4X4CT			**SkinBoneUseFrameMatrix ;			// スキニングメッシュが使用しているボーンの行列へのポインタの配列
 
 	MATRIX_4X4CT			*SkinBoneMatrix ;					// BaseData->SkinBone->ModelLocalMatrix と BaseData->SkinBone->Frame が示すフレームの LocalWorldMatrix を乗算したものの配列
+
+	int						PackDrawStockNum ;					// 同時複数描画用に溜まっている描画情報の数
+	MATRIX_4X4CT_F			*PackDrawMatrix ;					// 同時複数描画で使用する行列の配列
 
 	MV1_SHAPE_VERTEX		*ShapeVertex ;						// シェイプ頂点情報へのポインタ
 	bool					ShapeChangeFlag ;					// シェイプの情報が変化したか、フラグ( true:変化した  false:変化していない )
@@ -1383,15 +1390,18 @@ struct MV1_MODEL_MANAGE
 
 	int						LoadModelToReMakeNormal ;			// モデルの読み込み処理で法線の再計算を行うかどうか( TRUE:行う  FALSE:行わない )
 	float					LoadModelToReMakeNormalSmoothingAngle ;		// モデルの読み込み処理時に行う法泉の再計算で使用するスムージング角度( 単位はラジアン )
+	int						LoadModelToIgnoreScaling ;			// モデルを読み込む際にスケーリングデータを無視するかどうか( TRUE:無視する  FALSE:無視しない )
 	int						LoadModelToPositionOptimize ;		// モデルの読み込み処理で座標の最適化処理を行うかどうか( TRUE:行う  FALSE:行わない )
 	int						LoadModelToUsePhysicsMode ;			// 読み込むモデルの物理演算モードを設定する( DX_LOADMODEL_PHYSICS_LOADCALC 等 )
 	int						LoadModelToWorldGravityInitialize ;	// 読み込むモデルの物理演算に適用する重力パラメータが初期化されたかどうか
 	float					LoadModelToWorldGravity ;			// 読み込むモデルの物理演算に適用する重力パラメータ
+	int						LoadModelToPhysicsCalcPrecision ;	// 読み込むモデルの物理演算モードが事前計算( DX_LOADMODEL_PHYSICS_LOADCALC )だった場合に適用される物理演算の時間進行の精度( 0:60FPS  1:120FPS  2:240FPS  3:480FPS  4:960FPS  5:1920FPS )
+	int						LoadModelToUsePackDraw ;			// 読み込むモデルを一度に複数の描画に対応させるかどうか( TRUE:対応させる  FALSE:対応させない )
 	VECTOR					LoadCalcPhysicsWorldGravity[ MV1_LOADCALC_PHYSICS_GRAVITY_NUM ] ;	// 読み込むモデルの事前計算に使用する重力
 
 	int						AnimFilePathValid ;					// AnimFilePath が有効かどうか( TRUE:有効  FALSE:無効 )
-	TCHAR					AnimFileName[ 512 ] ;				// アニメーションファイルの名前
-	TCHAR					AnimFileDirPath[ 512 ] ;			// アニメーションファイルのディレクトリパス
+	wchar_t					AnimFileName[ 512 ] ;				// アニメーションファイルの名前
+	wchar_t					AnimFileDirPath[ 512 ] ;			// アニメーションファイルのディレクトリパス
 
 	float					SinTable[ MV1_SINTABLE_DIV ] ;		// サインテーブル
 
@@ -1419,9 +1429,11 @@ struct MV1_MODEL_MANAGE
 	int						WorldMatrixIsIdentity ;				// ワールド行列に単位行列がセットされているかどうか( TRUE:されている  FALSE:されていない )
 //	MATRIX					OrigLocalWorldMatrix ;				// もともと設定されていたＬＷ行列
 
+	MV1_MODEL				*PackDrawModel ;					// 同時複数描画の為に描画待機をしているモデルのアドレス
+
 	// テスト用シェーダー
-	DX_DIRECT3DPIXELSHADER9  *PS_Test ;
-	DX_DIRECT3DVERTEXSHADER9 *VS_Test ;
+//	D_IDirect3DPixelShader9  *PS_Test ;
+//	D_IDirect3DVertexShader9 *VS_Test ;
 
 //	int						UseBaseVertexShaderIndex ;			// 使用する頂点シェーダーのライト・フォグ・フォンシェーディングの有無のみ設定した値
 //	int						UseBasePixelShaderIndex ;			// 使用するピクセルシェーダーのライト・フォンシェーディングの有無のみ設定した値
@@ -1444,15 +1456,18 @@ struct MV1LOADMODEL_GPARAM
 
 	int						LoadModelToReMakeNormal ;			// モデルの読み込み処理で法線の再計算を行うかどうか( TRUE:行う  FALSE:行わない )
 	float					LoadModelToReMakeNormalSmoothingAngle ;		// モデルの読み込み処理時に行う法泉の再計算で使用するスムージング角度( 単位はラジアン )
+	int						LoadModelToIgnoreScaling ;			// モデルを読み込む際にスケーリングデータを無視するかどうか( TRUE:無視する  FALSE:無視しない )
 	int						LoadModelToPositionOptimize ;		// モデルの読み込み処理で座標の最適化処理を行うかどうか( TRUE:行う  FALSE:行わない )
 	int						LoadModelToUsePhysicsMode ;			// 読み込むモデルの物理演算モードを設定する( DX_LOADMODEL_PHYSICS_LOADCALC 等 )
 	int						LoadModelToWorldGravityInitialize ;	// 読み込むモデルの物理演算に適用する重力パラメータが初期化されたかどうか
 	float					LoadModelToWorldGravity ;			// 読み込むモデルの物理演算に適用する重力パラメータ
+	int						LoadModelToPhysicsCalcPrecision ;	// 読み込むモデルの物理演算モードが事前計算( DX_LOADMODEL_PHYSICS_LOADCALC )だった場合に適用される物理演算の時間進行の精度( 0:60FPS  1:120FPS  2:240FPS  3:480FPS  4:960FPS  5:1920FPS )
+	int						LoadModelToUsePackDraw ;			// 読み込むモデルを一度に複数の描画に対応させるかどうか( TRUE:対応させる  FALSE:対応させない )
 	VECTOR					LoadCalcPhysicsWorldGravity[ MV1_LOADCALC_PHYSICS_GRAVITY_NUM ] ;	// 読み込むモデルの事前計算に使用する重力
 
 	int						AnimFilePathValid ;					// AnimFilePath が有効かどうか( TRUE:有効  FALSE:無効 )
-	TCHAR					AnimFileName[ 512 ] ;				// アニメーションファイルの名前
-	TCHAR					AnimFileDirPath[ 512 ] ;			// アニメーションファイルのディレクトリパス
+	wchar_t					AnimFileName[ 512 ] ;				// アニメーションファイルの名前
+	wchar_t					AnimFileDirPath[ 512 ] ;			// アニメーションファイルのディレクトリパス
 } ;
 
 // モデルデータ読み込み処理関数の引数をまとめた構造体
@@ -1462,9 +1477,9 @@ struct MV1_MODEL_LOAD_PARAM
 
 	void					*DataBuffer ;						// モデルファイルイメージ
 	int						DataSize ;							// モデルファイルサイズ
-	const TCHAR				*FilePath ;							// ファイルパス
-	const TCHAR				*Name ;								// モデル名
-	const TCHAR				*CurrentDir ;						// カレントディレクトリ
+	const wchar_t			*FilePath ;							// ファイルパス
+	const wchar_t			*Name ;								// モデル名
+	const wchar_t			*CurrentDir ;						// カレントディレクトリ
 
 	MV1_FILE_READ_FUNC		*FileReadFunc ;						// 独自ファイル読み込み関数の変数をまとめた構造体へのポインタ
 	int						ASyncThread ;						// 非同期読み込みスレッドでの読み込みかどうか( TRUE:非同期読み込みスレッドでの読み込み処理  FALSE:同期読み込み )
@@ -1478,9 +1493,9 @@ extern MV1_MODEL_MANAGE MV1Man ;
 
 // メモリ管理系
 #if !defined( __BCC ) || defined( _DEBUG )
-	extern	void		*AddMemArea( int Size, MEMINFO **FirstMem, const char *FileName = NULL, int Line = 0 ) ;// メモリ領域の確保
+	extern	void		*AddMemArea( size_t Size, MEMINFO **FirstMem, const char *FileName = NULL, int Line = 0 ) ;// メモリ領域の確保
 #else
-	extern	void		*AddMemArea( int Size, MEMINFO **FirstMem ) ;											// メモリ領域の確保
+	extern	void		*AddMemArea( size_t Size, MEMINFO **FirstMem ) ;											// メモリ領域の確保
 #endif
 extern	int				SubMemArea( MEMINFO **FirstMem, void *Buffer ) ;										// メモリ領域の解放
 extern	int				ClearMemArea( MEMINFO **FirstMem ) ;													// 全てのメモリ領域の解放
@@ -1508,8 +1523,24 @@ extern	float			MV1AnimKey16BitMinBtoF( BYTE Min ) ;													// MV1_ANIM_KEY_
 extern	float			MV1AnimKey16BitUnitBtoF( BYTE Unit ) ;													// MV1_ANIM_KEY_16BIT構造体の Unit 変数の値から float型の値を作成する
 
 // 補助演算関係
-extern	void			ConvertMatrixToMatrix4x4c( MATRIX_4X4CT *Out, MATRIX *In ) ;							// MATRIX 構造体を MATRIX_4X4CT 構造体に変換する
-extern	void			ConvertMatrix4x4cToMatrix( MATRIX *Out, MATRIX_4X4CT *In ) ;							// MATRIX_4X4CT 構造体を MATRIX 構造体に変換する
+extern	void			ConvertMatrixFToMatrix4x4cF(     MATRIX_4X4CT_F *Out, const MATRIX         *In ) ;		// MATRIX         構造体を MATRIX_4X4CT_F 構造体に変換する
+extern	void			ConvertMatrixDToMatrix4x4cD(     MATRIX_4X4CT_D *Out, const MATRIX_D       *In ) ;		// MATRIX_D       構造体を MATRIX_4X4CT_D 構造体に変換する
+extern	void			ConvertMatrixDToMatrix4x4cF(     MATRIX_4X4CT_F *Out, const MATRIX_D       *In ) ;		// MATRIX_D       構造体を MATRIX_4X4CT_F 構造体に変換する
+extern	void			ConvertMatrixFToMatrix4x4cD(     MATRIX_4X4CT_D *Out, const MATRIX         *In ) ;		// MATRIX         構造体を MATRIX_4X4CT_D 構造体に変換する
+extern	void			ConvertMatrix4x4cFToMatrixF(     MATRIX         *Out, const MATRIX_4X4CT_F *In ) ;		// MATRIX_4X4CT_F 構造体を MATRIX         構造体に変換する
+extern	void			ConvertMatrix4x4cDToMatrixD(     MATRIX_D       *Out, const MATRIX_4X4CT_D *In ) ;		// MATRIX_4X4CT_D 構造体を MATRIX_D       構造体に変換する
+extern	void			ConvertMatrix4x4cDToMatrixF(     MATRIX         *Out, const MATRIX_4X4CT_D *In ) ;		// MATRIX_4X4CT_D 構造体を MATRIX         構造体に変換する
+extern	void			ConvertMatrix4x4cFToMatrixD(     MATRIX_D       *Out, const MATRIX_4X4CT_F *In ) ;		// MATRIX_4X4CT_F 構造体を MATRIX_D       構造体に変換する
+extern	void			ConvertMatrix4x4cFToMatrix4x4cD( MATRIX_4X4CT_D *Out, const MATRIX_4X4CT_F *In ) ;		// MATRIX_4X4CT_F 構造体を MATRIX_4X4CT_D 構造体に変換する
+extern	void			ConvertMatrix4x4cDToMatrix4x4cF( MATRIX_4X4CT_F *Out, const MATRIX_4X4CT_D *In ) ;		// MATRIX_4X4CT_F 構造体を MATRIX_4X4CT_D 構造体に変換する
+extern	void			ConvertMatrixFToMatrix4x4c(      MATRIX_4X4CT   *Out, const MATRIX         *In ) ;		// MATRIX         構造体を MATRIX_4X4CT   構造体に変換する
+extern	void			ConvertMatrixDToMatrix4x4c(      MATRIX_4X4CT   *Out, const MATRIX_D       *In ) ;		// MATRIX_D       構造体を MATRIX_4X4CT   構造体に変換する
+extern	void			ConvertMatrix4x4cToMatrixF(      MATRIX         *Out, const MATRIX_4X4CT   *In ) ;		// MATRIX_4X4CT   構造体を MATRIX         構造体に変換する
+extern	void			ConvertMatrix4x4cToMatrixD(      MATRIX_D       *Out, const MATRIX_4X4CT   *In ) ;		// MATRIX_4X4CT   構造体を MATRIX_D       構造体に変換する
+extern	void			ConvertMatrix4x4cToMatrix4x4cF(  MATRIX_4X4CT_F *Out, const MATRIX_4X4CT   *In ) ;		// MATRIX_4X4CT   構造体を MATRIX_4X4CT_F 構造体に変換する
+extern	void			ConvertMatrix4x4cToMatrix4x4cD(  MATRIX_4X4CT_D *Out, const MATRIX_4X4CT   *In ) ;		// MATRIX_4X4CT   構造体を MATRIX_4X4CT_D 構造体に変換する
+extern	void			ConvertMatrix4x4cFToMatrix4x4c(  MATRIX_4X4CT   *Out, const MATRIX_4X4CT_F *In ) ;		// MATRIX_4X4CT_F 構造体を MATRIX_4X4CT   構造体に変換する
+extern	void			ConvertMatrix4x4cDToMatrix4x4c(  MATRIX_4X4CT   *Out, const MATRIX_4X4CT_D *In ) ;		// MATRIX_4X4CT_D 構造体を MATRIX_4X4CT   構造体に変換する
 
 // データ一致検査系
 extern	void			MakeDataCmpInfo( DATACMPINFO *CmpInfo, void *Image, int Size ) ;						// バイナリイメージからデータ一致検査データを作成する
@@ -1524,6 +1555,10 @@ extern	int				MV1MakeMeshBinormalsAndTangents( MV1_MESH_BASE *Mesh ) ;								//
 extern	int				MV1SetupTriangleListPositionAndNormal( MV1_TRIANGLE_LIST_BASE *List ) ;					// トライアングルリストの座標と法線情報のセットアップを行う
 extern	int				MV1SetupShapeTriangleListPositionAndNormal( MV1_TRIANGLE_LIST *TList ) ;				// シェイプ用トライアングルリストの座標と法線情報のセットアップを行う
 
+// 共通データ系
+extern	int				MV1CreateGradationGraph( void ) ;														// グラデーション画像を作成する
+extern	int				MV1GetDefaultToonTexture( int Type ) ;													// デフォルトトゥーンテクスチャを取得する
+extern	void			MV1SetupTexNoneHandle( void ) ;															// TexNoneHandle のセットアップを行う
 
 // グローバルな初期化と後始末
 extern	int				MV1Initialize() ;																		// モデル機能の初期化
@@ -1536,7 +1571,10 @@ extern	int				__MV1LoadTexture(
 							  int *GraphHandle,
 							  int *SemiTransFlag,
 							  int *DefaultTextureFlag,
-							  char **ColorFilePathMem, char **AlphaFilePathMem,
+#ifndef UNICODE
+							  char    **ColorFilePathAMem, char    **AlphaFilePathAMem,
+#endif
+							  wchar_t **ColorFilePathWMem, wchar_t **AlphaFilePathWMem,
 							  const wchar_t *ColorFilePath, const wchar_t *AlphaFilePath, const wchar_t *StartFolderPath,
 							  int BumpImageFlag, float BumpImageNextPixelLength,
 							  int ReverseFlag,
@@ -1559,7 +1597,7 @@ extern	int				MV1SubLoadFunc( int ( *AddLoadFunc )( const MV1_MODEL_LOAD_PARAM *
 
 // モデル基本データハンドルの追加・削除
 extern	int				MV1InitModelBase( void ) ;																// 有効なモデル基本データをすべて削除する
-extern	int				MV1AddModelBase( void ) ;																// モデル基本データを追加する( -1:エラー  0以上:モデル基本データハンドル )
+extern	int				MV1AddModelBase( int ASyncThread ) ;													// モデル基本データを追加する( -1:エラー  0以上:モデル基本データハンドル )
 extern	int				MV1SubModelBase( int MBHandle ) ;														// モデル基本データを削除する
 extern	int				MV1CreateCloneModelBase( int SrcMBHandle ) ;											// モデル基本データを複製する
 
@@ -1568,7 +1606,9 @@ extern	int				TerminateModelBaseHandle( HANDLEINFO *HandleInfo ) ;									// �
 
 // 初期セットアップ系
 extern	void			MV1SetupInitializeMatrixBase( MV1_MODEL_BASE *ModelBase ) ;								// 初期状態の変換行列をセットアップする
+extern	void			MV1SetupPackDrawInfo( MV1_MODEL_BASE *ModelBase ) ;										// 同時複数描画関係の情報をセットアップする
 extern	void			MV1SetupToonOutLineTriangleList( MV1_TRIANGLE_LIST_BASE *MBTList ) ;					// トゥーン輪郭線用のメッシュを作成する
+extern	void			MV1SetupMeshSemiTransStateBase( MV1_MODEL_BASE *ModelBase ) ;							// モデル中のメッシュの半透明要素があるかどうかを調べる
 
 // 法線再計算・座標最適化
 extern	int				MV1ReMakeNormalBase( int MBHandle, float SmoothingAngle = 89.5f * DX_PI_F / 180.0f, int ASyncThread = FALSE ) ;	// モデル全体の法線を再計算する
@@ -1578,7 +1618,9 @@ extern	int				MV1PositionOptimizeFrameBase( int MBHandle, int FrameIndex ) ;				
 
 // 基本データ内マテリアル
 extern	int				MV1GetMaterialNumBase( int MBHandle ) ;													// モデルで使用しているマテリアルの数を取得する
+#ifndef UNICODE
 extern	const char *	MV1GetMaterialNameBase( int MBHandle, int MaterialIndex ) ;								// 指定のマテリアルの名前を取得する
+#endif
 extern	const wchar_t *	MV1GetMaterialNameBaseW( int MBHandle, int MaterialIndex ) ;							// 指定のマテリアルの名前を取得する
 extern	int				MV1SetMaterialTypeBase( int MBHandle, int MaterialIndex, int Type ) ;					// 指定のマテリアルのタイプを変更する( Type : DX_MATERIAL_TYPE_NORMAL など )
 extern	int				MV1GetMaterialTypeBase( int MBHandle, int MaterialIndex ) ;								// 指定のマテリアルのタイプを取得する( 戻り値 : DX_MATERIAL_TYPE_NORMAL など )
@@ -1629,8 +1671,7 @@ extern	int				MV1GetMaterialDrawAlphaTestParamBase( int MBHandle, int MaterialIn
 extern	int				MV1GetTextureNumBase( int MBHandle ) ;													// テクスチャの数を取得
 extern	int				MV1AddTextureBase( 
 							int MBHandle,
-							const char *Name,
-							const char *ColorFilePathA, const char *AlphaFilePathA,
+							const wchar_t *Name,
 							const wchar_t *ColorFilePathW, const wchar_t *AlphaFilePathW,
 							void *ColorFileImage, void *AlphaFileImage,
 							int AddressModeU, int AddressModeV, int FilterMode,
@@ -1639,15 +1680,13 @@ extern	int				MV1AddTextureBase(
 							bool Bmp32AllZeroAlphaToXRGB8Flag,
 							int ASyncThread ) ;																	// テクスチャの追加
 extern	int				MV1DeleteTextureBase( int MBHandle, int TexIndex ) ;									// テクスチャの削除
+#ifndef UNICODE
 extern	const char *	MV1GetTextureNameBase( int MBHandle, int TexIndex ) ;									// テクスチャの名前を取得
+#endif
 extern	const wchar_t *	MV1GetTextureNameBaseW( int MBHandle, int TexIndex ) ;									// テクスチャの名前を取得
-extern	int				MV1SetTextureColorFilePathBase( int MBHandle, int TexIndex, const char *FilePath ) ;	// カラーテクスチャのファイルパスを変更する
 extern	int				MV1SetTextureColorFilePathBaseW( int MBHandle, int TexIndex, const wchar_t *FilePathW ) ;	// カラーテクスチャのファイルパスを変更する
-extern	const char *	MV1GetTextureColorFilePathBase( int MBHandle, int TexIndex ) ;							// カラーテクスチャのファイルパスを取得
 extern	const wchar_t *	MV1GetTextureColorFilePathBaseW( int MBHandle, int TexIndex ) ;							// カラーテクスチャのファイルパスを取得
-extern	int				MV1SetTextureAlphaFilePathBase( int MBHandle, int TexIndex, const char *FilePath ) ;	// アルファテクスチャのファイルパスを変更する
 extern	int				MV1SetTextureAlphaFilePathBaseW( int MBHandle, int TexIndex, const wchar_t *FilePathW ) ;	// アルファテクスチャのファイルパスを変更する
-extern	const char *	MV1GetTextureAlphaFilePathBase( int MBHandle, int TexIndex ) ;							// アルファテクスチャのファイルパスを取得
 extern	const wchar_t *	MV1GetTextureAlphaFilePathBaseW( int MBHandle, int TexIndex ) ;							// アルファテクスチャのファイルパスを取得
 extern	int				MV1SetTextureGraphHandleBase( int MBHandle, int TexIndex, int GrHandle, int SemiTransFlag ) ;	// テクスチャで使用するグラフィックハンドルを変更する( GrHandle を -1 にすると解除 )
 extern	int				MV1GetTextureGraphHandleBase( int MBHandle, int TexIndex ) ;							// テクスチャのグラフィックハンドルを取得する
@@ -1673,13 +1712,16 @@ extern	int				MV1GetMeshShapeFlagBase( int MBHandle, int MeshIndex ) ;								//
 
 // シェイプ関係
 extern	int				MV1GetShapeNumBase( int MBHandle ) ;													// モデルに含まれるシェイプの数を取得する
-extern	int				MV1SearchShapeBase( int MBHandle, const TCHAR *ShapeName ) ;							// シェイプの名前からモデル中のシェイプのシェイプインデックスを取得する( 無かった場合は戻り値が-1 )
-extern	const TCHAR	*	MV1GetShapeNameBase( int MBHandle, int ShapeIndex ) ;									// 指定シェイプの名前を取得する
+extern	int				MV1SearchShapeBase( int MBHandle, const wchar_t *ShapeName ) ;							// シェイプの名前からモデル中のシェイプのシェイプインデックスを取得する( 無かった場合は戻り値が-1 )
+#ifndef UNICODE
+extern	const char *	MV1GetShapeNameBaseA( int MBHandle, int ShapeIndex ) ;									// 指定シェイプの名前を取得する
+#endif
+extern	const wchar_t *	MV1GetShapeNameBaseW( int MBHandle, int ShapeIndex ) ;									// 指定シェイプの名前を取得する
 extern	int				MV1GetShapeTargetMeshNumBase( int MBHandle, int ShapeIndex ) ;							// 指定シェイプが対象としているメッシュの数を取得する
 extern	int				MV1GetShapeTargetMeshBase( int MBHandle, int ShapeIndex, int Index ) ;					// 指定シェイプが対象としているメッシュのメッシュインデックスを取得する
 
 // モデルデータ構築関係
-extern	int				MV1AddModel( void ) ;																	// モデルデータを追加する( -1:エラー  0以上:モデルデータハンドル )
+extern	int				MV1AddModel( int ASyncThread ) ;														// モデルデータを追加する( -1:エラー  0以上:モデルデータハンドル )
 extern	int				MV1SubModel( int MV1ModelHandle ) ;														// モデルデータを削除する
 extern	int				MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncThread = FALSE ) ;	// モデル基データからモデルデータを構築する( -1:エラー 0:成功 )
 
@@ -1691,7 +1733,15 @@ extern	int				TerminateModelHandle( HANDLEINFO *HandleInfo ) ;										// モ�
 // モデルデータ関係
 extern	int				MV1GetModelBaseHandle( int MHandle ) ;													// モデルハンドルで使用されているモデル基本データハンドルを取得する
 extern	int				MV1GetModelDataSize( int MHandle, int DataType ) ;										// モデルのデータサイズを取得する
-extern	int				MV1GetAnimDataSize( int MHandle, const char *AnimName = NULL, int AnimIndex = -1 ) ;	// アニメーションのデータサイズを取得する
+extern	int				MV1GetAnimDataSize( int MHandle, const wchar_t *AnimName = NULL, int AnimIndex = -1 ) ;	// アニメーションのデータサイズを取得する
+
+// モデル描画関係
+extern	int				MV1DrawPackDrawModel( void ) ;															// 同時複数描画の為に描画待機しているモデルを描画する
+
+// モデル物理演算関係
+extern	int				MV1PhysicsCalculationBase( int MHandle, float MillisecondTime, int ASyncLoadFlag = FALSE ) ;	// モデルの物理演算を指定時間分経過したと仮定して計算する( MillisecondTime で指定する時間の単位はミリ秒 )
+
+
 
 // モデルの読み込み・保存・複製関係
 extern	int				MV1LoadModelToPMX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncThread = FALSE ) ;	// ＰＭＸファイルを読み込む( -1:エラー  0以上:モデルハンドル )
@@ -1701,19 +1751,14 @@ extern	int				MV1LoadModelToX(   const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyn
 extern	int				MV1LoadModelToFBX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncThread = FALSE ) ;	// ＦＢＸファイルを読み込む( -1:エラー  0以上:モデルハンドル )
 extern	int				MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncThread = FALSE ) ;	// ＭＱＯファイルを読み込む( -1:エラー  0以上:モデルハンドル )
 extern	int				MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncThread = FALSE ) ;	// ＭＶ１ファイルを読み込む( -1:エラー  0以上:モデルハンドル )
-extern	int				MV1SetupVertexBufferBase( int MV1ModelBaseHandle, int DuplicateNum = 1, int ASyncThread = FALSE ) ;	// モデル基データの頂点バッファのセットアップをする( -1:エラー )
-extern	int				MV1SetupVertexBuffer( int MHandle, int ASyncThread = FALSE ) ;							// モデルデータの頂点バッファのセットアップをする( -1:エラー )
 extern	int				MV1SetupVertexBufferAll( int ASyncThread = FALSE ) ;									// 頂点バッファのセットアップをする( -1:エラー )
-extern	int				MV1TerminateVertexBufferBase( int MV1ModelBaseHandle ) ;								// 頂点バッファの後始末をする( -1:エラー )
-extern	int				MV1TerminateVertexBuffer( int MV1ModelHandle ) ;										// 頂点バッファの後始末をする( -1:エラー )
 extern	int				MV1TerminateVertexBufferAll( void ) ;													// 全ての頂点バッファの後始末をする( -1:エラー )
-extern	const TCHAR *	MV1GetModelFileName( int MHandle ) ;													// ロードしたモデルのファイル名を取得する
-extern	const TCHAR *	MV1GetModelDirectoryPath( int MHandle ) ;												// ロードしたモデルが存在するディレクトリパスを取得する( 末端に / か \ が付いています )
-extern	int				MV1SetupShapeVertex( int MHandle ) ;													// シェイプデータのセットアップをする
+extern	const wchar_t *	MV1GetModelFileName( int MHandle ) ;													// ロードしたモデルのファイル名を取得する
+extern	const wchar_t *	MV1GetModelDirectoryPath( int MHandle ) ;												// ロードしたモデルが存在するディレクトリパスを取得する( 末端に / か \ が付いています )
 
 extern	void			InitMV1LoadModelGParam( MV1LOADMODEL_GPARAM *GParam ) ;									// MV1LOADMODEL_GPARAM のデータをセットする
 
-extern	int				MV1LoadModel_UseGParam( MV1LOADMODEL_GPARAM *GParam, const TCHAR *FileName, int ASyncLoadFlag = FALSE ) ;																																																									// MV1LoadModel のグローバル変数にアクセスしないバージョン
+extern	int				MV1LoadModel_UseGParam( MV1LOADMODEL_GPARAM *GParam, const wchar_t *FileName, int ASyncLoadFlag = FALSE ) ;																																																									// MV1LoadModel のグローバル変数にアクセスしないバージョン
 extern	int				MV1LoadModelFromMem_UseGParam( MV1LOADMODEL_GPARAM *GParam, void *FileImage, int FileSize, int (* FileReadFunc )( const TCHAR *FilePath, void **FileImageAddr, int *FileSize, void *FileReadFuncData ), int (* FileReleaseFunc )( void *MemoryAddr, void *FileReadFuncData ), void *FileReadFuncData = NULL, int ASyncLoadFlag = FALSE ) ;	// MV1LoadModelFromMem のグローバル変数にアクセスしないバージョン
 
 
@@ -1782,6 +1827,364 @@ __inline static void _MV1SphereLinear( FLOAT4 *Q1, FLOAT4 *Q2, float t, FLOAT4 *
 	}
 }
 
+__inline void UnSafeMultiplyMatrix4X4CTF( MATRIX_4X4CT_F * RST Out, const MATRIX_4X4CT_F * RST In1, const MATRIX_4X4CT_F * RST In2 )
+{
+	Out->m[0][0] = In1->m[0][0] * In2->m[0][0] + In1->m[1][0] * In2->m[0][1] + In1->m[2][0] * In2->m[0][2] ;
+	Out->m[1][0] = In1->m[0][0] * In2->m[1][0] + In1->m[1][0] * In2->m[1][1] + In1->m[2][0] * In2->m[1][2] ;
+	Out->m[2][0] = In1->m[0][0] * In2->m[2][0] + In1->m[1][0] * In2->m[2][1] + In1->m[2][0] * In2->m[2][2] ;
+
+	Out->m[0][1] = In1->m[0][1] * In2->m[0][0] + In1->m[1][1] * In2->m[0][1] + In1->m[2][1] * In2->m[0][2] ;
+	Out->m[1][1] = In1->m[0][1] * In2->m[1][0] + In1->m[1][1] * In2->m[1][1] + In1->m[2][1] * In2->m[1][2] ;
+	Out->m[2][1] = In1->m[0][1] * In2->m[2][0] + In1->m[1][1] * In2->m[2][1] + In1->m[2][1] * In2->m[2][2] ;
+
+	Out->m[0][2] = In1->m[0][2] * In2->m[0][0] + In1->m[1][2] * In2->m[0][1] + In1->m[2][2] * In2->m[0][2] ;
+	Out->m[1][2] = In1->m[0][2] * In2->m[1][0] + In1->m[1][2] * In2->m[1][1] + In1->m[2][2] * In2->m[1][2] ;
+	Out->m[2][2] = In1->m[0][2] * In2->m[2][0] + In1->m[1][2] * In2->m[2][1] + In1->m[2][2] * In2->m[2][2] ;
+
+	Out->m[0][3] = In1->m[0][3] * In2->m[0][0] + In1->m[1][3] * In2->m[0][1] + In1->m[2][3] * In2->m[0][2] + In2->m[0][3] ;
+	Out->m[1][3] = In1->m[0][3] * In2->m[1][0] + In1->m[1][3] * In2->m[1][1] + In1->m[2][3] * In2->m[1][2] + In2->m[1][3] ;
+	Out->m[2][3] = In1->m[0][3] * In2->m[2][0] + In1->m[1][3] * In2->m[2][1] + In1->m[2][3] * In2->m[2][2] + In2->m[2][3] ;
+}
+
+__inline void UnSafeMultiplyMatrix4X4CTD( MATRIX_4X4CT_D * RST Out, const MATRIX_4X4CT_D * RST In1, const MATRIX_4X4CT_D * RST In2 )
+{
+	Out->m[0][0] = In1->m[0][0] * In2->m[0][0] + In1->m[1][0] * In2->m[0][1] + In1->m[2][0] * In2->m[0][2] ;
+	Out->m[1][0] = In1->m[0][0] * In2->m[1][0] + In1->m[1][0] * In2->m[1][1] + In1->m[2][0] * In2->m[1][2] ;
+	Out->m[2][0] = In1->m[0][0] * In2->m[2][0] + In1->m[1][0] * In2->m[2][1] + In1->m[2][0] * In2->m[2][2] ;
+
+	Out->m[0][1] = In1->m[0][1] * In2->m[0][0] + In1->m[1][1] * In2->m[0][1] + In1->m[2][1] * In2->m[0][2] ;
+	Out->m[1][1] = In1->m[0][1] * In2->m[1][0] + In1->m[1][1] * In2->m[1][1] + In1->m[2][1] * In2->m[1][2] ;
+	Out->m[2][1] = In1->m[0][1] * In2->m[2][0] + In1->m[1][1] * In2->m[2][1] + In1->m[2][1] * In2->m[2][2] ;
+
+	Out->m[0][2] = In1->m[0][2] * In2->m[0][0] + In1->m[1][2] * In2->m[0][1] + In1->m[2][2] * In2->m[0][2] ;
+	Out->m[1][2] = In1->m[0][2] * In2->m[1][0] + In1->m[1][2] * In2->m[1][1] + In1->m[2][2] * In2->m[1][2] ;
+	Out->m[2][2] = In1->m[0][2] * In2->m[2][0] + In1->m[1][2] * In2->m[2][1] + In1->m[2][2] * In2->m[2][2] ;
+
+	Out->m[0][3] = In1->m[0][3] * In2->m[0][0] + In1->m[1][3] * In2->m[0][1] + In1->m[2][3] * In2->m[0][2] + In2->m[0][3] ;
+	Out->m[1][3] = In1->m[0][3] * In2->m[1][0] + In1->m[1][3] * In2->m[1][1] + In1->m[2][3] * In2->m[1][2] + In2->m[1][3] ;
+	Out->m[2][3] = In1->m[0][3] * In2->m[2][0] + In1->m[1][3] * In2->m[2][1] + In1->m[2][3] * In2->m[2][2] + In2->m[2][3] ;
+}
+
+__inline void UnSafeMultiplyMatrix4X4CT_DF_D( MATRIX_4X4CT_D * RST Out, const MATRIX_4X4CT_D * RST In1, const MATRIX_4X4CT_F * RST In2 )
+{
+	Out->m[0][0] = In1->m[0][0] * In2->m[0][0] + In1->m[1][0] * In2->m[0][1] + In1->m[2][0] * In2->m[0][2] ;
+	Out->m[1][0] = In1->m[0][0] * In2->m[1][0] + In1->m[1][0] * In2->m[1][1] + In1->m[2][0] * In2->m[1][2] ;
+	Out->m[2][0] = In1->m[0][0] * In2->m[2][0] + In1->m[1][0] * In2->m[2][1] + In1->m[2][0] * In2->m[2][2] ;
+
+	Out->m[0][1] = In1->m[0][1] * In2->m[0][0] + In1->m[1][1] * In2->m[0][1] + In1->m[2][1] * In2->m[0][2] ;
+	Out->m[1][1] = In1->m[0][1] * In2->m[1][0] + In1->m[1][1] * In2->m[1][1] + In1->m[2][1] * In2->m[1][2] ;
+	Out->m[2][1] = In1->m[0][1] * In2->m[2][0] + In1->m[1][1] * In2->m[2][1] + In1->m[2][1] * In2->m[2][2] ;
+
+	Out->m[0][2] = In1->m[0][2] * In2->m[0][0] + In1->m[1][2] * In2->m[0][1] + In1->m[2][2] * In2->m[0][2] ;
+	Out->m[1][2] = In1->m[0][2] * In2->m[1][0] + In1->m[1][2] * In2->m[1][1] + In1->m[2][2] * In2->m[1][2] ;
+	Out->m[2][2] = In1->m[0][2] * In2->m[2][0] + In1->m[1][2] * In2->m[2][1] + In1->m[2][2] * In2->m[2][2] ;
+
+	Out->m[0][3] = In1->m[0][3] * In2->m[0][0] + In1->m[1][3] * In2->m[0][1] + In1->m[2][3] * In2->m[0][2] + In2->m[0][3] ;
+	Out->m[1][3] = In1->m[0][3] * In2->m[1][0] + In1->m[1][3] * In2->m[1][1] + In1->m[2][3] * In2->m[1][2] + In2->m[1][3] ;
+	Out->m[2][3] = In1->m[0][3] * In2->m[2][0] + In1->m[1][3] * In2->m[2][1] + In1->m[2][3] * In2->m[2][2] + In2->m[2][3] ;
+}
+
+__inline void UnSafeMultiplyMatrix4X4CT_FD_D( MATRIX_4X4CT_D * RST Out, const MATRIX_4X4CT_F * RST In1, const MATRIX_4X4CT_D * RST In2 )
+{
+	Out->m[0][0] = In1->m[0][0] * In2->m[0][0] + In1->m[1][0] * In2->m[0][1] + In1->m[2][0] * In2->m[0][2] ;
+	Out->m[1][0] = In1->m[0][0] * In2->m[1][0] + In1->m[1][0] * In2->m[1][1] + In1->m[2][0] * In2->m[1][2] ;
+	Out->m[2][0] = In1->m[0][0] * In2->m[2][0] + In1->m[1][0] * In2->m[2][1] + In1->m[2][0] * In2->m[2][2] ;
+
+	Out->m[0][1] = In1->m[0][1] * In2->m[0][0] + In1->m[1][1] * In2->m[0][1] + In1->m[2][1] * In2->m[0][2] ;
+	Out->m[1][1] = In1->m[0][1] * In2->m[1][0] + In1->m[1][1] * In2->m[1][1] + In1->m[2][1] * In2->m[1][2] ;
+	Out->m[2][1] = In1->m[0][1] * In2->m[2][0] + In1->m[1][1] * In2->m[2][1] + In1->m[2][1] * In2->m[2][2] ;
+
+	Out->m[0][2] = In1->m[0][2] * In2->m[0][0] + In1->m[1][2] * In2->m[0][1] + In1->m[2][2] * In2->m[0][2] ;
+	Out->m[1][2] = In1->m[0][2] * In2->m[1][0] + In1->m[1][2] * In2->m[1][1] + In1->m[2][2] * In2->m[1][2] ;
+	Out->m[2][2] = In1->m[0][2] * In2->m[2][0] + In1->m[1][2] * In2->m[2][1] + In1->m[2][2] * In2->m[2][2] ;
+
+	Out->m[0][3] = In1->m[0][3] * In2->m[0][0] + In1->m[1][3] * In2->m[0][1] + In1->m[2][3] * In2->m[0][2] + In2->m[0][3] ;
+	Out->m[1][3] = In1->m[0][3] * In2->m[1][0] + In1->m[1][3] * In2->m[1][1] + In1->m[2][3] * In2->m[1][2] + In2->m[1][3] ;
+	Out->m[2][3] = In1->m[0][3] * In2->m[2][0] + In1->m[1][3] * In2->m[2][1] + In1->m[2][3] * In2->m[2][2] + In2->m[2][3] ;
+}
+
+__inline void UnSafeMultiplyMatrix4X4CT( MATRIX_4X4CT * RST Out, MATRIX_4X4CT * RST In1, MATRIX_4X4CT * RST In2 )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		UnSafeMultiplyMatrix4X4CTD( &Out->md, &In1->md, &In2->md ) ;
+	}
+	else
+	{
+		UnSafeMultiplyMatrix4X4CTF( &Out->mf, &In1->mf, &In2->mf ) ;
+	}
+}
+
+__inline void UnSafeMultiplyMatrix4X4CT_FC( MATRIX_4X4CT * RST Out, MATRIX_4X4CT_F * RST In1, MATRIX_4X4CT * RST In2 )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		UnSafeMultiplyMatrix4X4CT_FD_D( &Out->md, In1, &In2->md ) ;
+	}
+	else
+	{
+		UnSafeMultiplyMatrix4X4CTF( &Out->mf, In1, &In2->mf ) ;
+	}
+}
+
+__inline void UnSafeMultiplyMatrix4X4CT_CF( MATRIX_4X4CT * RST Out, MATRIX_4X4CT * RST In1, MATRIX_4X4CT_F * RST In2 )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		UnSafeMultiplyMatrix4X4CT_DF_D( &Out->md, &In1->md, In2 ) ;
+	}
+	else
+	{
+		UnSafeMultiplyMatrix4X4CTF( &Out->mf, &In1->mf, In2 ) ;
+	}
+}
+
+__inline void UnSafeMatrix4X4CT_F_Eq_F_Mul_S( MATRIX_4X4CT_F *RST Out, MATRIX_4X4CT_F * RST In1, float In2 )
+{
+	Out->m[ 0 ][ 0 ] = In1->m[ 0 ][ 0 ] * In2 ;
+	Out->m[ 0 ][ 1 ] = In1->m[ 0 ][ 1 ] * In2 ;
+	Out->m[ 0 ][ 2 ] = In1->m[ 0 ][ 2 ] * In2 ;
+	Out->m[ 0 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2 ;
+
+	Out->m[ 1 ][ 0 ] = In1->m[ 1 ][ 0 ] * In2 ;
+	Out->m[ 1 ][ 1 ] = In1->m[ 1 ][ 1 ] * In2 ;
+	Out->m[ 1 ][ 2 ] = In1->m[ 1 ][ 2 ] * In2 ;
+	Out->m[ 1 ][ 3 ] = In1->m[ 1 ][ 3 ] * In2 ;
+
+	Out->m[ 2 ][ 0 ] = In1->m[ 2 ][ 0 ] * In2 ;
+	Out->m[ 2 ][ 1 ] = In1->m[ 2 ][ 1 ] * In2 ;
+	Out->m[ 2 ][ 2 ] = In1->m[ 2 ][ 2 ] * In2 ;
+	Out->m[ 2 ][ 3 ] = In1->m[ 2 ][ 3 ] * In2 ;
+}
+
+__inline void UnSafeMatrix4X4CT_D_Eq_D_Mul_S( MATRIX_4X4CT_D *RST Out, MATRIX_4X4CT_D * RST In1, float In2 )
+{
+	Out->m[ 0 ][ 0 ] = In1->m[ 0 ][ 0 ] * In2 ;
+	Out->m[ 0 ][ 1 ] = In1->m[ 0 ][ 1 ] * In2 ;
+	Out->m[ 0 ][ 2 ] = In1->m[ 0 ][ 2 ] * In2 ;
+	Out->m[ 0 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2 ;
+
+	Out->m[ 1 ][ 0 ] = In1->m[ 1 ][ 0 ] * In2 ;
+	Out->m[ 1 ][ 1 ] = In1->m[ 1 ][ 1 ] * In2 ;
+	Out->m[ 1 ][ 2 ] = In1->m[ 1 ][ 2 ] * In2 ;
+	Out->m[ 1 ][ 3 ] = In1->m[ 1 ][ 3 ] * In2 ;
+
+	Out->m[ 2 ][ 0 ] = In1->m[ 2 ][ 0 ] * In2 ;
+	Out->m[ 2 ][ 1 ] = In1->m[ 2 ][ 1 ] * In2 ;
+	Out->m[ 2 ][ 2 ] = In1->m[ 2 ][ 2 ] * In2 ;
+	Out->m[ 2 ][ 3 ] = In1->m[ 2 ][ 3 ] * In2 ;
+}
+
+__inline void UnSafeMatrix4X4CT_C_Eq_C_Mul_S( MATRIX_4X4CT *RST Out, MATRIX_4X4CT * RST In1, float In2 )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		UnSafeMatrix4X4CT_D_Eq_D_Mul_S( &Out->md, &In1->md, In2 ) ;
+	}
+	else
+	{
+		UnSafeMatrix4X4CT_F_Eq_F_Mul_S( &Out->mf, &In1->mf, In2 ) ;
+	}
+}
+
+__inline void UnSafeMatrix4X4CT_F_EqPlus_F_Mul_S( MATRIX_4X4CT_F *RST Out, MATRIX_4X4CT_F * RST In1, float In2 )
+{
+	Out->m[ 0 ][ 0 ] += In1->m[ 0 ][ 0 ] * In2 ;
+	Out->m[ 0 ][ 1 ] += In1->m[ 0 ][ 1 ] * In2 ;
+	Out->m[ 0 ][ 2 ] += In1->m[ 0 ][ 2 ] * In2 ;
+	Out->m[ 0 ][ 3 ] += In1->m[ 0 ][ 3 ] * In2 ;
+
+	Out->m[ 1 ][ 0 ] += In1->m[ 1 ][ 0 ] * In2 ;
+	Out->m[ 1 ][ 1 ] += In1->m[ 1 ][ 1 ] * In2 ;
+	Out->m[ 1 ][ 2 ] += In1->m[ 1 ][ 2 ] * In2 ;
+	Out->m[ 1 ][ 3 ] += In1->m[ 1 ][ 3 ] * In2 ;
+
+	Out->m[ 2 ][ 0 ] += In1->m[ 2 ][ 0 ] * In2 ;
+	Out->m[ 2 ][ 1 ] += In1->m[ 2 ][ 1 ] * In2 ;
+	Out->m[ 2 ][ 2 ] += In1->m[ 2 ][ 2 ] * In2 ;
+	Out->m[ 2 ][ 3 ] += In1->m[ 2 ][ 3 ] * In2 ;
+}
+
+__inline void UnSafeMatrix4X4CT_D_EqPlus_D_Mul_S( MATRIX_4X4CT_D *RST Out, MATRIX_4X4CT_D * RST In1, float In2 )
+{
+	Out->m[ 0 ][ 0 ] += In1->m[ 0 ][ 0 ] * In2 ;
+	Out->m[ 0 ][ 1 ] += In1->m[ 0 ][ 1 ] * In2 ;
+	Out->m[ 0 ][ 2 ] += In1->m[ 0 ][ 2 ] * In2 ;
+	Out->m[ 0 ][ 3 ] += In1->m[ 0 ][ 3 ] * In2 ;
+
+	Out->m[ 1 ][ 0 ] += In1->m[ 1 ][ 0 ] * In2 ;
+	Out->m[ 1 ][ 1 ] += In1->m[ 1 ][ 1 ] * In2 ;
+	Out->m[ 1 ][ 2 ] += In1->m[ 1 ][ 2 ] * In2 ;
+	Out->m[ 1 ][ 3 ] += In1->m[ 1 ][ 3 ] * In2 ;
+
+	Out->m[ 2 ][ 0 ] += In1->m[ 2 ][ 0 ] * In2 ;
+	Out->m[ 2 ][ 1 ] += In1->m[ 2 ][ 1 ] * In2 ;
+	Out->m[ 2 ][ 2 ] += In1->m[ 2 ][ 2 ] * In2 ;
+	Out->m[ 2 ][ 3 ] += In1->m[ 2 ][ 3 ] * In2 ;
+}
+
+__inline void UnSafeMatrix4X4CT_C_EqPlus_C_Mul_S( MATRIX_4X4CT *RST Out, MATRIX_4X4CT * RST In1, float In2 )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		UnSafeMatrix4X4CT_D_EqPlus_D_Mul_S( &Out->md, &In1->md, In2 ) ;
+	}
+	else
+	{
+		UnSafeMatrix4X4CT_F_EqPlus_F_Mul_S( &Out->mf, &In1->mf, In2 ) ;
+	}
+}
+
+// ベクトル行列と4x4正方行列を乗算する( w は 1 と仮定 )
+__inline void VectorTransform4X4CTF( VECTOR * RST Out, VECTOR * RST InVec, MATRIX_4X4CT_F * RST InMatrix )
+{
+	Out->x = InVec->x * InMatrix->m[ 0 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 0 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 0 ][ 2 ] +
+			            InMatrix->m[ 0 ][ 3 ] ;
+	Out->y = InVec->x * InMatrix->m[ 1 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 1 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 1 ][ 2 ] +
+			            InMatrix->m[ 1 ][ 3 ] ;
+	Out->z = InVec->x * InMatrix->m[ 2 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 2 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 2 ][ 2 ] +
+			            InMatrix->m[ 2 ][ 3 ] ;
+}
+
+__inline void VectorTransform4X4CTD( VECTOR * RST Out, VECTOR * RST InVec, MATRIX_4X4CT_D * RST InMatrix )
+{
+	Out->x = ( float )( 
+		     InVec->x * InMatrix->m[ 0 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 0 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 0 ][ 2 ] +
+			            InMatrix->m[ 0 ][ 3 ] ) ;
+	Out->y = ( float )(
+		     InVec->x * InMatrix->m[ 1 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 1 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 1 ][ 2 ] +
+			            InMatrix->m[ 1 ][ 3 ] ) ;
+	Out->z = ( float )( 
+		     InVec->x * InMatrix->m[ 2 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 2 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 2 ][ 2 ] +
+			            InMatrix->m[ 2 ][ 3 ] ) ;
+}
+
+__inline void VectorTransform4X4CT( VECTOR * RST Out, VECTOR * RST InVec, MATRIX_4X4CT * RST InMatrix )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		VectorTransform4X4CTD( Out, InVec, &InMatrix->md ) ;
+	}
+	else
+	{
+		VectorTransform4X4CTF( Out, InVec, &InMatrix->mf ) ;
+	}
+}
+
+// ベクトル行列と4x4正方行列の回転成分のみを乗算する( w は 1 と仮定 )
+__inline void VectorTransformSR4X4CTF( VECTOR * RST Out, VECTOR * RST InVec, MATRIX_4X4CT_F * RST InMatrix )
+{
+	Out->x = InVec->x * InMatrix->m[ 0 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 0 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 0 ][ 2 ] ;
+	Out->y = InVec->x * InMatrix->m[ 1 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 1 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 1 ][ 2 ] ;
+	Out->z = InVec->x * InMatrix->m[ 2 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 2 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 2 ][ 2 ] ;
+}
+
+__inline void VectorTransformSR4X4CTD( VECTOR * RST Out, VECTOR * RST InVec, MATRIX_4X4CT_D * RST InMatrix )
+{
+	Out->x = ( float )( 
+		     InVec->x * InMatrix->m[ 0 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 0 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 0 ][ 2 ] ) ;
+	Out->y = ( float )(
+		     InVec->x * InMatrix->m[ 1 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 1 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 1 ][ 2 ] ) ;
+	Out->z = ( float )( 
+		     InVec->x * InMatrix->m[ 2 ][ 0 ] + 
+		     InVec->y * InMatrix->m[ 2 ][ 1 ] +
+			 InVec->z * InMatrix->m[ 2 ][ 2 ] ) ;
+}
+
+__inline void VectorTransformSR4X4CT( VECTOR * RST Out, VECTOR * RST InVec, MATRIX_4X4CT * RST InMatrix )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		VectorTransformSR4X4CTD( Out, InVec, &InMatrix->md ) ;
+	}
+	else
+	{
+		VectorTransformSR4X4CTF( Out, InVec, &InMatrix->mf ) ;
+	}
+}
+
+// 環境依存関数
+extern	int				MV1_Terminate_PF( void ) ;																	// モデル機能の後始末
+extern	int				MV1_TerminateModelBaseHandle_PF( MV1_MODEL_BASE *ModelBase ) ;								// モデルデータハンドルの後始末
+extern	int				MV1_TerminateTriangleListBaseTempBuffer_PF( MV1_TRIANGLE_LIST_BASE *MBTList ) ;				// トライアングルリストの一時処理用のバッファを開放する
+extern	void			MV1_SetupPackDrawInfo_PF( MV1_MODEL_BASE *ModelBase ) ;										// 同時複数描画関係の情報をセットアップする
+extern	int				MV1_SetupVertexBufferBase_PF( int MV1ModelBaseHandle, int DuplicateNum = 1, int ASyncThread = FALSE ) ;	// モデル基データの頂点バッファのセットアップをする( -1:エラー )
+extern	int				MV1_SetupVertexBuffer_PF( int MHandle, int ASyncThread = FALSE ) ;							// モデルデータの頂点バッファのセットアップをする( -1:エラー )
+extern	int				MV1_TerminateVertexBufferBase_PF( int MV1ModelBaseHandle ) ;								// 頂点バッファの後始末をする( -1:エラー )
+extern	int				MV1_TerminateVertexBuffer_PF( int MV1ModelHandle ) ;										// 頂点バッファの後始末をする( -1:エラー )
+extern	int				MV1_SetupShapeVertex_PF( int MHandle ) ;													// シェイプデータのセットアップをする
+extern	int				MV1_BeginRender_PF( MV1_MODEL *Model ) ;													// ３Ｄモデルのレンダリングの準備を行う
+extern	int				MV1_EndRender_PF() ;																		// ３Ｄモデルのレンダリングの後始末を行う
+extern	void			MV1_DrawMesh_PF( MV1_MESH *Mesh, int TriangleListIndex = -1 ) ;								// メッシュ描画部分を抜き出したもの
+
+
+
+
+
+
+
+
+// wchar_t版関数
+extern	int				MV1LoadModel_WCHAR_T(						const wchar_t *FileName ) ;
+extern	int				MV1SetLoadModelAnimFilePath_WCHAR_T(		const wchar_t *FileName ) ;
+extern	int				MV1SaveModelToMV1File_WCHAR_T( int MHandle, const wchar_t *FileName, int SaveType = MV1_SAVETYPE_NORMAL , int AnimMHandle = -1 , int AnimNameCheck = TRUE , int Normal8BitFlag = 1 , int Position16BitFlag = 1 , int Weight8BitFlag = 0 , int Anim16BitFlag = 1 ) ;
+#ifndef DX_NON_SAVEFUNCTION
+extern	int				MV1SaveModelToXFile_WCHAR_T(   int MHandle, const wchar_t *FileName, int SaveType = MV1_SAVETYPE_NORMAL , int AnimMHandle = -1 , int AnimNameCheck = TRUE ) ;
+#endif // DX_NON_SAVEFUNCTION
+extern	const wchar_t *	MV1GetAnimName_WCHAR_T(					int MHandle, int AnimIndex ) ;
+extern	int				MV1SetAnimName_WCHAR_T(					int MHandle, int AnimIndex, const wchar_t *AnimName ) ;
+extern	int				MV1GetAnimIndex_WCHAR_T(				int MHandle, const wchar_t *AnimName ) ;
+extern	const wchar_t *	MV1GetAnimTargetFrameName_WCHAR_T(		int MHandle, int AnimIndex, int AnimFrameIndex ) ;
+extern	const wchar_t *	MV1GetMaterialName_WCHAR_T(				int MHandle, int MaterialIndex ) ;
+extern	const wchar_t *	MV1GetTextureName_WCHAR_T(				int MHandle, int TexIndex ) ;
+extern	int				MV1SetTextureColorFilePath_WCHAR_T(		int MHandle, int TexIndex, const wchar_t *FilePath ) ;
+extern	const wchar_t *	MV1GetTextureColorFilePath_WCHAR_T(		int MHandle, int TexIndex ) ;
+extern	int				MV1SetTextureAlphaFilePath_WCHAR_T(		int MHandle, int TexIndex, const wchar_t *FilePath ) ;
+extern	const wchar_t *	MV1GetTextureAlphaFilePath_WCHAR_T(		int MHandle, int TexIndex ) ;
+extern	int				MV1LoadTexture_WCHAR_T(					const wchar_t *FilePath ) ;
+extern	int				MV1SearchFrame_WCHAR_T(					int MHandle, const wchar_t *FrameName ) ;
+extern	int				MV1SearchFrameChild_WCHAR_T(			int MHandle, int FrameIndex = -1 , const wchar_t *ChildName = NULL ) ;
+extern	const wchar_t *	MV1GetFrameName_WCHAR_T(				int MHandle, int FrameIndex ) ;
+extern	int				MV1GetFrameName2_WCHAR_T(				int MHandle, int FrameIndex, wchar_t *StrBuffer ) ;
+extern	int				MV1SearchShape_WCHAR_T(					int MHandle, const wchar_t *ShapeName ) ;
+extern	const wchar_t *	MV1GetShapeName_WCHAR_T(				int MHandle, int ShapeIndex ) ;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1789,7 +2192,7 @@ __inline static void _MV1SphereLinear( FLOAT4 *Q1, FLOAT4 *Q2, float t, FLOAT4 *
 #ifdef DX_THREAD_SAFE
 
 // モデルの読み込み・保存・複製関係
-extern	int			NS_MV1LoadModel( const TCHAR *FileName ) ;												// 模型读入( -1:错误  0以上:模型句柄 )
+extern	int			NS_MV1LoadModel( const TCHAR *FileName ) ;												// モデルの読み込み( -1:エラー  0以上:モデルハンドル )
 extern	int			NS_MV1LoadModelFromMem( const void *FileImage, int FileSize, int (* FileReadFunc )( const TCHAR *FilePath, void **FileImageAddr, int *FileSize, void *FileReadFuncData ), int (* FileReleaseFunc )( void *MemoryAddr, void *FileReadFuncData ), void *FileReadFuncData = NULL ) ;	// メモリ上のモデルファイルイメージと独自の読み込みルーチンを使用してモデルを読み込む
 extern	int			NS_MV1DeleteModel( int MHandle ) ;														// モデルを削除する
 extern	int			NS_MV1InitModel( void ) ;																		// すべてのモデルを削除する
@@ -1797,29 +2200,41 @@ extern	int			NS_MV1CreateCloneModel( int SrcMHandle ) ;														// 指定�
 extern	int			NS_MV1DuplicateModel( int SrcMHandle ) ;												// 指定のモデルと同じモデル基本データを使用してモデルを作成する( -1:エラー  0以上:モデルハンドル )
 extern	int			NS_MV1SetLoadModelReMakeNormal( int Flag ) ;											// モデルを読み込む際に法線の再計算を行うかどうかを設定する( TRUE:行う  FALSE:行わない )
 extern	int			NS_MV1SetLoadModelReMakeNormalSmoothingAngle( float SmoothingAngle = 89.5f * DX_PI_F / 180.0f ) ;	// モデルを読み込む際に行う法泉の再計算で使用するスムージング角度を設定する( 単位はラジアン )
+extern	int			NS_MV1SetLoadModelIgnoreScaling(       int Flag ) ;														// モデルを読み込む際にスケーリングデータを無視するかどうかを設定する( TRUE:無視する  FALSE:無視しない( デフォルト ) )
 extern	int			NS_MV1SetLoadModelPositionOptimize( int Flag ) ;										// モデルを読み込む際に座標データの最適化を行うかどうかを設定する( TRUE:行う  FALSE:行わない )
 extern	int			NS_MV1SetLoadModelUsePhysicsMode( int PhysicsMode /* DX_LOADMODEL_PHYSICS_LOADCALC 等 */ ) ;	// 読み込むモデルの物理演算モードを設定する
 extern	int			NS_MV1SetLoadModelPhysicsWorldGravity( float Gravity ) ;										// 読み込むモデルの物理演算に適用する重力パラメータ
 extern	int			NS_MV1SetLoadCalcPhysicsWorldGravity( int GravityNo, VECTOR Gravity ) ;						// 読み込むモデルの物理演算モードが事前計算( DX_LOADMODEL_PHYSICS_LOADCALC )だった場合に適用される重力の設定をする
+extern	int			NS_MV1SetLoadModelPhysicsCalcPrecision( int Precision ) ;												// 読み込むモデルの物理演算モードが事前計算( DX_LOADMODEL_PHYSICS_LOADCALC )だった場合に適用される物理演算の時間進行の精度を設定する( 0:60FPS  1:120FPS  2:240FPS  3:480FPS  4:960FPS  5:1920FPS )
 extern	int			NS_MV1SetLoadModelAnimFilePath( const TCHAR *FileName ) ;										// 読み込むモデルに適用するアニメーションファイルのパスを設定する( 現在は PMD,PMX のみに効果あり )
+extern	int			NS_MV1SetLoadModelUsePackDraw(			int Flag ) ;														// 読み込むモデルを同時複数描画に対応させるかどうかを設定する( TRUE:対応させる  FALSE:対応させない( デフォルト ) )、( 「対応させる」にすると描画が高速になる可能性がある代わりに消費VRAMが増えます )
+
+// モデル保存関係
+extern	int			NS_MV1SaveModelToMV1File( int MHandle, const TCHAR *FileName, int SaveType = MV1_SAVETYPE_NORMAL , int AnimMHandle = -1 , int AnimNameCheck = TRUE , int Normal8BitFlag = 1 , int Position16BitFlag = 1 , int Weight8BitFlag = 0 , int Anim16BitFlag = 1 ) ;		// 指定のパスにモデルを保存する( 戻り値  0:成功  -1:メモリ不足  -2:使われていないアニメーションがあった )
+#ifndef DX_NON_SAVEFUNCTION
+extern	int			NS_MV1SaveModelToXFile(   int MHandle, const TCHAR *FileName, int SaveType = MV1_SAVETYPE_NORMAL , int AnimMHandle = -1 , int AnimNameCheck = TRUE ) ;	// 指定のパスにモデルをＸファイル形式で保存する( 戻り値  0:成功  -1:メモリ不足  -2:使われていないアニメーションがあった )
+#endif // DX_NON_SAVEFUNCTION
 
 // モデル描画関係
 extern	int			NS_MV1DrawModel( int MHandle ) ;														// モデルを描画する
 extern	int			NS_MV1DrawFrame( int MHandle, int FrameIndex ) ;										// モデルの指定のフレームを描画する
 extern	int			NS_MV1DrawMesh( int MHandle, int MeshIndex ) ;											// モデルの指定のメッシュを描画する
 extern	int			NS_MV1DrawTriangleList( int MHandle, int TriangleListIndex ) ;									// モデルの指定のトライアングルリストを描画する
-extern	int			NS_MV1DrawModelDebug( int MHandle, int Color, int IsNormalLine, float NormalLineLength, int IsPolyLine, int IsCollisionBox ) ;	// モデルのデバッグ描画
+extern	int			NS_MV1DrawModelDebug( int MHandle, unsigned int Color, int IsNormalLine, float NormalLineLength, int IsPolyLine, int IsCollisionBox ) ;	// モデルのデバッグ描画
 //extern	int			NS_MV1DrawAlphaObject( void ) ;														// アルファオブジェクトの描画
 
 // 描画設定関係
 extern	int			NS_MV1SetUseOrigShader( int UseFlag ) ;														// モデルの描画に SetUseVertexShader, SetUsePixelShader で指定したシェーダーを使用するかどうかを設定する( TRUE:使用する  FALSE:使用しない( デフォルト ) )
-extern	int			MV1SetSemiTransDrawMode(			int DrawMode /* DX_SEMITRANSDRAWMODE_ALWAYS 等 */ ) ;				// モデルの半透明要素がある部分についての描画モードを設定する
+extern	int			NS_MV1SetSemiTransDrawMode(			int DrawMode /* DX_SEMITRANSDRAWMODE_ALWAYS 等 */ ) ;				// モデルの半透明要素がある部分についての描画モードを設定する
 
 // モデル基本制御関係
 //extern	int			   MV1SetupMatrix( int MHandle ) ;														// 描画用の行列を構築する
 extern	MATRIX		NS_MV1GetLocalWorldMatrix( int MHandle ) ;												// モデルのローカル座標からワールド座標に変換する行列を得る
-extern	int			NS_MV1SetPosition( int MHandle, VECTOR Position ) ;										// モデルの座標をセット
-extern	VECTOR		NS_MV1GetPosition( int MHandle ) ;														// モデルの座標を取得
+extern	MATRIX_D	NS_MV1GetLocalWorldMatrixD( int MHandle ) ;												// モデルのローカル座標からワールド座標に変換する行列を得る
+extern	int			NS_MV1SetPosition(  int MHandle, VECTOR   Position ) ;									// モデルの座標をセット
+extern	int			NS_MV1SetPositionD( int MHandle, VECTOR_D Position ) ;									// モデルの座標をセット
+extern	VECTOR		NS_MV1GetPosition(  int MHandle ) ;														// モデルの座標を取得
+extern	VECTOR_D	NS_MV1GetPositionD( int MHandle ) ;														// モデルの座標を取得
 extern	int			NS_MV1SetScale( int MHandle, VECTOR Scale ) ;											// モデルの拡大値をセット
 extern	VECTOR		NS_MV1GetScale( int MHandle ) ;															// モデルの拡大値を取得
 extern	int			NS_MV1SetRotationXYZ( int MHandle, VECTOR Rotate ) ;									// モデルの回転値をセット( X軸回転→Y軸回転→Z軸回転方式 )
@@ -1827,8 +2242,10 @@ extern	VECTOR		NS_MV1GetRotationXYZ( int MHandle ) ;													// モデルの
 extern	int			NS_MV1SetRotationZYAxis( int MHandle, VECTOR ZAxisDirection, VECTOR YAxisDirection, float ZAxisTwistRotate ) ;	// モデルのＺ軸とＹ軸の向きをセットする
 extern	int			NS_MV1SetRotationMatrix( int MHandle, MATRIX Matrix ) ;									// モデルの回転用行列をセットする
 extern	MATRIX		NS_MV1GetRotationMatrix( int MHandle ) ;												// モデルの回転用行列を取得する
-extern	int			NS_MV1SetMatrix( int MHandle, MATRIX Matrix ) ;											// モデルの変形用行列をセットする
-extern	MATRIX		NS_MV1GetMatrix( int MHandle ) ;														// モデルの変形用行列を取得する
+extern	int			NS_MV1SetMatrix(  int MHandle, MATRIX   Matrix ) ;										// モデルの変形用行列をセットする
+extern	int			NS_MV1SetMatrixD( int MHandle, MATRIX_D Matrix ) ;										// モデルの変形用行列をセットする
+extern	MATRIX		NS_MV1GetMatrix(  int MHandle ) ;														// モデルの変形用行列を取得する
+extern	MATRIX_D	NS_MV1GetMatrixD( int MHandle ) ;														// モデルの変形用行列を取得する
 extern	int			NS_MV1SetVisible( int MHandle, int VisibleFlag ) ;										// モデルの表示、非表示状態を変更する( TRUE:表示  FALSE:非表示 )
 extern	int			NS_MV1GetVisible( int MHandle ) ;														// モデルの表示、非表示状態を取得する( TRUE:表示  FALSE:非表示 )
 extern	int			NS_MV1SetMeshCategoryVisible( int MHandle, int MeshCategory, int VisibleFlag ) ;		// モデルのメッシュの種類( DX_MV1_MESHCATEGORY_NORMAL など )毎の表示、非表示を設定する( TRUE:表示  FALSE:非表示 )
@@ -1901,6 +2318,7 @@ extern	int			NS_MV1GetAnimKeySetDataType( int MHandle, int AnimKeySetIndex ) ;		
 extern	int			NS_MV1GetAnimKeySetTimeType( int MHandle, int AnimKeySetIndex ) ;						// 指定のアニメーションキーセットのキーの時間データタイプを取得する( MV1_ANIMKEY_TIME_TYPE_ONE 等 )
 extern	int			NS_MV1GetAnimKeySetDataNum( int MHandle, int AnimKeySetIndex ) ;						// 指定のアニメーションキーセットのキーの数を取得する
 extern	float		NS_MV1GetAnimKeyDataTime( int MHandle, int AnimKeySetIndex, int Index ) ;				// 指定のアニメーションキーセットのキーの時間を取得する
+extern	int			NS_MV1GetAnimKeyDataIndexFromTime( int MHandle, int AnimKeySetIndex, float Time ) ;									// 指定のアニメーションキーセットの指定の時間でのキーの番号を取得する
 extern	FLOAT4		NS_MV1GetAnimKeyDataToQuaternion( int MHandle, int AnimKeySetIndex, int Index ) ;		// 指定のアニメーションキーセットのキーを取得する、キータイプが MV1_ANIMKEY_TYPE_QUATERNION では無かった場合は失敗する
 extern	FLOAT4		NS_MV1GetAnimKeyDataToQuaternionFromTime( int MHandle, int AnimKeySetIndex, float Time ) ;	// 指定のアニメーションキーセットのキーを取得する、キータイプが MV1_ANIMKEY_TYPE_QUATERNION では無かった場合は失敗する( 時間指定版 )
 extern	VECTOR		NS_MV1GetAnimKeyDataToVector( int MHandle, int AnimKeySetIndex, int Index ) ;			// 指定のアニメーションキーセットのキーを取得する、キータイプが MV1_ANIMKEY_TYPE_VECTOR では無かった場合は失敗する
@@ -2011,15 +2429,23 @@ extern	int			NS_MV1GetFrameName2( int MHandle, int FrameIndex, TCHAR *StrBuffer 
 extern	int			NS_MV1GetFrameParent( int MHandle, int FrameIndex ) ;									// 指定のフレームの親フレームのインデックスを得る( 親がいない場合は -2 が返る )
 extern	int			NS_MV1GetFrameChildNum( int MHandle, int FrameIndex = -1 ) ;							// 指定のフレームの子フレームの数を取得する( FrameIndex を -1 にすると親を持たないフレームの数が返ってくる )
 extern	int			NS_MV1GetFrameChild( int MHandle, int FrameIndex = -1, int ChildIndex = 0 ) ;			// 指定のフレームの子フレームのフレームインデックスを取得する( 番号指定版 )( FrameIndex を -1 にすると親を持たないフレームを ChildIndex で指定する )( エラーの場合は戻り値が-1 )
-extern	VECTOR		NS_MV1GetFramePosition( int MHandle, int FrameIndex ) ;									// 指定のフレームの座標を取得する
-extern	MATRIX		NS_MV1GetFrameBaseLocalMatrix( int MHandle, int FrameIndex ) ;							// 指定のフレームの初期状態での座標変換行列を取得する
-extern	MATRIX		NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex ) ;								// 指定のフレームの座標変換行列を取得する
-extern	MATRIX		NS_MV1GetFrameLocalWorldMatrix( int MHandle, int FrameIndex ) ;							// 指定のフレームのローカル座標からワールド座標に変換する行列を得る
-extern	int			NS_MV1SetFrameUserLocalMatrix( int MHandle, int FrameIndex, MATRIX Matrix ) ;			// 指定のフレームの座標変換行列を設定する
-extern	int			NS_MV1ResetFrameUserLocalMatrix( int MHandle, int FrameIndex ) ;						// 指定のフレームの座標変換行列をデフォルトに戻す
-extern	VECTOR		NS_MV1GetFrameMaxVertexLocalPosition( int MHandle, int FrameIndex ) ;					// 指定のフレームが持つメッシュ頂点のローカル座標での最大値を得る
-extern	VECTOR		NS_MV1GetFrameMinVertexLocalPosition( int MHandle, int FrameIndex ) ;					// 指定のフレームが持つメッシュ頂点のローカル座標での最小値を得る
-extern	VECTOR		NS_MV1GetFrameAvgVertexLocalPosition( int MHandle, int FrameIndex ) ;					// 指定のフレームが持つメッシュ頂点のローカル座標での平均値を得る
+extern	VECTOR		NS_MV1GetFramePosition(				int MHandle, int FrameIndex ) ;											// 指定のフレームの座標を取得する
+extern	VECTOR_D	NS_MV1GetFramePositionD(				int MHandle, int FrameIndex ) ;											// 指定のフレームの座標を取得する
+extern	MATRIX		NS_MV1GetFrameBaseLocalMatrix(			int MHandle, int FrameIndex ) ;											// 指定のフレームの初期状態での座標変換行列を取得する
+extern	MATRIX_D	NS_MV1GetFrameBaseLocalMatrixD(		int MHandle, int FrameIndex ) ;											// 指定のフレームの初期状態での座標変換行列を取得する
+extern	MATRIX		NS_MV1GetFrameLocalMatrix(				int MHandle, int FrameIndex ) ;											// 指定のフレームの座標変換行列を取得する
+extern	MATRIX_D	NS_MV1GetFrameLocalMatrixD(			int MHandle, int FrameIndex ) ;											// 指定のフレームの座標変換行列を取得する
+extern	MATRIX		NS_MV1GetFrameLocalWorldMatrix(		int MHandle, int FrameIndex ) ;											// 指定のフレームのローカル座標からワールド座標に変換する行列を得る
+extern	MATRIX_D	NS_MV1GetFrameLocalWorldMatrixD(		int MHandle, int FrameIndex ) ;											// 指定のフレームのローカル座標からワールド座標に変換する行列を得る
+extern	int			NS_MV1SetFrameUserLocalMatrix(			int MHandle, int FrameIndex, MATRIX   Matrix ) ;						// 指定のフレームの座標変換行列を設定する
+extern	int			NS_MV1SetFrameUserLocalMatrixD(		int MHandle, int FrameIndex, MATRIX_D Matrix ) ;						// 指定のフレームの座標変換行列を設定する
+extern	int			NS_MV1ResetFrameUserLocalMatrix(		int MHandle, int FrameIndex ) ;											// 指定のフレームの座標変換行列をデフォルトに戻す
+extern	VECTOR		NS_MV1GetFrameMaxVertexLocalPosition(	int MHandle, int FrameIndex ) ;											// 指定のフレームが持つメッシュ頂点のローカル座標での最大値を得る
+extern	VECTOR_D	NS_MV1GetFrameMaxVertexLocalPositionD(	int MHandle, int FrameIndex ) ;											// 指定のフレームが持つメッシュ頂点のローカル座標での最大値を得る
+extern	VECTOR		NS_MV1GetFrameMinVertexLocalPosition(	int MHandle, int FrameIndex ) ;											// 指定のフレームが持つメッシュ頂点のローカル座標での最小値を得る
+extern	VECTOR_D	NS_MV1GetFrameMinVertexLocalPositionD(	int MHandle, int FrameIndex ) ;											// 指定のフレームが持つメッシュ頂点のローカル座標での最小値を得る
+extern	VECTOR		NS_MV1GetFrameAvgVertexLocalPosition(	int MHandle, int FrameIndex ) ;											// 指定のフレームが持つメッシュ頂点のローカル座標での平均値を得る
+extern	VECTOR_D	NS_MV1GetFrameAvgVertexLocalPositionD(	int MHandle, int FrameIndex ) ;											// 指定のフレームが持つメッシュ頂点のローカル座標での平均値を得る
 extern	int			NS_MV1GetFrameTriangleNum( int MHandle, int FrameIndex ) ;								// 指定のフレームに含まれるポリゴンの数を取得する
 extern	int			NS_MV1GetFrameMeshNum( int MHandle, int FrameIndex ) ;									// 指定のフレームが持つメッシュの数を取得する
 extern	int			NS_MV1GetFrameMesh( int MHandle, int FrameIndex, int Index ) ;							// 指定のフレームが持つメッシュのメッシュインデックスを取得する
@@ -2122,11 +2548,20 @@ extern	MV1_REF_POLYGONLIST	NS_MV1GetReferenceMesh( int MHandle, int FrameIndex, 
 #define NS_MV1DuplicateModel							MV1DuplicateModel
 #define NS_MV1SetLoadModelReMakeNormal					MV1SetLoadModelReMakeNormal
 #define NS_MV1SetLoadModelReMakeNormalSmoothingAngle	MV1SetLoadModelReMakeNormalSmoothingAngle
+#define NS_MV1SetLoadModelIgnoreScaling					MV1SetLoadModelIgnoreScaling
 #define NS_MV1SetLoadModelPositionOptimize				MV1SetLoadModelPositionOptimize
 #define NS_MV1SetLoadModelUsePhysicsMode				MV1SetLoadModelUsePhysicsMode
 #define NS_MV1SetLoadModelPhysicsWorldGravity			MV1SetLoadModelPhysicsWorldGravity
 #define NS_MV1SetLoadCalcPhysicsWorldGravity			MV1SetLoadCalcPhysicsWorldGravity
+#define NS_MV1SetLoadModelPhysicsCalcPrecision			MV1SetLoadModelPhysicsCalcPrecision
 #define NS_MV1SetLoadModelAnimFilePath					MV1SetLoadModelAnimFilePath
+#define NS_MV1SetLoadModelUsePackDraw					MV1SetLoadModelUsePackDraw
+
+// モデル保存関係
+#define NS_MV1SaveModelToMV1File						MV1SaveModelToMV1File
+#ifndef DX_NON_SAVEFUNCTION
+#define NS_MV1SaveModelToXFile							MV1SaveModelToXFile
+#endif // DX_NON_SAVEFUNCTION
 
 // モデル描画関係
 #define NS_MV1DrawModel									MV1DrawModel
@@ -2141,8 +2576,11 @@ extern	MV1_REF_POLYGONLIST	NS_MV1GetReferenceMesh( int MHandle, int FrameIndex, 
 
 // モデル基本制御関係
 #define NS_MV1GetLocalWorldMatrix						MV1GetLocalWorldMatrix
+#define NS_MV1GetLocalWorldMatrixD						MV1GetLocalWorldMatrixD
 #define NS_MV1SetPosition								MV1SetPosition
+#define NS_MV1SetPositionD								MV1SetPositionD
 #define NS_MV1GetPosition								MV1GetPosition
+#define NS_MV1GetPositionD								MV1GetPositionD
 #define NS_MV1SetScale									MV1SetScale
 #define NS_MV1GetScale									MV1GetScale
 #define NS_MV1SetRotationXYZ							MV1SetRotationXYZ
@@ -2151,7 +2589,9 @@ extern	MV1_REF_POLYGONLIST	NS_MV1GetReferenceMesh( int MHandle, int FrameIndex, 
 #define NS_MV1SetRotationMatrix							MV1SetRotationMatrix
 #define NS_MV1GetRotationMatrix							MV1GetRotationMatrix
 #define NS_MV1SetMatrix									MV1SetMatrix
+#define NS_MV1SetMatrixD								MV1SetMatrixD
 #define NS_MV1GetMatrix									MV1GetMatrix
+#define NS_MV1GetMatrixD								MV1GetMatrixD
 #define NS_MV1SetVisible								MV1SetVisible
 #define NS_MV1GetVisible								MV1GetVisible
 #define NS_MV1SetMeshCategoryVisible					MV1SetMeshCategoryVisible
@@ -2221,6 +2661,7 @@ extern	MV1_REF_POLYGONLIST	NS_MV1GetReferenceMesh( int MHandle, int FrameIndex, 
 #define NS_MV1GetAnimKeySetTimeType						MV1GetAnimKeySetTimeType
 #define NS_MV1GetAnimKeySetDataNum						MV1GetAnimKeySetDataNum
 #define NS_MV1GetAnimKeyDataTime						MV1GetAnimKeyDataTime
+#define NS_MV1GetAnimKeyDataIndexFromTime				MV1GetAnimKeyDataIndexFromTime
 #define NS_MV1GetAnimKeyDataToQuaternion				MV1GetAnimKeyDataToQuaternion
 #define NS_MV1GetAnimKeyDataToQuaternionFromTime		MV1GetAnimKeyDataToQuaternionFromTime
 #define NS_MV1GetAnimKeyDataToVector					MV1GetAnimKeyDataToVector
@@ -2323,14 +2764,22 @@ extern	MV1_REF_POLYGONLIST	NS_MV1GetReferenceMesh( int MHandle, int FrameIndex, 
 #define NS_MV1GetFrameChildNum							MV1GetFrameChildNum
 #define NS_MV1GetFrameChild								MV1GetFrameChild
 #define NS_MV1GetFramePosition							MV1GetFramePosition
+#define NS_MV1GetFramePositionD							MV1GetFramePositionD
 #define NS_MV1GetFrameBaseLocalMatrix					MV1GetFrameBaseLocalMatrix
+#define NS_MV1GetFrameBaseLocalMatrixD					MV1GetFrameBaseLocalMatrixD
 #define NS_MV1GetFrameLocalMatrix						MV1GetFrameLocalMatrix
+#define NS_MV1GetFrameLocalMatrixD						MV1GetFrameLocalMatrixD
 #define NS_MV1GetFrameLocalWorldMatrix					MV1GetFrameLocalWorldMatrix
+#define NS_MV1GetFrameLocalWorldMatrixD					MV1GetFrameLocalWorldMatrixD
 #define NS_MV1SetFrameUserLocalMatrix					MV1SetFrameUserLocalMatrix
+#define NS_MV1SetFrameUserLocalMatrixD					MV1SetFrameUserLocalMatrixD
 #define NS_MV1ResetFrameUserLocalMatrix					MV1ResetFrameUserLocalMatrix
 #define NS_MV1GetFrameMaxVertexLocalPosition			MV1GetFrameMaxVertexLocalPosition
+#define NS_MV1GetFrameMaxVertexLocalPositionD			MV1GetFrameMaxVertexLocalPositionD
 #define NS_MV1GetFrameMinVertexLocalPosition			MV1GetFrameMinVertexLocalPosition
+#define NS_MV1GetFrameMinVertexLocalPositionD			MV1GetFrameMinVertexLocalPositionD
 #define NS_MV1GetFrameAvgVertexLocalPosition			MV1GetFrameAvgVertexLocalPosition
+#define NS_MV1GetFrameAvgVertexLocalPositionD			MV1GetFrameAvgVertexLocalPositionD
 #define NS_MV1GetFrameTriangleNum						MV1GetFrameTriangleNum
 #define NS_MV1GetFrameMeshNum							MV1GetFrameMeshNum
 #define NS_MV1GetFrameMesh								MV1GetFrameMesh
@@ -2423,7 +2872,11 @@ extern	MV1_REF_POLYGONLIST	NS_MV1GetReferenceMesh( int MHandle, int FrameIndex, 
 
 #endif  // DX_THREAD_SAFE
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif	// DX_NON_MODEL
 

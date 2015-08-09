@@ -3,10 +3,441 @@
 //　ＤＸライブラリ　非公式ログ
 //
 //　Creator : 山田　巧
-//  Last Access : 2014/4/18
+//  Last Access : 2015/6/16
 //
 // ============================================================================
 
+Ver 3.14d	　C++標準ライブラリを使用すると Visual Studio 2013 で
+			リンクエラーが発生する不具合に対応。
+			( 一部 Visual Studio 2013 でビルドした lib ファイルを追加 )
+			　幅か高さが8ピクセル未満のテクスチャを使用した３Ｄモデルが
+			正常に描画されないバグを修正。
+			　関数 SetFullScreenResolutionMode でフルスクリーン
+			解像度モードを DX_FSRESOLUTIONMODE_NATIVE 以外に設定している
+			状態では SetMousePoint が正常に動作しないバグを修正。
+Ver 3.14c	　正式公開のためにバージョン番号を変更。
+Ver 3.14b	　DxLib.h に WAVEFORMATEX 構造体の定義を追加。
+			　DrawGraphToZBuffer 系の関数でアルファチャンネル付き画像
+			を描画した際にアルファ値０の部分も描画されてしまっていた
+			バグを修正。
+			　GetIMEInputData で取得できる文節情報の文節の長さが
+			マルチバイト文字セット版では必ず 0 になってしまうバグを修正。
+			　GetIMEInputData で取得できる選択されている文節の番号が
+			マルチバイト文字セット版では不正な値になっていたバグを修正。
+			　PlayMusic でMIDIファイル以外を再生するとメモリの不正な
+			アクセスが発生するバグを修正。
+			　PMD,PMX ファイル読み込み時に物理演算を適用する場合の
+			計算精度を設定するための関数
+			MV1SetLoadModelToPhysicsCalcPrecision を追加。
+			( DxLibModelViewer.exe にも対応する設定を追加 )
+			　Direct3D 11 が使用できる環境では
+			SetUseASyncChangeWindowModeFunction で ALT+Enter による
+			フルスクリーンモード←→ウインドウモードの変更が有効に
+			なっていなくても ALT+Enter を押すとウインドウモードが
+			切り替わってしまっていたバグを修正。
+			　Direct3D 11 が使用できる環境では DrawPolygon3D 等の
+			３Ｄポリゴン描画関数で DX_BLENDMODE_INVSRC 等の一部の
+			ブレンドモードが正常に機能していなかったバグを修正。
+			　SetUseASyncLoadFlag( TRUE ) ; が実行され、非同期読み込み
+			のモードになっているときに MV1PhysicsCalculation が呼ばれた
+			場合は物理演算を非同期実行する処理を追加。
+			( 物理演算の終了確認は CheckHandleASyncLoad( モデルハンドル )
+			の戻り値が FALSE かどうかで行う )
+			　３Ｄモデルの物理演算モードが事前計算
+			( DX_LOADMODEL_PHYSICS_LOADCALC )だった場合に適用される
+			物理演算の時間進行の精度を設定するための関数
+			MV1SetLoadModelPhysicsCalcPrecision を追加。
+			　ＤＸライブラリ内部のメモリ確保処理を改良。
+			　Direct3D 11 に対応している環境で ChangeWindowMode や
+			SetGraphMode を使用すると、その後の描画処理が正常に
+			行われなくなることがあるバグを修正。
+			　KeyInputString や MakeKeyInput の最大文字数の指定が、
+			マルチバイト文字列版でも全角文字が１文字として処理されて
+			しまっていたバグを修正。( 正しくはマルチバイト文字列版では
+			全角文字は２文字扱い )
+			　Direct3D 11 が使用できる環境では SetBackgroundColor で
+			設定した色が ClearDrawScreen を使用するまで適用されなかった
+			バグを修正。
+			　Direct3D 11 が使用できる環境では SetTransColor で指定した
+			色の内、Red と Blue が逆に扱われてしまっていたバグを修正。
+			　画像ファイルの解像度を取得するための関数
+			GetImageSize_File と GetImageSize_Mem を追加。
+			　MakeKeyInput の引数 SingleCharOnlyFlag と
+			DoubleCharOnlyFlag が正しく機能していなかったバグを修正。
+			　Visual Studio 2012 でビルドした libファイルと、
+			Visual Studio 2015 でビルドした libファイルを追加。
+			　環境によっては中身を塗りつぶす DrawCircle で描かれる
+			円の座標が１ドットずれてしまう不具合を修正。
+			　DrawCircle で大きさの異なる円を複数描画すると
+			メモリリークが発生することがあるバグを修正。
+Ver 3.14a	　正式公開のためにバージョン番号を変更。
+Ver 3.14	　GetConstIndexToShader に正しいパラメータを渡しても必ず
+			失敗してしまうバグを修正。
+			　DrawRectModiGraph と DrawRectModiGraphF を追加。
+			　回転した文字列を描画するための関数 DrawRotaString 等を
+			追加。
+			　MV1SetRotationXYZ などの回転角度設定関係の関数に、回転
+			角度（単位：ラジアン）としておよそ 400.0f 以上や -400.0f
+			以下の値を渡すと正しく回転が行われないバグを修正。
+			　DxLib_Init 関数を呼び出す前にログを出力する関数を呼んでも
+			何もログが出力されなかった仕様を変更して、DxLib_Init 関数を
+			呼び出す前でもログが出力されるように処理を変更。
+			　Direct3D 11 に対応している実行環境で、フルスクリーン
+			モードで実行した際に起動直後にメモリの不正なアクセスが
+			発生してしまうことがあるバグを修正。
+Ver 3.13f	　正式公開のためにバージョン番号を変更。
+Ver 3.13e	　Direct3D 11 Feature Level 11.0 以上が使用できる環境では
+			Direct3D 11 を使用するように仕様を変更。
+			( Direct3D 9用のオリジナルシェーダーを使用している方は
+			　DxLib_Init 呼び出し前に
+			　SetUseDirect3DVersion( DX_DIRECT3D_9EX ) ;
+			　という記述を増やして、Direct3D 9Ex を使用するように
+			　してください )
+			　フルスクリーンモードで起動中に別のソフトにフォーカスが
+			移って一度デスクトップ画面に戻った後、フォーカスが戻って
+			再びフルスクリーンモードになると DrawPolygon3D などで
+			描画する３Ｄポリゴンで半透明描画ができなくなるバグを修正。
+			　GetColor や DrawPixel などで使用するカラー値の型を
+			int から unsigned int に変更。
+			　Ogvファイルを LoadGraph で読み込み、SeekMovieToGraph で
+			再生位置を変更しようとしても正常に動作しないバグを修正。
+			　Direct3D11 を使用するかどうかを設定する関数
+			SetUseDirect3D11 を追加。
+			　Direct3D 11 で使用する最低機能レベルを設定するための関数
+			SetUseDirect3D11MinFeatureLevel を追加。
+			　ＤＸライブラリの出力を行うディスプレイデバイスを
+			設定する為の関数 SetUseDisplayIndex を追加。
+			　使用する Direct3D のバージョンを指定するための関数
+			SetUseDirect3DVersion を追加。
+			　使用している Direct3D のバージョンを取得するための関数
+			GetUseDirect3DVersion を追加。
+			　ウインドウの最大化と最小化を繰り返していると、最大化時
+			のウインドウの位置が最大化の度に右にずれていくバグを修正。
+			　GetRefreshRate 関数を DxLib_Init の前でも使用できる
+			ように処理を変更。
+			　関数 SetFullScreenResolutionMode でフルスクリーン
+			解像度モードを DX_FSRESOLUTIONMODE_DESKTOP にした状態で
+			関数 ChangeWindowMode でウインドウモードから
+			フルスクリーンモードに切り替えようとするとメモリの不正な
+			アクセスが発生してしまうバグを修正。
+			　シェーダーコードの圧縮データがウイルスチェックソフトに
+			ウイルスと誤判定されることがあったので、文字データ配列に
+			変更。( それに伴いデータサイズが 14.285% 増加 )
+			　RGBA 各チャンネルが浮動小数点型のソフトウエアイメージ
+			ハンドルを作成するための関数
+			MakeARGBF16ColorSoftImage, 
+			MakeARGBF32ColorSoftImage を追加。
+			　ソフトウエアイメージからピクセルの値を浮動小数点型で
+			取得するための関数 GetPixelSoftImageF と、
+			ピクセルの値を浮動小数点型で書き込む
+			DrawPixelSoftImageF を追加。
+			　PMXファイルのボーンの設定が不正だった場合に
+			無限ループが発生して関数 MV1LoadModel から出てこなくなる
+			不具合を修正。
+			　"JUNK"チャンクの存在する wavファイルが読み込みに
+			失敗するバグを修正。
+			　ＤＸライブラリ内部で使用する文字列型を wchar_t に統一。
+			　ＤＸライブラリ内部での文字コード形式の扱いが曖昧
+			だったので整理。
+			　GetMyIPAddress に IpBuf の長さを指定する引数と、
+			取得したIPアドレスの数を取得するための int型変数への
+			アドレスを渡すための引数を追加。
+			　フルスクリーンモードで SetUseASyncLoadFlag( TRUE ) ;
+			を使用して画像や３Ｄモデルを非同期読み込み中にソフトが
+			非アクティブになりデスクトップ画面に戻るとメモリの
+			不正なアクセスが発生してしまうバグを修正。
+			　UTF-16LE のサロゲートペアの文字に対応。( 但しサロゲ
+			ートペアの文字の表示にはフォントが対応している必要が
+			あります )
+			　ＤＸフォントデータファイルを読み込んでフォントハンドルを
+			取得するための関数 LoadFontDataToHandle を追加。
+			　メモリに読み込んだフォントデータファイルからフォント
+			ハンドルを取得するための関数 LoadFontDataFromMemToHandle
+			を追加。
+			　イタリック体のフォントを使用していると、描画した文字の
+			端にごみが描画されることがあるバグを修正。
+			　DrawGraphF 等の座標を浮動小数点値で指定する関数で、
+			テクスチャをドットbyドットで表示するためには座標を
+			-0.5f ずらさなければならないかを判断するための関数
+			GetDrawFloatCoordType を追加。
+			( ラスタライズルールの変更で Direct3D 10 以降は -0.5f
+			ずらず必要が無くなったため )
+			　乗算ブレンドなど、アルファ値が 0 でも描画が行われる
+			ブレンドモードにも関わらず、アルファ値が 0 の箇所は
+			描画が行われていなかったバグを修正。
+			　MV1CollCheck_Triangle などの関数で、３Ｄモデル中の
+			ポリゴンと一つも当たっていなくても戻り値の
+			MV1_COLL_RESULT_POLY_DIM 構造体のメンバー変数 Dim に
+			NULL 以外の値が入ることがあったので、ポリゴンと一つも
+			当たっていない場合は必ず Dim に NULL が代入されるように
+			処理を変更。
+			　ＤＸアーカイブファイル内の３Ｄモデルファイルを
+			読み込むと DxLib_End を実行するまで３Ｄモデルファイルが
+			入っているＤＸアーカイブファイルの解放が行われないことが
+			あるバグを修正。
+			　非同期読み込み中に各種ハンドルを削除するとメモリの
+			不正なアクセスが発生することがあるバグを修正。
+			　24bitカラー画像以外のフォーマットの画像ファイルを
+			CreateMaskFromMem で読み込むとメモリリークが発生する
+			バグを修正。
+			　Direct3D11 を使用している状態で R5G6B5フォーマットの
+			「描画対象にできる画像」を MakeScreen関数で作成し、
+			SetDrawScreen関数で描画対象にした状態で
+			SaveDrawScreen 関数を使用して描画状態を保存すると
+			ピクセルの色が正しくない画像ファイルが作成されるバグを修正。
+			　画面より小さいサイズの「描画対象にできる画像」を
+			MakeScreen関数で作成し、SetDrawScreen関数で描画対象に
+			した状態で CreateMaskScreen関数を使用するとメモリの
+			不正なアクセスエラーが発生してしまうバグを修正。
+			　64bit版で DXAファイル内の PMXファイル又は PMDファイル
+			を読み込むとメモリの不正なアクセスが発生するバグを修正。
+			　64bit版では GetPcInfo で CPUString と CPUSpeed に有効な
+			値が代入されない仕様を変更して、有効な値が代入される
+			ように処理を変更。
+Ver 3.13d	　正式公開のためにバージョン番号を変更。
+Ver 3.13c	　マスク機能を有効にした状態では DrawRectGraph が正常な
+			動作をしないバグを修正。
+			　アルファ値＋輝度値の形式のpngファイルが正常に読み込め
+			なかったバグを修正。
+			　メインウインドウのＺオーダーを変更する為の関数
+			SetWindowZOrder を追加。
+			　ウインドウが最大化されているかどうかを取得する為の関数
+			GetWindowMaxSizeFlag を追加。
+			　ウインドウを最大化した場合はウインドウをデスクトップの
+			中心に配置するように処理を変更。
+			　３Ｄ関係の関数に渡す座標値が大きくなった場合に３Ｄ描画の
+			結果が歪んでしまう現象を抑える処理を行うかどうかを
+			設定する関数 SetUseLarge3DPositionSupport を追加。
+			　VECTOR を引数に取る関数の一部に VECTOR_D を引数に取る
+			関数名の末尾に D が付いた関数の追加。
+			　Direct3D9 に対応していないグラフィックスデバイスでは
+			何も描画されない状態になってしまっていたバグを修正。
+			　最大化ボタンを有効にしてウインドウを最大サイズにした場合
+			GetMousePoint で取得できるマウスカーソルの座標が正しく
+			なかったバグを修正。
+			　１ピクセル４バイト形式の jpeg 画像に対応。
+			　３Ｄモデルを半透明描画した場合は初期状態で不透明のメッシュ
+			を先に描画するように処理を変更。
+			　構成する頂点の数が32個より多い面が存在するxファイルを
+			読み込もうとすると、メモリの不正なアクセスが発生していた
+			バグを修正。
+			　DrawBillboard3D、DrawPixel3D、DrawLine3D、DrawTriangle3Dも
+			SetTransformToWorld で設定するローカル→ワールド行列の影響を
+			受けるように仕様を変更。
+			　シェーダーに対応している環境では DrawCone3D や DrawSphere3D
+			などの３Ｄ図形描画関数でスペキュラ効果が無い状態になっていた
+			バグを修正。
+			　DxLibModelViewer.exe でファイル名に全角文字が含まれる
+			fbx ファイルが読み込むことができないバグを修正。
+			　fbx ファイルに含まれるマテリアル名やフレーム名の全角文字
+			部分が文字化けするバグを修正。
+			　SetUseDirectDrawDeviceIndex を使用してプライマリモニター
+			以外を出力先にしていた場合、GetMousePoint で正常な座標が
+			取得できないバグを修正。
+			　SetFullScreenResolutionMode でフルスクリーンモードでの
+			スケーリングモードを DX_FSRESOLUTIONMODE_DESKTOP や
+			DX_FSRESOLUTIONMODE_MAXIMUM にしているか、若しくは指定の
+			解像度にモニターが対応していなかった場合、GetMousePoint で
+			正常な値が取得できないバグを修正。
+			　偶にデバッグ起動時に長時間ＰＣの動作が止まる等の現象が発生
+			するため、デフォルトでは XAudio2 を使用しないように処理を
+			変更。( 使用する場合は DxLib_Init の呼び出し前に
+			SetEnableXAudioFlag( TRUE ) ; を実行する )
+			　３Ｄモデルのアニメーションデータ中の指定の時間での
+			アニメーションキー番号を取得するための関数
+			MV1GetAnimKeyDataIndexFromTime を追加。
+			　ポリゴンのカリング設定を取得する為の関数
+			GetUseBackCulling を追加。
+			　フォグの設定を取得するための関数 GetFogEnable 等を追加。
+			　画面上におけるカメラが見ている映像の中心の座標を取得する
+			為の関数 GetCameraScreenCenter を追加。
+			　GraphBlend の DX_GRAPH_BLEND_RGBA_SELECT_MIX を使用すると
+			メモリの不正なアクセスエラーが発生してしまうバグを修正。
+			　MinGW版に Ver4.9.2 64bitを追加。
+Ver 3.13b	　正式公開のためにバージョン番号を変更。
+Ver 3.13a	　ScreenFlip の出力先ウインドウを指定するための関数
+			SetScreenFlipTargetWindow を追加。
+			　グラフィックスデバイスやディスプレイが対応していない
+			解像度でのフルスクリーンモードで環境によっては画面に
+			何も表示されないバグを修正。
+			　fbxファイルのテクスチャＵＶスケーリング情報に対応。
+			　動画の再生速度を変更するための関数
+			SetPlaySpeedRateMovieToGraph を追加。( ogv形式と、
+			その他一部のフォーマットのみ有効 )
+			　フルスクリーンモードで指定の画面モードにデバイスが対応
+			していない場合に、別画面モードでの表示が正常に行われない
+			バグを修正。
+			　GetDefaultState で起動時の画面リフレッシュレートも取得
+			できるように引数を追加。
+			　フルスクリーンモードで指定の画面モードにデバイスが対応
+			していない場合に行うサブ画面のスケーリング結果が
+			0.5	ピクセル程度ずれてしまっていた不具合を修正。
+			　内部形式によっては png ファイルが正常に読み込めない
+			バグを修正。
+			　LoadGraph などのファイル読み込み関数に渡すパスの長さが
+			ヌル文字を含めて256文字以上になるとメモリの不正なアクセスが
+			発生してしまうバグを修正。
+			　入力されたシステム文字を取得するための関数
+			GetInputSystemChar を追加。
+			　角の丸い四角形を描画する関数 DrawRoundRect を追加。
+			　Ｚバッファに図形を描画する関数 DrawTriangleToZBuffer、
+			DrawQuadrangleToZBuffer、DrawRoundRectToZBuffer を追加。
+			　「無変換」キーや「変換」キーなど、Win32API で取得できる
+			一部のキーの押下状態が CheckHitKey では取得できなかった
+			バグを修正。
+			　次に読み込む３Ｄモデルを「一度に複数描画する処理」に
+			対応させるかどうかを設定する関数
+			MV1SetLoadModelUsePackDraw を追加。
+			　不具合が発生したため、使用する libjpeg.lib のバージョンを
+			9a から 9 に変更。
+Ver 3.13	　正式公開のためにバージョン番号を変更。
+Ver 3.12f	　KeyInputString などの文字列入力でIME使用時の「変換」キー
+			による文字列の再変換に対応。
+			　非同期読み込み設定( SetUseASyncLoadFlag( TRUE ) ; )の状態で
+			MakeGraph や MakeScreen を実行して非同期作成中となっている
+			グラフィックハンドルを SetDrawScreen の引数として渡すと
+			不正なメモリアクセスが発生するバグを修正。
+			　MV1ファイルに接線と従法線を保存していなかったので、
+			保存する処理と読み込む処理を追加。
+			　LoadPuaseGraph が正常に機能していなかったバグを修正。
+			　StopJoypadVibration を呼ぶとエラー終了するバグを修正。
+			　MV1LoadModel の前に MV1SetLoadModelUsePhysicsMode に
+			DX_LOADMODEL_PHYSICS_LOADCALC を渡して読み込み時に
+			物理演算を行う設定にしていた場合、正常に物理演算が行われない
+			バグを修正。
+			　使用する zlib のバージョンを 1.2.8 に更新。
+			　使用する libpng のバージョンを 1.6.12 に更新。
+			　使用する libjpeg のバージョンを 9a に更新。
+			　DxCompileConfig.h の DX_NON_HANDLE_ERROR_CHECK の定義を
+			有効にすると正常に動作しなくなるバグを修正。
+			　libpng のバージョンアップに伴い、DxUseCLib.cpp を
+			pngpriv.h をインクルードしなくてもコンパイルできるように
+			プログラムを変更。
+			　グラフィックスデバイスによっては CreateMaskScreen などの
+			マスク処理を使用するとエラー終了してしまうバグを修正。
+			　WindowsのバージョンチェックにWindows8.1とWindows10を追加。
+Ver 3.12e	　正式版公開のためにバージョン番号を更新。
+Ver 3.12d	　アルファチャンネルのある画像を DrawBlendGraph を使用して
+			ブレンド画像と合成して描画すると、正常な描画結果が得られない
+			バグを修正。
+			　テクスチャ座標の記述が誤っている xファイルも読み込める
+			ようにプログラムを変更。
+			　StartJoypadVibration と StopJoypadVibration に操作対象の
+			振動モーターを指定するための引数 EffectIndex を追加。
+			　GraphFilter や GraphBlend などのフィルター系の関数が正常に
+			動作しなくなっていたバグを修正。
+			　球とカプセルの当たり判定を行う関数
+			HitCheck_Sphere_Capsule を追加。
+			　DxLibModelViewer.exe の３Ｄモデル全体情報として表示する
+			最小頂点座標と最大頂点座標の値が誤っていたのを修正。
+			　名前の無いオブジェクトを持つ xファイルが正常に読み込めない
+			ことがあるバグを修正。
+			　DxLibModelViewer.exe で使用する FBX SDK のバージョンを
+			2015.1 に変更。
+			　FBXファイルに従法線と接線の情報が含まれている場合は、その
+			情報を読み込むように処理を追加。
+			　モニターの最大解像度より大きな解像度を指定できないように
+			していた制限を解除。
+			　MV1LoadModel を非同期読み込みと同期読み込みを同時に
+			実行するとメモリリークが発生してしまうバグを修正。
+Ver 3.12c	　正式版公開のためにバージョン番号を更新。
+Ver 3.12b	　頂点カラーのある xファイルを読み込んだ際に処理の構造上
+			異常に読み込みに時間が掛かることがある現象を解消。
+			　DxLibModelViewer.exe に複数の３Ｄモデルを読み込む
+			機能を追加。
+			　PixelShader でNo.8 ～ No.15の８つのサンプラが使用できない
+			バグを修正。
+			　Tiff画像の読み込みに対応。
+			　３Ｄモデルファイルのフレーム( ボーン )に設定した拡大率が
+			反映されないバグを修正。
+			　フルスクリーンモードで SetAlwaysRunFlag( TRUE ) ;を
+			実行して常に動作する設定になっている状態で３Ｄモデルを
+			描画すると ALT + TAB 等でタスクスイッチが発生した際に
+			メモリの不正なアクセスが発生するバグを修正。
+			　関数 SetKeyInputStringColor に代わる色設定用関数
+			SetKeyInputStringColor2 と ResetKeyInputStringColor2 を追加。
+			　メモリ上の画像ファイルイメージからマスクハンドルを作成する
+			CreateMaskFromMem と CreateDivMaskFromMem を追加。
+			　GraphBlend のブレンドタイプに
+			DX_GRAPH_BLEND_PMA_MULTIPLE_A_ONLY を追加。
+			　SetBlendGraphParam を使用して画像をブレンドする設定に
+			して、且つ SetDrawBlendMode で DX_BLENDMODE_PMA_ALPHA などの
+			乗算済みαタイプのブレンドモードを使用した場合に計算的に
+			正しい描画結果が得られなかったバグを修正。
+			　同じ名前のマテリアルとメッシュがある( 例：「壁」という
+			名前のマテリアルと、「壁」という名前のメッシュがある、等 )
+			xファイルの読み込みに失敗することがあるバグを修正。
+			　動画再生の際にＹＵＶフォーマットのサーフェスが使用できる
+			場合は使用するかどうかを設定するための関数
+			SetMovieUseYUVFormatSurfaceFlag を追加。
+			　SetDrawValidMultiSample と同じ効果の別名関数
+			SetCreateDrawValidGraphMultiSample を追加。
+			　LoadGraph 等で追加でファイルパスの末尾に _a を加えた
+			アルファチャンネル用の画像ファイルを読み込む処理を行うか
+			どうかを設定するための関数 SetUseAlphaImageLoadFlag を追加。
+			　SetDrawArea で描画範囲を描画先全体にしていない状態で
+			SetDrawScreen を呼び出した後、SetDrawArea を一度も呼ばずに
+			３Ｄの描画処理を行うとカメラの設定が正しくない状態での
+			描画になってしまうバグを修正。
+			　縁付きのフォントを使用し続けていると文字の端に線が描画
+			されるようになるバグを修正。
+			　ファイルパスのフォルダの区切りに / が使用されていると
+			gif ファイルの読み込みに失敗するバグを修正。
+			　フルスクリーンモードのモニター解像度の決定に関する設定を
+			する為の関数 SetFullScreenResolutionMode と、
+			フルスクリーンモードでモニターの解像度とソフトの画面の
+			解像度が異なる場合に行う拡大処理のタイプを設定する為の
+			関数 SetFullScreenScalingMode を追加。
+			　xファイルの行列リストによるアニメーションのデータの場合
+			行列にスケーリング要素が含まれていると正しくアニメーションが
+			再生できないバグを修正。
+			　namespace DxLib を使用するかどうかを選択する為の
+			コンパイル用定義 DX_USE_NAMESPACE を DxCompileConfig.h に追加。
+			( 設定を変更してコンパイルする場合は DxLib.lib,
+			DxDrawFunc.lib, DxUseCLib.lib などすべてコンパイルする
+			必要があります )
+Ver 3.12a	　正式版公開のためにバージョン番号を更新。
+Ver 3.12	　LoadDivGraph や DerivationGraph で作成した画像の一部の
+			グラフィックハンドルを使用して DrawCircleGauge を実行すると
+			分割・派生した画像の周りの部分も描画されてしまうバグを修正。
+			　同時に使用できるシャドウマップの数を２つから３つに変更。
+			　文字列入力機能でShiftキーなどによる範囲選択の表示が正常に
+			行われないことがあるバグを修正。
+			　MV1LoadModel が呼ばれるまで３Ｄモデル用の
+			圧縮シェーダーコードを解凍しないように処理を変更。
+			　関数 TriangleBarycenter が void 型なのに値を返そうとして
+			書式エラーが発生してしまっているバグを修正。
+			　メインウインドウが最小化しているかどうかを取得するための
+			関数 GetWindowMinSizeFlag を追加。
+			　複数のアニメーションをブレンドした場合に３Ｄモデルが縮んで
+			しまうことがあるバグを修正。
+			　頂点シェーダーとピクセルシェーダーの対応バージョンが異なる
+			場合に３Ｄモデルの描画が変になるバグを修正。
+			　ChangeWindowMode でフルスクリーンモードを変更した場合に
+			printfDx の結果が画面に表示されなくなることがあるバグを修正。
+			　Direct3D9 Debug Runtime を使用して実行すると発生が
+			確認できる Direct3D9エラーを修正。
+			　SetDrawScreen で描画先に指定している画面・画像よりも大きな
+			画像に対して GraphFilter を使用すると正常に動作しないバグを
+			修正。
+			　３Ｄモデル読み込みの際に３Ｄモデルファイルに含まれる
+			スケーリングの情報を無視するかどうかを設定する為の関数
+			MV1SetLoadModelIgnoreScaling を追加。
+			　DxLibModelViewer.exe に３Ｄモデル読み込みの際に３Ｄモデル
+			ファイルに含まれるスケーリングの情報を無視するかどうかの
+			設定項目を追加。
+			　フォグの開始距離か終了距離を跨るポリゴンに対するフォグ処理が
+			正常に行われなかったバグを修正。
+			　関数 SetDrawUseShadowMap の名称を SetUseShadowMap に変更。
+			　関数 Set3DSoundListenerPosAndFrontPos の名称を
+			Set3DSoundListenerPosAndFrontPosAndUpVec に変更。
+			　フォントのキャッシュに使用するテクスチャのサイズ割り出し
+			処理を改良。
+			　SetDrawArea で面積０の描画範囲が指定された状態で
+			DrawObtainsString_CharClip を使用するとフリーズしてしまう
+			バグを修正。
+			　関数リファレンスにシャドウマップ関係の関数と、
+			３Ｄサウンド関係の関数を追加。
 Ver 3.11f	　正式版公開のためにバージョン番号を更新。
 Ver 3.11e	　Ver3.11cで不具合とそれに対応するための使用メモリ使用量増加
 		　　のため標準で使用する Direct3D を Direct3D9 に戻していたのを、
@@ -23,7 +454,7 @@ Ver 3.11e	　Ver3.11cで不具合とそれに対応するための使用メモ�
 			　Shader Model 2.0 が使用できない環境で、無効なグラフィック
 			ハンドルを関数 GraphFilter に渡すとメモリの不正なアクセスが
 			発生してしまうバグを修正。
-			　DxModelViewer.exe に法線の情報が不正な fbx ファイルを
+			　DxLibModelViewer.exe に法線の情報が不正な fbx ファイルを
 			読み込むと不正なメモリアクセスが発生してしまうバグを修正。
 			　DrawStringToHandle などのフォントハンドルを使用する関数で、
 			フォントハンドルとして DX_DEFAULT_FONT_HANDLE を渡すと
@@ -45,7 +476,7 @@ Ver 3.11e	　Ver3.11cで不具合とそれに対応するための使用メモ�
 			した場合より負荷が若干軽くなります )
 			　Xファイル内に同名のオブジェクトが複数合った場合に { } による
 			関連付けが正しく行われないことがあるバグを修正。
-			　DxModelViewer.exe で、追加で読み込んだアニメーションの
+			　DxLibModelViewer.exe で、追加で読み込んだアニメーションの
 			フレーム毎の情報が正しく表示されていなかったバグを修正。
 			　Unicode版の KeyInputString などの文字列入力で文字の範囲選択＋
 			削除を行うと、正常に処理されなかったバグを修正。
@@ -114,7 +545,7 @@ Ver 3.11c	　ogvファイルの再生で映像と音がずれることがある�
 			　３Ｄモデルに含まれるシェイプ関係の関数 MV1GetShapeNum などを
 			追加。
 			　最大化ボタンによるデスクトップ上でのウインドウの最大化に対応。
-			　DxModelViewer.exe にシェイプの状態を変更できる機能を追加。
+			　DxLibModelViewer.exe にシェイプの状態を変更できる機能を追加。
 			　MakeScreen で作成した「アルファチャンネル付きの描画対象に
 			できる画像」に対して乗算済みアルファ設定でモデルを描画する為の
 			関数 MV1SetUseDrawMulAlphaColor を追加。
@@ -213,6 +644,8 @@ Ver 3.11a	　DrawPolygon2D 等の構造体 VERTEX2D を引数に取る関数の�
 			MV1CollCheck_Triangle を追加。
 			　ogv形式の動画ファイルを再生する際に表示する必要の無い部分まで
 			表示してしまっていたバグを修正。
+			　64bit版では GetPcInfo でＣＰＵ名とＣＰＵ速度が取得できなかった
+			仕様を取得できるように変更。
 Ver 3.11	　正式版公開のためにバージョン番号を更新。
 Ver 3.10f	　2GB以上のサイズのDXAファイルに対応。
 			　FileRead_size、FileRead_tell の戻り値の型を LONGLONG に変更。
@@ -603,14 +1036,14 @@ Ver 3.08f	　DrawRotaGraph2ToZBuffer と DrawRotaGraph3ToZBuffer を追加。
 			　ＤＸアーカイブの暗号化処理を差分ファイル作成に適した形式に少し変更。
 			　バックバッファの Direct3DSurface9 オブジェクトを取得するための関数
 			GetUseDirect3D9BackBufferSurface を追加。
-			　過去のバージョンの DxModelViewer.exe で作成した mv1 ファイルを新しいバージョンで
+			　過去のバージョンの DxLibModelViewer.exe で作成した mv1 ファイルを新しいバージョンで
 			読み込むとメモリの不正なアクセスが発生してしまうバグを修正。
 			　ConnectNetWork_ASync で非同期接続を行った場合、接続が確立する前に
 			GetNetWorkAcceptState で接続確認を行うとハンドルが解放されてしまうバグを修正。
-			　DxModelViewer.exe でメモリの不正なアクセスが発生してしまうことがあるバグを修正。
+			　DxLibModelViewer.exe でメモリの不正なアクセスが発生してしまうことがあるバグを修正。
 			　VMDファイル読み込み処理のキーとキーを繋ぐ補間処理で使用する情報が１キー分
 			ずれていたバグを修正。
-			　DxModelViewer.exe を使用しなくても MV1ファイルを保存できるように
+			　DxLibModelViewer.exe を使用しなくても MV1ファイルを保存できるように
 			関数 MV1SaveModelToMV1File の定義を DxLib.h に移動。
 			　Direct3D9Ex が使用できる環境で普通の画像に対して GraphLock を使用すると
 			メモリの不正なアクセスが発生してしまうバグを修正。

@@ -2,24 +2,28 @@
 // 
 // 		ＤＸライブラリ		WinAPIプログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxWinAPI.h"
 #include <tchar.h>
 #include "../DxASyncLoad.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
+
+// 構造体定義 --------------------------------------------------------------------
 
 // 内部大域変数宣言 --------------------------------------------------------------
 
@@ -36,7 +40,7 @@ extern int LoadWinAPI( void )
 	// ws2_32.dll をロードする
 	if( WinAPIData.WinSockFunc.WinSockDLL == NULL )
 	{
-		WinAPIData.WinSockFunc.WinSockDLL = LoadLibrary( _T( "ws2_32.dll" ) ) ;
+		WinAPIData.WinSockFunc.WinSockDLL = LoadLibraryW( L"ws2_32.dll" ) ;
 		WinAPIData.WinSockFunc.WSAGetLastErrorFunc = ( int ( WINAPI * )( void ) )GetProcAddress( WinAPIData.WinSockFunc.WinSockDLL, "WSAGetLastError" ) ;
 		WinAPIData.WinSockFunc.WSAStartupFunc = ( int ( WINAPI * )( WORD , LPWSADATA  ) )GetProcAddress( WinAPIData.WinSockFunc.WinSockDLL, "WSAStartup" ) ;
 		WinAPIData.WinSockFunc.WSACleanupFunc = ( int ( WINAPI * )( void ) )GetProcAddress( WinAPIData.WinSockFunc.WinSockDLL, "WSACleanup" ) ;
@@ -66,7 +70,7 @@ extern int LoadWinAPI( void )
 	// Imm32DLL をロードする
 	if( WinAPIData.ImmFunc.Imm32DLL == NULL )
 	{
-		WinAPIData.ImmFunc.Imm32DLL = LoadLibrary( _T( "Imm32.dll" ) ) ;
+		WinAPIData.ImmFunc.Imm32DLL = LoadLibraryW( L"Imm32.dll" ) ;
 		WinAPIData.ImmFunc.ImmGetContextFunc = ( HIMC ( WINAPI * )( HWND  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmGetContext" ) ;
 		WinAPIData.ImmFunc.ImmReleaseContextFunc = ( BOOL ( WINAPI * )( HWND , HIMC  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmReleaseContext" ) ;
 		WinAPIData.ImmFunc.ImmGetOpenStatusFunc = ( BOOL ( WINAPI * )( HIMC  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmGetOpenStatus" ) ;
@@ -74,24 +78,24 @@ extern int LoadWinAPI( void )
 		WinAPIData.ImmFunc.ImmNotifyIMEFunc = ( BOOL ( WINAPI * )( HIMC , DWORD , DWORD , DWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmNotifyIME" ) ;
 		WinAPIData.ImmFunc.ImmSetOpenStatusFunc = ( BOOL ( WINAPI * )( HIMC , BOOL  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmSetOpenStatus" ) ;
 
-#ifdef UNICODE
+//#ifdef UNICODE
 		WinAPIData.ImmFunc.ImmGetCandidateListFunc = ( DWORD ( WINAPI * )( HIMC , DWORD , LPCANDIDATELIST , DWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmGetCandidateListW" ) ;
 		WinAPIData.ImmFunc.ImmGetCandidateListCountFunc = ( DWORD ( WINAPI * )( HIMC , LPDWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmGetCandidateListCountW" ) ;
 		WinAPIData.ImmFunc.ImmGetCompositionStringFunc = ( LONG ( WINAPI * )( HIMC , DWORD , LPVOID , DWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmGetCompositionStringW" ) ;
 		WinAPIData.ImmFunc.ImmSetCompositionStringFunc = ( BOOL ( WINAPI * )( HIMC , DWORD , LPCVOID , DWORD , LPCVOID , DWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmSetCompositionStringW" ) ;
-#else
-		WinAPIData.ImmFunc.ImmGetCandidateListFunc = ( DWORD ( WINAPI * )( HIMC , DWORD , LPCANDIDATELIST , DWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmGetCandidateListA" ) ;
-		WinAPIData.ImmFunc.ImmGetCandidateListCountFunc = ( DWORD ( WINAPI * )( HIMC , LPDWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmGetCandidateListCountA" ) ;
-		WinAPIData.ImmFunc.ImmGetCompositionStringFunc = ( LONG ( WINAPI * )( HIMC , DWORD , LPVOID , DWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmGetCompositionStringA" ) ;
-		WinAPIData.ImmFunc.ImmSetCompositionStringFunc = ( BOOL ( WINAPI * )( HIMC , DWORD , LPCVOID , DWORD , LPCVOID , DWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmSetCompositionStringA" ) ;
-#endif
+//#else
+//		WinAPIData.ImmFunc.ImmGetCandidateListFunc = ( DWORD ( WINAPI * )( HIMC , DWORD , LPCANDIDATELIST , DWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmGetCandidateListA" ) ;
+//		WinAPIData.ImmFunc.ImmGetCandidateListCountFunc = ( DWORD ( WINAPI * )( HIMC , LPDWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmGetCandidateListCountA" ) ;
+//		WinAPIData.ImmFunc.ImmGetCompositionStringFunc = ( LONG ( WINAPI * )( HIMC , DWORD , LPVOID , DWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmGetCompositionStringA" ) ;
+//		WinAPIData.ImmFunc.ImmSetCompositionStringFunc = ( BOOL ( WINAPI * )( HIMC , DWORD , LPCVOID , DWORD , LPCVOID , DWORD  ) )GetProcAddress( WinAPIData.ImmFunc.Imm32DLL, "ImmSetCompositionStringA" ) ;
+//#endif
 	}
 #endif
 
 	// WinMM DLL をロードする
 	if( WinAPIData.Win32Func.WinMMDLL == NULL )
 	{
-		WinAPIData.Win32Func.WinMMDLL = LoadLibrary( _T( "winmm.dll" ) ) ;
+		WinAPIData.Win32Func.WinMMDLL = LoadLibraryW( L"winmm.dll" ) ;
 		WinAPIData.Win32Func.timeSetEventFunc = ( MMRESULT	( WINAPI * )( UINT , UINT , LPTIMECALLBACK , DWORD_PTR , UINT  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "timeSetEvent" ) ;
 		WinAPIData.Win32Func.timeKillEventFunc = ( MMRESULT ( WINAPI * )( UINT  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "timeKillEvent" ) ;
 		WinAPIData.Win32Func.timeBeginPeriodFunc = ( MMRESULT ( WINAPI * )( UINT  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "timeBeginPeriod" ) ;
@@ -100,19 +104,26 @@ extern int LoadWinAPI( void )
 		WinAPIData.Win32Func.timeGetDevCapsFunc = ( MMRESULT ( WINAPI * )( LPTIMECAPS , UINT  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "timeGetDevCaps" ) ;
 		WinAPIData.Win32Func.joyGetPosExFunc = ( MMRESULT ( WINAPI * )( UINT , LPJOYINFOEX  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "joyGetPosEx" ) ;
 
-#ifdef UNICODE
+//#ifdef UNICODE
 		WinAPIData.Win32Func.joyGetDevCapsFunc = ( MMRESULT ( WINAPI * )( UINT , LPJOYCAPS , UINT  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "joyGetDevCapsW" ) ;
 		WinAPIData.Win32Func.mciSendCommandFunc = ( MCIERROR ( WINAPI * )( MCIDEVICEID , UINT , DWORD_PTR , DWORD_PTR  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "mciSendCommandW" ) ;
-#else
-		WinAPIData.Win32Func.joyGetDevCapsFunc = ( MMRESULT ( WINAPI * )( UINT , LPJOYCAPS , UINT  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "joyGetDevCapsA" ) ;
-		WinAPIData.Win32Func.mciSendCommandFunc = ( MCIERROR ( WINAPI * )( MCIDEVICEID , UINT , DWORD_PTR , DWORD_PTR  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "mciSendCommandA" ) ;
-#endif
+//#else
+//		WinAPIData.Win32Func.joyGetDevCapsFunc = ( MMRESULT ( WINAPI * )( UINT , LPJOYCAPS , UINT  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "joyGetDevCapsA" ) ;
+//		WinAPIData.Win32Func.mciSendCommandFunc = ( MCIERROR ( WINAPI * )( MCIDEVICEID , UINT , DWORD_PTR , DWORD_PTR  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "mciSendCommandA" ) ;
+//#endif
 	}
 
-	// WinMM DLL をロードする
+	// Kernel32 DLL をロードする
+	if( WinAPIData.Win32Func.Kernel32DLL == NULL )
+	{
+		WinAPIData.Win32Func.Kernel32DLL = LoadLibraryW( L"kernel32.dll" ) ;
+		WinAPIData.Win32Func.GetModuleHandleWFunc = ( HMODULE ( WINAPI * )( LPCWSTR ) )GetProcAddress( WinAPIData.Win32Func.Kernel32DLL, "GetModuleHandleW" ) ;
+	}
+
+	// Old32DLL DLL をロードする
 	if( WinAPIData.Win32Func.Old32DLL == NULL )
 	{
-		WinAPIData.Win32Func.Old32DLL = LoadLibrary( _T( "ole32.dll" ) ) ;
+		WinAPIData.Win32Func.Old32DLL = LoadLibraryW( L"ole32.dll" ) ;
 		WinAPIData.Win32Func.CoCreateInstanceFunc = ( HRESULT ( WINAPI * )( REFCLSID , IUnknown * , DWORD , REFIID , LPVOID * ) )GetProcAddress( WinAPIData.Win32Func.Old32DLL, "CoCreateInstance" ) ;
 		WinAPIData.Win32Func.CoTaskMemAllocFunc = ( LPVOID ( WINAPI * )( SIZE_T  ) )GetProcAddress( WinAPIData.Win32Func.Old32DLL, "CoTaskMemAlloc" ) ;
 		WinAPIData.Win32Func.CoTaskMemFreeFunc = ( void ( WINAPI * )( LPVOID  ) )GetProcAddress( WinAPIData.Win32Func.Old32DLL, "CoTaskMemFree" ) ;
@@ -121,25 +132,28 @@ extern int LoadWinAPI( void )
 		WinAPIData.Win32Func.CoUninitializeFunc = ( void ( WINAPI * )( void ) )GetProcAddress( WinAPIData.Win32Func.Old32DLL, "CoUninitialize" ) ;
 	}
 
-	// WinMM DLL をロードする
+	// Comctl32DLL DLL をロードする
 	if( WinAPIData.Win32Func.Comctl32DLL == NULL )
 	{
-		WinAPIData.Win32Func.Comctl32DLL = LoadLibrary( _T( "comctl32.dll" ) ) ;
+		WinAPIData.Win32Func.Comctl32DLL = LoadLibraryW( L"comctl32.dll" ) ;
 		WinAPIData.Win32Func.InitCommonControlsFunc = ( void ( WINAPI * )( VOID ) )GetProcAddress( WinAPIData.Win32Func.Comctl32DLL, "InitCommonControls" ) ;
+	}
+
+	// User32DLL をロードする
+	if( WinAPIData.Win32Func.User32DLL == NULL )
+	{
+		WinAPIData.Win32Func.User32DLL = LoadLibraryW( L"User32.dll" ) ;
+		WinAPIData.Win32Func.WINNLSEnableIME_Func = ( BOOL ( WINAPI * )( HWND, BOOL ) )GetProcAddress( WinAPIData.Win32Func.User32DLL, "WINNLSEnableIME" ) ;
+		WinAPIData.Win32Func.UpdateLayeredWindow = ( BOOL ( WINAPI * )( HWND, HDC, POINT*, SIZE*, HDC, POINT*, COLORREF, BLENDFUNCTION*, DWORD ) )GetProcAddress( WinAPIData.Win32Func.User32DLL, "UpdateLayeredWindow" ) ;
+		WinAPIData.Win32Func.CreateWindowExWFunc  = ( HWND ( WINAPI * )( DWORD, LPCWSTR, LPCWSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID ) )GetProcAddress( WinAPIData.Win32Func.User32DLL, "CreateWindowExW" ) ;
+		WinAPIData.Win32Func.EnumDisplayDevicesWFunc = ( BOOL ( WINAPI * )( LPCWSTR, DWORD, PDISPLAY_DEVICEW, DWORD ) )GetProcAddress( WinAPIData.Win32Func.User32DLL, "EnumDisplayDevicesW" ) ;
 	}
 
 	// DwmApiDLL をロードする
 	if( WinAPIData.DwmApiDLL == NULL )
 	{
-		WinAPIData.DwmApiDLL = LoadLibrary( _T( "dwmapi.dll" ) ) ;
+		WinAPIData.DwmApiDLL = LoadLibraryW( L"dwmapi.dll" ) ;
 		WinAPIData.DF_DwmEnableComposition = ( HRESULT	( WINAPI * )( UINT ) )GetProcAddress( WinAPIData.DwmApiDLL, "DwmEnableComposition" ) ;
-	}
-
-	// User32DLL をロードする
-	if( WinAPIData.User32DLL == NULL )
-	{
-		WinAPIData.User32DLL = LoadLibrary( _T( "User32.dll" ) ) ;
-		WinAPIData.WINNLSEnableIME_Func = ( BOOL ( WINAPI * )( HWND, BOOL ) )GetProcAddress( WinAPIData.User32DLL, "WINNLSEnableIME" ) ;
 	}
 
 	// 終了
@@ -158,11 +172,14 @@ extern int ReleaseWinAPI( void )
 	}
 
 	// User32.DLL の解放
-	if( WinAPIData.User32DLL )
+	if( WinAPIData.Win32Func.User32DLL )
 	{
-		FreeLibrary( WinAPIData.User32DLL ) ;
-		WinAPIData.User32DLL = NULL ;
-		WinAPIData.WINNLSEnableIME_Func = NULL ;
+		FreeLibrary( WinAPIData.Win32Func.User32DLL ) ;
+		WinAPIData.Win32Func.User32DLL = NULL ;
+		WinAPIData.Win32Func.WINNLSEnableIME_Func = NULL ;
+		WinAPIData.Win32Func.UpdateLayeredWindow = NULL ;
+		WinAPIData.Win32Func.CreateWindowExWFunc = NULL ;
+		WinAPIData.Win32Func.EnumDisplayDevicesWFunc = NULL ;
 	}
 
 #ifndef DX_NON_NETWORK
@@ -232,6 +249,14 @@ extern int ReleaseWinAPI( void )
 		WinAPIData.Win32Func.mciSendCommandFunc = NULL ;
 	}
 
+	// Kernel32 DLL を解放する
+	if( WinAPIData.Win32Func.Kernel32DLL )
+	{
+		FreeLibrary( WinAPIData.Win32Func.Kernel32DLL ) ;
+		WinAPIData.Win32Func.Kernel32DLL = NULL ;
+		WinAPIData.Win32Func.GetModuleHandleWFunc = NULL ;
+	}
+
 	// Ole32 DLL を解放する
 	if( WinAPIData.Win32Func.Old32DLL )
 	{
@@ -245,7 +270,7 @@ extern int ReleaseWinAPI( void )
 		WinAPIData.Win32Func.CoUninitializeFunc = NULL ;
 	}
 
-	// WinMM DLL を解放する
+	// Comctl32 DLL を解放する
 	if( WinAPIData.Win32Func.Comctl32DLL )
 	{
 		FreeLibrary( WinAPIData.Win32Func.Comctl32DLL ) ;
@@ -275,29 +300,29 @@ extern int WinAPI_CoCreateInstance_ASyncCallback( ASYNCLOAD_MAINTHREAD_REQUESTIN
 	GUID rclsid ;
 	GUID riid ;
 
-	rclsid.Data1 = ( unsigned long )Info->Data[ 0 ] ;
-	rclsid.Data2 = ( short )( Info->Data[ 1 ] & 0xffff ) ;
-	rclsid.Data3 = ( short )( ( Info->Data[ 1 ] >> 16 ) & 0xffff ) ;
-	rclsid.Data4[ 0 ] = ( char )(   Info->Data[ 2 ]         & 0xff ) ;
-	rclsid.Data4[ 1 ] = ( char )( ( Info->Data[ 2 ] >>  8 ) & 0xff ) ;
-	rclsid.Data4[ 2 ] = ( char )( ( Info->Data[ 2 ] >> 16 ) & 0xff ) ;
-	rclsid.Data4[ 3 ] = ( char )( ( Info->Data[ 2 ] >> 24 ) & 0xff ) ;
-	rclsid.Data4[ 4 ] = ( char )(   Info->Data[ 3 ]         & 0xff ) ;
-	rclsid.Data4[ 5 ] = ( char )( ( Info->Data[ 3 ] >>  8 ) & 0xff ) ;
-	rclsid.Data4[ 6 ] = ( char )( ( Info->Data[ 3 ] >> 16 ) & 0xff ) ;
-	rclsid.Data4[ 7 ] = ( char )( ( Info->Data[ 3 ] >> 24 ) & 0xff ) ;
+	rclsid.Data1      = ( unsigned long  )    Info->Data[ 0 ] ;
+	rclsid.Data2      = ( unsigned short )(   Info->Data[ 1 ] & 0xffff ) ;
+	rclsid.Data3      = ( unsigned short )( ( Info->Data[ 1 ] >> 16 ) & 0xffff ) ;
+	rclsid.Data4[ 0 ] = ( unsigned char  )(   Info->Data[ 2 ]         & 0xff ) ;
+	rclsid.Data4[ 1 ] = ( unsigned char  )( ( Info->Data[ 2 ] >>  8 ) & 0xff ) ;
+	rclsid.Data4[ 2 ] = ( unsigned char  )( ( Info->Data[ 2 ] >> 16 ) & 0xff ) ;
+	rclsid.Data4[ 3 ] = ( unsigned char  )( ( Info->Data[ 2 ] >> 24 ) & 0xff ) ;
+	rclsid.Data4[ 4 ] = ( unsigned char  )(   Info->Data[ 3 ]         & 0xff ) ;
+	rclsid.Data4[ 5 ] = ( unsigned char  )( ( Info->Data[ 3 ] >>  8 ) & 0xff ) ;
+	rclsid.Data4[ 6 ] = ( unsigned char  )( ( Info->Data[ 3 ] >> 16 ) & 0xff ) ;
+	rclsid.Data4[ 7 ] = ( unsigned char  )( ( Info->Data[ 3 ] >> 24 ) & 0xff ) ;
 
-	riid.Data1 = ( unsigned long )Info->Data[ 6 ] ;
-	riid.Data2 = ( short )( Info->Data[ 7 ] & 0xffff ) ;
-	riid.Data3 = ( short )( ( Info->Data[ 7 ] >> 16 ) & 0xffff ) ;
-	riid.Data4[ 0 ] = ( char )(   Info->Data[ 8 ]         & 0xff ) ;
-	riid.Data4[ 1 ] = ( char )( ( Info->Data[ 8 ] >>  8 ) & 0xff ) ;
-	riid.Data4[ 2 ] = ( char )( ( Info->Data[ 8 ] >> 16 ) & 0xff ) ;
-	riid.Data4[ 3 ] = ( char )( ( Info->Data[ 8 ] >> 24 ) & 0xff ) ;
-	riid.Data4[ 4 ] = ( char )(   Info->Data[ 9 ]         & 0xff ) ;
-	riid.Data4[ 5 ] = ( char )( ( Info->Data[ 9 ] >>  8 ) & 0xff ) ;
-	riid.Data4[ 6 ] = ( char )( ( Info->Data[ 9 ] >> 16 ) & 0xff ) ;
-	riid.Data4[ 7 ] = ( char )( ( Info->Data[ 9 ] >> 24 ) & 0xff ) ;
+	riid.Data1        = ( unsigned long  )    Info->Data[ 6 ] ;
+	riid.Data2        = ( unsigned short )(   Info->Data[ 7 ] & 0xffff ) ;
+	riid.Data3        = ( unsigned short )( ( Info->Data[ 7 ] >> 16 ) & 0xffff ) ;
+	riid.Data4[ 0 ]   = ( unsigned char  )(   Info->Data[ 8 ]         & 0xff ) ;
+	riid.Data4[ 1 ]   = ( unsigned char  )( ( Info->Data[ 8 ] >>  8 ) & 0xff ) ;
+	riid.Data4[ 2 ]   = ( unsigned char  )( ( Info->Data[ 8 ] >> 16 ) & 0xff ) ;
+	riid.Data4[ 3 ]   = ( unsigned char  )( ( Info->Data[ 8 ] >> 24 ) & 0xff ) ;
+	riid.Data4[ 4 ]   = ( unsigned char  )(   Info->Data[ 9 ]         & 0xff ) ;
+	riid.Data4[ 5 ]   = ( unsigned char  )( ( Info->Data[ 9 ] >>  8 ) & 0xff ) ;
+	riid.Data4[ 6 ]   = ( unsigned char  )( ( Info->Data[ 9 ] >> 16 ) & 0xff ) ;
+	riid.Data4[ 7 ]   = ( unsigned char  )( ( Info->Data[ 9 ] >> 24 ) & 0xff ) ;
 
 	return WinAPI_CoCreateInstance_ASync(
 		rclsid,
@@ -336,5 +361,9 @@ extern HRESULT WinAPI_CoCreateInstance_ASync( REFCLSID rclsid, IUnknown * pUnkOu
 }
 
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 

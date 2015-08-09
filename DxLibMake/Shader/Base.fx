@@ -1,4 +1,4 @@
-float4 FactorColor    : register( c5 ) ;
+ï»¿float4 FactorColor    : register( c5 ) ;
 float4 ZeroHalfOneTwo : register( c0 ) ;
 
 sampler SrcTexture          : register( s0 ) ;
@@ -16,7 +16,7 @@ struct VS_OUTPUT
 };
 
 
-// ƒ¿’l‡¬ŒvZ
+// Î±å€¤åˆæˆè¨ˆç®—
 float4 ps_alpha_ch_blend( float4 SrcColor, float2 RTTexCoords )
 {
 	float4 DestColor;
@@ -43,7 +43,7 @@ float4 ps_alpha_ch_blend( float4 SrcColor, float2 RTTexCoords )
 
 
 
-// ƒeƒNƒXƒ`ƒƒ‚È‚µ
+// ãƒ†ã‚¯ã‚¹ãƒãƒ£ãªã—
 float4 ps_notex_normal( VS_OUTPUT In ) : COLOR
 {
 	float4 DestColor ;
@@ -74,7 +74,7 @@ float4 ps_notex_normal( VS_OUTPUT In ) : COLOR
 }
 
 
-// ƒuƒŒƒ“ƒhƒeƒNƒXƒ`ƒƒ–³‚µ
+// ãƒ–ãƒ¬ãƒ³ãƒ‰ãƒ†ã‚¯ã‚¹ãƒãƒ£ç„¡ã—
 float4 ps_normal( VS_OUTPUT In ) : COLOR
 {
 	float4 TexColor ;
@@ -112,7 +112,7 @@ float4 ps_normal( VS_OUTPUT In ) : COLOR
 #endif
 }
 
-//ƒuƒŒƒ“ƒhƒeƒNƒXƒ`ƒƒ‚ ‚è DX_BLENDGRAPHTYPE_NORMAL
+//ãƒ–ãƒ¬ãƒ³ãƒ‰ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚ã‚Š DX_BLENDGRAPHTYPE_NORMAL
 float4 ps_blend_normal( VS_OUTPUT In ) : COLOR
 {
 	float4 TexColor ;
@@ -152,7 +152,7 @@ float4 ps_blend_normal( VS_OUTPUT In ) : COLOR
 #endif
 }
 
-//ƒuƒŒƒ“ƒhƒeƒNƒXƒ`ƒƒ‚ ‚è DX_BLENDGRAPHTYPE_WIPE
+//ãƒ–ãƒ¬ãƒ³ãƒ‰ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚ã‚Š DX_BLENDGRAPHTYPE_WIPE
 float4 ps_blend_wipe( VS_OUTPUT In ) : COLOR
 {
 	float4 TexColor ;
@@ -193,7 +193,7 @@ float4 ps_blend_wipe( VS_OUTPUT In ) : COLOR
 #endif
 }
 
-//ƒuƒŒƒ“ƒhƒeƒNƒXƒ`ƒƒ‚ ‚è DX_BLENDGRAPHTYPE_ALPHA
+//ãƒ–ãƒ¬ãƒ³ãƒ‰ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚ã‚Š DX_BLENDGRAPHTYPE_ALPHA
 float4 ps_blend_alpha( VS_OUTPUT In ) : COLOR
 {
 	float4 TexColor ;
@@ -235,7 +235,7 @@ float4 ps_blend_alpha( VS_OUTPUT In ) : COLOR
 }
 
 
-//ƒ}ƒXƒNˆ——pƒVƒF[ƒ_[
+//ãƒã‚¹ã‚¯å‡¦ç†ç”¨ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
 float4 ps_mask_blend( VS_OUTPUT In ) : COLOR
 {
 	float4 TexColor ;

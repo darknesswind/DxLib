@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -17,8 +17,12 @@
 
 #ifndef DX_NON_MODEL
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 --------------------------------
 
@@ -45,6 +49,7 @@ namespace DxLib
 #define MV1_FRAME_VERT_FLAG_MATRIX_WEIGHT_NONE				(0x0008)				// このフラグが立っていたらウエイト値は無い
 #define MV1_FRAME_VERT_FLAG_MATRIX_INDEX_MASK				(0x0010)				// 行列インデックスタイプマスク( MV1_FRAME_MATRIX_INDEX_TYPE_U8 等 )
 #define MV1_FRAME_VERT_FLAG_MATRIX_WEIGHT_MASK				(0x0020)				// 行列ウエイトタイプマスク( MV1_FRAME_MATRIX_WEIGHT_TYPE_U8 等 )
+#define MV1_FRAME_VERT_FLAG_NOMRAL_TANGENT_BINORMAL			(0x0040)				// このフラグが立っていたら法線情報は、法線、接線、従法線がある
 
 
 #define MV1_MESH_VERT_INDEX_TYPE_NONE						(0x0000)				// インデックス値は無い
@@ -61,6 +66,7 @@ namespace DxLib
 
 #define MV1_TEXTURE_FLAG_REVERSE							(0x0001)				// このフラグが立っていたら画像を反転する
 #define MV1_TEXTURE_FLAG_BMP32_ALL_ZERO_ALPHA_TO_XRGB8		(0x0002)				// このフラグが立っていたら３２ビットＢＭＰのアルファ値がすべて０のときは XRGB8 として扱う
+#define MV1_TEXTURE_FLAG_VALID_SCALE_UV						(0x0004)				// このフラグが立っていたらＵＶ座標のスケールが有効
 
 
 #define MV1_ANIM_KEYSET_FLAG_KEY_ONE						(0x0001)				// このフラグが立っていたらキーの数は一つ
@@ -91,7 +97,7 @@ struct MV1_ROTATE_F1
 	{
 		VECTOR								XYZRot ;							// XYZ回転用
 		FLOAT4								Qt ;								// クォータニオン回転用
-		MATRIX_4X4CT						Mat ;								// 行列回転用
+		MATRIX_4X4CT_F						Mat ;								// 行列回転用
 	} ;
 } ;
 
@@ -187,7 +193,6 @@ struct MV1_ANIM_F1
 
 	DWORD/*MV1_ANIMSET_F1* */				Container ;							// このアニメーションを持っているアニメーションセットへのポインタ
 
-//	char									*TargetFrameName ;					// 対象となるフレームの名前
 	int										TargetFrameIndex ;					// 対象となるフレームのインデックス
 	float									MaxTime ;							// 各キーセットの中で一番長いキーセットの時間値
 	int										RotateOrder ;						// 回転オーダー( MV1_ROTATE_ORDER_XYZ 等 )
@@ -240,7 +245,9 @@ struct MV1_TEXTURE_F1
 	BYTE									Flag ;								// フラグ( MV1_TEXTURE_FLAG_REVERSE 等 )
 	BYTE									Padding1[ 3 ] ;
 
-	DWORD									Padding[ 3 ] ;
+	float									ScaleU ;							// Ｕ座標のスケーリング値( フラグ MV1_TEXTURE_FLAG_VALID_SCALE_UV が立っている場合のみ有効 )
+	float									ScaleV ;							// Ｖ座標のスケーリング値( フラグ MV1_TEXTURE_FLAG_VALID_SCALE_UV が立っている場合のみ有効 )
+	DWORD									Padding[ 1 ] ;
 } ;
 
 // マテリアルレイヤー構造体
@@ -390,7 +397,7 @@ struct MV1_SKIN_BONE_F1
 	int										Index ;								// インデックス
 
 	int										BoneFrame ;							// ボーンとして使用するフレーム
-	MATRIX_4X4CT							ModelLocalMatrix ;					// モデル座標からボーンのローカル座標に変換するための行列
+	MATRIX_4X4CT_F							ModelLocalMatrix ;					// モデル座標からボーンのローカル座標に変換するための行列
 	int										ModelLocalMatrixIsTranslateOnly ;	// モデル座標からボーンのローカル座標に変換するための行列が平行移動のみかどうか( 1:平行移動のみ  0:回転も含む )
 	int										UseFrameNum ;						// このボーンを使用するフレームの数
 	DWORD/*MV1_SKIN_BONE_USE_FRAME_F1* */	UseFrame ;							// このボーンを使用するフレームの情報
@@ -807,8 +814,9 @@ struct MV1MODEL_FILEHEADER_F1
 	DWORD/*MV1_FILEHEAD_PHYSICS_F1* */		Physics ;							// 物理演算用の情報、存在しない場合は NULL
 
 	BYTE									MaterialNumberOrderDraw ;			// 割り当てられているマテリアルの番号が低いメッシュから描画するかどうか( 1:する  0:しない )
+	BYTE									IsStringUTF8 ;						// StringBuffer に格納されている文字列が UTF-8 かどうか( 1:UTF-8  0:Shift-JIS )
 
-	BYTE									Padding1[ 3 ] ;
+	BYTE									Padding1[ 2 ] ;
 	DWORD									Padding2[ 13 ] ;
 } ;
 
@@ -817,7 +825,11 @@ struct MV1MODEL_FILEHEADER_F1
 
 // 関数プロトタイプ宣言 ----------------------
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif	// DX_NON_MODEL
 

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ制御プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -22,7 +22,6 @@
 #include "DxFile.h"
 #include "DxFont.h"
 #include "DxLog.h"
-#include "DxGraphicsBase.h"
 
 #include "DxBaseFunc.h"
 #include "DxMemory.h"
@@ -31,13 +30,20 @@
 #include "DxMask.h"
 #include "DxBaseImage.h"
 #include "DxMath.h"
-#include "Windows/DxWindow.h"
 #include "DxGraphics.h"
 #include "DxASyncLoad.h"
-#include "DxPixelShader.h"
 
-//#include <malloc.h>
-#include "Windows/DxGuid.h"
+#ifdef __WINDOWS__
+#include "Windows/DxModelWin.h"
+#endif // __WINDOWS__
+
+#ifdef __PSVITA
+#include "PSVita/DxModelPSVita.h"
+#endif // __PSVITA
+
+#ifdef __PS4
+#include "PS4/DxModelPS4.h"
+#endif // __PS4
 
 #include <math.h>
 
@@ -45,21 +51,14 @@
 #include "DxShaderPath.h"
 #endif
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
+#endif // DX_USE_NAMESPACE
+
 // マクロ定義 -----------------------------------
-
-// １６バイト境界にあわせるマクロ
-#define ADDR16( addr )		( ( BYTE * )( ( ( DWORD_PTR )( addr ) + 15 ) / 16 * 16 ) )
-
-// モデル基本データハンドル有効性チェック
-#define MV1BMDLCHK( HAND, MPOINT )			HANDLECHK(       DX_HANDLETYPE_MODEL_BASE, HAND, *( ( HANDLEINFO ** )&MPOINT ) )
-#define MV1BMDLCHK_ASYNC( HAND, MPOINT )	HANDLECHK_ASYNC( DX_HANDLETYPE_MODEL_BASE, HAND, *( ( HANDLEINFO ** )&MPOINT ) )
-
-// モデルハンドル有効性チェック
-#define MV1MDLCHK( HAND, MPOINT )			HANDLECHK(       DX_HANDLETYPE_MODEL, HAND, *( ( HANDLEINFO ** )&MPOINT ) )
-#define MV1MDLCHK_ASYNC( HAND, MPOINT )		HANDLECHK_ASYNC( DX_HANDLETYPE_MODEL, HAND, *( ( HANDLEINFO ** )&MPOINT ) )
 
 
 // モデルデータだけを扱う関数の冒頭共通文
@@ -75,6 +74,7 @@ namespace DxLib
 	if( MV1MDLCHK( MODELHAND, MODEL ) )\
 		return ERR ;\
 	MODELBASE = MODEL->BaseData ;
+
 
 
 // フレームを扱う関数の冒頭共通文
@@ -313,11 +313,6 @@ namespace DxLib
 // 自分のビットをリセットする
 #define MV1CRST( CHANGE )				( *( CHANGE ).Target &= ~( CHANGE ).BaseData->CheckBit )
 
-// フレームの行列を更新する必要がある場合に更新をする
-#define MV1SETUPMATRIXFRAME( FRAME )	\
-	if( Model->AnimSetupFlag == false || MV1CCHK( ( FRAME )->LocalWorldMatrixChange ) )\
-		MV1SetupMatrixFrame( ( FRAME ) ) ;
-
 // モデルのルート行列を更新する必要がある場合に更新をする
 #define MV1SETUPMATRIX( MODEL )	\
 	if( ( MODEL )->LocalWorldMatrixSetupFlag == false )\
@@ -337,41 +332,14 @@ namespace DxLib
 
 // データ宣言 -----------------------------------
 
+extern BYTE Tga256x8ToonTextureFileImage[ 172 ] ;
+extern BYTE TgaSpecularDefaultGradFileImage[ 172 /*124*/ ] ;
+extern BYTE TgaDiffuseDefaultGradFileImage[ 172 /*156*/ ] ;
 extern BYTE Tga8x8TextureFileImage[ 84 ] ;
 extern BYTE Tga8x8BlackTextureFileImage[ 76 ] ;
-extern BYTE Tga256x8ToonTextureFileImage[ 172 ] ;
-extern BYTE TgaDiffuseDefaultGradFileImage[ 172 /*156*/ ] ;
-extern BYTE TgaSpecularDefaultGradFileImage[ 172 /*124*/ ] ;
 
-// 単位行列
-static MATRIX IdentityMat =
-{
-	1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, 1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 1.0f, 0.0f,
-	0.0f, 0.0f, 0.0f, 1.0f,
-} ;
 
-// ＵＶ座標数ＦＶＦテーブル
-static DWORD UVNumFVFTable[] =
-{
-	D_D3DFVF_TEX0,
-	D_D3DFVF_TEX1 | D_D3DFVF_TEXCOORDSIZE4( 0 ),
-	D_D3DFVF_TEX2 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ),
-	D_D3DFVF_TEX3 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ),
-	D_D3DFVF_TEX4 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ) | D_D3DFVF_TEXCOORDSIZE4( 3 ),
-	D_D3DFVF_TEX5 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ) | D_D3DFVF_TEXCOORDSIZE4( 3 ) | D_D3DFVF_TEXCOORDSIZE4( 4 ),
-	D_D3DFVF_TEX6 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ) | D_D3DFVF_TEXCOORDSIZE4( 3 ) | D_D3DFVF_TEXCOORDSIZE4( 4 ) | D_D3DFVF_TEXCOORDSIZE4( 5 ),
-	D_D3DFVF_TEX7 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ) | D_D3DFVF_TEXCOORDSIZE4( 3 ) | D_D3DFVF_TEXCOORDSIZE4( 4 ) | D_D3DFVF_TEXCOORDSIZE4( 5 ) | D_D3DFVF_TEXCOORDSIZE4( 6 ),
-	D_D3DFVF_TEX8 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ) | D_D3DFVF_TEXCOORDSIZE4( 3 ) | D_D3DFVF_TEXCOORDSIZE4( 4 ) | D_D3DFVF_TEXCOORDSIZE4( 5 ) | D_D3DFVF_TEXCOORDSIZE4( 6 ) | D_D3DFVF_TEXCOORDSIZE4( 7 )
-} ;
 
-DX_D3DTEXFILTER_TYPE DrawModeToFilterTable[][ 3 ] =
-{
-	{ D_D3DTEXF_POINT,       D_D3DTEXF_POINT,  D_D3DTEXF_NONE   },
-	{ D_D3DTEXF_LINEAR,      D_D3DTEXF_LINEAR, D_D3DTEXF_NONE   },
-	{ D_D3DTEXF_ANISOTROPIC, D_D3DTEXF_LINEAR, D_D3DTEXF_LINEAR },
-} ;
 
 MV1_MODEL_MANAGE MV1Man;
 
@@ -379,9 +347,9 @@ MV1_MODEL_MANAGE MV1Man;
 
 static  int					_MV1GetAnimKeyDataIndexFromTime( MV1_ANIM_KEYSET_BASE *AnimKeySetBase, float Time, float &Rate ) ;		// 指定の時間を超える一番小さい番号のキーのインデックスを取得する
 static	int					_MV1AnimSetSyncNowKey( MV1_ANIMSET *AnimSet, bool AboutSetting = false ) ;						// 現在のアニメーション再生時間に各キーの NowKey の値を合わせる
-static	MV1_ANIMSET_BASE	*MV1GetAnimSetBase( int MV1ModelHandle, const char *Name = NULL, int Index = -1 ) ;				// 名前やインデックスからモデル基本データ内のアニメーションを取得する
+static	MV1_ANIMSET_BASE	*MV1GetAnimSetBase( int MV1ModelHandle, const wchar_t *Name = NULL, int Index = -1 ) ;				// 名前やインデックスからモデル基本データ内のアニメーションを取得する
 static	MV1_ANIMSET			*MV1CreateAnimSet( MV1_ANIMSET_BASE *MV1AnimSetBase ) ;											// アニメーションセット基本データから実行用アニメーションセットを作成する
-static	MV1_ANIM			*MV1GetAnimSetAnim( MV1_ANIMSET *AnimSet, const char *Name = NULL, int Index = -1 ) ;			// アニメーションセットから特定の名前、若しくはインデックスのアニメーションを得る
+static	MV1_ANIM			*MV1GetAnimSetAnim( MV1_ANIMSET *AnimSet, const wchar_t *Name = NULL, int Index = -1 ) ;			// アニメーションセットから特定の名前、若しくはインデックスのアニメーションを得る
 //static	int					MV1PlayAnimSet( MV1_ANIMSET *AnimSet, int Loop ) ;											// アニメーションを再生する
 static	int					MV1SetAnimSetTime( MV1_ANIMSET *AnimSet, float Time ) ;											// アニメーションを指定の時間に設定する
 
@@ -389,12 +357,9 @@ static	int					MV1SetAnimSetTime( MV1_ANIMSET *AnimSet, float Time ) ;										
 //static	int					MV1StopAnimSet( MV1_ANIMSET *AnimSet ) ;													// アニメーションを止める
 //static	int					MV1GetAnimSetState( MV1_ANIMSET *AnimSet ) ;												// アニメーションが再生中かどうかを取得する( TRUE:再生中  FALSE:停止中 )
 static	int					MV1AnimSetSetupParam( MV1_ANIMSET *AnimSet ) ;													// アニメーションの現在の再生経過時間に合わせたパラメータを計算する
-static	int					MV1BeginRender( MV1_MODEL *Model ) ;															// ３Ｄモデルのレンダリングの準備を行う
-static	int					MV1EndRender() ;																				// ３Ｄモデルのレンダリングの後始末を行う
-static	void				MV1SetupTransformMatrix( MATRIX_4X4CT * RST BlendMatrix,  int ValidFlag, VECTOR * RST Translate, VECTOR * RST Scale, int RotateOrder, VECTOR * RST PreRotate, VECTOR * RST Rotate, VECTOR * RST PostRotate, FLOAT4 * RST Quaternion ) ;	// 座標変換情報を使用して座標変換行列を作成する
+static	void				MV1SetupTransformMatrix( MATRIX_4X4CT_F * RST BlendMatrix, int ValidFlag, VECTOR * RST Translate, VECTOR * RST Scale, int RotateOrder, VECTOR * RST PreRotate, VECTOR * RST Rotate, VECTOR * RST PostRotate, FLOAT4 * RST Quaternion ) ;	// 座標変換情報を使用して座標変換行列を作成する
 static	int					MV1SetupReferenceMeshFrame( MV1_MODEL *Model, MV1_MODEL_BASE *ModelBase, MV1_FRAME *Frame, MV1_REF_POLYGONLIST *DestBuffer, int VIndexTarget, bool IsTransform, bool IsPositionOnly ) ;	// 参照用メッシュのセットアップを行う
 static	int					MV1RefreshReferenceMeshFrame( MV1_FRAME *Frame, int IsPositionOnly, MV1_REF_POLYGONLIST *DestBuffer ) ;	// 参照用メッシュのリフレッシュを行う
-static	void				MV1SetupMatrixFrame( MV1_FRAME *Frame ) ;														// 描画用行列を計算( 中で渡されたフレーム自体の更新チェックはしない )
 static	void				MV1SetupAnimMatrix( MV1_MODEL *Model ) ;														// アニメーションの行列をセットアップする
 static	void				MV1SetupMatrix( MV1_MODEL *Model ) ;															// 描画用の行列を構築する
 static	void				MV1SetupDrawMaterial( MV1_FRAME *Frame = NULL, MV1_MESH *Mesh = NULL ) ;						// 描画用のマテリアル情報を構築する、Frame を指定した場合は Mesh は NULLで、Mesh を指定した場合は Frame は NULLである必要があります( 中で渡されたメッシュ自体の更新チェックはしない )
@@ -406,11 +371,7 @@ static	bool				MV1SetDrawMaterialSpc( MV1_DRAW_MATERIAL *DrawMaterial, MV1_CHANG
 static	bool				MV1SetDrawMaterialEmi( MV1_DRAW_MATERIAL *DrawMaterial, MV1_CHANGE *Change, COLOR_F Scale ) ;	// 描画用マテリアル情報のエミッシブカラーを変更する
 static	bool				MV1SetDrawMaterialOpacityRate( MV1_DRAW_MATERIAL *DrawMaterial, MV1_CHANGE *Change, float Rate) ;	// 描画用マテリアル情報の不透明度を変更する
 static	bool				MV1SetDrawMaterialVisible( MV1_DRAW_MATERIAL *DrawMaterial, MV1_CHANGE *Change, BYTE Visible ) ;	// 描画用マテリアル情報の表示設定を変更する
-static	void				MV1SetupToonOutLineMeshDrawMaterial( MV1_MODEL_BASE *ModelBase, DIRECT3DBLENDINFO *BlendInfo, MV1_MESH *Mesh, bool UseShader ) ;	// 指定のメッシュのトゥーンレンダリングの輪郭線描画用のマテリアルをセットアップする
-static	void				MV1TriangleListToonLighting( MV1_TRIANGLE_LIST_BASE *MBTList, bool Normalize = false, MATRIX *LocalWorldMatrix = NULL ) ;	// トゥーントライアングルリストのライティングを行う
-static	void				_MV1SetupTexNoneHandle( void ) ;																// TexNoneHandle のセットアップを行う
-static	int					_MV1CreateGradationGraph( void ) ;																// グラデーション画像を作成する
-static	int					_MV1GetDefaultToonTexture( int Type ) ;															// デフォルトトゥーンテクスチャを取得する
+static	int					MV1DrawModelBase( MV1_MODEL *Model ) ;															// モデルの描画処理を行う
 static	int					_MV1ReCreateGradationGraph( int GrHandle ) ;													// グラデーション画像を再作成する
 static	int					_MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngle ) ;						// フレームの法線を再計算する
 static	int					_MV1PositionOptimizeFrameBase( MV1_FRAME_BASE *Frame ) ;										// フレームの座標情報を最適化する
@@ -422,13 +383,12 @@ static	bool				_MV1CreateWideCharName( const char *NameA, wchar_t **NameWP ) ;		
 static	bool				_MV1CreateMultiByteName( const wchar_t *NameW, char **NameAP ) ;								// ワイド文字名からマルチバイト文字名を作成する
 static	bool				_MV1AllocAndMultiByteNameCopy( const char *NameA, char **NameAP ) ;								// マルチバイト文字名を新たにメモリを確保してコピーする
 static	bool				_MV1AllocAndWideCharNameCopy( const wchar_t *NameW, wchar_t **NameWP ) ;						// ワイド文字名を新たにメモリを確保してコピーする
-static	void				_MV1CreateFileNameAndCurrentDirectory( const TCHAR *FilePath, TCHAR *FileName, TCHAR *CurrentDirectory ) ;	// ファイルパスからファイル名とディレクトリパスを作成する
+static	void				_MV1CreateFileNameAndCurrentDirectory( const wchar_t *FilePath, wchar_t *FileName, wchar_t *CurrentDirectory ) ;	// ファイルパスからファイル名とディレクトリパスを作成する
 
 // テクスチャを読み込む
 
 static	int					_MV1TextureLoadBase(
 									MV1_MODEL_BASE *ModelBase, MV1_TEXTURE_BASE *Texture,
-									const char *ColorFilePathA, const char *AlphaFilePathA,
 									const wchar_t *ColorFilePathW, const wchar_t *AlphaFilePathW,
 									int BumpImageFlag, float BumpImageNextPixelLength,
 									bool ReverseFlag,
@@ -436,12 +396,13 @@ static	int					_MV1TextureLoadBase(
 									int ASyncThread ) ;
 static	int					_MV1TextureLoad(
 									MV1_MODEL_BASE *ModelBase, MV1_TEXTURE *Texture,
-									const char *ColorFilePathA, const char *AlphaFilePathA,
 									const wchar_t *ColorFilePathW, const wchar_t *AlphaFilePathW,
 									int BumpImageFlag, float BumpImageNextPixelLength,
 									bool ReverseFlag,
 									bool Bmp32AllZeroAlphaToXRGB8Flag,
 									int ASyncThread ) ;
+
+
 
 // プログラム -----------------------------------
 
@@ -453,7 +414,7 @@ static __inline int DrawMeshListResize( int RequestSize )
 		{
 			DXFREE( MV1Man.DrawMeshList ) ;
 		}
-		MV1Man.DrawMeshList = ( MV1_MESH ** )DXALLOC( RequestSize * 2 * sizeof( MV1_MESH * ) ) ;
+		MV1Man.DrawMeshList = ( MV1_MESH ** )DXALLOC( RequestSize * 3 * sizeof( MV1_MESH * ) ) ;
 		if( MV1Man.DrawMeshList == NULL ) return -1 ;
 		MV1Man.DrawMeshListSize = RequestSize ;
 	}
@@ -462,30 +423,69 @@ static __inline int DrawMeshListResize( int RequestSize )
 
 static __inline void TableSinCos( float Angle, float * RST Sin, float * RST Cos )
 {
-	Angle = Angle * ( MV1_SINTABLE_DIV / ( ( float )DX_PI * 2 ) ) + 12582912.0f ;
-	*Sin = MV1Man.SinTable[ *( ( DWORD * )&Angle ) & ( MV1_SINTABLE_DIV - 1 ) ] ;
-	*Cos = MV1Man.SinTable[ ( *( ( DWORD * )&Angle ) + MV1_SINTABLE_DIV / 4 ) & ( MV1_SINTABLE_DIV - 1 ) ] ;
+	if( Angle > 10.0f || Angle < -10.0f )
+	{
+		_SINCOS( Angle, Sin, Cos ) ;
+	}
+	else
+	{
+		Angle = Angle * ( MV1_SINTABLE_DIV / ( ( float )DX_PI * 2 ) ) + 12582912.0f ;
+		*Sin = MV1Man.SinTable[ *( ( DWORD * )&Angle ) & ( MV1_SINTABLE_DIV - 1 ) ] ;
+		*Cos = MV1Man.SinTable[ ( *( ( DWORD * )&Angle ) + MV1_SINTABLE_DIV / 4 ) & ( MV1_SINTABLE_DIV - 1 ) ] ;
+	}
 }
 
-// ベクトル行列と4x4正方行列を乗算する( w は 1 と仮定 )
-static __inline void VectorTransform4X4CT( VECTOR * RST Out, VECTOR * RST InVec, MATRIX_4X4CT * RST InMatrix )
+// クォータニオンから回転行列を作成する
+static __inline void CreateQuaternionRotateMatrix4X4CTD( MATRIX_4X4CT_D * RST Out, FLOAT4 * RST In )
 {
-	Out->x = InVec->x * InMatrix->m[ 0 ][ 0 ] + 
-		     InVec->y * InMatrix->m[ 0 ][ 1 ] +
-			 InVec->z * InMatrix->m[ 0 ][ 2 ] +
-			            InMatrix->m[ 0 ][ 3 ] ;
-	Out->y = InVec->x * InMatrix->m[ 1 ][ 0 ] + 
-		     InVec->y * InMatrix->m[ 1 ][ 1 ] +
-			 InVec->z * InMatrix->m[ 1 ][ 2 ] +
-			            InMatrix->m[ 1 ][ 3 ] ;
-	Out->z = InVec->x * InMatrix->m[ 2 ][ 0 ] + 
-		     InVec->y * InMatrix->m[ 2 ][ 1 ] +
-			 InVec->z * InMatrix->m[ 2 ][ 2 ] +
-			            InMatrix->m[ 2 ][ 3 ] ;
+	MATRIX_D RotateQ1Mat, RotateQ2Mat, RotateMat ;
+
+	RotateQ1Mat.m[0][0] =  In->w ; RotateQ1Mat.m[0][1] = -In->z ; RotateQ1Mat.m[0][2] =  In->y ; RotateQ1Mat.m[0][3] =  In->x ;
+	RotateQ1Mat.m[1][0] =  In->z ; RotateQ1Mat.m[1][1] =  In->w ; RotateQ1Mat.m[1][2] = -In->x ; RotateQ1Mat.m[1][3] =  In->y ;
+	RotateQ1Mat.m[2][0] = -In->y ; RotateQ1Mat.m[2][1] =  In->x ; RotateQ1Mat.m[2][2] =  In->w ; RotateQ1Mat.m[2][3] =  In->z ;
+	RotateQ1Mat.m[3][0] = -In->x ; RotateQ1Mat.m[3][1] = -In->y ; RotateQ1Mat.m[3][2] = -In->z ; RotateQ1Mat.m[3][3] =  In->w ;
+
+	RotateQ2Mat.m[0][0] =  In->w ; RotateQ2Mat.m[0][1] = -In->z ; RotateQ2Mat.m[0][2] =  In->y ; RotateQ2Mat.m[0][3] = -In->x ;
+	RotateQ2Mat.m[1][0] =  In->z ; RotateQ2Mat.m[1][1] =  In->w ; RotateQ2Mat.m[1][2] = -In->x ; RotateQ2Mat.m[1][3] = -In->y ;
+	RotateQ2Mat.m[2][0] = -In->y ; RotateQ2Mat.m[2][1] =  In->x ; RotateQ2Mat.m[2][2] =  In->w ; RotateQ2Mat.m[2][3] = -In->z ;
+	RotateQ2Mat.m[3][0] =  In->x ; RotateQ2Mat.m[3][1] =  In->y ; RotateQ2Mat.m[3][2] =  In->z ; RotateQ2Mat.m[3][3] =  In->w ;
+
+	CreateMultiplyMatrixD( &RotateMat, &RotateQ2Mat, &RotateQ1Mat ) ;
+	ConvertMatrixDToMatrix4x4cD( Out, &RotateMat ) ;
+}
+
+static __inline void CreateQuaternionRotateMatrix4X4CTF( MATRIX_4X4CT_F * RST Out, FLOAT4 * RST In )
+{
+	MATRIX RotateQ1Mat, RotateQ2Mat, RotateMat ;
+
+	RotateQ1Mat.m[0][0] =  In->w ; RotateQ1Mat.m[0][1] = -In->z ; RotateQ1Mat.m[0][2] =  In->y ; RotateQ1Mat.m[0][3] =  In->x ;
+	RotateQ1Mat.m[1][0] =  In->z ; RotateQ1Mat.m[1][1] =  In->w ; RotateQ1Mat.m[1][2] = -In->x ; RotateQ1Mat.m[1][3] =  In->y ;
+	RotateQ1Mat.m[2][0] = -In->y ; RotateQ1Mat.m[2][1] =  In->x ; RotateQ1Mat.m[2][2] =  In->w ; RotateQ1Mat.m[2][3] =  In->z ;
+	RotateQ1Mat.m[3][0] = -In->x ; RotateQ1Mat.m[3][1] = -In->y ; RotateQ1Mat.m[3][2] = -In->z ; RotateQ1Mat.m[3][3] =  In->w ;
+
+	RotateQ2Mat.m[0][0] =  In->w ; RotateQ2Mat.m[0][1] = -In->z ; RotateQ2Mat.m[0][2] =  In->y ; RotateQ2Mat.m[0][3] = -In->x ;
+	RotateQ2Mat.m[1][0] =  In->z ; RotateQ2Mat.m[1][1] =  In->w ; RotateQ2Mat.m[1][2] = -In->x ; RotateQ2Mat.m[1][3] = -In->y ;
+	RotateQ2Mat.m[2][0] = -In->y ; RotateQ2Mat.m[2][1] =  In->x ; RotateQ2Mat.m[2][2] =  In->w ; RotateQ2Mat.m[2][3] = -In->z ;
+	RotateQ2Mat.m[3][0] =  In->x ; RotateQ2Mat.m[3][1] =  In->y ; RotateQ2Mat.m[3][2] =  In->z ; RotateQ2Mat.m[3][3] =  In->w ;
+
+	CreateMultiplyMatrix( &RotateMat, &RotateQ2Mat, &RotateQ1Mat ) ;
+	ConvertMatrixFToMatrix4x4cF( Out, &RotateMat ) ;
+}
+
+static __inline void CreateQuaternionRotateMatrix4X4CT( MATRIX_4X4CT * RST Out, FLOAT4 * RST In )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		CreateQuaternionRotateMatrix4X4CTD( &Out->md, In ) ;
+	}
+	else
+	{
+		CreateQuaternionRotateMatrix4X4CTF( &Out->mf, In ) ;
+	}
 }
 
 // 単位行列を作成する
-static __inline void CreateIdentityMatrix4X4CT( MATRIX_4X4CT * RST Out )
+static __inline void CreateIdentityMatrix4X4CTF( MATRIX_4X4CT_F * RST Out )
 {
 	Out->m[ 0 ][ 0 ] = 1.0f ;
 	Out->m[ 0 ][ 1 ] = 0.0f ;
@@ -503,8 +503,106 @@ static __inline void CreateIdentityMatrix4X4CT( MATRIX_4X4CT * RST Out )
 	Out->m[ 2 ][ 3 ] = 0.0f ;
 }
 
+static __inline void CreateIdentityMatrix4X4CTD( MATRIX_4X4CT_D * RST Out )
+{
+	Out->m[ 0 ][ 0 ] = 1.0 ;
+	Out->m[ 0 ][ 1 ] = 0.0 ;
+	Out->m[ 0 ][ 2 ] = 0.0 ;
+	Out->m[ 0 ][ 3 ] = 0.0 ;
+
+	Out->m[ 1 ][ 0 ] = 0.0 ;
+	Out->m[ 1 ][ 1 ] = 1.0 ;
+	Out->m[ 1 ][ 2 ] = 0.0 ;
+	Out->m[ 1 ][ 3 ] = 0.0 ;
+
+	Out->m[ 2 ][ 0 ] = 0.0 ;
+	Out->m[ 2 ][ 1 ] = 0.0 ;
+	Out->m[ 2 ][ 2 ] = 1.0 ;
+	Out->m[ 2 ][ 3 ] = 0.0 ;
+}
+
+static __inline void CreateIdentityMatrix4X4CTD( MATRIX_4X4CT * RST Out )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		CreateIdentityMatrix4X4CTD( &Out->md ) ;
+	}
+	else
+	{
+		CreateIdentityMatrix4X4CTF( &Out->mf ) ;
+	}
+}
+
+// 平行移動行列を作成する
+static __inline void CreateTranslationMatrix4X4CTF( MATRIX_4X4CT_F *Out, float x, float y, float z )
+{
+	_MEMSET( Out, 0, sizeof( *Out ) ) ;
+	Out->m[ 0 ][ 3 ] = x ;
+	Out->m[ 1 ][ 3 ] = y ;
+	Out->m[ 2 ][ 3 ] = z ;
+	Out->m[ 0 ][ 0 ] = 1.0f ;
+	Out->m[ 1 ][ 1 ] = 1.0f ;
+	Out->m[ 2 ][ 2 ] = 1.0f ;
+}
+
+static __inline void CreateTranslationMatrix4X4CTD( MATRIX_4X4CT_D *Out, double x, double y, double z )
+{
+	_MEMSET( Out, 0, sizeof( *Out ) ) ;
+	Out->m[ 0 ][ 3 ] = x ;
+	Out->m[ 1 ][ 3 ] = y ;
+	Out->m[ 2 ][ 3 ] = z ;
+	Out->m[ 0 ][ 0 ] = 1.0 ;
+	Out->m[ 1 ][ 1 ] = 1.0 ;
+	Out->m[ 2 ][ 2 ] = 1.0 ;
+}
+
+static __inline void CreateTranslationMatrix4X4CT( MATRIX_4X4CT *Out, double x, double y, double z )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		CreateTranslationMatrix4X4CTD( &Out->md, x, y, z ) ;
+	}
+	else
+	{
+		CreateTranslationMatrix4X4CTF( &Out->mf, ( float )x, ( float )y, ( float )z ) ;
+	}
+}
+
+// スケーリング行列を作成する
+static __inline void CreateScalingMatrix4X4CTF( MATRIX_4X4CT_F *Out, float sx, float sy, float sz )
+{
+	_MEMSET( Out, 0, sizeof( *Out ) ) ;
+
+	Out->m[ 0 ][ 0 ] = sx ;
+	Out->m[ 1 ][ 1 ] = sy ;
+	Out->m[ 2 ][ 2 ] = sz ;
+	Out->m[ 3 ][ 3 ] = 1.0f ;
+}
+
+static __inline void CreateScalingMatrix4X4CTD( MATRIX_4X4CT_D *Out, double sx, double sy, double sz )
+{
+	_MEMSET( Out, 0, sizeof( *Out ) ) ;
+
+	Out->m[ 0 ][ 0 ] = sx ;
+	Out->m[ 1 ][ 1 ] = sy ;
+	Out->m[ 2 ][ 2 ] = sz ;
+	Out->m[ 3 ][ 3 ] = 1.0 ;
+}
+
+static __inline void CreateScalingMatrix4X4CT( MATRIX_4X4CT *Out, double sx, double sy, double sz )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		CreateScalingMatrix4X4CTD( &Out->md, sx, sy, sz ) ;
+	}
+	else
+	{
+		CreateScalingMatrix4X4CTF( &Out->mf, ( float )sx, ( float )sy, ( float )sz ) ;
+	}
+}
+
 // Ｘ軸回転→Ｙ軸回転→Ｚ軸回転を合成した行列を作成する
-static __inline void CreateRotationXYZMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+static __inline void CreateRotationXYZMatrix4X4CTF( MATRIX_4X4CT_F * RST Out, float XRot, float YRot, float ZRot )
 {
 	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
 	float SinXSinY, SinYCosX ;
@@ -530,8 +628,46 @@ static __inline void CreateRotationXYZMatrix4X4CT( MATRIX_4X4CT * RST Out, float
 	Out->m[ 2 ][ 3 ] = 0.0f ;
 }
 
+static __inline void CreateRotationXYZMatrix4X4CTD( MATRIX_4X4CT_D * RST Out, float XRot, float YRot, float ZRot )
+{
+	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	float SinXSinY, SinYCosX ;
+
+	TableSinCos( XRot, &SinX, &CosX ) ;
+	TableSinCos( YRot, &SinY, &CosY ) ;
+	TableSinCos( ZRot, &SinZ, &CosZ ) ;
+
+	SinXSinY = SinX * SinY ;
+	SinYCosX = SinY * CosX ;
+
+	Out->m[ 0 ][ 0 ] = CosY * CosZ ;
+	Out->m[ 0 ][ 1 ] = SinXSinY * CosZ - CosX * SinZ ;
+	Out->m[ 0 ][ 2 ] = SinYCosX * CosZ + SinX * SinZ ;
+	Out->m[ 0 ][ 3 ] = 0.0 ;
+	Out->m[ 1 ][ 0 ] = CosY * SinZ ;
+	Out->m[ 1 ][ 1 ] = SinXSinY * SinZ + CosX * CosZ ;
+	Out->m[ 1 ][ 2 ] = SinYCosX * SinZ - SinX * CosZ ;
+	Out->m[ 1 ][ 3 ] = 0.0 ;
+	Out->m[ 2 ][ 0 ] = -SinY ;
+	Out->m[ 2 ][ 1 ] = SinX * CosY ;
+	Out->m[ 2 ][ 2 ] = CosX * CosY ;
+	Out->m[ 2 ][ 3 ] = 0.0 ;
+}
+
+static __inline void CreateRotationXYZMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		CreateRotationXYZMatrix4X4CTD( &Out->md, XRot, YRot, ZRot ) ;
+	}
+	else
+	{
+		CreateRotationXYZMatrix4X4CTF( &Out->mf, XRot, YRot, ZRot ) ;
+	}
+}
+
 // Ｘ軸回転→Ｚ軸回転→Ｙ軸回転を合成した行列を作成する
-static __inline void CreateRotationXZYMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+static __inline void CreateRotationXZYMatrix4X4CTF( MATRIX_4X4CT_F * RST Out, float XRot, float YRot, float ZRot )
 {
 	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
 	float CosXSinZ, SinXSinZ ;
@@ -557,8 +693,46 @@ static __inline void CreateRotationXZYMatrix4X4CT( MATRIX_4X4CT * RST Out, float
 	Out->m[ 2 ][ 3 ] = 0.0f ;
 }
 
+static __inline void CreateRotationXZYMatrix4X4CTD( MATRIX_4X4CT_D * RST Out, float XRot, float YRot, float ZRot )
+{
+	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	float CosXSinZ, SinXSinZ ;
+
+	TableSinCos( XRot, &SinX, &CosX ) ;
+	TableSinCos( YRot, &SinY, &CosY ) ;
+	TableSinCos( ZRot, &SinZ, &CosZ ) ;
+
+	CosXSinZ = CosX * SinZ ;
+	SinXSinZ = SinX * SinZ ;
+
+	Out->m[ 0 ][ 0 ] = CosY * CosZ ;
+	Out->m[ 0 ][ 1 ] = CosXSinZ * -CosY + SinX * SinY ;
+	Out->m[ 0 ][ 2 ] = SinXSinZ *  CosY + CosX * SinY ;
+	Out->m[ 0 ][ 3 ] = 0.0f ;
+	Out->m[ 1 ][ 0 ] = SinZ ;
+	Out->m[ 1 ][ 1 ] = CosX * CosZ ;
+	Out->m[ 1 ][ 2 ] = -SinX * CosZ ;
+	Out->m[ 1 ][ 3 ] = 0.0f ;
+	Out->m[ 2 ][ 0 ] = CosZ * -SinY ;
+	Out->m[ 2 ][ 1 ] = CosXSinZ *  SinY + SinX * CosY ;
+	Out->m[ 2 ][ 2 ] = SinXSinZ * -SinY + CosX * CosY ;
+	Out->m[ 2 ][ 3 ] = 0.0f ;
+}
+
+static __inline void CreateRotationXZYMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		CreateRotationXZYMatrix4X4CTD( &Out->md, XRot, YRot, ZRot ) ;
+	}
+	else
+	{
+		CreateRotationXZYMatrix4X4CTF( &Out->mf, XRot, YRot, ZRot ) ;
+	}
+}
+
 // Ｙ軸回転→Ｘ軸回転→Ｚ軸回転を合成した行列を作成する
-static __inline void CreateRotationYXZMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+static __inline void CreateRotationYXZMatrix4X4CTF( MATRIX_4X4CT_F * RST Out, float XRot, float YRot, float ZRot )
 {
 	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
 	float SinXSinY, CosYSinX ;
@@ -584,8 +758,46 @@ static __inline void CreateRotationYXZMatrix4X4CT( MATRIX_4X4CT * RST Out, float
 	Out->m[ 2 ][ 3 ] = 0.0f ;
 }
 
+static __inline void CreateRotationYXZMatrix4X4CTD( MATRIX_4X4CT_D * RST Out, float XRot, float YRot, float ZRot )
+{
+	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	float SinXSinY, CosYSinX ;
+
+	TableSinCos( XRot, &SinX, &CosX ) ;
+	TableSinCos( YRot, &SinY, &CosY ) ;
+	TableSinCos( ZRot, &SinZ, &CosZ ) ;
+
+	SinXSinY = SinX * SinY ;
+	CosYSinX = CosY * SinX ;
+
+	Out->m[ 0 ][ 0 ] = CosY * CosZ - SinXSinY * SinZ ;
+	Out->m[ 0 ][ 1 ] = CosX * -SinZ ;
+	Out->m[ 0 ][ 2 ] = SinY * CosZ + CosYSinX * SinZ ;
+	Out->m[ 0 ][ 3 ] = 0.0f ;
+	Out->m[ 1 ][ 0 ] = CosY * SinZ + SinXSinY * CosZ ;
+	Out->m[ 1 ][ 1 ] = CosX * CosZ ;
+	Out->m[ 1 ][ 2 ] = SinY * SinZ - CosYSinX * CosZ ;
+	Out->m[ 1 ][ 3 ] = 0.0f ;
+	Out->m[ 2 ][ 0 ] = -SinY * CosX ;
+	Out->m[ 2 ][ 1 ] = SinX ;
+	Out->m[ 2 ][ 2 ] = CosY * CosX ;
+	Out->m[ 2 ][ 3 ] = 0.0f ;
+}
+
+static __inline void CreateRotationYXZMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		CreateRotationYXZMatrix4X4CTD( &Out->md, XRot, YRot, ZRot ) ;
+	}
+	else
+	{
+		CreateRotationYXZMatrix4X4CTF( &Out->mf, XRot, YRot, ZRot ) ;
+	}
+}
+
 // Ｙ軸回転→Ｚ軸回転→Ｘ軸回転を合成した行列を作成する
-static __inline void CreateRotationYZXMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+static __inline void CreateRotationYZXMatrix4X4CTF( MATRIX_4X4CT_F * RST Out, float XRot, float YRot, float ZRot )
 {
 	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
 	float CosYSinZ, SinYSinZ ;
@@ -611,8 +823,46 @@ static __inline void CreateRotationYZXMatrix4X4CT( MATRIX_4X4CT * RST Out, float
 	Out->m[ 2 ][ 3 ] = 0.0f ;
 }
 
+static __inline void CreateRotationYZXMatrix4X4CTD( MATRIX_4X4CT_D * RST Out, float XRot, float YRot, float ZRot )
+{
+	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	float CosYSinZ, SinYSinZ ;
+
+	TableSinCos( XRot, &SinX, &CosX ) ;
+	TableSinCos( YRot, &SinY, &CosY ) ;
+	TableSinCos( ZRot, &SinZ, &CosZ ) ;
+
+	CosYSinZ = CosY * SinZ ;
+	SinYSinZ = SinY * SinZ ;
+
+	Out->m[ 0 ][ 0 ] = CosY * CosZ ;
+	Out->m[ 0 ][ 1 ] = -SinZ ;
+	Out->m[ 0 ][ 2 ] = SinY * CosZ ;
+	Out->m[ 0 ][ 3 ] = 0.0f ;
+	Out->m[ 1 ][ 0 ] = CosYSinZ * CosX + SinY * SinX ;
+	Out->m[ 1 ][ 1 ] = CosZ * CosX ;
+	Out->m[ 1 ][ 2 ] = SinYSinZ * CosX - CosY * SinX ;
+	Out->m[ 1 ][ 3 ] = 0.0f ;
+	Out->m[ 2 ][ 0 ] = CosYSinZ * SinX - SinY * CosX ;
+	Out->m[ 2 ][ 1 ] = CosZ * SinX ;
+	Out->m[ 2 ][ 2 ] = SinYSinZ * SinX + CosY * CosX ;
+	Out->m[ 2 ][ 3 ] = 0.0f ;
+}
+
+static __inline void CreateRotationYZXMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		CreateRotationYZXMatrix4X4CTD( &Out->md, XRot, YRot, ZRot ) ;
+	}
+	else
+	{
+		CreateRotationYZXMatrix4X4CTF( &Out->mf, XRot, YRot, ZRot ) ;
+	}
+}
+
 // Ｚ軸回転→Ｘ軸回転→Ｙ軸回転を合成した行列を作成する
-static __inline void CreateRotationZXYMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+static __inline void CreateRotationZXYMatrix4X4CTF( MATRIX_4X4CT_F * RST Out, float XRot, float YRot, float ZRot )
 {
 	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
 	float SinXSinZ, SinXCosZ ;
@@ -638,8 +888,46 @@ static __inline void CreateRotationZXYMatrix4X4CT( MATRIX_4X4CT * RST Out, float
 	Out->m[ 2 ][ 3 ] = 0.0f ;
 }
 
+static __inline void CreateRotationZXYMatrix4X4CTD( MATRIX_4X4CT_D * RST Out, float XRot, float YRot, float ZRot )
+{
+	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	float SinXSinZ, SinXCosZ ;
+
+	TableSinCos( XRot, &SinX, &CosX ) ;
+	TableSinCos( YRot, &SinY, &CosY ) ;
+	TableSinCos( ZRot, &SinZ, &CosZ ) ;
+
+	SinXSinZ = SinX * SinZ ;
+	SinXCosZ = SinX * CosZ ;
+
+	Out->m[ 0 ][ 0 ] = CosY *  CosZ + SinXSinZ * SinY ;
+	Out->m[ 0 ][ 1 ] = CosY * -SinZ + SinXCosZ * SinY ;
+	Out->m[ 0 ][ 2 ] = CosX * SinY ;
+	Out->m[ 0 ][ 3 ] = 0.0f ;
+	Out->m[ 1 ][ 0 ] = CosX * SinZ ;
+	Out->m[ 1 ][ 1 ] = CosX * CosZ ;
+	Out->m[ 1 ][ 2 ] = -SinX ;
+	Out->m[ 1 ][ 3 ] = 0.0f ;
+	Out->m[ 2 ][ 0 ] = CosZ * -SinY + SinXSinZ * CosY ;
+	Out->m[ 2 ][ 1 ] = SinZ *  SinY + SinXCosZ * CosY ;
+	Out->m[ 2 ][ 2 ] = CosX * CosY ;
+	Out->m[ 2 ][ 3 ] = 0.0f ;
+}
+
+static __inline void CreateRotationZXYMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		CreateRotationZXYMatrix4X4CTD( &Out->md, XRot, YRot, ZRot ) ;
+	}
+	else
+	{
+		CreateRotationZXYMatrix4X4CTF( &Out->mf, XRot, YRot, ZRot ) ;
+	}
+}
+
 // Ｚ軸回転→Ｙ軸回転→Ｘ軸回転を合成した行列を作成する
-static __inline void CreateRotationZYXMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+static __inline void CreateRotationZYXMatrix4X4CTF( MATRIX_4X4CT_F * RST Out, float XRot, float YRot, float ZRot )
 {
 	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
 	float CosZSinY, SinZSinY ;
@@ -665,26 +953,45 @@ static __inline void CreateRotationZYXMatrix4X4CT( MATRIX_4X4CT * RST Out, float
 	Out->m[ 2 ][ 3 ] = 0.0f ;
 }
 
-static __inline void UnSafeMultiplyMatrix4X4CT( MATRIX_4X4CT * RST Out, MATRIX_4X4CT * RST In1, MATRIX_4X4CT * RST In2 )
+static __inline void CreateRotationZYXMatrix4X4CTD( MATRIX_4X4CT_D * RST Out, float XRot, float YRot, float ZRot )
 {
-	Out->m[0][0] = In1->m[0][0] * In2->m[0][0] + In1->m[1][0] * In2->m[0][1] + In1->m[2][0] * In2->m[0][2] ;
-	Out->m[1][0] = In1->m[0][0] * In2->m[1][0] + In1->m[1][0] * In2->m[1][1] + In1->m[2][0] * In2->m[1][2] ;
-	Out->m[2][0] = In1->m[0][0] * In2->m[2][0] + In1->m[1][0] * In2->m[2][1] + In1->m[2][0] * In2->m[2][2] ;
+	float SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	float CosZSinY, SinZSinY ;
 
-	Out->m[0][1] = In1->m[0][1] * In2->m[0][0] + In1->m[1][1] * In2->m[0][1] + In1->m[2][1] * In2->m[0][2] ;
-	Out->m[1][1] = In1->m[0][1] * In2->m[1][0] + In1->m[1][1] * In2->m[1][1] + In1->m[2][1] * In2->m[1][2] ;
-	Out->m[2][1] = In1->m[0][1] * In2->m[2][0] + In1->m[1][1] * In2->m[2][1] + In1->m[2][1] * In2->m[2][2] ;
+	TableSinCos( XRot, &SinX, &CosX ) ;
+	TableSinCos( YRot, &SinY, &CosY ) ;
+	TableSinCos( ZRot, &SinZ, &CosZ ) ;
 
-	Out->m[0][2] = In1->m[0][2] * In2->m[0][0] + In1->m[1][2] * In2->m[0][1] + In1->m[2][2] * In2->m[0][2] ;
-	Out->m[1][2] = In1->m[0][2] * In2->m[1][0] + In1->m[1][2] * In2->m[1][1] + In1->m[2][2] * In2->m[1][2] ;
-	Out->m[2][2] = In1->m[0][2] * In2->m[2][0] + In1->m[1][2] * In2->m[2][1] + In1->m[2][2] * In2->m[2][2] ;
+	CosZSinY = CosZ * SinY ;
+	SinZSinY = SinZ * SinY ;
 
-	Out->m[0][3] = In1->m[0][3] * In2->m[0][0] + In1->m[1][3] * In2->m[0][1] + In1->m[2][3] * In2->m[0][2] + In2->m[0][3] ;
-	Out->m[1][3] = In1->m[0][3] * In2->m[1][0] + In1->m[1][3] * In2->m[1][1] + In1->m[2][3] * In2->m[1][2] + In2->m[1][3] ;
-	Out->m[2][3] = In1->m[0][3] * In2->m[2][0] + In1->m[1][3] * In2->m[2][1] + In1->m[2][3] * In2->m[2][2] + In2->m[2][3] ;
+	Out->m[ 0 ][ 0 ] = CosY * CosZ ;
+	Out->m[ 0 ][ 1 ] = -SinZ * CosY ;
+	Out->m[ 0 ][ 2 ] = SinY ;
+	Out->m[ 0 ][ 3 ] = 0.0f ;
+	Out->m[ 1 ][ 0 ] = SinZ * CosX + CosZSinY * SinX ;
+	Out->m[ 1 ][ 1 ] = CosZ * CosX - SinZSinY * SinX ;
+	Out->m[ 1 ][ 2 ] = CosY * -SinX ;
+	Out->m[ 1 ][ 3 ] = 0.0f ;
+	Out->m[ 2 ][ 0 ] = SinZ * SinX - CosZSinY * CosX ;
+	Out->m[ 2 ][ 1 ] = CosZ * SinX + SinZSinY * CosX ;
+	Out->m[ 2 ][ 2 ] = CosY *  CosX ;
+	Out->m[ 2 ][ 3 ] = 0.0f ;
 }
 
-static __inline void UnSafeTranslateOnlyMultiplyMatrix4X4CT( MATRIX_4X4CT * RST Out, MATRIX_4X4CT * RST In1, MATRIX_4X4CT * RST In2 )
+static __inline void CreateRotationZYXMatrix4X4CT( MATRIX_4X4CT * RST Out, float XRot, float YRot, float ZRot )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		CreateRotationZYXMatrix4X4CTD( &Out->md, XRot, YRot, ZRot ) ;
+	}
+	else
+	{
+		CreateRotationZYXMatrix4X4CTF( &Out->mf, XRot, YRot, ZRot ) ;
+	}
+}
+
+static __inline void UnSafeTranslateOnlyMultiplyMatrix4X4CTF( MATRIX_4X4CT_F * RST Out, MATRIX_4X4CT_F * RST In1, MATRIX_4X4CT_F * RST In2 )
 {
 	Out->m[ 0 ][ 0 ] = In2->m[ 0 ][ 0 ] ;
 	Out->m[ 0 ][ 1 ] = In2->m[ 0 ][ 1 ] ;
@@ -698,6 +1005,144 @@ static __inline void UnSafeTranslateOnlyMultiplyMatrix4X4CT( MATRIX_4X4CT * RST 
 	Out->m[ 2 ][ 1 ] = In2->m[ 2 ][ 1 ] ;
 	Out->m[ 2 ][ 2 ] = In2->m[ 2 ][ 2 ] ;
 	Out->m[ 2 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2->m[ 2 ][ 0 ] + In1->m[ 1 ][ 3 ] * In2->m[ 2 ][ 1 ] + In1->m[ 2 ][ 3 ] * In2->m[ 2 ][ 2 ] + In2->m[ 2 ][ 3 ] ;
+}
+
+static __inline void UnSafeTranslateOnlyMultiplyMatrix4X4CTD( MATRIX_4X4CT_D * RST Out, MATRIX_4X4CT_D * RST In1, MATRIX_4X4CT_D * RST In2 )
+{
+	Out->m[ 0 ][ 0 ] = In2->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] = In2->m[ 0 ][ 1 ] ;
+	Out->m[ 0 ][ 2 ] = In2->m[ 0 ][ 2 ] ;
+	Out->m[ 0 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2->m[ 0 ][ 0 ] + In1->m[ 1 ][ 3 ] * In2->m[ 0 ][ 1 ] + In1->m[ 2 ][ 3 ] * In2->m[ 0 ][ 2 ] + In2->m[ 0 ][ 3 ] ;
+	Out->m[ 1 ][ 0 ] = In2->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] = In2->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] = In2->m[ 1 ][ 2 ] ;
+	Out->m[ 1 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2->m[ 1 ][ 0 ] + In1->m[ 1 ][ 3 ] * In2->m[ 1 ][ 1 ] + In1->m[ 2 ][ 3 ] * In2->m[ 1 ][ 2 ] + In2->m[ 1 ][ 3 ] ;
+	Out->m[ 2 ][ 0 ] = In2->m[ 2 ][ 0 ] ;
+	Out->m[ 2 ][ 1 ] = In2->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] = In2->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2->m[ 2 ][ 0 ] + In1->m[ 1 ][ 3 ] * In2->m[ 2 ][ 1 ] + In1->m[ 2 ][ 3 ] * In2->m[ 2 ][ 2 ] + In2->m[ 2 ][ 3 ] ;
+}
+
+static __inline void UnSafeTranslateOnlyMultiplyMatrix4X4CT_DF_D( MATRIX_4X4CT_D * RST Out, MATRIX_4X4CT_D * RST In1, MATRIX_4X4CT_F * RST In2 )
+{
+	Out->m[ 0 ][ 0 ] = In2->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] = In2->m[ 0 ][ 1 ] ;
+	Out->m[ 0 ][ 2 ] = In2->m[ 0 ][ 2 ] ;
+	Out->m[ 0 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2->m[ 0 ][ 0 ] + In1->m[ 1 ][ 3 ] * In2->m[ 0 ][ 1 ] + In1->m[ 2 ][ 3 ] * In2->m[ 0 ][ 2 ] + In2->m[ 0 ][ 3 ] ;
+	Out->m[ 1 ][ 0 ] = In2->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] = In2->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] = In2->m[ 1 ][ 2 ] ;
+	Out->m[ 1 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2->m[ 1 ][ 0 ] + In1->m[ 1 ][ 3 ] * In2->m[ 1 ][ 1 ] + In1->m[ 2 ][ 3 ] * In2->m[ 1 ][ 2 ] + In2->m[ 1 ][ 3 ] ;
+	Out->m[ 2 ][ 0 ] = In2->m[ 2 ][ 0 ] ;
+	Out->m[ 2 ][ 1 ] = In2->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] = In2->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2->m[ 2 ][ 0 ] + In1->m[ 1 ][ 3 ] * In2->m[ 2 ][ 1 ] + In1->m[ 2 ][ 3 ] * In2->m[ 2 ][ 2 ] + In2->m[ 2 ][ 3 ] ;
+}
+
+static __inline void UnSafeTranslateOnlyMultiplyMatrix4X4CT_FD_D( MATRIX_4X4CT_D * RST Out, MATRIX_4X4CT_F * RST In1, MATRIX_4X4CT_D * RST In2 )
+{
+	Out->m[ 0 ][ 0 ] = In2->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] = In2->m[ 0 ][ 1 ] ;
+	Out->m[ 0 ][ 2 ] = In2->m[ 0 ][ 2 ] ;
+	Out->m[ 0 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2->m[ 0 ][ 0 ] + In1->m[ 1 ][ 3 ] * In2->m[ 0 ][ 1 ] + In1->m[ 2 ][ 3 ] * In2->m[ 0 ][ 2 ] + In2->m[ 0 ][ 3 ] ;
+	Out->m[ 1 ][ 0 ] = In2->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] = In2->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] = In2->m[ 1 ][ 2 ] ;
+	Out->m[ 1 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2->m[ 1 ][ 0 ] + In1->m[ 1 ][ 3 ] * In2->m[ 1 ][ 1 ] + In1->m[ 2 ][ 3 ] * In2->m[ 1 ][ 2 ] + In2->m[ 1 ][ 3 ] ;
+	Out->m[ 2 ][ 0 ] = In2->m[ 2 ][ 0 ] ;
+	Out->m[ 2 ][ 1 ] = In2->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] = In2->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] = In1->m[ 0 ][ 3 ] * In2->m[ 2 ][ 0 ] + In1->m[ 1 ][ 3 ] * In2->m[ 2 ][ 1 ] + In1->m[ 2 ][ 3 ] * In2->m[ 2 ][ 2 ] + In2->m[ 2 ][ 3 ] ;
+}
+
+static __inline void UnSafeTranslateOnlyMultiplyMatrix4X4CT( MATRIX_4X4CT * RST Out, MATRIX_4X4CT * RST In1, MATRIX_4X4CT * RST In2 )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		UnSafeTranslateOnlyMultiplyMatrix4X4CTD( &Out->md, &In1->md, &In2->md ) ;
+	}
+	else
+	{
+		UnSafeTranslateOnlyMultiplyMatrix4X4CTF( &Out->mf, &In1->mf, &In2->mf ) ;
+	}
+}
+
+static __inline void UnSafeTranslateOnlyMultiplyMatrix4X4CT_FC( MATRIX_4X4CT * RST Out, MATRIX_4X4CT_F * RST In1, MATRIX_4X4CT * RST In2 )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		UnSafeTranslateOnlyMultiplyMatrix4X4CT_FD_D( &Out->md, In1, &In2->md ) ;
+	}
+	else
+	{
+		UnSafeTranslateOnlyMultiplyMatrix4X4CTF( &Out->mf, In1, &In2->mf ) ;
+	}
+}
+
+static __inline void UnSafeTranslateOnlyMultiplyMatrix4X4CT_CF( MATRIX_4X4CT * RST Out, MATRIX_4X4CT * RST In1, MATRIX_4X4CT_F * RST In2 )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		UnSafeTranslateOnlyMultiplyMatrix4X4CT_DF_D( &Out->md, &In1->md, In2 ) ;
+	}
+	else
+	{
+		UnSafeTranslateOnlyMultiplyMatrix4X4CTF( &Out->mf, &In1->mf, In2 ) ;
+	}
+}
+
+static __inline void UnSafeMatrix4X4CT_F_EqPlus_F_Sub_F( MATRIX_4X4CT_F *RST Out, MATRIX_4X4CT_F * RST In1, MATRIX_4X4CT_F * RST In2 )
+{
+	Out->m[ 0 ][ 0 ] += In1->m[ 0 ][ 0 ] - In2->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] += In1->m[ 0 ][ 1 ] - In2->m[ 0 ][ 1 ] ;
+	Out->m[ 0 ][ 2 ] += In1->m[ 0 ][ 2 ] - In2->m[ 0 ][ 2 ] ;
+	Out->m[ 0 ][ 3 ] += In1->m[ 0 ][ 3 ] - In2->m[ 0 ][ 3 ] ;
+
+	Out->m[ 1 ][ 0 ] += In1->m[ 1 ][ 0 ] - In2->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] += In1->m[ 1 ][ 1 ] - In2->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] += In1->m[ 1 ][ 2 ] - In2->m[ 1 ][ 2 ] ;
+	Out->m[ 1 ][ 3 ] += In1->m[ 1 ][ 3 ] - In2->m[ 1 ][ 3 ] ;
+
+	Out->m[ 2 ][ 0 ] += In1->m[ 2 ][ 0 ] - In2->m[ 2 ][ 0 ] ;
+	Out->m[ 2 ][ 1 ] += In1->m[ 2 ][ 1 ] - In2->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] += In1->m[ 2 ][ 2 ] - In2->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] += In1->m[ 2 ][ 3 ] - In2->m[ 2 ][ 3 ] ;
+}
+
+static __inline void UnSafeMatrix4X4CT_F_EqPlus_F_Sub_F_Mul_S( MATRIX_4X4CT_F *RST Out, MATRIX_4X4CT_F * RST In1, MATRIX_4X4CT_F * RST In2, float In3 )
+{
+	Out->m[ 0 ][ 0 ] += ( In1->m[ 0 ][ 0 ] - In2->m[ 0 ][ 0 ] ) * In3 ;
+	Out->m[ 0 ][ 1 ] += ( In1->m[ 0 ][ 1 ] - In2->m[ 0 ][ 1 ] ) * In3 ;
+	Out->m[ 0 ][ 2 ] += ( In1->m[ 0 ][ 2 ] - In2->m[ 0 ][ 2 ] ) * In3 ;
+	Out->m[ 0 ][ 3 ] += ( In1->m[ 0 ][ 3 ] - In2->m[ 0 ][ 3 ] ) * In3 ;
+
+	Out->m[ 1 ][ 0 ] += ( In1->m[ 1 ][ 0 ] - In2->m[ 1 ][ 0 ] ) * In3 ;
+	Out->m[ 1 ][ 1 ] += ( In1->m[ 1 ][ 1 ] - In2->m[ 1 ][ 1 ] ) * In3 ;
+	Out->m[ 1 ][ 2 ] += ( In1->m[ 1 ][ 2 ] - In2->m[ 1 ][ 2 ] ) * In3 ;
+	Out->m[ 1 ][ 3 ] += ( In1->m[ 1 ][ 3 ] - In2->m[ 1 ][ 3 ] ) * In3 ;
+
+	Out->m[ 2 ][ 0 ] += ( In1->m[ 2 ][ 0 ] - In2->m[ 2 ][ 0 ] ) * In3 ;
+	Out->m[ 2 ][ 1 ] += ( In1->m[ 2 ][ 1 ] - In2->m[ 2 ][ 1 ] ) * In3 ;
+	Out->m[ 2 ][ 2 ] += ( In1->m[ 2 ][ 2 ] - In2->m[ 2 ][ 2 ] ) * In3 ;
+	Out->m[ 2 ][ 3 ] += ( In1->m[ 2 ][ 3 ] - In2->m[ 2 ][ 3 ] ) * In3 ;
+}
+
+static __inline void UnSafeMatrix4X4CT_F_EqPlus_F( MATRIX_4X4CT_F *RST Out, MATRIX_4X4CT_F * RST In1 )
+{
+	Out->m[ 0 ][ 0 ] += In1->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] += In1->m[ 0 ][ 1 ] ;
+	Out->m[ 0 ][ 2 ] += In1->m[ 0 ][ 2 ] ;
+	Out->m[ 0 ][ 3 ] += In1->m[ 0 ][ 3 ] ;
+
+	Out->m[ 1 ][ 0 ] += In1->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] += In1->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] += In1->m[ 1 ][ 2 ] ;
+	Out->m[ 1 ][ 3 ] += In1->m[ 1 ][ 3 ] ;
+
+	Out->m[ 2 ][ 0 ] += In1->m[ 2 ][ 0 ] ;
+	Out->m[ 2 ][ 1 ] += In1->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] += In1->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] += In1->m[ 2 ][ 3 ] ;
 }
 
 static __inline void SetupSkiningBoneMatrix( MV1_MODEL &Model, MV1_FRAME &Frame )
@@ -714,11 +1159,11 @@ static __inline void SetupSkiningBoneMatrix( MV1_MODEL &Model, MV1_FRAME &Frame 
 		{
 			if( SkinW->ModelLocalMatrixIsTranslateOnly == 0 )
 			{
-				UnSafeMultiplyMatrix4X4CT( &Model.SkinBoneMatrix[ index ], &SkinW->ModelLocalMatrix, &Frame.LocalWorldMatrix ) ;
+				UnSafeMultiplyMatrix4X4CT_FC( &Model.SkinBoneMatrix[ index ], &SkinW->ModelLocalMatrix, &Frame.LocalWorldMatrix ) ;
 			}
 			else
 			{
-				UnSafeTranslateOnlyMultiplyMatrix4X4CT( &Model.SkinBoneMatrix[ index ], &SkinW->ModelLocalMatrix, &Frame.LocalWorldMatrix ) ;
+				UnSafeTranslateOnlyMultiplyMatrix4X4CT_FC( &Model.SkinBoneMatrix[ index ], &SkinW->ModelLocalMatrix, &Frame.LocalWorldMatrix ) ;
 			}
 		}
 	}
@@ -746,182 +1191,12 @@ int __FTOL( float Real )
 		fistp	Result
 		fldcw	STFlag
 	}
-	return Result ;
+	return (int)Result ;
 #endif
-}
-
-// ３Ｄモデルのレンダリングの準備を行う
-static int MV1BeginRender( MV1_MODEL *Model )
-{
-	int i ;
-	int ShaderSetMask ;
-
-	// 使用するシェーダー定数セットを変更
-	ShaderSetMask = DX_SHADERCONSTANTSET_MASK_LIB | DX_SHADERCONSTANTSET_MASK_MV1 ;
-	if( MV1Man.UseOrigShaderFlag && GRH.UseShader )
-	{
-		ShaderSetMask |= DX_SHADERCONSTANTSET_MASK_USER ;
-	}
-	SetUseShaderContantInfoState( &GRH.ShaderConstantInfo, ShaderSetMask ) ;
-
-#ifndef DX_NON_MASK
-	// マスク処理
-	if( MASKD.MaskValidFlag )
-	{
-		if( MASKD.FullScreenMaskUpdateFlag == FALSE )
-		{
-			RECT MaskRect ;
-			MaskRect.left   = GBASE.DrawArea.left ;
-			MaskRect.right  = GBASE.DrawArea.right ;
-			MaskRect.top    = GBASE.DrawArea.top ;
-			MaskRect.bottom = GBASE.DrawArea.bottom ;
-			MASK_BEGIN( MaskRect )
-			MASKD.FullScreenMaskUpdateFlag = TRUE ;
-		}
-	}
-#endif
-
-	// バッファにたまっている頂点を出力
-	NS_RenderVertex() ;
-
-	// ライトの設定が変更されていたら反映する
-	RefreshLightState() ;
-
-	// 元々設定されていたローカル→ワールド行列を保存する
-//	NS_GetTransformToWorldMatrix( &MV1Man.OrigLocalWorldMatrix ) ;
-	MV1Man.WorldMatrixIsIdentity = FALSE ;
-
-	// 設定の値を保存する
-/*	MV1Man.BackupUseZBufferFlag = GBASE.EnableZBufferFlag ;
-	MV1Man.BackupWriteZBufferFlag = GBASE.WriteZBufferFlag ;
-	MV1Man.BackupUseCullingFlag = GBASE.CullMode ;
-	MV1Man.BackupShadeMode = D_GetShadeMode() ;
-	MV1Man.BackupTexAddressMode = GBASE.TexAddressMode ;
-	for( i = 0 ; i < 8 ; i ++ )
-	{
-		MV1Man.BackupMagFilterMode[ i ] = D_GetSampleFilterMode( i, DX_D3DSAMP_MAGFILTER ) ;
-		MV1Man.BackupMinFilterMode[ i ] = D_GetSampleFilterMode( i, DX_D3DSAMP_MINFILTER ) ;
-		MV1Man.BackupMipFilterMode[ i ] = D_GetSampleFilterMode( i, DX_D3DSAMP_MIPFILTER ) ;
-	}
-*/
-	// ビギンシーン
-	BeginScene() ;
-
-	// Ｚバッファ設定を反映する
-	D_SetUseZBufferFlag( Model->EnableZBufferFlag ) ;
-	D_SetWriteZBufferFlag( Model->WriteZBufferFlag ) ;
-	D_SetZBufferCmpType( Model->ZBufferCmpType ) ;
-	D_SetZBias( Model->ZBias ) ;
-
-	// シェーディングモードはグローシェーディング
-	D_SetShadeMode( D_D3DSHADE_GOURAUD ) ;
-
-	// アルファテストの設定がある場合は設定が反映されていなかったら値を設定する
-/*	if( GBASE.AlphaTestMode != GRH.AlphaTestMode ||
-		GBASE.AlphaTestParam != GRH.AlphaTestParam )
-	{
-		D_SetDrawAlphaTest( GBASE.AlphaTestMode, GBASE.AlphaTestParam ) ;
-	}
-*/
-	// テクスチャアドレスモードはとりあえずラップモード
-//	D_SetTextureAddressMode( DX_TEXADDRESS_WRAP ) ;
-
-	// フォグ設定を反映する
-	ApplyLigFogToHardware() ;
-
-	// 異方性フィルタリングの最大次数を設定する
-	for( i = 0 ; i < 3 ; i ++ )
-	{
-		D_SetMaxAnisotropy( i, Model->MaxAnisotropy ) ;
-	}
-
-	// ワイヤーフレーム描画するかどうかを設定する
-	D_SetFillMode( Model->WireFrame ? D_D3DFILL_WIREFRAME : D_D3DFILL_SOLID ) ;
-
-	// 全てのサンプラはとりあえずリニアフィルタリング
-/*	for( i = 0 ; i < 3 ; i ++ )
-	{
-		D_SetSampleFilterMode( i, DX_D3DSAMP_MAGFILTER, ( D_D3DTEXTUREFILTERTYPE )Model->SampleFilterMode ) ;
-		D_SetSampleFilterMode( i, DX_D3DSAMP_MINFILTER, ( D_D3DTEXTUREFILTERTYPE )Model->SampleFilterMode ) ;
-		D_SetSampleFilterMode( i, DX_D3DSAMP_MIPFILTER, ( D_D3DTEXTUREFILTERTYPE )Model->SampleFilterMode ) ;
-	}
-	GBASE.DrawMode = -1 ;
-*/
-	GRH.DrawMode = -1 ;
-	GRH.AlphaTestMode = -1 ;
-	GRH.AlphaTestParam = 0 ;
-	GRH.DrawPrepAlwaysFlag = TRUE ;
-
-	// アルファ値と乗算したカラーで描画するかどうかをシェーダーにセットする
-	{
-		float Data[ 4 ] ;
-
-		Data[ 0 ] = Model->UseDrawMulAlphaColor ? 1.0f : 0.0f ;
-		Data[ 1 ] = 0.0f ;
-		Data[ 2 ] = 0.0f ;
-		Data[ 3 ] = 0.0f ;
-		SetShaderConstantSet(
-			&GRH.ShaderConstantInfo,
-			DX_SHADERCONSTANTTYPE_PS_FLOAT,
-			DX_SHADERCONSTANTSET_LIB,
-			DX_PS_CONSTF_MUL_ALPHA_COLOR,
-			Data,
-			1,
-			TRUE
-		) ;
-	}
-
-	// 終了
-	return 0 ;
-}
-
-// ３Ｄモデルのレンダリングの後始末を行う
-static int MV1EndRender()
-{
-//	int i ;
-
-	// 設定の値を元に戻す
-/*	NS_SetUseZBufferFlag( MV1Man.BackupUseZBufferFlag ) ;
-	NS_SetWriteZBufferFlag( MV1Man.BackupWriteZBufferFlag ) ;
-	NS_SetUseCullingFlag( MV1Man.BackupUseCullingFlag ) ;
-
-	// シェーディングモードを戻す
-	D_SetShadeMode( MV1Man.BackupShadeMode ) ;
-
-	// テクスチャアドレスモードを元に戻す
-	NS_SetTextureAddressMode( MV1Man.BackupTexAddressMode ) ;
-
-	// 全てのサンプラを戻す
-	for( i = 0 ; i < 8 ; i ++ )
-	{
-		D_SetSampleFilterMode( i, DX_D3DSAMP_MAGFILTER, MV1Man.BackupMagFilterMode[ i ] ) ;
-		D_SetSampleFilterMode( i, DX_D3DSAMP_MINFILTER, MV1Man.BackupMinFilterMode[ i ] ) ;
-		D_SetSampleFilterMode( i, DX_D3DSAMP_MIPFILTER, MV1Man.BackupMipFilterMode[ i ] ) ;
-	}
-*/
-
-#ifndef DX_NON_MASK
-	// マスク処理
-	if( MASKD.MaskValidFlag )
-	{
-//		RECT MaskRect ;
-//		MaskRect.left   = GBASE.DrawArea.left ;
-//		MaskRect.right  = GBASE.DrawArea.right ;
-//		MaskRect.top    = GBASE.DrawArea.top ;
-//		MaskRect.bottom = GBASE.DrawArea.bottom ;
-//		MASK_END( MaskRect )
-	}
-#endif
-
-	// 元々設定されていたワールド→ビュートランスフォーム行列を元に戻す
-//	NS_SetTransformToWorld( &MV1Man.OrigLocalWorldMatrix ) ;
-
-	// 終了
-	return 0 ;
 }
 
 // 座標変換情報を使用して座標変換行列を作成する
-static void MV1SetupTransformMatrix( MATRIX_4X4CT * RST BlendMatrix, int ValidFlag, VECTOR * RST Translate, VECTOR * RST Scale, int RotateOrder, VECTOR * RST PreRotate, VECTOR * RST Rotate, VECTOR * RST PostRotate, FLOAT4 * RST Quaternion )
+static void MV1SetupTransformMatrix( MATRIX_4X4CT_F * RST BlendMatrix, int ValidFlag, VECTOR * RST Translate, VECTOR * RST Scale, int RotateOrder, VECTOR * RST PreRotate, VECTOR * RST Rotate, VECTOR * RST PostRotate, FLOAT4 * RST Quaternion )
 {
 	// 回転
 	if( ValidFlag & MV1_ANIMVALUE_ROTATE )
@@ -930,72 +1205,72 @@ static void MV1SetupTransformMatrix( MATRIX_4X4CT * RST BlendMatrix, int ValidFl
 		{
 			switch( RotateOrder )
 			{
-			case MV1_ROTATE_ORDER_XYZ : CreateRotationXYZMatrix4X4CT( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
-			case MV1_ROTATE_ORDER_XZY : CreateRotationXZYMatrix4X4CT( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
-			case MV1_ROTATE_ORDER_YXZ : CreateRotationYXZMatrix4X4CT( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
-			case MV1_ROTATE_ORDER_YZX : CreateRotationYZXMatrix4X4CT( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
-			case MV1_ROTATE_ORDER_ZXY : CreateRotationZXYMatrix4X4CT( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
-			case MV1_ROTATE_ORDER_ZYX : CreateRotationZYXMatrix4X4CT( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
+			case MV1_ROTATE_ORDER_XYZ : CreateRotationXYZMatrix4X4CTF( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
+			case MV1_ROTATE_ORDER_XZY : CreateRotationXZYMatrix4X4CTF( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
+			case MV1_ROTATE_ORDER_YXZ : CreateRotationYXZMatrix4X4CTF( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
+			case MV1_ROTATE_ORDER_YZX : CreateRotationYZXMatrix4X4CTF( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
+			case MV1_ROTATE_ORDER_ZXY : CreateRotationZXYMatrix4X4CTF( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
+			case MV1_ROTATE_ORDER_ZYX : CreateRotationZYXMatrix4X4CTF( BlendMatrix, Rotate->x, Rotate->y, Rotate->z ) ; break ;
 			}
 		}
 		else
 		{
-			MATRIX_4X4CT PreRotMat, PostRotMat, RotMat ;
+			MATRIX_4X4CT_F PreRotMat, PostRotMat, RotMat ;
 
 			switch( RotateOrder )
 			{
 			case MV1_ROTATE_ORDER_XYZ :
-				if( PreRotate )  CreateRotationXYZMatrix4X4CT( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
-				if( PostRotate ) CreateRotationXYZMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
-				CreateRotationXYZMatrix4X4CT( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
+				if( PreRotate )  CreateRotationXYZMatrix4X4CTF( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
+				if( PostRotate ) CreateRotationXYZMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
+				CreateRotationXYZMatrix4X4CTF( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
 				break ;
 
 			case MV1_ROTATE_ORDER_XZY :
-				if( PreRotate )  CreateRotationXZYMatrix4X4CT( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
-				if( PostRotate ) CreateRotationXZYMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
-				CreateRotationXZYMatrix4X4CT( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
+				if( PreRotate )  CreateRotationXZYMatrix4X4CTF( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
+				if( PostRotate ) CreateRotationXZYMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
+				CreateRotationXZYMatrix4X4CTF( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
 				break ;
 
 			case MV1_ROTATE_ORDER_YXZ :
-				if( PreRotate )  CreateRotationYXZMatrix4X4CT( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
-				if( PostRotate ) CreateRotationYXZMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
-				CreateRotationYXZMatrix4X4CT( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
+				if( PreRotate )  CreateRotationYXZMatrix4X4CTF( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
+				if( PostRotate ) CreateRotationYXZMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
+				CreateRotationYXZMatrix4X4CTF( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
 				break ;
 
 			case MV1_ROTATE_ORDER_YZX :
-				if( PreRotate )  CreateRotationYZXMatrix4X4CT( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
-				if( PostRotate ) CreateRotationYZXMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
-				CreateRotationYZXMatrix4X4CT( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
+				if( PreRotate )  CreateRotationYZXMatrix4X4CTF( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
+				if( PostRotate ) CreateRotationYZXMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
+				CreateRotationYZXMatrix4X4CTF( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
 				break ;
 
 			case MV1_ROTATE_ORDER_ZXY :
-				if( PreRotate )  CreateRotationZXYMatrix4X4CT( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
-				if( PostRotate ) CreateRotationZXYMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
-				CreateRotationZXYMatrix4X4CT( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
+				if( PreRotate )  CreateRotationZXYMatrix4X4CTF( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
+				if( PostRotate ) CreateRotationZXYMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
+				CreateRotationZXYMatrix4X4CTF( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
 				break ;
 
 			case MV1_ROTATE_ORDER_ZYX :
-				if( PreRotate )  CreateRotationZYXMatrix4X4CT( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
-				if( PostRotate ) CreateRotationZYXMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
-				CreateRotationZYXMatrix4X4CT( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
+				if( PreRotate )  CreateRotationZYXMatrix4X4CTF( &PreRotMat,  PreRotate->x,  PreRotate->y,  PreRotate->z ) ;
+				if( PostRotate ) CreateRotationZYXMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ;
+				CreateRotationZYXMatrix4X4CTF( &RotMat, Rotate->x, Rotate->y, Rotate->z ) ;
 				break ;
 			}
 
 			if( PreRotate && PostRotate )
 			{
-				MATRIX_4X4CT TempMatrix ;
+				MATRIX_4X4CT_F TempMatrix ;
 
-				UnSafeMultiplyMatrix4X4CT( &TempMatrix, &RotMat, &PreRotMat ) ;
-				UnSafeMultiplyMatrix4X4CT( BlendMatrix, &PostRotMat, &TempMatrix ) ;
+				UnSafeMultiplyMatrix4X4CTF( &TempMatrix, &RotMat, &PreRotMat ) ;
+				UnSafeMultiplyMatrix4X4CTF( BlendMatrix, &PostRotMat, &TempMatrix ) ;
 			}
 			else
 			if( PreRotate )
 			{
-				UnSafeMultiplyMatrix4X4CT( BlendMatrix, &RotMat, &PreRotMat ) ;
+				UnSafeMultiplyMatrix4X4CTF( BlendMatrix, &RotMat, &PreRotMat ) ;
 			}
 			else
 			{
-				UnSafeMultiplyMatrix4X4CT( BlendMatrix, &PostRotMat, &RotMat ) ;
+				UnSafeMultiplyMatrix4X4CTF( BlendMatrix, &PostRotMat, &RotMat ) ;
 			}
 		}
 	}
@@ -1016,7 +1291,7 @@ static void MV1SetupTransformMatrix( MATRIX_4X4CT * RST BlendMatrix, int ValidFl
 		TempMatrix2.m[0][0] =  Quaternion->w ; TempMatrix2.m[0][1] = -Quaternion->z ; TempMatrix2.m[0][2] =  Quaternion->y ; TempMatrix2.m[0][3] = -Quaternion->x ;
 
 		CreateMultiplyMatrix( &TempMatrix1, &TempMatrix2, &TempMatrix1 ) ;
-		ConvertMatrixToMatrix4x4c( BlendMatrix, &TempMatrix1 ) ;
+		ConvertMatrixFToMatrix4x4cF( BlendMatrix, &TempMatrix1 ) ;
 	}
 	else
 	if( ValidFlag & MV1_ANIMVALUE_QUATERNION_VMD )
@@ -1109,7 +1384,7 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 	MV1_MODEL_BASE *MBase ;
 	MV1_FRAME_BASE *FrameBase ;
 	MV1_MODEL_ANIM *MAnim, *MAnim2, *MAnim3 = NULL;
-//	VECTOR DivSize ;
+	VECTOR DivSize ;
 
 	MBase = Model->BaseData ;
 
@@ -1128,64 +1403,64 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 	// トップの更新チェック
 	if( Model->ChangeMatrixFlag[ 0 ] & 1 )
 	{
+		// スケーリングを使用しているかどうかのフラグを倒す
+		Model->LocalWorldMatrixUseScaling = false ;
+
 		// 行列が有効な場合と無効な場合で処理を分岐
 		if( Model->ValidMatrix )
 		{
 			// 行列が有効な場合はそのまま使用する
 			Model->LocalWorldMatrix = Model->Matrix ;
+
+			// スケーリングを使用しているかどうかのフラグを立てる
+			Model->LocalWorldMatrixUseScaling = true ;
 		}
 		else
 		{
-			MATRIX TranslateMat, ScaleMat, RotateMat, TransformMat, RotateQ1Mat, RotateQ2Mat ;
+			MATRIX_4X4CT TranslateMat, ScaleMat, RotateMat, TransformMat ;
 
 			// 無効な場合はトランスフォームパラメータから行列を作成する
-			CreateTranslationMatrix( &TranslateMat, Model->Translation.x, Model->Translation.y, Model->Translation.z ) ;
-			CreateScalingMatrix( &ScaleMat, Model->Scale.x, Model->Scale.y, Model->Scale.z ) ;
+			CreateTranslationMatrix4X4CT( &TranslateMat, Model->Translation.x, Model->Translation.y, Model->Translation.z ) ;
+			if( Model->Scale.x != 1.0f || Model->Scale.y != 1.0f || Model->Scale.z != 1.0f )
+			{
+				CreateScalingMatrix4X4CT( &ScaleMat, Model->Scale.x, Model->Scale.y, Model->Scale.z ) ;
+
+				// スケーリングを使用しているかどうかのフラグを立てる
+				Model->LocalWorldMatrixUseScaling = true ;
+			}
+			else
+			{
+				CreateIdentityMatrix4X4CTD( &ScaleMat ) ;
+			}
 			switch( Model->Rotation.Type )
 			{
 			case MV1_ROTATE_TYPE_XYZROT :
-				CreateRotationXYZMatrix( &RotateMat, Model->Rotation.XYZRot.x, Model->Rotation.XYZRot.y, Model->Rotation.XYZRot.z ) ;
+				CreateRotationXYZMatrix4X4CT( &RotateMat, Model->Rotation.XYZRot.x, Model->Rotation.XYZRot.y, Model->Rotation.XYZRot.z ) ;
 				break ;
 
 			case MV1_ROTATE_TYPE_QUATERNION :
-				RotateQ1Mat.m[0][0] =  Model->Rotation.Qt.w ; RotateQ1Mat.m[0][1] = -Model->Rotation.Qt.z ; RotateQ1Mat.m[0][2] =  Model->Rotation.Qt.y ; RotateQ1Mat.m[0][3] =  Model->Rotation.Qt.x ;
-				RotateQ1Mat.m[1][0] =  Model->Rotation.Qt.z ; RotateQ1Mat.m[1][1] =  Model->Rotation.Qt.w ; RotateQ1Mat.m[1][2] = -Model->Rotation.Qt.x ; RotateQ1Mat.m[1][3] =  Model->Rotation.Qt.y ;
-				RotateQ1Mat.m[2][0] = -Model->Rotation.Qt.y ; RotateQ1Mat.m[2][1] =  Model->Rotation.Qt.x ; RotateQ1Mat.m[2][2] =  Model->Rotation.Qt.w ; RotateQ1Mat.m[2][3] =  Model->Rotation.Qt.z ;
-				RotateQ1Mat.m[3][0] = -Model->Rotation.Qt.x ; RotateQ1Mat.m[3][1] = -Model->Rotation.Qt.y ; RotateQ1Mat.m[3][2] = -Model->Rotation.Qt.z ; RotateQ1Mat.m[3][3] =  Model->Rotation.Qt.w ;
-
-				RotateQ2Mat.m[0][0] =  Model->Rotation.Qt.w ; RotateQ2Mat.m[0][1] = -Model->Rotation.Qt.z ; RotateQ2Mat.m[0][2] =  Model->Rotation.Qt.y ; RotateQ2Mat.m[0][3] = -Model->Rotation.Qt.x ;
-				RotateQ2Mat.m[1][0] =  Model->Rotation.Qt.z ; RotateQ2Mat.m[1][1] =  Model->Rotation.Qt.w ; RotateQ2Mat.m[1][2] = -Model->Rotation.Qt.x ; RotateQ2Mat.m[1][3] = -Model->Rotation.Qt.y ;
-				RotateQ2Mat.m[2][0] = -Model->Rotation.Qt.y ; RotateQ2Mat.m[2][1] =  Model->Rotation.Qt.x ; RotateQ2Mat.m[2][2] =  Model->Rotation.Qt.w ; RotateQ2Mat.m[2][3] = -Model->Rotation.Qt.z ;
-				RotateQ2Mat.m[3][0] =  Model->Rotation.Qt.x ; RotateQ2Mat.m[3][1] =  Model->Rotation.Qt.y ; RotateQ2Mat.m[3][2] =  Model->Rotation.Qt.z ; RotateQ2Mat.m[3][3] =  Model->Rotation.Qt.w ;
-
-				CreateMultiplyMatrix( &RotateMat, &RotateQ2Mat, &RotateQ1Mat ) ;
+				CreateQuaternionRotateMatrix4X4CT( &RotateMat, &Model->Rotation.Qt ) ;
 				break ;
 
 			case MV1_ROTATE_TYPE_MATRIX :
-				ConvertMatrix4x4cToMatrix( &RotateMat, &Model->Rotation.Mat ) ;
-//				_MEMCPY( &RotateMat, &Model->Rotation.Mat, sizeof( MATRIX_4X4CT ) ) ;
+				ConvertMatrix4x4cFToMatrix4x4c( &RotateMat, &Model->Rotation.Mat ) ;
+
+				// スケーリングを使用しているかどうかのフラグを立てる
+				Model->LocalWorldMatrixUseScaling = true ;
 				break ;
 
 			case MV1_ROTATE_TYPE_ZAXIS :
-/*
-				if( VSquareSize( VSub( VGet( 0.0f, 0.0f, -1.0f ), Model->Rotation.ZAxisDir.Dir ) ) < 0.000001f )
 				{
-					RotateMat = MMult( MGetRotZ( Model->Rotation.ZAxisDir.Twist ), MGetRotY( DX_PI ) ) ;
+					MATRIX TempMatrix ;
+
+					TempMatrix = MMult( MGetRotZ( Model->Rotation.ZAxis.Twist ), MGetAxis1( VCross( Model->Rotation.ZAxis.Up, Model->Rotation.ZAxis.Z ), Model->Rotation.ZAxis.Up, Model->Rotation.ZAxis.Z, VGet( 0.0f, 0.0f, 0.0f ) ) ) ;
+					ConvertMatrixFToMatrix4x4c( &RotateMat, &TempMatrix ) ;
 				}
-				else
-				{
-					RotateMat = MMult( MGetRotZ( Model->Rotation.ZAxisDir.Twist ), MGetRotVec2( VGet( 0.0f, 0.0f, 1.0f ), Model->Rotation.ZAxisDir.Dir ) ) ;
-				}
-*/
-				RotateMat = MMult( MGetRotZ( Model->Rotation.ZAxis.Twist ), MGetAxis1( VCross( Model->Rotation.ZAxis.Up, Model->Rotation.ZAxis.Z ), Model->Rotation.ZAxis.Up, Model->Rotation.ZAxis.Z, VGet( 0.0f, 0.0f, 0.0f ) ) ) ;
 				break ;
 			}
-			CreateMultiplyMatrix( &TransformMat, &ScaleMat, &RotateMat ) ;
-			CreateMultiplyMatrix( &TransformMat, &TransformMat, &TranslateMat ) ;
 
-			// 行列をセット
-			ConvertMatrixToMatrix4x4c( &Model->LocalWorldMatrix, &TransformMat ) ;
-//			_MEMCPY( &Model->LocalWorldMatrix, &TransformMat, sizeof( MATRIX ) ) ;
+			UnSafeMultiplyMatrix4X4CT( &TransformMat,            &ScaleMat,     &RotateMat ) ;
+			UnSafeMultiplyMatrix4X4CT( &Model->LocalWorldMatrix, &TransformMat, &TranslateMat ) ;
 		}
 	}
 
@@ -1195,6 +1470,7 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 	for( i = 0 ; i < MBase->FrameNum ; i ++, Frame ++, MAnim += Model->AnimSetMaxNum )
 	{
 		MATRIX_4X4CT *ParentMatrix ;
+		bool ParentUseScaling ;
 
 		// 物理演算で行列を導き出すようになっている場合は何もしない
 		if( Frame->PhysicsRigidBody != NULL ) continue ;
@@ -1207,25 +1483,46 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 		Frame->SetupRefPolygon[ 1 ][ 0 ] = false ;
 		Frame->SetupRefPolygon[ 1 ][ 1 ] = false ;
 
+		// スケーリングを使用しているかどうかのフラグを倒す
+		Frame->LocalWorldMatrixUseScaling = false ;
+
 		// 親行列をセットする
-		ParentMatrix = FrameBase->IgnoreParentTransform || Frame->Parent == NULL ? &Model->LocalWorldMatrix : &Frame->Parent->LocalWorldMatrix ;
+		if( FrameBase->IgnoreParentTransform || Frame->Parent == NULL )
+		{
+			ParentMatrix = &Model->LocalWorldMatrix ;
+			ParentUseScaling = Model->LocalWorldMatrixUseScaling ;
+		}
+		else
+		{
+			ParentMatrix = &Frame->Parent->LocalWorldMatrix ;
+			ParentUseScaling = Frame->Parent->LocalWorldMatrixUseScaling ;
+		}
 
 		// ユーザー指定の行列がある場合はそれを使用する
 		if( Frame->ValidUserLocalTransformMatrix )
 		{
 			UnSafeMultiplyMatrix4X4CT( &Frame->LocalWorldMatrix, &Frame->UserLocalTransformMatrix, ParentMatrix ) ;
+
+			// スケーリングを使用しているかどうかのフラグを立てる
+			Frame->LocalWorldMatrixUseScaling = true ;
 		}
 		else
 		// アニメーションがある場合と無い場合で処理を分岐
 		if( Model->AnimSetNum == 0 )
 		{
 			// アニメーションがない場合
-			UnSafeMultiplyMatrix4X4CT( &Frame->LocalWorldMatrix, &FrameBase->LocalTransformMatrix, ParentMatrix ) ;
+			UnSafeMultiplyMatrix4X4CT_FC( &Frame->LocalWorldMatrix, &FrameBase->LocalTransformMatrix, ParentMatrix ) ;
+
+			// 親のフレーム又はデフォルトの設定でスケーリングを使用していたらスケーリングを使用しているかどうかのフラグを立てる
+			if( FrameBase->LocalTransformMatrixUseScaling || ParentUseScaling )
+			{
+				Frame->LocalWorldMatrixUseScaling = true ;
+			}
 		}
 		else
 		{
 			// アニメーションがある場合
-			MATRIX_4X4CT BlendMat ;
+			MATRIX_4X4CT_F BlendMat ;
 			float BlendRate ;
 			VECTOR Translate, Scale, Rotate ;
 			FLOAT4 Quaternion ;
@@ -1250,16 +1547,33 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 			{
 				if( FrameBase->LocalTransformMatrixType == 0 )
 				{
-					Frame->LocalWorldMatrix = Frame->Parent == NULL ? Model->LocalWorldMatrix : Frame->Parent->LocalWorldMatrix ;
+					if( Frame->Parent == NULL )
+					{
+						Frame->LocalWorldMatrix = Model->LocalWorldMatrix ;
+						Frame->LocalWorldMatrixUseScaling = Model->LocalWorldMatrixUseScaling ;
+					}
+					else
+					{
+						Frame->LocalWorldMatrix = Frame->Parent->LocalWorldMatrix ;
+						Frame->LocalWorldMatrixUseScaling = Frame->Parent->LocalWorldMatrixUseScaling ;
+					}
 				}
 				else
 				if( FrameBase->LocalTransformMatrixType == 1 )
 				{
-					UnSafeTranslateOnlyMultiplyMatrix4X4CT( &Frame->LocalWorldMatrix, &FrameBase->LocalTransformMatrix, ParentMatrix ) ;
+					UnSafeTranslateOnlyMultiplyMatrix4X4CT_FC( &Frame->LocalWorldMatrix, &FrameBase->LocalTransformMatrix, ParentMatrix ) ;
+					if( FrameBase->LocalTransformMatrixUseScaling || ParentUseScaling )
+					{
+						Frame->LocalWorldMatrixUseScaling = true ;
+					}
 				}
 				else
 				{
-					UnSafeMultiplyMatrix4X4CT( &Frame->LocalWorldMatrix, &FrameBase->LocalTransformMatrix, ParentMatrix ) ;
+					UnSafeMultiplyMatrix4X4CT_FC( &Frame->LocalWorldMatrix, &FrameBase->LocalTransformMatrix, ParentMatrix ) ;
+					if( FrameBase->LocalTransformMatrixUseScaling || ParentUseScaling )
+					{
+						Frame->LocalWorldMatrixUseScaling = true ;
+					}
 				}
 			}
 			else
@@ -1270,7 +1584,9 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 				if( BlendFlag & MV1_ANIMVALUE_MATRIX )
 				{
 					// 親フレームの行列を掛ける
-					UnSafeMultiplyMatrix4X4CT( &Frame->LocalWorldMatrix, &MAnim3->Anim->Matrix, ParentMatrix ) ;
+					UnSafeMultiplyMatrix4X4CT_FC( &Frame->LocalWorldMatrix, &MAnim3->Anim->Matrix, ParentMatrix ) ;
+
+					Frame->LocalWorldMatrixUseScaling = true ;
 				}
 				else
 				{
@@ -1288,9 +1604,20 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 							( FrameBase->Flag & MV1_FRAMEFLAG_POSTROTATE ) != 0 ? &FrameBase->PostRotate : NULL,
 							&MAnim3->Anim->Quaternion
 						) ;
+
 						MAnim3->Anim->ValidBlendMatrix = true ;
+
+						if( BlendFlag & MV1_ANIMVALUE_SCALE )
+						{
+							MAnim3->Anim->BlendMatrixUseScaling = true ;
+						}
 					}
 					BlendMat = MAnim3->Anim->BlendMatrix ;
+
+					if( MAnim3->Anim->BlendMatrixUseScaling )
+					{
+						Frame->LocalWorldMatrixUseScaling = true ;
+					}
 
 					/*
 					NS_ErrorLogFmtAdd( "No:%d Flag:%d Trans:%.2f,%.2f,%.2f Scale:%.2f,%.2f,%.2f RotO:%d Rotate:%.2f,%.2f,%.2f Qt:%.2f,%.2f,%.2f,%.2f        Name:%s",
@@ -1312,7 +1639,7 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 						BlendMat.m[2][0], BlendMat.m[2][1], BlendMat.m[2][2], BlendMat.m[2][3] );
 					*/
 
-					UnSafeMultiplyMatrix4X4CT( &Frame->LocalWorldMatrix, &BlendMat, ParentMatrix ) ;
+					UnSafeMultiplyMatrix4X4CT_FC( &Frame->LocalWorldMatrix, &BlendMat, ParentMatrix ) ;
 					//NS_ErrorLogFmtAdd( "no:%d proc:%d", i, 6 );
 				}
 			}
@@ -1341,38 +1668,14 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 						{
 							if( BlendRate == 1.0f )
 							{
-								BlendMat.m[ 0 ][ 0 ] += Anim->Matrix.m[ 0 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 0 ] ;
-								BlendMat.m[ 0 ][ 1 ] += Anim->Matrix.m[ 0 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 1 ] ;
-								BlendMat.m[ 0 ][ 2 ] += Anim->Matrix.m[ 0 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 2 ] ;
-								BlendMat.m[ 0 ][ 3 ] += Anim->Matrix.m[ 0 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 3 ] ;
-
-								BlendMat.m[ 1 ][ 0 ] += Anim->Matrix.m[ 1 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 0 ] ;
-								BlendMat.m[ 1 ][ 1 ] += Anim->Matrix.m[ 1 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 1 ] ;
-								BlendMat.m[ 1 ][ 2 ] += Anim->Matrix.m[ 1 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 2 ] ;
-								BlendMat.m[ 1 ][ 3 ] += Anim->Matrix.m[ 1 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 3 ] ;
-
-								BlendMat.m[ 2 ][ 0 ] += Anim->Matrix.m[ 2 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 0 ] ;
-								BlendMat.m[ 2 ][ 1 ] += Anim->Matrix.m[ 2 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 1 ] ;
-								BlendMat.m[ 2 ][ 2 ] += Anim->Matrix.m[ 2 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ;
-								BlendMat.m[ 2 ][ 3 ] += Anim->Matrix.m[ 2 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ;
+								UnSafeMatrix4X4CT_F_EqPlus_F_Sub_F( &BlendMat, &Anim->Matrix, &FrameBase->LocalTransformMatrix ) ;
 							}
 							else
 							{
-								BlendMat.m[ 0 ][ 0 ] += ( Anim->Matrix.m[ 0 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 0 ] ) * BlendRate ;
-								BlendMat.m[ 0 ][ 1 ] += ( Anim->Matrix.m[ 0 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 1 ] ) * BlendRate ;
-								BlendMat.m[ 0 ][ 2 ] += ( Anim->Matrix.m[ 0 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 2 ] ) * BlendRate ;
-								BlendMat.m[ 0 ][ 3 ] += ( Anim->Matrix.m[ 0 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 3 ] ) * BlendRate ;
-
-								BlendMat.m[ 1 ][ 0 ] += ( Anim->Matrix.m[ 1 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 0 ] ) * BlendRate ;
-								BlendMat.m[ 1 ][ 1 ] += ( Anim->Matrix.m[ 1 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 1 ] ) * BlendRate ;
-								BlendMat.m[ 1 ][ 2 ] += ( Anim->Matrix.m[ 1 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 2 ] ) * BlendRate ;
-								BlendMat.m[ 1 ][ 3 ] += ( Anim->Matrix.m[ 1 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 3 ] ) * BlendRate ;
-
-								BlendMat.m[ 2 ][ 0 ] += ( Anim->Matrix.m[ 2 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 0 ] ) * BlendRate ;
-								BlendMat.m[ 2 ][ 1 ] += ( Anim->Matrix.m[ 2 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 1 ] ) * BlendRate ;
-								BlendMat.m[ 2 ][ 2 ] += ( Anim->Matrix.m[ 2 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ) * BlendRate ;
-								BlendMat.m[ 2 ][ 3 ] += ( Anim->Matrix.m[ 2 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ) * BlendRate ;
+								UnSafeMatrix4X4CT_F_EqPlus_F_Sub_F_Mul_S( &BlendMat, &Anim->Matrix, &FrameBase->LocalTransformMatrix, BlendRate ) ;
 							}
+
+							Frame->LocalWorldMatrixUseScaling = true ;
 						}
 						else
 						{
@@ -1390,75 +1693,58 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 									( FrameBase->Flag & MV1_FRAMEFLAG_POSTROTATE ) != 0 ? &FrameBase->PostRotate : NULL,
 									&Anim->Quaternion ) ;
 								Anim->ValidBlendMatrix = true ;
+
+								if( ( Anim->ValidFlag & MV1_ANIMVALUE_SCALE ) &&
+									( Anim->Scale.x < 0.9999999f || Anim->Scale.x > 1.0000001f ||
+									  Anim->Scale.y < 0.9999999f || Anim->Scale.y > 1.0000001f ||
+									  Anim->Scale.z < 0.9999999f || Anim->Scale.z > 1.0000001f ) )
+								{
+									Anim->BlendMatrixUseScaling = true ;
+								}
+							}
+
+							if( Anim->BlendMatrixUseScaling )
+							{
+								Frame->LocalWorldMatrixUseScaling = true ;
 							}
 
 							if( BlendRate == 1.0f )
 							{
-								BlendMat.m[ 0 ][ 0 ] += Anim->BlendMatrix.m[ 0 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 0 ] ;
-								BlendMat.m[ 0 ][ 1 ] += Anim->BlendMatrix.m[ 0 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 1 ] ;
-								BlendMat.m[ 0 ][ 2 ] += Anim->BlendMatrix.m[ 0 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 2 ] ;
-								BlendMat.m[ 0 ][ 3 ] += Anim->BlendMatrix.m[ 0 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 3 ] ;
-
-								BlendMat.m[ 1 ][ 0 ] += Anim->BlendMatrix.m[ 1 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 0 ] ;
-								BlendMat.m[ 1 ][ 1 ] += Anim->BlendMatrix.m[ 1 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 1 ] ;
-								BlendMat.m[ 1 ][ 2 ] += Anim->BlendMatrix.m[ 1 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 2 ] ;
-								BlendMat.m[ 1 ][ 3 ] += Anim->BlendMatrix.m[ 1 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 3 ] ;
-
-								BlendMat.m[ 2 ][ 0 ] += Anim->BlendMatrix.m[ 2 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 0 ] ;
-								BlendMat.m[ 2 ][ 1 ] += Anim->BlendMatrix.m[ 2 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 1 ] ;
-								BlendMat.m[ 2 ][ 2 ] += Anim->BlendMatrix.m[ 2 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ;
-								BlendMat.m[ 2 ][ 3 ] += Anim->BlendMatrix.m[ 2 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ;
+								UnSafeMatrix4X4CT_F_EqPlus_F_Sub_F( &BlendMat, &Anim->BlendMatrix, &FrameBase->LocalTransformMatrix ) ;
 							}
 							else
 							{
-								BlendMat.m[ 0 ][ 0 ] += ( Anim->BlendMatrix.m[ 0 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 0 ] ) * BlendRate ;
-								BlendMat.m[ 0 ][ 1 ] += ( Anim->BlendMatrix.m[ 0 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 1 ] ) * BlendRate ;
-								BlendMat.m[ 0 ][ 2 ] += ( Anim->BlendMatrix.m[ 0 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 2 ] ) * BlendRate ;
-								BlendMat.m[ 0 ][ 3 ] += ( Anim->BlendMatrix.m[ 0 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 3 ] ) * BlendRate ;
-
-								BlendMat.m[ 1 ][ 0 ] += ( Anim->BlendMatrix.m[ 1 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 0 ] ) * BlendRate ;
-								BlendMat.m[ 1 ][ 1 ] += ( Anim->BlendMatrix.m[ 1 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 1 ] ) * BlendRate ;
-								BlendMat.m[ 1 ][ 2 ] += ( Anim->BlendMatrix.m[ 1 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 2 ] ) * BlendRate ;
-								BlendMat.m[ 1 ][ 3 ] += ( Anim->BlendMatrix.m[ 1 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 3 ] ) * BlendRate ;
-
-								BlendMat.m[ 2 ][ 0 ] += ( Anim->BlendMatrix.m[ 2 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 0 ] ) * BlendRate ;
-								BlendMat.m[ 2 ][ 1 ] += ( Anim->BlendMatrix.m[ 2 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 1 ] ) * BlendRate ;
-								BlendMat.m[ 2 ][ 2 ] += ( Anim->BlendMatrix.m[ 2 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ) * BlendRate ;
-								BlendMat.m[ 2 ][ 3 ] += ( Anim->BlendMatrix.m[ 2 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ) * BlendRate ;
+								UnSafeMatrix4X4CT_F_EqPlus_F_Sub_F_Mul_S( &BlendMat, &Anim->BlendMatrix, &FrameBase->LocalTransformMatrix, BlendRate ) ;
 							}
 						}
 					}
-					BlendMat.m[ 0 ][ 0 ] += FrameBase->LocalTransformMatrix.m[ 0 ][ 0 ] ;
-					BlendMat.m[ 0 ][ 1 ] += FrameBase->LocalTransformMatrix.m[ 0 ][ 1 ] ;
-					BlendMat.m[ 0 ][ 2 ] += FrameBase->LocalTransformMatrix.m[ 0 ][ 2 ] ;
-					BlendMat.m[ 0 ][ 3 ] += FrameBase->LocalTransformMatrix.m[ 0 ][ 3 ] ;
 
-					BlendMat.m[ 1 ][ 0 ] += FrameBase->LocalTransformMatrix.m[ 1 ][ 0 ] ;
-					BlendMat.m[ 1 ][ 1 ] += FrameBase->LocalTransformMatrix.m[ 1 ][ 1 ] ;
-					BlendMat.m[ 1 ][ 2 ] += FrameBase->LocalTransformMatrix.m[ 1 ][ 2 ] ;
-					BlendMat.m[ 1 ][ 3 ] += FrameBase->LocalTransformMatrix.m[ 1 ][ 3 ] ;
+					UnSafeMatrix4X4CT_F_EqPlus_F( &BlendMat, &FrameBase->LocalTransformMatrix ) ;
 
-					BlendMat.m[ 2 ][ 0 ] += FrameBase->LocalTransformMatrix.m[ 2 ][ 0 ] ;
-					BlendMat.m[ 2 ][ 1 ] += FrameBase->LocalTransformMatrix.m[ 2 ][ 1 ] ;
-					BlendMat.m[ 2 ][ 2 ] += FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ;
-					BlendMat.m[ 2 ][ 3 ] += FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ;
-/*
-					DivSize.x = 1.0f / _SQRT( BlendMat.m[ 0 ][ 0 ] * BlendMat.m[ 0 ][ 0 ] + BlendMat.m[ 0 ][ 1 ] * BlendMat.m[ 0 ][ 1 ] + BlendMat.m[ 0 ][ 2 ] * BlendMat.m[ 0 ][ 2 ] ) ;
-					DivSize.y = 1.0f / _SQRT( BlendMat.m[ 1 ][ 0 ] * BlendMat.m[ 1 ][ 0 ] + BlendMat.m[ 1 ][ 1 ] * BlendMat.m[ 1 ][ 1 ] + BlendMat.m[ 1 ][ 2 ] * BlendMat.m[ 1 ][ 2 ] ) ;
-					DivSize.z = 1.0f / _SQRT( BlendMat.m[ 2 ][ 0 ] * BlendMat.m[ 2 ][ 0 ] + BlendMat.m[ 2 ][ 1 ] * BlendMat.m[ 2 ][ 1 ] + BlendMat.m[ 2 ][ 2 ] * BlendMat.m[ 2 ][ 2 ] ) ;
+					if( FrameBase->LocalTransformMatrixUseScaling )
+					{
+						Frame->LocalWorldMatrixUseScaling = true ;
+					}
 
-					BlendMat.m[ 0 ][ 0 ] *= DivSize.x ;
-					BlendMat.m[ 0 ][ 1 ] *= DivSize.x ;
-					BlendMat.m[ 0 ][ 2 ] *= DivSize.x ;
+					// スケーリングが使用されていなかったら行列の回転部分の正規化
+					if( Frame->LocalWorldMatrixUseScaling == false )
+					{
+						DivSize.x = 1.0f / _SQRT( BlendMat.m[ 0 ][ 0 ] * BlendMat.m[ 0 ][ 0 ] + BlendMat.m[ 0 ][ 1 ] * BlendMat.m[ 0 ][ 1 ] + BlendMat.m[ 0 ][ 2 ] * BlendMat.m[ 0 ][ 2 ] ) ;
+						DivSize.y = 1.0f / _SQRT( BlendMat.m[ 1 ][ 0 ] * BlendMat.m[ 1 ][ 0 ] + BlendMat.m[ 1 ][ 1 ] * BlendMat.m[ 1 ][ 1 ] + BlendMat.m[ 1 ][ 2 ] * BlendMat.m[ 1 ][ 2 ] ) ;
+						DivSize.z = 1.0f / _SQRT( BlendMat.m[ 2 ][ 0 ] * BlendMat.m[ 2 ][ 0 ] + BlendMat.m[ 2 ][ 1 ] * BlendMat.m[ 2 ][ 1 ] + BlendMat.m[ 2 ][ 2 ] * BlendMat.m[ 2 ][ 2 ] ) ;
 
-					BlendMat.m[ 1 ][ 0 ] *= DivSize.y ;
-					BlendMat.m[ 1 ][ 1 ] *= DivSize.y ;
-					BlendMat.m[ 1 ][ 2 ] *= DivSize.y ;
+						BlendMat.m[ 0 ][ 0 ] *= DivSize.x ;
+						BlendMat.m[ 0 ][ 1 ] *= DivSize.x ;
+						BlendMat.m[ 0 ][ 2 ] *= DivSize.x ;
 
-					BlendMat.m[ 2 ][ 0 ] *= DivSize.z ;
-					BlendMat.m[ 2 ][ 1 ] *= DivSize.z ;
-					BlendMat.m[ 2 ][ 2 ] *= DivSize.z ;
-*/
+						BlendMat.m[ 1 ][ 0 ] *= DivSize.y ;
+						BlendMat.m[ 1 ][ 1 ] *= DivSize.y ;
+						BlendMat.m[ 1 ][ 2 ] *= DivSize.y ;
+
+						BlendMat.m[ 2 ][ 0 ] *= DivSize.z ;
+						BlendMat.m[ 2 ][ 1 ] *= DivSize.z ;
+						BlendMat.m[ 2 ][ 2 ] *= DivSize.z ;
+					}
 				}
 				else
 				{
@@ -1489,9 +1775,9 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 						{
 							if( Anim->ValidFlag & MV1_ANIMVALUE_TRANSLATE )
 							{
-								Translate.x += Anim->Translate.x - FrameBase->Translate.x ;
-								Translate.y += Anim->Translate.y - FrameBase->Translate.y ;
-								Translate.z += Anim->Translate.z - FrameBase->Translate.z ;
+								Translate.x += Anim->Translate.x - ( float )FrameBase->Translate.x ;
+								Translate.y += Anim->Translate.y - ( float )FrameBase->Translate.y ;
+								Translate.z += Anim->Translate.z - ( float )FrameBase->Translate.z ;
 							}
 
 							if( Anim->ValidFlag & MV1_ANIMVALUE_SCALE )
@@ -1520,9 +1806,9 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 						{
 							if( Anim->ValidFlag & MV1_ANIMVALUE_TRANSLATE )
 							{
-								Translate.x += ( Anim->Translate.x - FrameBase->Translate.x ) * BlendRate ;
-								Translate.y += ( Anim->Translate.y - FrameBase->Translate.y ) * BlendRate ;
-								Translate.z += ( Anim->Translate.z - FrameBase->Translate.z ) * BlendRate ;
+								Translate.x += ( Anim->Translate.x - ( float )FrameBase->Translate.x ) * BlendRate ;
+								Translate.y += ( Anim->Translate.y - ( float )FrameBase->Translate.y ) * BlendRate ;
+								Translate.z += ( Anim->Translate.z - ( float )FrameBase->Translate.z ) * BlendRate ;
 							}
 
 							if( Anim->ValidFlag & MV1_ANIMVALUE_SCALE )
@@ -1549,9 +1835,9 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 						}
 					}
 
-					Translate.x += FrameBase->Translate.x ;
-					Translate.y += FrameBase->Translate.y ;
-					Translate.z += FrameBase->Translate.z ;
+					Translate.x += ( float )FrameBase->Translate.x ;
+					Translate.y += ( float )FrameBase->Translate.y ;
+					Translate.z += ( float )FrameBase->Translate.z ;
 
 					Scale.x += FrameBase->Scale.x ;
 					Scale.y += FrameBase->Scale.y ;
@@ -1578,10 +1864,19 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 						( FrameBase->Flag & MV1_FRAMEFLAG_POSTROTATE ) != 0 ? &FrameBase->PostRotate : NULL,
 						&Quaternion
 					) ;
+
+					if( BlendFlag & MV1_ANIMVALUE_SCALE )
+					{
+						Frame->LocalWorldMatrixUseScaling = true ;
+					}
 				}
 
 				// 親フレームの行列を掛ける
-				UnSafeMultiplyMatrix4X4CT( &Frame->LocalWorldMatrix, &BlendMat, ParentMatrix ) ;
+				UnSafeMultiplyMatrix4X4CT_FC( &Frame->LocalWorldMatrix, &BlendMat, ParentMatrix ) ;
+				if( ParentUseScaling )
+				{
+					Frame->LocalWorldMatrixUseScaling = true ;
+				}
 			}
 		}
 
@@ -1625,22 +1920,22 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 	{\
 		if( ( CHILD )->DrawMaterial.UseColorScale )\
 		{\
-			( CHILD )->SetupDrawMaterial.DiffuseScale.r = ( CHILD )->DrawMaterial.DiffuseScale.r * ( PARENT ).DiffuseScale.r ;\
-			( CHILD )->SetupDrawMaterial.DiffuseScale.g = ( CHILD )->DrawMaterial.DiffuseScale.g * ( PARENT ).DiffuseScale.g ;\
-			( CHILD )->SetupDrawMaterial.DiffuseScale.b = ( CHILD )->DrawMaterial.DiffuseScale.b * ( PARENT ).DiffuseScale.b ;\
-			( CHILD )->SetupDrawMaterial.DiffuseScale.a = ( CHILD )->DrawMaterial.DiffuseScale.a * ( PARENT ).DiffuseScale.a ;\
-			( CHILD )->SetupDrawMaterial.AmbientScale.r = ( CHILD )->DrawMaterial.AmbientScale.r * ( PARENT ).AmbientScale.r ;\
-			( CHILD )->SetupDrawMaterial.AmbientScale.g = ( CHILD )->DrawMaterial.AmbientScale.g * ( PARENT ).AmbientScale.g ;\
-			( CHILD )->SetupDrawMaterial.AmbientScale.b = ( CHILD )->DrawMaterial.AmbientScale.b * ( PARENT ).AmbientScale.b ;\
-			( CHILD )->SetupDrawMaterial.AmbientScale.a = ( CHILD )->DrawMaterial.AmbientScale.a * ( PARENT ).AmbientScale.a ;\
-			( CHILD )->SetupDrawMaterial.SpecularScale.r = ( CHILD )->DrawMaterial.SpecularScale.r * ( PARENT ).SpecularScale.r ;\
-			( CHILD )->SetupDrawMaterial.SpecularScale.g = ( CHILD )->DrawMaterial.SpecularScale.g * ( PARENT ).SpecularScale.g ;\
-			( CHILD )->SetupDrawMaterial.SpecularScale.b = ( CHILD )->DrawMaterial.SpecularScale.b * ( PARENT ).SpecularScale.b ;\
-			( CHILD )->SetupDrawMaterial.SpecularScale.a = ( CHILD )->DrawMaterial.SpecularScale.a * ( PARENT ).SpecularScale.a ;\
-			( CHILD )->SetupDrawMaterial.EmissiveScale.r = ( CHILD )->DrawMaterial.EmissiveScale.r * ( PARENT ).EmissiveScale.r ;\
-			( CHILD )->SetupDrawMaterial.EmissiveScale.g = ( CHILD )->DrawMaterial.EmissiveScale.g * ( PARENT ).EmissiveScale.g ;\
-			( CHILD )->SetupDrawMaterial.EmissiveScale.b = ( CHILD )->DrawMaterial.EmissiveScale.b * ( PARENT ).EmissiveScale.b ;\
-			( CHILD )->SetupDrawMaterial.EmissiveScale.a = ( CHILD )->DrawMaterial.EmissiveScale.a * ( PARENT ).EmissiveScale.a ;\
+			( CHILD )->SetupDrawMaterial.DiffuseScale.r = ( BYTE )( ( CHILD )->DrawMaterial.DiffuseScale.r * ( PARENT ).DiffuseScale.r ) ;\
+			( CHILD )->SetupDrawMaterial.DiffuseScale.g = ( BYTE )( ( CHILD )->DrawMaterial.DiffuseScale.g * ( PARENT ).DiffuseScale.g ) ;\
+			( CHILD )->SetupDrawMaterial.DiffuseScale.b = ( BYTE )( ( CHILD )->DrawMaterial.DiffuseScale.b * ( PARENT ).DiffuseScale.b ) ;\
+			( CHILD )->SetupDrawMaterial.DiffuseScale.a = ( BYTE )( ( CHILD )->DrawMaterial.DiffuseScale.a * ( PARENT ).DiffuseScale.a ) ;\
+			( CHILD )->SetupDrawMaterial.AmbientScale.r = ( BYTE )( ( CHILD )->DrawMaterial.AmbientScale.r * ( PARENT ).AmbientScale.r ) ;\
+			( CHILD )->SetupDrawMaterial.AmbientScale.g = ( BYTE )( ( CHILD )->DrawMaterial.AmbientScale.g * ( PARENT ).AmbientScale.g ) ;\
+			( CHILD )->SetupDrawMaterial.AmbientScale.b = ( BYTE )( ( CHILD )->DrawMaterial.AmbientScale.b * ( PARENT ).AmbientScale.b ) ;\
+			( CHILD )->SetupDrawMaterial.AmbientScale.a = ( BYTE )( ( CHILD )->DrawMaterial.AmbientScale.a * ( PARENT ).AmbientScale.a ) ;\
+			( CHILD )->SetupDrawMaterial.SpecularScale.r = ( BYTE )( ( CHILD )->DrawMaterial.SpecularScale.r * ( PARENT ).SpecularScale.r ) ;\
+			( CHILD )->SetupDrawMaterial.SpecularScale.g = ( BYTE )( ( CHILD )->DrawMaterial.SpecularScale.g * ( PARENT ).SpecularScale.g ) ;\
+			( CHILD )->SetupDrawMaterial.SpecularScale.b = ( BYTE )( ( CHILD )->DrawMaterial.SpecularScale.b * ( PARENT ).SpecularScale.b ) ;\
+			( CHILD )->SetupDrawMaterial.SpecularScale.a = ( BYTE )( ( CHILD )->DrawMaterial.SpecularScale.a * ( PARENT ).SpecularScale.a ) ;\
+			( CHILD )->SetupDrawMaterial.EmissiveScale.r = ( BYTE )( ( CHILD )->DrawMaterial.EmissiveScale.r * ( PARENT ).EmissiveScale.r ) ;\
+			( CHILD )->SetupDrawMaterial.EmissiveScale.g = ( BYTE )( ( CHILD )->DrawMaterial.EmissiveScale.g * ( PARENT ).EmissiveScale.g ) ;\
+			( CHILD )->SetupDrawMaterial.EmissiveScale.b = ( BYTE )( ( CHILD )->DrawMaterial.EmissiveScale.b * ( PARENT ).EmissiveScale.b ) ;\
+			( CHILD )->SetupDrawMaterial.EmissiveScale.a = ( BYTE )( ( CHILD )->DrawMaterial.EmissiveScale.a * ( PARENT ).EmissiveScale.a ) ;\
 		}\
 		else\
 		{\
@@ -1664,7 +1959,7 @@ static void MV1SetupMatrix( MV1_MODEL *Model )
 	}\
 \
 	( CHILD )->SetupDrawMaterial.OpacityRate = ( CHILD )->DrawMaterial.OpacityRate * ( PARENT ).OpacityRate ;\
-	( CHILD )->SetupDrawMaterial.Visible = ( CHILD )->DrawMaterial.Visible != 0 && ( PARENT ).Visible != 0 ? 1 : 0 ;
+	( CHILD )->SetupDrawMaterial.Visible     = ( BYTE )( ( CHILD )->DrawMaterial.Visible != 0 && ( PARENT ).Visible != 0 ? 1 : 0 ) ;
 
 // 描画用のマテリアル情報を構築する( 中でメッシュ自体の更新チェックはしません )
 static void MV1SetupDrawMaterial( MV1_FRAME *Frame, MV1_MESH *Mesh )
@@ -1760,12 +2055,12 @@ static void MV1BitSetChange( MV1_CHANGE *Change )
 
 	if( Change->BaseData->Fill )
 	{
-		int i, Size ;
+		DWORD i, Size ;
 		DWORD *Target, *Src ;
 
 		Target = Change->Target ;
-		Src = Change->BaseData->Fill ;
-		Size = Change->BaseData->Size ;
+		Src    = Change->BaseData->Fill ;
+		Size   = Change->BaseData->Size ;
 		for( i = 0 ; i < Size ; i ++ )
 			Target[ i ] |= Src[ i ] ;
 	}
@@ -1780,12 +2075,12 @@ static void MV1BitResetChange( MV1_CHANGE *Change )
 {
 	if( Change->BaseData->Fill )
 	{
-		int i, Size ;
+		DWORD i, Size ;
 		DWORD *Target, *Src ;
 
 		Target = Change->Target ;
-		Src = Change->BaseData->Fill ;
-		Size = Change->BaseData->Size ;
+		Src    = Change->BaseData->Fill ;
+		Size   = Change->BaseData->Size ;
 		for( i = 0 ; i < Size ; i ++ )
 			Target[ i ] &= ~Src[ i ] ;
 	}
@@ -2047,769 +2342,18 @@ static bool MV1SetDrawMaterialVisible( MV1_DRAW_MATERIAL *DrawMaterial, MV1_CHAN
 	return true ;
 }
 
-// トゥーンの為のマテリアルをセットアップする
-__inline void MV1SetupToonOutLineMeshDrawMaterialCommon(
-	DIRECT3DBLENDINFO *BlendInfo, MV1_MESH *Mesh, float OutLineWidth )
-{
-	MV1_MESH_BASE *MBMesh ;
-	DIRECT3DBLENDINFO *pBlendInfo ; 
-	MATERIALPARAM Material ;
-	MV1_MATERIAL * RST MMaterial ;
-	MV1_MATERIAL_BASE * RST MBMaterial ;
-	MV1_FRAME * RST Frame ;
-
-	Frame = Mesh->Container ;
-	MBMesh = Mesh->BaseData ;
-	MMaterial = Mesh->Material ;
-	MBMaterial = MMaterial->BaseData ;
-
-	// マテリアルのセット
-	Material.Diffuse = MMaterial->OutLineColor ;
-	Material.Diffuse.a = 1.0f ;
-	Material.Specular.r = 0.0f ;
-	Material.Specular.g = 0.0f ;
-	Material.Specular.b = 0.0f ;
-	Material.Specular.a = 0.0f ;
-	Material.Emissive = Material.Specular ;
-	Material.Ambient  = Material.Specular ;
-	Material.Power = 0.0f ;
-	GBASE.Light.ChangeMaterial = 1 ;
-	GRH.DrawPrepAlwaysFlag = TRUE ;
-	D_SetMaterial( &Material ) ;
-
-	// 輪郭線の太さをセットする
-	{
-		float Data[ 4 ] ;
-
-		Data[ 0 ] = OutLineWidth ;
-		Data[ 1 ] = OutLineWidth ;
-		Data[ 2 ] = OutLineWidth ;
-		Data[ 3 ] = OutLineWidth ;
-		SetShaderConstantSet(
-			&GRH.ShaderConstantInfo,
-			DX_SHADERCONSTANTTYPE_VS_FLOAT,
-			DX_SHADERCONSTANTSET_MV1,
-			DX_VS_CONSTF_TOON_OUTLINE_SIZE,
-			Data,
-			1,
-			FALSE
-		) ;
-	}
-
-	// カリング設定
-	D_SetUseCullingFlag( 2 ) ; 
-
-	// ブレンド設定のセットアップ
-	BlendInfo->AlphaTestEnable = MMaterial->UseAlphaTest ;
-	BlendInfo->AlphaFunc = MMaterial->AlphaFunc ;
-	BlendInfo->AlphaRef = MMaterial->AlphaRef ;
-	BlendInfo->FactorColor = 0x00ffffff | ( ( ( DWORD )_FTOL( Mesh->SetupDrawMaterial.OpacityRate * ( Mesh->DrawBlendParam != -1 ? Mesh->DrawBlendParam : MMaterial->DrawBlendParam ) ) ) << 24 ) ;
-	pBlendInfo = &GRH.BlendInfo ;
-	switch( Mesh->DrawBlendMode != -1 ? Mesh->DrawBlendMode : MMaterial->DrawBlendMode )
-	{
-	case DX_BLENDMODE_NOBLEND :
-		BlendInfo->AlphaBlendEnable = FALSE ;
-		BlendInfo->SrcBlend         = pBlendInfo->SrcBlend ;
-		BlendInfo->DestBlend        = pBlendInfo->DestBlend ;
-		BlendInfo->BlendOp          = pBlendInfo->BlendOp ;
-		break ;
-
-	case DX_BLENDMODE_ALPHA :
-		BlendInfo->AlphaBlendEnable = TRUE ;
-		BlendInfo->SrcBlend         = D_D3DBLEND_SRCALPHA ;
-		BlendInfo->DestBlend        = D_D3DBLEND_INVSRCALPHA ;
-		BlendInfo->BlendOp          = D_D3DBLENDOP_ADD ;
-		break ;
-
-	case DX_BLENDMODE_ADD :
-		BlendInfo->AlphaBlendEnable = TRUE ;
-		BlendInfo->SrcBlend         = D_D3DBLEND_SRCALPHA ;
-		BlendInfo->DestBlend        = D_D3DBLEND_ONE ;
-		BlendInfo->BlendOp          = D_D3DBLENDOP_ADD ;
-		break ;
-
-	case DX_BLENDMODE_INVSRC :
-		BlendInfo->AlphaBlendEnable = TRUE ;
-		BlendInfo->SrcBlend         = D_D3DBLEND_SRCALPHA ;
-		BlendInfo->DestBlend        = D_D3DBLEND_INVSRCALPHA ;
-		BlendInfo->BlendOp          = D_D3DBLENDOP_ADD ;
-		break ;
-
-	case DX_BLENDMODE_MUL :
-	case DX_BLENDMODE_MULA :
-		BlendInfo->AlphaBlendEnable = TRUE ;
-		BlendInfo->SrcBlend         = D_D3DBLEND_ZERO ;
-		BlendInfo->DestBlend        = D_D3DBLEND_SRCCOLOR ;
-		BlendInfo->BlendOp          = D_D3DBLENDOP_ADD ;
-		break ;
-	}
-	BlendInfo->UseTextureStageNum = 1 ;
-
-	// スペキュラを無効にする
-	D_SetUseSpecular( FALSE ) ;
-
-	// ライティングを無効にする
-	D_SetLightEnable( FALSE ) ;
-}
-
-// 色をHSVに変換した後、輝度を最大にした時の RGB の値を取得する
-__inline void RGBtoVMaxRGB( float R, float G, float B, float &RD, float &GD, float &BD )
-{
-	float h, s ;
-
-	if( R + G + B < 0.00001f )
-	{
-		RD = 1.0f ;
-		GD = 1.0f ;
-		BD = 1.0f ;
-		return ;
-	}
-
-	if( R > G )
-	{
-		if( R > B )
-		{
-			if( G > B )
-			{
-				// R > G > B
-				if( R - B < 0.00001f )
-				{
-					RD = 1.0f ;
-					GD = 1.0f ;
-					BD = 1.0f ;
-				}
-				else
-				{
-					h = ( G - B ) / ( R - B ) ;
-					s = ( R - B ) / R ;
-
-					RD = 1.0f ;
-					GD = 1.0f - ( 1.0f - h ) * s ;
-					BD = 1.0f - s ;
-				}
-			}
-			else
-			{
-				// R > B > G
-				if( R - G < 0.00001f )
-				{
-					RD = 1.0f ;
-					GD = 1.0f ;
-					BD = 1.0f ;
-				}
-				else
-				{
-					h = ( B - G ) / ( R - G ) ;
-					s = ( R - G ) / R ;
-
-					RD = 1.0f ;
-					GD = 1.0f -      s ;
-					BD = 1.0f - ( 1.0f - h ) * s ;
-				}
-			}
-		}
-		else
-		{
-			// B > R > G
-			if( B - G < 0.00001f )
-			{
-				RD = 1.0f ;
-				GD = 1.0f ;
-				BD = 1.0f ;
-			}
-			else
-			{
-				h = ( R - G ) / ( B - G ) ;
-				s = ( B - G ) / B ;
-
-				RD = 1.0f - ( 1.0f - h ) * s ;
-				GD = 1.0f -                s ;
-				BD = 1.0f ;
-			}
-		}
-	}
-	else
-	{
-		if( G > B )
-		{
-			if( R > B )
-			{
-				// G > R > B
-				if( G - B < 0.00001f )
-				{
-					RD = 1.0f ;
-					GD = 1.0f ;
-					BD = 1.0f ;
-				}
-				else
-				{
-					h = ( R - B ) / ( G - B ) ;
-					s = ( G - B ) / G ;
-
-					RD = 1.0f - ( 1.0f - h ) * s ;
-					GD = 1.0f ;
-					BD = 1.0f -                s ;
-				}
-			}
-			else
-			{
-				// G > B > R
-				if( G - R < 0.00001f )
-				{
-					RD = 1.0f ;
-					GD = 1.0f ;
-					BD = 1.0f ;
-				}
-				else
-				{
-					h = ( B - R ) / ( G - R ) ;
-					s = ( G - R ) / G ;
-
-					RD = 1.0f -                s ;
-					GD = 1.0f ;
-					BD = 1.0f - ( 1.0f - h ) * s ;
-				}
-			}
-		}
-		else
-		{
-			// B > G > R
-			if( B - R < 0.00001f )
-			{
-				RD = 1.0f ;
-				GD = 1.0f ;
-				BD = 1.0f ;
-			}
-			else
-			{
-				h = ( G - R ) / ( B - R ) ;
-				s = ( B - R ) / B ;
-
-				RD = 1.0f -                s ;
-				GD = 1.0f - ( 1.0f - h ) * s ;
-				BD = 1.0f ;
-			}
-		}
-	}
-}
-
-// トゥーントライアングルリストのライティングを行う
-static void MV1TriangleListToonLighting( MV1_TRIANGLE_LIST_BASE *MBTList, bool Normalize, MATRIX *LocalWorldMatrix )
-{
-	DWORD VertexNum ;
-	MV1_VERTEX_SIMPLE *SMPVert ;
-	DWORD i, j, UnitSize, IdentMat, MeshVertUnitSize ;
-	MV1_MESH_VERTEX *MeshVert, *MVert ;
-	VECTOR Position, Normal ;
-	LIGHT *Light ;
-	float PLLength, DirRate, LengthRate, SpotRate, SpeRate, DiffuseV, SpecularV ;
-	COLOR_F Diffuse, Specular, LightDiffuse, TempColor, Ambient ;
-	VECTOR LightDir, PLVec, HalfVec, PCVec, PLDir, ViewNormal ;
-	bool UseVertDif, UseVertSpe ;
-	FLOAT4 *LParam ;
-	FLOAT4 *ConstF ;
-	DWORD *MeshVertIndex ;
-	float LightCosPhi[ 8 ], LightCosTheta[ 8 ], Sin, tmpf ;
-	bool ToonType2 ;
-	int Temp ;
-	bool SphereMap ;
-	float rd, gd, bd, DirRateTotal ;
-	COLOR_U8 MatDifColor, MatSpeColor ;
-
-	UseVertDif = MBTList->Container->UseVertexDiffuseColor != 0 ;
-	UseVertSpe = MBTList->Container->UseVertexSpecularColor != 0 ;
-
-	ConstF = GRH.ShaderConstantInfo.FixInfo[ DX_SHADERCONSTANTTYPE_VS_FLOAT ].Float4 ;
-	Temp = _FTOL( ConstF[ DX_VS_CONSTF_MAT_DIFFUSE  + DX_VS_CONSTF_MATERIAL_START ].x * 255.0f ) ;
-	MatDifColor.r = ( BYTE )( Temp > 255 ? 255 : ( Temp < 0 ? 0 : Temp ) ) ;
-	Temp = _FTOL( ConstF[ DX_VS_CONSTF_MAT_DIFFUSE  + DX_VS_CONSTF_MATERIAL_START ].y * 255.0f ) ;
-	MatDifColor.g = ( BYTE )( Temp > 255 ? 255 : ( Temp < 0 ? 0 : Temp ) ) ;
-	Temp = _FTOL( ConstF[ DX_VS_CONSTF_MAT_DIFFUSE  + DX_VS_CONSTF_MATERIAL_START ].z * 255.0f ) ;
-	MatDifColor.b = ( BYTE )( Temp > 255 ? 255 : ( Temp < 0 ? 0 : Temp ) ) ;
-	Temp = _FTOL( ConstF[ DX_VS_CONSTF_MAT_DIFFUSE  + DX_VS_CONSTF_MATERIAL_START ].w * 255.0f ) ;
-	MatDifColor.a = ( BYTE )( Temp > 255 ? 255 : ( Temp < 0 ? 0 : Temp ) ) ;
-
-	Temp = _FTOL( ConstF[ DX_VS_CONSTF_MAT_SPECULAR  + DX_VS_CONSTF_MATERIAL_START ].x * 255.0f ) ;
-	MatSpeColor.r = ( BYTE )( Temp > 255 ? 255 : ( Temp < 0 ? 0 : Temp ) ) ;
-	Temp = _FTOL( ConstF[ DX_VS_CONSTF_MAT_SPECULAR  + DX_VS_CONSTF_MATERIAL_START ].y * 255.0f ) ;
-	MatSpeColor.g = ( BYTE )( Temp > 255 ? 255 : ( Temp < 0 ? 0 : Temp ) ) ;
-	Temp = _FTOL( ConstF[ DX_VS_CONSTF_MAT_SPECULAR  + DX_VS_CONSTF_MATERIAL_START ].z * 255.0f ) ;
-	MatSpeColor.b = ( BYTE )( Temp > 255 ? 255 : ( Temp < 0 ? 0 : Temp ) ) ;
-	Temp = _FTOL( ConstF[ DX_VS_CONSTF_MAT_SPECULAR  + DX_VS_CONSTF_MATERIAL_START ].w * 255.0f ) ;
-	MatSpeColor.a = ( BYTE )( Temp > 255 ? 255 : ( Temp < 0 ? 0 : Temp ) ) ;
-
-	Light = GRH.LightParam ;
-	for( i = 0 ; i < ( DWORD )GBASE.Light.EnableNum ; i ++, Light ++ )
-	{
-		_SINCOS( Light->Phi   / 2.0f, &Sin, &LightCosPhi[ i ]   ) ;
-		_SINCOS( Light->Theta / 2.0f, &Sin, &LightCosTheta[ i ] ) ;
-	}
-
-	ToonType2 = MBTList->Container->Material->Type == DX_MATERIAL_TYPE_TOON_2 ;
-	SphereMap = ToonType2 && MBTList->Container->Material->SphereMapTexture >= 0 ;
-
-	VertexNum = MBTList->VertexNum ;
-	SMPVert = MBTList->TempSimpleVertex ;
-	UnitSize = MBTList->TempUnitSize ;
-	IdentMat = MV1Man.WorldMatrixIsIdentity ;
-	MeshVert = MBTList->Container->Vertex ;
-	MeshVertIndex = MBTList->MeshVertexIndex ;
-	MeshVertUnitSize = MBTList->Container->VertUnitSize ;
-	for( i = 0 ; i < VertexNum ; i ++, SMPVert = ( MV1_VERTEX_SIMPLE * )( ( DWORD_PTR )SMPVert + UnitSize ), MeshVertIndex ++ )
-	{
-		MVert = ( MV1_MESH_VERTEX * )( ( BYTE * )MeshVert + MeshVertUnitSize * *MeshVertIndex ) ;
-
-		if( LocalWorldMatrix == NULL )
-		{
-			Position = SMPVert->Position ;
-			Normal  = SMPVert->Normal ;
-		}
-		else
-		{
-			Position = VTransform( SMPVert->Position, *LocalWorldMatrix ) ;
-			Normal   = VNorm( VTransformSR( SMPVert->Normal, *LocalWorldMatrix ) ) ;
-		}
-
-		if( Normalize )
-		{
-			float RevSize ;
-
-			RevSize = 1.0f / _SQRT( Normal.x * Normal.x + Normal.y * Normal.y + Normal.z * Normal.z ) ; 
-			Normal.x *= RevSize ;
-			Normal.y *= RevSize ;
-			Normal.z *= RevSize ;
-		}
-
-		Diffuse.r = 0.0f ;
-		Diffuse.g = 0.0f ;
-		Diffuse.b = 0.0f ;
-		Diffuse.a = 0.0f ;
-		Specular.r = 0.0f ;
-		Specular.g = 0.0f ;
-		Specular.b = 0.0f ;
-		Specular.a = 0.0f ;
-		Ambient.r = 0.0f ;
-		Ambient.g = 0.0f ;
-		Ambient.b = 0.0f ;
-		Ambient.a = 0.0f ;
-		LightDiffuse.r = 0.0f ;
-		LightDiffuse.g = 0.0f ;
-		LightDiffuse.b = 0.0f ;
-		LightDiffuse.a = 0.0f ;
-		DirRateTotal = 0.0f ;
-
-		Light = GRH.LightParam ;
-		for( j = 0 ; j < ( DWORD )GBASE.Light.EnableNum ; j ++, Light ++ )
-		{
-			LParam = &ConstF[ DX_VS_CONSTF_LIGHT_START + DX_VS_CONSTF_LIGHT_UNITSIZE * j ] ;
-
-			// ディフューズカラーの計算
-			{
-				if( Light->Type == DX_LIGHTTYPE_DIRECTIONAL )
-				{
-					// ライトの角度をセット
-					LightDir = Light->Direction ;
-
-					// 角度減衰率計算
-					DirRate = ( -LightDir.x * Normal.x ) + ( -LightDir.y * Normal.y ) + ( -LightDir.z * Normal.z ) ;
-					if( DirRate < 0.0f ) DirRate = 0.0f ;
-
-					if( ToonType2 )
-					{
-						DirRateTotal += DirRate ;
-						Diffuse.r += LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].x ;
-						Diffuse.g += LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].y ;
-						Diffuse.b += LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].z ;
-						Ambient.r += LParam[ DX_VS_CONSTF_LGT_AMBIENT ].x ;
-						Ambient.g += LParam[ DX_VS_CONSTF_LGT_AMBIENT ].y ;
-						Ambient.b += LParam[ DX_VS_CONSTF_LGT_AMBIENT ].z ;
-					}
-					else
-					{
-						// ディフーズライト蓄積値 += ディフーズ角度減衰計算結果 * ライトのディフーズ色 + ライトのアンビエントカラーとマテリアルのアンビエントカラーを乗算したもの
-						TempColor.r = DirRate * LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].x ;
-						TempColor.g = DirRate * LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].y ;
-						TempColor.b = DirRate * LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].z ;
-						LightDiffuse.r += TempColor.r ;
-						LightDiffuse.g += TempColor.g ;
-						LightDiffuse.b += TempColor.b ;
-						Diffuse.r += TempColor.r + LParam[ DX_VS_CONSTF_LGT_AMBIENT ].x ;
-						Diffuse.g += TempColor.g + LParam[ DX_VS_CONSTF_LGT_AMBIENT ].y ;
-						Diffuse.b += TempColor.b + LParam[ DX_VS_CONSTF_LGT_AMBIENT ].z ;
-					}
-				}
-				else
-				{
-					PLVec = VSub( Light->Position, Position ) ;
-					PLLength = VSize( PLVec ) ;
-					PLDir.x = PLVec.x / PLLength ;
-					PLDir.y = PLVec.y / PLLength ;
-					PLDir.z = PLVec.z / PLLength ;
-
-					// ライトの方向をセット
-					LightDir.x = -PLDir.x ;
-					LightDir.y = -PLDir.y ;
-					LightDir.z = -PLDir.z ;
-
-					// 距離減衰率計算
-					LengthRate = 1.0f / ( LParam[ DX_VS_CONSTF_LGT_RANGE_FALLOFF_AT0_AT1 ].z + LParam[ DX_VS_CONSTF_LGT_RANGE_FALLOFF_AT0_AT1 ].w * PLLength + LParam[ DX_VS_CONSTF_LGT_AT2_SPOTP0_SPOTP1 ].x * PLLength * PLLength ) ;
-
-					// スポットライトの場合スポットライト減衰率計算を行う
-					if( Light->Type == DX_LIGHTTYPE_SPOT )
-					{
-						float CosA ;
-
-						// スポットライトの場合
-						CosA = -Light->Direction.x * PLDir.x + -Light->Direction.y * PLDir.y + -Light->Direction.z * PLDir.z ;
-						if( CosA < LightCosPhi[ j ] )
-						{
-							SpotRate = 0.0f ;
-						}
-						else
-						if( CosA > LightCosTheta[ j ] )
-						{
-							SpotRate = 1.0f ;
-						}
-						else
-						{
-							SpotRate = ( CosA - LightCosPhi[ j ] ) / ( LightCosTheta[ j ] - LightCosPhi[ j ] ) ;
-						}
-					}
-					else
-					{
-						// ポイントライトの場合
-
-						SpotRate = 1.0f ;
-					}
-
-					// 角度減衰率計算
-					DirRate = ( -LightDir.x * Normal.x ) + ( -LightDir.y * Normal.y ) + ( -LightDir.z * Normal.z ) ;
-					if( DirRate < 0.0f ) DirRate = 0.0f ;
-
-					if( ToonType2 )
-					{
-						DirRateTotal += DirRate * LengthRate * SpotRate ;
-						Diffuse.r += LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].x ;
-						Diffuse.g += LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].y ;
-						Diffuse.b += LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].z ;
-						Ambient.r += LParam[ DX_VS_CONSTF_LGT_AMBIENT ].x ;
-						Ambient.g += LParam[ DX_VS_CONSTF_LGT_AMBIENT ].y ;
-						Ambient.b += LParam[ DX_VS_CONSTF_LGT_AMBIENT ].z ;
-					}
-					else
-					{
-						// ディフーズライト蓄積値 += 距離・スポットライト角度減衰値 * ( ディフーズ角度減衰計算結果 * ライトのディフーズ色 + ライトのアンビエントカラーとマテリアルのアンビエントカラーを乗算したもの )
-						tmpf = DirRate * LengthRate * SpotRate ;
-						LightDiffuse.r += tmpf * LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].x ;
-						LightDiffuse.g += tmpf * LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].y ;
-						LightDiffuse.b += tmpf * LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].z ;
-						Diffuse.r +=
-							( DirRate *
-							  LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].x +
-							  LParam[ DX_VS_CONSTF_LGT_AMBIENT ].y ) * LengthRate * SpotRate ;
-						Diffuse.g +=
-							( DirRate *
-							  LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].x +
-							  LParam[ DX_VS_CONSTF_LGT_AMBIENT ].y ) * LengthRate * SpotRate ;
-						Diffuse.b +=
-							( DirRate *
-							  LParam[ DX_VS_CONSTF_LGT_DIFFUSE ].z +
-							  LParam[ DX_VS_CONSTF_LGT_AMBIENT ].z ) * LengthRate * SpotRate ;
-					}
-				}
-			}
-
-			// スペキュラカラーの計算
-			{
-				VECTOR ViewPos, ViewNorm, ViewLightDir ;
-				float LDot ;
-
-				// ビュー空間での頂点座標、法線、ライトの向きを計算
-				ViewPos = VTransform( Position, GBASE.ViewMatrix ) ;
-				ViewNorm = VTransformSR( Normal, GBASE.ViewMatrix ) ;
-				ViewLightDir = VTransformSR( LightDir, GBASE.ViewMatrix ) ;
-
-				// ハーフベクトルの計算
-				PCVec = VNorm( VScale( ViewPos, -1.0f ) ) ;
-				HalfVec = VNorm( VSub( PCVec, ViewLightDir ) ) ;
-
-				// スペキュラカラー減衰率を計算
-				LDot = VDot( ViewNorm, HalfVec ) ;
-				SpeRate = _POW( LDot, ConstF[ DX_VS_CONSTF_MAT_POWER + DX_VS_CONSTF_MATERIAL_START ].x ) ;
-				if( SpeRate < 0.0f ) SpeRate = 0.0f ;
-
-				if( Light->Type == DX_LIGHTTYPE_DIRECTIONAL )
-				{
-					// r1 += スペキュラ角度減衰計算結果 * ライトのスペキュラ色
-					Specular.r += 
-						SpeRate *
-						LParam[ DX_VS_CONSTF_LGT_SPECULAR ].x ;
-					Specular.g += 
-						SpeRate *
-						LParam[ DX_VS_CONSTF_LGT_SPECULAR ].y ;
-					Specular.b += 
-						SpeRate *
-						LParam[ DX_VS_CONSTF_LGT_SPECULAR ].z ;
-				}
-				else
-				{
-					// r1 += スペキュラ角度減衰計算結果 * 距離・スポットライト減衰 * ライトのスペキュラ色
-					tmpf = LengthRate * SpotRate * SpeRate ;
-					Specular.r +=
-						tmpf *
-						LParam[ DX_VS_CONSTF_LGT_SPECULAR ].x ;
-					Specular.g +=
-						tmpf *
-						LParam[ DX_VS_CONSTF_LGT_SPECULAR ].y ;
-					Specular.b +=
-						tmpf *
-						LParam[ DX_VS_CONSTF_LGT_SPECULAR ].z ;
-				}
-			}
-		}
-
-		if( ToonType2 )
-		{
-			Ambient.r += ConstF[ DX_VS_CONSTF_AMBIENT_EMISSIVE ].x ;
-			Ambient.g += ConstF[ DX_VS_CONSTF_AMBIENT_EMISSIVE ].y ;
-			Ambient.b += ConstF[ DX_VS_CONSTF_AMBIENT_EMISSIVE ].z ;
-
-			if( UseVertDif )
-			{
-				TempColor.r = Diffuse.r * MVert->DiffuseColor.r + Ambient.r * 255.0f ;
-				TempColor.g = Diffuse.g * MVert->DiffuseColor.g + Ambient.g * 255.0f ;
-				TempColor.b = Diffuse.b * MVert->DiffuseColor.b + Ambient.b * 255.0f ;
-				TempColor.a = MVert->DiffuseColor.a ;
-			}
-			else
-			{
-				TempColor.r = Diffuse.r * MatDifColor.r + Ambient.r * 255.0f ;
-				TempColor.g = Diffuse.g * MatDifColor.g + Ambient.g * 255.0f ;
-				TempColor.b = Diffuse.b * MatDifColor.b + Ambient.b * 255.0f ;
-				TempColor.a = MatDifColor.a ;
-			}
-
-			     if( TempColor.r > 254.9999f ) TempColor.r = 254.9999f ;
-			else if( TempColor.r < 0.0f      ) TempColor.r = 0.0f ;
-			     if( TempColor.g > 254.9999f ) TempColor.g = 254.9999f ;
-			else if( TempColor.g < 0.0f      ) TempColor.g = 0.0f ;
-			     if( TempColor.b > 254.9999f ) TempColor.b = 254.9999f ;
-			else if( TempColor.b < 0.0f      ) TempColor.b = 0.0f ;
-
-			     if( Specular.r > 254.9999f ) Specular.r = 254.9999f ;
-			else if( Specular.r < 0.0f      ) Specular.r = 0.0f ;
-			     if( Specular.g > 254.9999f ) Specular.g = 254.9999f ;
-			else if( Specular.g < 0.0f      ) Specular.g = 0.0f ;
-			     if( Specular.b > 254.9999f ) Specular.b = 254.9999f ;
-			else if( Specular.b < 0.0f      ) Specular.b = 0.0f ;
-
-			SMPVert->DiffuseColor.r = ( BYTE )_FTOL( TempColor.r ) ;
-			SMPVert->DiffuseColor.g = ( BYTE )_FTOL( TempColor.g ) ;
-			SMPVert->DiffuseColor.b = ( BYTE )_FTOL( TempColor.b ) ;
-			SMPVert->DiffuseColor.a = UseVertDif ? MVert->DiffuseColor.a : MatDifColor.a ;
-
-			if( UseVertSpe )
-			{
-				SMPVert->SpecularColor.r = ( BYTE )_FTOL( Specular.r * MVert->SpecularColor.r ) ;
-				SMPVert->SpecularColor.g = ( BYTE )_FTOL( Specular.g * MVert->SpecularColor.g ) ;
-				SMPVert->SpecularColor.b = ( BYTE )_FTOL( Specular.b * MVert->SpecularColor.b ) ;
-				SMPVert->SpecularColor.a = MVert->SpecularColor.a ;
-			}
-			else
-			{
-				SMPVert->SpecularColor.r = ( BYTE )_FTOL( Specular.r * MatSpeColor.r ) ;
-				SMPVert->SpecularColor.g = ( BYTE )_FTOL( Specular.g * MatSpeColor.g ) ;
-				SMPVert->SpecularColor.b = ( BYTE )_FTOL( Specular.b * MatSpeColor.b ) ;
-				SMPVert->SpecularColor.a = MatSpeColor.a ;
-			}
-
-			SMPVert->UVs[ 1 ][ 0 ] = DirRateTotal ;
-			SMPVert->UVs[ 1 ][ 1 ] = DirRateTotal ;
-
-			if( SphereMap )
-			{
-				ViewNormal = VTransformSR( Normal, GBASE.ViewMatrix ) ;
-				SMPVert->UVs[ 2 ][ 0 ] = ViewNormal.x *  0.5f + 0.5f ;
-				SMPVert->UVs[ 2 ][ 1 ] = ViewNormal.y * -0.5f + 0.5f ;
-			}
-		}
-		else
-		{
-			Diffuse.r += ConstF[ DX_VS_CONSTF_AMBIENT_EMISSIVE ].x ;
-			Diffuse.g += ConstF[ DX_VS_CONSTF_AMBIENT_EMISSIVE ].y ;
-			Diffuse.b += ConstF[ DX_VS_CONSTF_AMBIENT_EMISSIVE ].z ;
-
-			RGBtoVMaxRGB( LightDiffuse.r, LightDiffuse.g, LightDiffuse.b, rd, gd, bd ) ; 
-			if( UseVertDif )
-			{
-				SMPVert->DiffuseColor.r = ( BYTE )_FTOL( rd * MVert->DiffuseColor.r ) ;
-				SMPVert->DiffuseColor.g = ( BYTE )_FTOL( gd * MVert->DiffuseColor.g ) ;
-				SMPVert->DiffuseColor.b = ( BYTE )_FTOL( bd * MVert->DiffuseColor.b ) ;
-				SMPVert->DiffuseColor.a = MVert->DiffuseColor.a ;
-			}
-			else
-			{
-				SMPVert->DiffuseColor.r = ( BYTE )_FTOL( rd * MatDifColor.r ) ;
-				SMPVert->DiffuseColor.g = ( BYTE )_FTOL( gd * MatDifColor.g ) ;
-				SMPVert->DiffuseColor.b = ( BYTE )_FTOL( bd * MatDifColor.b ) ;
-				SMPVert->DiffuseColor.a = MatDifColor.a ;
-			}
-
-			RGBtoVMaxRGB( Specular.r, Specular.g, Specular.b, rd, gd, bd ) ; 
-
-			if( UseVertSpe )
-			{
-				SMPVert->SpecularColor.r = ( BYTE )_FTOL( rd * MVert->SpecularColor.r ) ;
-				SMPVert->SpecularColor.g = ( BYTE )_FTOL( gd * MVert->SpecularColor.g ) ;
-				SMPVert->SpecularColor.b = ( BYTE )_FTOL( bd * MVert->SpecularColor.b ) ;
-				SMPVert->SpecularColor.a = MVert->SpecularColor.a ;
-			}
-			else
-			{
-				SMPVert->SpecularColor.r = ( BYTE )_FTOL( rd * MatSpeColor.r ) ;
-				SMPVert->SpecularColor.g = ( BYTE )_FTOL( gd * MatSpeColor.g ) ;
-				SMPVert->SpecularColor.b = ( BYTE )_FTOL( bd * MatSpeColor.b ) ;
-				SMPVert->SpecularColor.a = MatSpeColor.a ;
-			}
-
-//			SMPVert->DiffuseColor  = UseVertDif ? MVert->DiffuseColor  : MatDifColor ;
-//			SMPVert->SpecularColor = UseVertSpe ? MVert->SpecularColor : MatSpeColor ;
-
-/*
-			SMPVert->DiffuseColor.r = ( BYTE )_FTOL( Diffuse * 255.0f ) ;
-			SMPVert->DiffuseColor.g = ( BYTE )_FTOL( Diffuse * 255.0f ) ;
-			SMPVert->DiffuseColor.b = ( BYTE )_FTOL( Diffuse * 255.0f ) ;
-
-			SMPVert->SpecularColor.r = ( BYTE )_FTOL( Specular * 255.0f ) ;
-			SMPVert->SpecularColor.g = ( BYTE )_FTOL( Specular * 255.0f ) ;
-			SMPVert->SpecularColor.b = ( BYTE )_FTOL( Specular * 255.0f ) ;
-*/
-//			SMPVert->DiffuseColor.r = 255 ;
-//			SMPVert->DiffuseColor.g = 255 ;
-//			SMPVert->DiffuseColor.b = 255 ;
-//			SMPVert->SpecularColor.r = 0 ;
-//			SMPVert->SpecularColor.g = 0 ;
-//			SMPVert->SpecularColor.b = 0 ;
-
-//			DiffuseV  = Diffuse.x  * 0.29891f + Diffuse.y  * 0.58661f * Diffuse.z  * 0.11448f ;
-//			SpecularV = Specular.x * 0.29891f + Specular.y * 0.58661f * Specular.z * 0.11448f ;
-//			DiffuseV  = Diffuse.x  * 0.33333f + Diffuse.y  * 0.33333f * Diffuse.z  * 0.33333f ;
-//			SpecularV = Specular.x * 0.33333f + Specular.y * 0.33333f * Specular.z * 0.33333f ;
-//			SMPVert->UVs[ 1 ][ 0 ] = DiffuseV * 2.0f;
-//			SMPVert->UVs[ 1 ][ 1 ] = DiffuseV * 2.0f;
-//			SMPVert->UVs[ 2 ][ 0 ] = SpecularV * 2.0f;
-//			SMPVert->UVs[ 2 ][ 1 ] = SpecularV * 2.0f;
-			DiffuseV  = Diffuse.r  > Diffuse.g  ? ( Diffuse.r  > Diffuse.b  ? Diffuse.r  : Diffuse.b  ) : Diffuse.g  > Diffuse.b  ? Diffuse.g  : Diffuse.b  ;
-			SpecularV = Specular.r > Specular.g ? ( Specular.r > Specular.b ? Specular.r : Specular.b ) : Specular.g > Specular.b ? Specular.g : Specular.b ;
-			SMPVert->UVs[ 1 ][ 0 ] = DiffuseV ;
-			SMPVert->UVs[ 1 ][ 1 ] = DiffuseV ;
-			SMPVert->UVs[ 2 ][ 0 ] = SpecularV ;
-			SMPVert->UVs[ 2 ][ 1 ] = SpecularV ;
-		}
-	}
-}
-
-// デフォルトトゥーンテクスチャを取得する
-static int _MV1GetDefaultToonTexture( int Type )
-{
-	switch( Type )
-	{
-	case -1 :
-		if( MV1Man.ToonDefaultGradTexHandle[ 0 ] < 0 )
-		{
-			LOADGRAPH_GPARAM GParam ;
-
-			InitLoadGraphGParam( &GParam ) ;
-			GParam.CreateGraphGParam.NotUseTransColor = TRUE ;
-			InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam.CreateGraphGParam.InitHandleGParam, 32, TRUE, FALSE ) ;
-			MV1Man.ToonDefaultGradTexHandle[ 0 ] = CreateGraphFromMem_UseGParam( &GParam, FALSE, -1, TgaDiffuseDefaultGradFileImage, sizeof( TgaDiffuseDefaultGradFileImage ), NULL, 0, TRUE, FALSE, FALSE ) ;
-			NS_SetDeleteHandleFlag( MV1Man.ToonDefaultGradTexHandle[ 0 ], &MV1Man.ToonDefaultGradTexHandle[ 0 ] ) ;
-			NS_SetDeviceLostDeleteGraphFlag( MV1Man.ToonDefaultGradTexHandle[ 0 ], TRUE ) ;
-			BeginScene() ;
-		}
-		return MV1Man.ToonDefaultGradTexHandle[ 0 ] ;
-
-	case -2 :
-		if( MV1Man.ToonDefaultGradTexHandle[ 1 ] < 0 )
-		{
-			MV1Man.ToonDefaultGradTexHandle[ 1 ] = _MV1CreateGradationGraph() ;
-			NS_SetDeleteHandleFlag( MV1Man.ToonDefaultGradTexHandle[ 1 ], &MV1Man.ToonDefaultGradTexHandle[ 1 ] ) ;
-			NS_SetDeviceLostDeleteGraphFlag( MV1Man.ToonDefaultGradTexHandle[ 1 ], TRUE ) ;
-			BeginScene() ;
-		}
-		return MV1Man.ToonDefaultGradTexHandle[ 1 ] ;
-	}
-
-	return -1 ;
-}
-
-// TexNoneHandle のセットアップを行う
-static void _MV1SetupTexNoneHandle( void )
-{
-	LOADGRAPH_GPARAM GParam ;
-	InitLoadGraphGParam( &GParam ) ;
-	GParam.CreateGraphGParam.NotUseTransColor = FALSE ;
-	GParam.CreateGraphGParam.LeftUpColorIsTransColorFlag = FALSE ;
-	InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam.CreateGraphGParam.InitHandleGParam, 32, TRUE, FALSE ) ;
-	GParam.CreateGraphGParam.InitHandleGParam.TransColor = ( BYTE )255 << 16 | ( BYTE )0 << 8 | ( BYTE )255 ;
-	MV1Man.TexNoneHandle = CreateGraphFromMem_UseGParam( &GParam, FALSE, -1, Tga8x8TextureFileImage, sizeof( Tga8x8TextureFileImage ), NULL, 0, TRUE, FALSE, FALSE ) ;
-	MV1Man.TexNoneBlackHandle = CreateGraphFromMem_UseGParam( &GParam, FALSE, -1, Tga8x8BlackTextureFileImage, sizeof( Tga8x8BlackTextureFileImage ), NULL, 0, TRUE, FALSE, FALSE ) ;
-	NS_SetDeleteHandleFlag( MV1Man.TexNoneHandle, &MV1Man.TexNoneHandle ) ;
-	NS_SetDeleteHandleFlag( MV1Man.TexNoneBlackHandle, &MV1Man.TexNoneBlackHandle ) ;
-	NS_SetDeviceLostDeleteGraphFlag( MV1Man.TexNoneHandle, TRUE ) ;
-	NS_SetDeviceLostDeleteGraphFlag( MV1Man.TexNoneBlackHandle, TRUE ) ;
-
-	BeginScene() ;
-}
-
-// グラデーション画像を作成する
-static int _MV1CreateGradationGraph( void )
-{
-	DWORD i ;
-	BASEIMAGE Image ;
-	DWORD *Dest, DestData ;
-	int Handle ;
-	LOADGRAPH_GPARAM GParam ;
-
-	if( NS_CreateXRGB8ColorBaseImage( 256, 8, &Image ) < 0 )
-		return -1 ;
-
-	Dest = ( DWORD * )Image.GraphData ;
-	for( i = 0 ; i < 256 ; i ++, Dest ++ )
-	{
-		DestData = i | ( i << 8 ) | ( i << 16 ) ;
-		Dest[ 256 * 0 ] = DestData ;
-		Dest[ 256 * 1 ] = DestData ;
-		Dest[ 256 * 2 ] = DestData ;
-		Dest[ 256 * 3 ] = DestData ;
-		Dest[ 256 * 4 ] = DestData ;
-		Dest[ 256 * 5 ] = DestData ;
-		Dest[ 256 * 6 ] = DestData ;
-		Dest[ 256 * 7 ] = DestData ;
-	}
-
-	InitLoadGraphGParam( &GParam ) ;
-	GParam.CreateGraphGParam.NotUseTransColor = TRUE ;
-	InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam.CreateGraphGParam.InitHandleGParam, 32, TRUE, FALSE ) ;
-	Handle = CreateGraphFromGraphImage_UseGParam( &GParam, FALSE, -1, &Image, NULL, TRUE, FALSE, FALSE, FALSE ) ;
-
-	NS_ReleaseBaseImage( &Image ) ;
-
-	return Handle ;
-}
-
 // グラデーション画像を再作成する
 static int _MV1ReCreateGradationGraph( int GrHandle )
 {
 	DWORD i ;
-	BASEIMAGE Image ;
+	BASEIMAGE BaseImage ;
 	DWORD *Dest, DestData ;
 	LOADGRAPH_GPARAM GParam ;
 
-	if( NS_CreateXRGB8ColorBaseImage( 256, 8, &Image ) < 0 )
+	if( NS_CreateXRGB8ColorBaseImage( 256, 8, &BaseImage ) < 0 )
 		return -1 ;
 
-	Dest = ( DWORD * )Image.GraphData ;
+	Dest = ( DWORD * )BaseImage.GraphData ;
 	for( i = 0 ; i < 256 ; i ++, Dest ++ )
 	{
 		DestData = i | ( i << 8 ) | ( i << 16 ) ;
@@ -2823,3120 +2367,18 @@ static int _MV1ReCreateGradationGraph( int GrHandle )
 		Dest[ 256 * 7 ] = DestData ;
 	}
 
-	InitLoadGraphGParam( &GParam ) ;
+	Graphics_Image_InitLoadGraphGParam( &GParam ) ;
 	GParam.CreateGraphGParam.NotUseTransColor = TRUE ;
-	InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam.CreateGraphGParam.InitHandleGParam, 32, TRUE, FALSE ) ;
-	CreateGraphFromGraphImage_UseGParam( &GParam, TRUE, GrHandle, &Image, NULL, TRUE, FALSE, FALSE, FALSE ) ;
+	Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam.CreateGraphGParam.InitHandleGParam, 32, TRUE, FALSE ) ;
+	Graphics_Image_CreateGraphFromGraphImage_UseGParam( &GParam, TRUE, GrHandle, &BaseImage, NULL, TRUE, FALSE, FALSE, FALSE ) ;
 
-	NS_ReleaseBaseImage( &Image ) ;
+	NS_ReleaseBaseImage( &BaseImage ) ;
 
 	return GrHandle ;
 }
 
-// 指定のメッシュの基本部分のマテリアルをセットアップする
-__inline bool MV1SetupMeshDrawMaterialCommon(
-	int *VertexShaderIndex, int *PixelShaderIndex,
-	int *VertexShaderIndex_PL, int *PixelShaderIndex_PL,
-	DIRECT3DBLENDINFO *BlendInfo, MV1_MESH *Mesh, int *SpecularEnable )
-{
-	MV1_MESH_BASE *MBMesh ;
-	DIRECT3DBLENDINFO *pBlendInfo ; 
-	MATERIALPARAM Material ;
-	MV1_MATERIAL * RST MMaterial ;
-	MV1_MATERIAL_BASE * RST MBMaterial ;
-	MV1_FRAME * RST Frame ;
 
-	Frame = Mesh->Container ;
-	MBMesh = Mesh->BaseData ;
-	MMaterial = Mesh->Material ;
-	MBMaterial = MMaterial->BaseData ;
 
-	// マテリアルのセット
-	if( Mesh->SetupDrawMaterial.UseColorScale )
-	{
-		// アルファが０の場合は描画しない
-		if( Mesh->SetupDrawMaterial.DiffuseScale.a * MMaterial->Diffuse.a <= 0.0000001f )
-			return false ;
-
-		Material.Diffuse.r = MMaterial->Diffuse.r * Mesh->SetupDrawMaterial.DiffuseScale.r ;
-		Material.Diffuse.g = MMaterial->Diffuse.g * Mesh->SetupDrawMaterial.DiffuseScale.g ;
-		Material.Diffuse.b = MMaterial->Diffuse.b * Mesh->SetupDrawMaterial.DiffuseScale.b ;
-		Material.Diffuse.a = MMaterial->Diffuse.a * Mesh->SetupDrawMaterial.DiffuseScale.a ;
-		Material.Specular.r = MMaterial->Specular.r * Mesh->SetupDrawMaterial.SpecularScale.r ;
-		Material.Specular.g = MMaterial->Specular.g * Mesh->SetupDrawMaterial.SpecularScale.g ;
-		Material.Specular.b = MMaterial->Specular.b * Mesh->SetupDrawMaterial.SpecularScale.b ;
-		Material.Specular.a = MMaterial->Specular.a * Mesh->SetupDrawMaterial.SpecularScale.a ;
-		Material.Emissive.r = MMaterial->Emissive.r * Mesh->SetupDrawMaterial.EmissiveScale.r ;
-		Material.Emissive.g = MMaterial->Emissive.g * Mesh->SetupDrawMaterial.EmissiveScale.g ;
-		Material.Emissive.b = MMaterial->Emissive.b * Mesh->SetupDrawMaterial.EmissiveScale.b ;
-		Material.Emissive.a = MMaterial->Emissive.a * Mesh->SetupDrawMaterial.EmissiveScale.a ;
-		Material.Ambient.r = MMaterial->Ambient.r * Mesh->SetupDrawMaterial.AmbientScale.r ;
-		Material.Ambient.g = MMaterial->Ambient.g * Mesh->SetupDrawMaterial.AmbientScale.g ;
-		Material.Ambient.b = MMaterial->Ambient.b * Mesh->SetupDrawMaterial.AmbientScale.b ;
-		Material.Ambient.a = MMaterial->Ambient.a * Mesh->SetupDrawMaterial.AmbientScale.a ;
-	}
-	else
-	{
-		// アルファが０の場合は描画しない
-		if( MMaterial->Diffuse.a <= 0.0000001f )
-			return false ;
-
-		Material.Diffuse   = MMaterial->Diffuse ;
-		Material.Specular  = MMaterial->Specular ;
-		Material.Ambient   = MMaterial->Ambient ;
-		Material.Emissive  = MMaterial->Emissive ;
-	}
-	Material.Power = MMaterial->Power ;
-	GBASE.Light.ChangeMaterial = 1 ;
-	GRH.DrawPrepAlwaysFlag = TRUE ;
-	D_SetMaterial( &Material ) ;
-
-	// カリング設定
-	D_SetUseCullingFlag( GRH.ShadowMapDraw ? FALSE : MBMesh->BackCulling ) ; 
-
-	// ブレンド設定のセットアップ
-	BlendInfo->SeparateAlphaBlendEnable = FALSE ;
-	BlendInfo->SrcBlendAlpha = -1 ;
-	BlendInfo->DestBlendAlpha = -1 ;
-	BlendInfo->BlendOpAlpha = -1 ;
-	BlendInfo->AlphaTestEnable = MMaterial->UseAlphaTest ;
-	BlendInfo->AlphaFunc = MMaterial->AlphaFunc ;
-	BlendInfo->AlphaRef = MMaterial->AlphaRef ;
-	BlendInfo->FactorColor = 0x00ffffff | ( ( ( DWORD )_FTOL( Mesh->SetupDrawMaterial.OpacityRate * ( Mesh->DrawBlendParam != -1 ? Mesh->DrawBlendParam : MMaterial->DrawBlendParam ) ) ) << 24 ) ;
-	pBlendInfo = &GRH.BlendInfo ;
-	switch( GRH.ShadowMapDraw ? DX_BLENDMODE_NOBLEND : ( Mesh->DrawBlendMode != -1 ? Mesh->DrawBlendMode : MMaterial->DrawBlendMode ) )
-	{
-	case DX_BLENDMODE_NOBLEND :
-		BlendInfo->AlphaBlendEnable = FALSE ;
-		BlendInfo->SrcBlend         = pBlendInfo->SrcBlend ;
-		BlendInfo->DestBlend        = pBlendInfo->DestBlend ;
-		BlendInfo->BlendOp          = pBlendInfo->BlendOp ;
-		break ;
-
-	case DX_BLENDMODE_ALPHA :
-		BlendInfo->AlphaBlendEnable = TRUE ;
-		if( Frame->Container->UseDrawMulAlphaColor )
-		{
-			BlendInfo->SrcBlend     = D_D3DBLEND_ONE ;
-		}
-		else
-		{
-			BlendInfo->SrcBlend     = D_D3DBLEND_SRCALPHA ;
-		}
-		BlendInfo->DestBlend        = D_D3DBLEND_INVSRCALPHA ;
-		BlendInfo->BlendOp          = D_D3DBLENDOP_ADD ;
-		break ;
-
-	case DX_BLENDMODE_ADD :
-		BlendInfo->AlphaBlendEnable = TRUE ;
-		if( Frame->Container->UseDrawMulAlphaColor )
-		{
-			BlendInfo->SrcBlend     = D_D3DBLEND_ONE ;
-		}
-		else
-		{
-			BlendInfo->SrcBlend     = D_D3DBLEND_SRCALPHA ;
-		}
-		BlendInfo->DestBlend        = D_D3DBLEND_ONE ;
-		BlendInfo->BlendOp          = D_D3DBLENDOP_ADD ;
-		break ;
-
-	case DX_BLENDMODE_INVSRC :
-		BlendInfo->AlphaBlendEnable = TRUE ;
-		BlendInfo->SrcBlend         = D_D3DBLEND_SRCALPHA ;
-		BlendInfo->DestBlend        = D_D3DBLEND_INVSRCALPHA ;
-		BlendInfo->BlendOp          = D_D3DBLENDOP_ADD ;
-		break ;
-
-	case DX_BLENDMODE_MUL :
-	case DX_BLENDMODE_MULA :
-		BlendInfo->AlphaBlendEnable = TRUE ;
-		BlendInfo->SrcBlend         = D_D3DBLEND_ZERO ;
-		BlendInfo->DestBlend        = D_D3DBLEND_SRCCOLOR ;
-		BlendInfo->BlendOp          = D_D3DBLENDOP_ADD ;
-		break ;
-
-	case DX_BLENDMODE_SRCCOLOR :
-		BlendInfo->AlphaBlendEnable = TRUE ;
-		BlendInfo->SrcBlend         = D_D3DBLEND_ONE ;
-		BlendInfo->DestBlend        = D_D3DBLEND_ZERO ;
-		BlendInfo->BlendOp          = D_D3DBLENDOP_ADD ;
-		break ;
-	}
-	BlendInfo->UseTextureStageNum = MMaterial->DiffuseLayerNum ;
-
-	// スペキュラが有効かどうかをセットする
-	*SpecularEnable = 
-		(
-		MBMesh->UseVertexSpecularColor ||
-		Material.Specular.r > 0.00001f ||
-		Material.Specular.g > 0.00001f ||
-		Material.Specular.b > 0.00001f
-		) ;
-	if( GRH.UseShader == FALSE && ( MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON || MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 ) )
-	{
-		*SpecularEnable = FALSE ;
-	}
-	D_SetUseSpecular( *SpecularEnable ) ;
-
-	if( GRH.UseShader == FALSE && ( MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON || MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 ) )
-	{
-		// シェーダーが使えずトゥーンレンダリングの場合は必ず頂点カラーを使用する
-
-		// ディフューズマテリアルとして頂点カラーを使用するかどうかをセット
-		D_SetMaterialUseVertexDiffuseColor( TRUE ) ;
-
-		// スペキュラマテリアルとして頂点カラーを使用するかどうかをセット
-		D_SetMaterialUseVertexSpecularColor( TRUE ) ;
-	}
-	else
-	{
-		// ディフューズマテリアルとして頂点カラーを使用するかどうかをセット
-		D_SetMaterialUseVertexDiffuseColor( MBMesh->UseVertexDiffuseColor ) ;
-
-		// スペキュラマテリアルとして頂点カラーを使用するかどうかをセット
-		D_SetMaterialUseVertexSpecularColor( MBMesh->UseVertexSpecularColor ) ;
-	}
-
-	// トゥーンレンダリングの場合はライティング計算は行わない
-	if( MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON || MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 )
-	{
-		D_SetLightEnable( FALSE ) ;
-	}
-	else
-	{
-		NS_SetUseLighting( GBASE.Light.ProcessDisable ? FALSE : TRUE ) ;
-	}
-
-	// トゥーンレンダリングのセット
-	if( MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON || MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 )
-	{
-		switch( MMaterial->BaseData->Type )
-		{
-		case DX_MATERIAL_TYPE_TOON :
-			*PixelShaderIndex     += PIXELSHADER_TOON( 1 ) ;
-			*PixelShaderIndex     += PIXELSHADER_TOONTYPE( 0 ) ;
-			*PixelShaderIndex_PL += PIXELLIGHTING_PIXELSHADER_TYPE( PIXELLIGHTING_PIXELSHADER_TYPE_TOON ) ;
-			*PixelShaderIndex_PL += PIXELLIGHTING_PIXELSHADER_TOONTYPE( 0 ) ;
-			if( MMaterial->DiffuseGradBlendType == MV1_LAYERBLEND_TYPE_MODULATE )
-			{
-				*PixelShaderIndex     += PIXELSHADER_TOONDIFBLDOP( 1 ) ;
-				*PixelShaderIndex_PL += PIXELLIGHTING_PIXELSHADER_TOONDIFBLDOP( 1 ) ;
-			}
-			if( MMaterial->SpecularGradBlendType == MV1_LAYERBLEND_TYPE_ADDITIVE && *SpecularEnable )
-			{
-				*PixelShaderIndex     += PIXELSHADER_TOONSPCBLDOP( 1 ) ;
-				*PixelShaderIndex_PL += PIXELLIGHTING_PIXELSHADER_TOONSPCBLDOP( 1 ) ;
-			}
-			break ;
-
-		case DX_MATERIAL_TYPE_TOON_2 :
-			*PixelShaderIndex     += PIXELSHADER_TOON( 1 ) ;
-			*PixelShaderIndex     += PIXELSHADER_TOONTYPE( 1 ) ;
-			*PixelShaderIndex_PL += PIXELLIGHTING_PIXELSHADER_TYPE( PIXELLIGHTING_PIXELSHADER_TYPE_TOON ) ;
-			*PixelShaderIndex_PL += PIXELLIGHTING_PIXELSHADER_TOONTYPE( 1 ) ;
-			if( MMaterial->SphereMapTexture >= 0 )
-			{
-				if( MMaterial->SphereMapBlendType == MV1_LAYERBLEND_TYPE_MODULATE )
-				{
-					*PixelShaderIndex     += PIXELSHADER_TOONSPHEREOP( 1 ) ;
-					*PixelShaderIndex_PL += PIXELLIGHTING_PIXELSHADER_TOONSPHEREOP( 1 ) ;
-				}
-				else
-				if( MMaterial->SphereMapBlendType == MV1_LAYERBLEND_TYPE_ADDITIVE )
-				{
-					*PixelShaderIndex     += PIXELSHADER_TOONSPHEREOP( 2 ) ;
-					*PixelShaderIndex_PL += PIXELLIGHTING_PIXELSHADER_TOONSPHEREOP( 2 ) ;
-				}
-			}
-			break ;
-		}
-	}
-
-	// サブテクスチャを使用するかどうかをセット
-	if( MBMaterial->DiffuseLayerNum > 1 )
-	{
-		*PixelShaderIndex    += PIXELSHADER_MULTITEX( MBMaterial->DiffuseLayer[ 1 ].BlendType + 1 ) ;
-		*PixelShaderIndex_PL += PIXELLIGHTING_PIXELSHADER_MULTITEX( MBMaterial->DiffuseLayer[ 1 ].BlendType + 1 ) ;
-	}
-
-	// マテリアルにバンプマップが含まれる場合はシェーダーインデックスを補正
-	if( MBMaterial->NormalLayerNum )
-	{
-		*VertexShaderIndex    += VERTEXSHADER_BUMPMAP( 1 ) ;
-		*PixelShaderIndex     += PIXELSHADER_BUMPMAP( 1 ) ;
-
-		*VertexShaderIndex_PL += PIXELLIGHTING_VERTEXSHADER_BUMPMAP( 1 ) ;
-		*PixelShaderIndex_PL  += PIXELLIGHTING_PIXELSHADER_BUMPMAP( 1 ) ;
-	}
-
-	// マテリアルにスペキュラが含まれる場合はスペキュラインデックスを追加
-	if( *SpecularEnable )
-	{
-		*VertexShaderIndex    += VERTEXSHADER_SPECULAR( 1 ) ;
-		*PixelShaderIndex     += PIXELSHADER_SPECULAR( 1 ) ;
-
-		*PixelShaderIndex_PL  += PIXELLIGHTING_PIXELSHADER_SPECULAR( 1 ) ;
-	}
-
-	// マテリアルにスペキュラマップが含まれる場合はスペキュラマップインデックスを追加
-	if( MMaterial->SpecularLayerNum )
-	{
-		*PixelShaderIndex    += PIXELSHADER_SPECULARMAP( 1 ) ;
-		*PixelShaderIndex_PL += PIXELLIGHTING_PIXELSHADER_SPECULARMAP( 1 ) ;
-	}
-
-	return true ;
-}
-
-// 指定のメッシュのトゥーンレンダリングの輪郭線用のマテリアルをセットアップする
-static void MV1SetupToonOutLineMeshDrawMaterial( MV1_MODEL_BASE * /*ModelBase*/, DIRECT3DBLENDINFO *BlendInfo, MV1_MESH *Mesh, bool UseShader )
-{
-	DIRECT3DTEXTURESTAGEINFO *StageInfo ;
-	MV1_FRAME *Frame ;
-	MV1_MODEL *Model ;
-	MV1_MATERIAL * RST MMaterial ;
-	int StageNum, BlendMode ;
-
-	// 共通部分のセット
-
-	Frame = Mesh->Container ;
-	Model = Frame->Container ;
-	MMaterial = Mesh->Material ;
-	BlendMode = Mesh->DrawBlendMode != -1 ? Mesh->DrawBlendMode : MMaterial->DrawBlendMode ;
-
-	// デフォルトテクスチャハンドルの初期化チェック
-	if( MV1Man.TexNoneHandle < 0 )
-	{
-		_MV1SetupTexNoneHandle() ;
-	}
-
-	// シェーダーが使用可能かどうかで処理を分岐
-	if( UseShader )
-	{
-		// テクスチャのセットアップ
-		StageInfo = BlendInfo->TextureStageInfo ;
-
-		BlendInfo->UseTextureStageNum = 3 ;
-		StageInfo[ 0 ].TextureCoordIndex = 0 ;
-		StageInfo[ 0 ].Texture = ( void * )( DWORD_PTR )MV1Man.TexNoneHandle ;
-
-		// 設定を反映
-		D_SetUserBlendInfo( BlendInfo, TRUE ) ;
-
-		// 使用するテクスチャ座標をリセット
-		D_ResetTextureCoord() ;
-	}
-	else
-	{
-		// テクスチャのセットアップ
-		StageInfo = BlendInfo->TextureStageInfo ;
-
-		BlendInfo->UseTextureStageNum = 1 ;
-		StageInfo[ 0 ].Texture = ( void * )( DWORD_PTR )MV1Man.TexNoneHandle ;
-
-		StageInfo[ 0 ].TextureCoordIndex = 0 ;
-		StageInfo[ 0 ].ResultTempARG = FALSE ;
-		StageInfo[ 0 ].ColorARG1 = D_D3DTA_TEXTURE ;
-		StageInfo[ 0 ].ColorARG2 = D_D3DTA_DIFFUSE ;
-		StageInfo[ 0 ].ColorOP   = D_D3DTOP_MODULATE ;
-		StageInfo[ 0 ].AlphaARG1 = D_D3DTA_TEXTURE ;
-		StageInfo[ 0 ].AlphaARG2 = D_D3DTA_DIFFUSE ;
-		StageInfo[ 0 ].AlphaOP   = D_D3DTOP_MODULATE ;
-		StageNum = 1 ;
-
-		switch( BlendMode )
-		{
-		case DX_BLENDMODE_MULA :
-			if( BlendInfo->FactorColor != 0xffffffff )
-			{
-				StageInfo[ StageNum ].Texture   = NULL ;
-				StageInfo[ StageNum ].TextureCoordIndex = 0 ;
-				StageInfo[ StageNum ].ColorARG1 = D_D3DTA_CURRENT ;
-				StageInfo[ StageNum ].ColorARG2 = D_D3DTA_TFACTOR ;
-				StageInfo[ StageNum ].ColorOP   = D_D3DTOP_BLENDFACTORALPHA ;
-				StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-				StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_DIFFUSE ;
-				StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-				StageNum ++ ;
-			}
-			break ;
-
-		default :
-			if( BlendInfo->FactorColor != 0xffffffff )
-			{
-				StageInfo[ StageNum ].Texture   = NULL ;
-				StageInfo[ StageNum ].TextureCoordIndex = 0 ;
-				StageInfo[ StageNum ].ColorARG1 = D_D3DTA_CURRENT ;
-				StageInfo[ StageNum ].ColorARG2 = D_D3DTA_DIFFUSE ;
-				StageInfo[ StageNum ].ColorOP   = D_D3DTOP_SELECTARG1 ;
-				StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-				StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_TFACTOR ;
-				StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_MODULATE ;
-				StageNum ++ ;
-			}
-			break ;
-		}
-		StageInfo[ StageNum ].ResultTempARG = FALSE ;
-
-		StageInfo[ StageNum ].Texture   = NULL ;
-		StageInfo[ StageNum ].TextureCoordIndex = 0 ;
-		StageInfo[ StageNum ].ResultTempARG = FALSE ;
-		StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-		StageInfo[ StageNum ].ColorARG2 = D_D3DTA_DIFFUSE ;
-		StageInfo[ StageNum ].ColorOP   = D_D3DTOP_DISABLE ;
-		StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_TEXTURE ;
-		StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_DIFFUSE ;
-		StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_DISABLE ;
-		StageNum ++ ;
-
-		BlendInfo->UseTextureStageNum = StageNum ;
-
-		// 設定を反映
-		D_SetUserBlendInfo( BlendInfo, FALSE ) ;
-	}
-}
-
-// 指定のメッシュのマテリアルをセットアップする
-static void MV1SetupMeshDrawMaterial( MV1_MODEL_BASE * /*ModelBase*/, DIRECT3DBLENDINFO *BlendInfo, MV1_MESH *Mesh, bool UseShader, int SpecularEnable )
-{
-	DIRECT3DTEXTURESTAGEINFO *StageInfo ;
-	MV1_TEXTURE_BASE *TexBase ;
-	MV1_TEXTURE *Tex ;
-	MV1_FRAME *Frame ;
-	MV1_MODEL *Model ;
-	MV1_MATERIAL * RST MMaterial ;
-	int StageNum, BlendMode ;
-
-	// 共通部分のセット
-
-	Frame = Mesh->Container ;
-	Model = Frame->Container ;
-	MMaterial = Mesh->Material ;
-	BlendMode = Mesh->DrawBlendMode != -1 ? Mesh->DrawBlendMode : MMaterial->DrawBlendMode ;
-
-	if( UseShader == FALSE && ( MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON || MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 ) )
-	{
-		SpecularEnable = FALSE ;
-	}
-	D_SetUseSpecular( SpecularEnable ) ;
-
-	// シェーダーが使用可能かどうかで処理を分岐
-	if( UseShader )
-//	if( Shader )
-//	if( 0 )
-	{
-		// テクスチャ座標変換パラメータのセット
-		if( Frame->TextureAddressTransformUse == FALSE )
-		{
-			static float IdentityData[ 2 ][ 4 ] =
-			{
-				1.0f, 0.0f, 0.0f, 0.0f,
-				0.0f, 1.0f, 0.0f, 0.0f,
-			} ;
-			SetShaderConstantSet(
-				&GRH.ShaderConstantInfo,
-				DX_SHADERCONSTANTTYPE_VS_FLOAT,
-				DX_SHADERCONSTANTSET_MV1,
-				DX_VS_CONSTF_TEXTURE_MATRIX_START,
-				IdentityData[ 0 ],
-				2,
-				FALSE
-			) ;
-		}
-		else
-		{
-			float Data[ 2 ][ 4 ] ;
-			Data[ 0 ][ 0 ] = Frame->TextureAddressTransformMatrix.m[ 0 ][ 0 ] ;
-			Data[ 0 ][ 1 ] = Frame->TextureAddressTransformMatrix.m[ 1 ][ 0 ] ;
-			Data[ 0 ][ 2 ] = Frame->TextureAddressTransformMatrix.m[ 2 ][ 0 ] ;
-			Data[ 0 ][ 3 ] = Frame->TextureAddressTransformMatrix.m[ 3 ][ 0 ] ;
-			Data[ 1 ][ 0 ] = Frame->TextureAddressTransformMatrix.m[ 0 ][ 1 ] ;
-			Data[ 1 ][ 1 ] = Frame->TextureAddressTransformMatrix.m[ 1 ][ 1 ] ;
-			Data[ 1 ][ 2 ] = Frame->TextureAddressTransformMatrix.m[ 2 ][ 1 ] ;
-			Data[ 1 ][ 3 ] = Frame->TextureAddressTransformMatrix.m[ 3 ][ 1 ] ;
-			SetShaderConstantSet(
-				&GRH.ShaderConstantInfo,
-				DX_SHADERCONSTANTTYPE_VS_FLOAT,
-				DX_SHADERCONSTANTSET_MV1,
-				DX_VS_CONSTF_TEXTURE_MATRIX_START,
-				Data[ 0 ],
-				2,
-				FALSE
-			) ;
-		}
-
-		// 今までとマテリアルが違う場合はマテリアルのセット
-//		if( MV1Man.SetMaterial != MBMesh->Material )
-		{
-			// テクスチャのセットアップ
-			StageInfo = BlendInfo->TextureStageInfo ;
-			BlendInfo->UseTextureStageNum = 0 ;
-
-			StageInfo[ 0 ].Texture = NULL ;
-			StageInfo[ 1 ].Texture = NULL ;
-			StageInfo[ 2 ].Texture = NULL ;
-			StageInfo[ 3 ].Texture = NULL ;
-			StageInfo[ 4 ].Texture = NULL ;
-			StageInfo[ 5 ].Texture = NULL ;
-			StageInfo[ 6 ].Texture = NULL ;
-			StageInfo[ 7 ].Texture = NULL ;
-			StageInfo[ 8 ].Texture = NULL ;
-			StageInfo[ 9 ].Texture = NULL ;
-			StageInfo[ 10 ].Texture = NULL ;
-			StageInfo[ 11 ].Texture = NULL ;
-
-			StageInfo[ 0 ].TextureCoordIndex = 0 ;
-			StageInfo[ 0 ].ResultTempARG = FALSE ;
-			if( Mesh->Material->DiffuseLayerNum )
-			{
-				BlendInfo->UseTextureStageNum = 1 ;
-				Tex = &Model->Texture[ Mesh->Material->DiffuseLayer[ 0 ].Texture ] ;
-				TexBase = Tex->BaseData ;
-				     if( Tex->UseUserGraphHandle     ) StageInfo[ 0 ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-				else if( Tex->UseGraphHandle         ) StageInfo[ 0 ].Texture = ( void * )( DWORD_PTR )Tex->GraphHandle ;
-				else if( TexBase->UseUserGraphHandle ) StageInfo[ 0 ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-				else                                   StageInfo[ 0 ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-				D_SetTextureAddressModeUVW( Tex->AddressModeU, Tex->AddressModeV, D_D3DTADDRESS_CLAMP, 0 ) ;
-
-				D_SetSampleFilterMode( 0, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-				D_SetSampleFilterMode( 0, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-				D_SetSampleFilterMode( 0, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-			}
-			else
-			{
-				// デフォルトテクスチャハンドルの初期化チェック
-				if( MV1Man.TexNoneHandle < 0 )
-				{
-					_MV1SetupTexNoneHandle() ;
-				}
-				BlendInfo->UseTextureStageNum = 1 ;
-				StageInfo[ 0 ].Texture = ( void * )( DWORD_PTR )MV1Man.TexNoneHandle ;
-			}
-
-			StageInfo[ 1 ].TextureCoordIndex = 1 ;
-			StageInfo[ 1 ].ResultTempARG = FALSE ;
-			if( Mesh->BaseData->Material->NormalLayerNum )
-			{
-				BlendInfo->UseTextureStageNum = 2 ;
-				Tex = &Model->Texture[ Mesh->BaseData->Material->NormalLayer[ 0 ].Texture ] ;
-				TexBase = Tex->BaseData ;
-				     if( Tex->UseUserGraphHandle     ) StageInfo[ 1 ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-				else if( Tex->UseGraphHandle         ) StageInfo[ 1 ].Texture = ( void * )( DWORD_PTR )Tex->GraphHandle ;
-				else if( TexBase->UseUserGraphHandle ) StageInfo[ 1 ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-				else                                   StageInfo[ 1 ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-				D_SetTextureAddressModeUVW( Tex->AddressModeU, Tex->AddressModeV, D_D3DTADDRESS_CLAMP, 1 ) ;
-
-				D_SetSampleFilterMode( 1, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-				D_SetSampleFilterMode( 1, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-				D_SetSampleFilterMode( 1, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-			}
-
-			StageInfo[ 2 ].TextureCoordIndex = 2 ;
-			StageInfo[ 2 ].ResultTempARG = FALSE ;
-			if( Mesh->Material->SpecularLayerNum )
-			{
-				BlendInfo->UseTextureStageNum = 3 ;
-				Tex = &Model->Texture[ Mesh->Material->SpecularLayer[ 0 ].Texture ] ;
-				TexBase = Tex->BaseData ;
-				     if( Tex->UseUserGraphHandle     ) StageInfo[ 2 ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-				else if( Tex->UseGraphHandle         ) StageInfo[ 2 ].Texture = ( void * )( DWORD_PTR )Tex->GraphHandle ;
-				else if( TexBase->UseUserGraphHandle ) StageInfo[ 2 ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-				else                                   StageInfo[ 2 ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-				D_SetTextureAddressModeUVW( Tex->AddressModeU, Tex->AddressModeV, D_D3DTADDRESS_CLAMP, 2 ) ;
-
-				D_SetSampleFilterMode( 2, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-				D_SetSampleFilterMode( 2, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-				D_SetSampleFilterMode( 2, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-			}
-			else
-			{
-				if( Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON || Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 )
-				{
-					// デフォルトテクスチャハンドルの初期化チェック
-					if( MV1Man.TexNoneHandle < 0 )
-					{
-						_MV1SetupTexNoneHandle() ;
-					}
-					StageInfo[ 2 ].Texture = ( void * )( DWORD_PTR )MV1Man.TexNoneHandle ;
-				}
-			}
-
-			if( Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON || Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 )
-			{
-				BlendInfo->UseTextureStageNum = 5 ;
-
-				if( Mesh->Material->DiffuseGradTexture >= 0 )
-				{
-					Tex = &Model->Texture[ Mesh->Material->DiffuseGradTexture ] ;
-					TexBase = Tex->BaseData ;
-						 if( Tex->UseUserGraphHandle     ) StageInfo[ 3 ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-					else if( Tex->UseGraphHandle         ) StageInfo[ 3 ].Texture = ( void * )( DWORD_PTR )Tex->GraphHandle ;
-					else if( TexBase->UseUserGraphHandle ) StageInfo[ 3 ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-					else                                   StageInfo[ 3 ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-					D_SetTextureAddressModeUVW( Tex->AddressModeU, Tex->AddressModeV, D_D3DTADDRESS_CLAMP, 3 ) ;
-
-					D_SetSampleFilterMode( 3, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-					D_SetSampleFilterMode( 3, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-					D_SetSampleFilterMode( 3, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-				}
-				else
-				{
-					if( Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON )
-					{
-						StageInfo[ 3 ].Texture = ( void * )( DWORD_PTR )_MV1GetDefaultToonTexture( Mesh->Material->DiffuseGradTexture ) ;
-					}
-					else
-					{
-						StageInfo[ 3 ].Texture = ( void * )( DWORD_PTR )MV1Man.TexNoneHandle ;
-					}
-				}
-				StageInfo[ 3 ].TextureCoordIndex = 3 ;
-				StageInfo[ 3 ].ResultTempARG = FALSE ;
-
-				if( Mesh->Material->SpecularGradTexture >= 0 )
-				{
-					Tex = &Model->Texture[ Mesh->Material->SpecularGradTexture ] ;
-					TexBase = Tex->BaseData ;
-						 if( Tex->UseUserGraphHandle     ) StageInfo[ 4 ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-					else if( Tex->UseGraphHandle         ) StageInfo[ 4 ].Texture = ( void * )( DWORD_PTR )Tex->GraphHandle ;
-					else if( TexBase->UseUserGraphHandle ) StageInfo[ 4 ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-					else                                   StageInfo[ 4 ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-					D_SetTextureAddressModeUVW( Tex->AddressModeU, Tex->AddressModeV, D_D3DTADDRESS_CLAMP, 4 ) ;
-
-					D_SetSampleFilterMode( 4, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-					D_SetSampleFilterMode( 4, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-					D_SetSampleFilterMode( 4, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-				}
-				else
-				{
-					StageInfo[ 4 ].Texture = ( void * )( DWORD_PTR )_MV1GetDefaultToonTexture( Mesh->Material->SpecularGradTexture ) ;
-				}
-				StageInfo[ 4 ].TextureCoordIndex = 4 ;
-				StageInfo[ 4 ].ResultTempARG = FALSE ;
-
-				if( Mesh->Material->SphereMapTexture >= 0 )
-				{
-					if( MV1Man.TexNoneHandle < 0 )
-					{
-						_MV1SetupTexNoneHandle() ;
-					}
-
-					BlendInfo->UseTextureStageNum = 6 ;
-					Tex = &Model->Texture[ Mesh->Material->SphereMapTexture ] ;
-					TexBase = Tex->BaseData ;
-						 if( Tex->UseUserGraphHandle                                ) StageInfo[ 5 ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-					else if( Tex->UseGraphHandle  && Tex->IsDefaultTexture == FALSE ) StageInfo[ 5 ].Texture = ( void * )( DWORD_PTR )Tex->GraphHandle ;
-					else if( TexBase->UseUserGraphHandle                            ) StageInfo[ 5 ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-					else if( TexBase->IsDefaultTexture == FALSE                     ) StageInfo[ 5 ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-					else
-					{
-						if( Mesh->Material->SphereMapBlendType == DX_MATERIAL_BLENDTYPE_MODULATE )
-						{
-							StageInfo[ 5 ].Texture = ( void * )( DWORD_PTR )MV1Man.TexNoneHandle ;
-						}
-						else
-						{
-							StageInfo[ 5 ].Texture = ( void * )( DWORD_PTR )MV1Man.TexNoneBlackHandle ;
-						}
-					}
-					D_SetTextureAddressModeUVW( Tex->AddressModeU, Tex->AddressModeV, D_D3DTADDRESS_CLAMP, 5 ) ;
-
-					D_SetSampleFilterMode( 5, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-					D_SetSampleFilterMode( 5, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-					D_SetSampleFilterMode( 5, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-
-					StageInfo[ 5 ].TextureCoordIndex = 5 ;
-					StageInfo[ 5 ].ResultTempARG = FALSE ;
-				}
-
-				GraphicsDevice_SetTexture( 6, GRH.RGBtoVMaxRGBVolumeTexture ) ;
-				D_SetSampleFilterMode( 6, DX_D3DSAMP_MINFILTER, D_D3DTEXF_LINEAR ) ;
-				D_SetSampleFilterMode( 6, DX_D3DSAMP_MAGFILTER, D_D3DTEXF_LINEAR ) ;
-				D_SetSampleFilterMode( 6, DX_D3DSAMP_MIPFILTER, D_D3DTEXF_LINEAR ) ;
-				D_SetTextureAddressModeUVW( DX_TEXADDRESS_CLAMP, DX_TEXADDRESS_CLAMP, D_D3DTADDRESS_CLAMP, 6 ) ;
-
-				{
-					float OutLineData[ 8 ] ;
-
-					OutLineData[ 0 ] = Mesh->Material->OutLineColor.r ;
-					OutLineData[ 1 ] = Mesh->Material->OutLineColor.g ;
-					OutLineData[ 2 ] = Mesh->Material->OutLineColor.b ;
-					OutLineData[ 3 ] = Mesh->Material->OutLineColor.a ;
-					OutLineData[ 4 ] = 1.0f / Mesh->Material->OutLineWidth ;
-					OutLineData[ 5 ] = 1.0f / Mesh->Material->OutLineWidth ;
-					OutLineData[ 6 ] = 1.0f / Mesh->Material->OutLineWidth ;
-					OutLineData[ 7 ] = 1.0f / Mesh->Material->OutLineWidth ;
-					SetShaderConstantSet(
-						&GRH.ShaderConstantInfo,
-						DX_SHADERCONSTANTTYPE_PS_FLOAT,
-						DX_SHADERCONSTANTSET_MV1,
-						DX_PS_CONSTF_TOON_OUTLINE_COLOR,
-						OutLineData,
-						2,
-						FALSE
-					) ;
-				}
-			}
-
-			StageInfo[ 7 ].TextureCoordIndex = 0 ;
-			StageInfo[ 7 ].ResultTempARG = FALSE ;
-			if( Mesh->Material->DiffuseLayerNum > 1 )
-			{
-				BlendInfo->UseTextureStageNum = 8 ;
-				Tex = &Model->Texture[ Mesh->Material->DiffuseLayer[ 1 ].Texture ] ;
-				TexBase = Tex->BaseData ;
-				     if( Tex->UseUserGraphHandle     ) StageInfo[ 7 ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-				else if( Tex->UseGraphHandle         ) StageInfo[ 7 ].Texture = ( void * )( DWORD_PTR )Tex->GraphHandle ;
-				else if( TexBase->UseUserGraphHandle ) StageInfo[ 7 ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-				else                                   StageInfo[ 7 ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-				D_SetTextureAddressModeUVW( Tex->AddressModeU, Tex->AddressModeV, D_D3DTADDRESS_CLAMP, 7 ) ;
-
-				D_SetSampleFilterMode( 7, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-				D_SetSampleFilterMode( 7, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-				D_SetSampleFilterMode( 7, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-			}
-
-			// シャドウマップの設定
-			{
-				int i ;
-				int j ;
-
-				j = 0 ;
-				for( i = 0 ; i < MAX_USE_SHADOWMAP_NUM ; i ++ )
-				{
-					StageInfo[ 8 + j ].TextureCoordIndex = 0 ;
-					StageInfo[ 8 + j ].ResultTempARG = FALSE ;
-					if( GBASE.ShadowMap[ j ] > 0 )
-					{
-						BlendInfo->UseTextureStageNum = 9 + j ;
-						StageInfo[ 8 + j ].Texture = ( void * )( DWORD_PTR )GBASE.ShadowMap[ j ] ;
-						D_SetTextureAddressModeUVW( DX_TEXADDRESS_CLAMP, DX_TEXADDRESS_CLAMP, D_D3DTADDRESS_CLAMP, 8 + j ) ;
-
-						D_SetSampleFilterMode( 8 + j, DX_D3DSAMP_MINFILTER, D_D3DTEXF_LINEAR ) ;
-						D_SetSampleFilterMode( 8 + j, DX_D3DSAMP_MAGFILTER, D_D3DTEXF_LINEAR ) ;
-						D_SetSampleFilterMode( 8 + j, DX_D3DSAMP_MIPFILTER, D_D3DTEXF_LINEAR ) ;
-
-						j ++ ;
-					}
-				}
-				while( j > 0 && j < MAX_USE_SHADOWMAP_NUM )
-				{
-					StageInfo[ 8 + j ].TextureCoordIndex = 0 ;
-					StageInfo[ 8 + j ].ResultTempARG = FALSE ;
-					BlendInfo->UseTextureStageNum = 9 + j ;
-					StageInfo[ 8 + j ].Texture = NULL ;
-
-					j ++ ;
-				}
-			}
-
-			// ユーザー設定を使用する場合はここでテクスチャもセット
-			if( MV1Man.UseOrigShaderFlag )
-			{
-				int i ;
-				int LastNo ;
-
-				LastNo = -1 ;
-				for( i = 0 ; i < USE_TEXTURESTAGE_NUM ; i ++ )
-				{
-					if( GRH.UserShaderRenderInfo.SetTextureGraphHandle[ i ] == 0 )
-					{
-						if( BlendInfo->UseTextureStageNum <= i )
-						{
-							StageInfo[ i ].Texture = NULL ;
-							StageInfo[ i ].TextureCoordIndex = 0 ;
-							StageInfo[ i ].ResultTempARG = FALSE ;
-						}
-						continue ;
-					}
-
-					LastNo = i ;
-					StageInfo[ i ].Texture = ( void * )( DWORD_PTR )GRH.UserShaderRenderInfo.SetTextureGraphHandle[ i ] ;
-					D_SetTextureAddressModeUVW( GBASE.TexAddressModeU[ i ], GBASE.TexAddressModeV[ i ], GBASE.TexAddressModeW[ i ], i ) ;
-
-					D_SetSampleFilterMode( i, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ GBASE.DrawMode ][ 0 ] ) ;
-					D_SetSampleFilterMode( i, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ GBASE.DrawMode ][ 1 ] ) ;
-					D_SetSampleFilterMode( i, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ GBASE.DrawMode ][ 2 ] ) ;
-				}
-
-				if( LastNo > 0 && LastNo + 1 > BlendInfo->UseTextureStageNum )
-				{
-					BlendInfo->UseTextureStageNum = LastNo + 1 ;
-				}
-			}
-
-			// 設定を反映
-			D_SetUserBlendInfo( BlendInfo, TRUE ) ;
-
-			// 使用するテクスチャ座標をリセット
-			D_ResetTextureCoord() ;
-		}
-	}
-	else
-	{
-		// テクスチャ座標変換設定
-		D_SetTextureAddressTransformMatrix( Frame->TextureAddressTransformUse, &Frame->TextureAddressTransformMatrix, 0 ) ;
-		D_SetTextureAddressTransformMatrix( Frame->TextureAddressTransformUse, &Frame->TextureAddressTransformMatrix, 1 ) ;
-		D_SetTextureAddressTransformMatrix( Frame->TextureAddressTransformUse, &Frame->TextureAddressTransformMatrix, 2 ) ;
-		D_SetTextureAddressTransformMatrix( Frame->TextureAddressTransformUse, &Frame->TextureAddressTransformMatrix, 3 ) ;
-
-		// 今までとマテリアルが違う場合はマテリアルのセット
-//		if( MV1Man.SetMaterial != Mesh->Material )
-		{
-			// テクスチャのセットアップ
-			StageInfo = BlendInfo->TextureStageInfo ;
-			StageNum = 0 ;
-
-			StageInfo[ StageNum ].Texture = NULL ;
-			if( Mesh->Material->DiffuseLayerNum )
-			{
-				Tex = &Model->Texture[ Mesh->Material->DiffuseLayer[ 0 ].Texture ] ;
-				TexBase = Tex->BaseData ;
-					 if( Tex->UseUserGraphHandle     ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-				else if( Tex->UseGraphHandle         ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )Tex->GraphHandle ;
-				else if( TexBase->UseUserGraphHandle ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-				else                                   StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-				D_SetTextureAddressModeUVW( Tex->AddressModeU, Tex->AddressModeV, D_D3DTADDRESS_CLAMP, StageNum ) ;
-
-				D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-				D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-				D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-			}
-			else
-			{
-				// デフォルトテクスチャハンドルの初期化チェック
-				if( MV1Man.TexNoneHandle < 0 )
-				{
-					_MV1SetupTexNoneHandle() ;
-				}
-				StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )MV1Man.TexNoneHandle ;
-			}
-			StageInfo[ StageNum ].TextureCoordIndex = 0 ;
-			StageInfo[ StageNum ].ResultTempARG = FALSE ;
-			StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-			StageInfo[ StageNum ].ColorARG2 = D_D3DTA_DIFFUSE ;
-			StageInfo[ StageNum ].ColorOP   = D_D3DTOP_MODULATE ;
-			StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_TEXTURE ;
-			StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_DIFFUSE ;
-			StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_MODULATE ;
-			StageNum ++ ;
-
-			// トゥーンレンダリングの場合
-			if( MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON || MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 )
-			{
-				// スフィアマップがある場合はテクスチャ×ディフューズカラーに乗算する
-				if( MMaterial->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 && MMaterial->SphereMapTexture >= 0 && Mesh->Material->SphereMapBlendType != DX_MATERIAL_BLENDTYPE_NONE )
-				{
-					Tex = &Model->Texture[ Mesh->Material->SphereMapTexture ] ;
-					TexBase = Tex->BaseData ;
-						 if( Tex->UseUserGraphHandle                               ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-					else if( Tex->UseGraphHandle && Tex->IsDefaultTexture == FALSE ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-					else if( TexBase->UseUserGraphHandle                           ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-					else if( TexBase->IsDefaultTexture == FALSE                    ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-					else
-					{
-						if( MMaterial->SphereMapBlendType == DX_MATERIAL_BLENDTYPE_MODULATE )
-						{
-							StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )MV1Man.TexNoneHandle ;
-						}
-						else
-						{
-							StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )MV1Man.TexNoneBlackHandle ;
-						}
-					}
-					D_SetTextureAddressModeUVW( DX_TEXADDRESS_CLAMP, DX_TEXADDRESS_CLAMP, D_D3DTADDRESS_CLAMP, StageNum ) ;
-
-					D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-					D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-					D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-
-
-					StageInfo[ StageNum ].TextureCoordIndex = 2 ;
-					StageInfo[ StageNum ].ResultTempARG = FALSE ;
-					switch( Mesh->Material->SphereMapBlendType )
-					{
-					case DX_MATERIAL_BLENDTYPE_MODULATE :
-						StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-						StageInfo[ StageNum ].ColorARG2 = D_D3DTA_CURRENT ;
-						StageInfo[ StageNum ].ColorOP   = D_D3DTOP_MODULATE ;
-						StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-						StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-						StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-						break ;
-
-					case DX_MATERIAL_BLENDTYPE_ADDITIVE :
-						StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-						StageInfo[ StageNum ].ColorARG2 = D_D3DTA_CURRENT ;
-						StageInfo[ StageNum ].ColorOP   = D_D3DTOP_ADD ;
-						StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-						StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-						StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-						break ;
-					}
-					StageNum ++ ;
-				}
-
-				// ディフューズグラデーションテクスチャをセット
-				if( Mesh->Material->DiffuseGradTexture != -1 )
-				{
-					Tex = &Model->Texture[ Mesh->Material->DiffuseGradTexture ] ;
-					TexBase = Tex->BaseData ;
-						 if( Tex->UseUserGraphHandle     ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-					else if( Tex->UseGraphHandle         ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )Tex->GraphHandle ;
-					else if( TexBase->UseUserGraphHandle ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-					else                                   StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-					D_SetTextureAddressModeUVW( DX_TEXADDRESS_CLAMP, DX_TEXADDRESS_CLAMP, D_D3DTADDRESS_CLAMP, StageNum ) ;
-
-					D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-					D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-					D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-				}
-				else
-				{
-					StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )_MV1GetDefaultToonTexture( Mesh->Material->DiffuseGradTexture ) ;
-				}
-
-				StageInfo[ StageNum ].TextureCoordIndex = 1 ;
-				StageInfo[ StageNum ].ResultTempARG = FALSE ;
-				switch( Mesh->Material->DiffuseGradBlendType )
-				{
-				case DX_MATERIAL_BLENDTYPE_TRANSLUCENT :
-					StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-					StageInfo[ StageNum ].ColorARG2 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].ColorOP   = D_D3DTOP_BLENDTEXTUREALPHA ;
-					StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-					break ;
-
-				case DX_MATERIAL_BLENDTYPE_MODULATE :
-					StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-					StageInfo[ StageNum ].ColorARG2 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].ColorOP   = D_D3DTOP_MODULATE ;
-					StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-					break ;
-				}
-				StageNum ++ ;
-
-				// トゥーンタイプによって処理を分岐
-				switch( MMaterial->BaseData->Type )
-				{
-				case DX_MATERIAL_TYPE_TOON :
-					// テンポラリレジスタが使用できない場合で DX_MATERIAL_BLENDTYPE_ADDITIVE が指定されていた場合はスペキュラ用固定テクスチャを使用する
-					if( ( GRH.ValidTexTempRegFlag == TRUE || Mesh->Material->SpecularGradBlendType != DX_MATERIAL_BLENDTYPE_ADDITIVE ) && Mesh->Material->SpecularGradTexture != -1 )
-					{
-						Tex = &Model->Texture[ Mesh->Material->SpecularGradTexture ] ;
-						TexBase = Tex->BaseData ;
-							 if( Tex->UseUserGraphHandle     ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-						else if( Tex->UseGraphHandle         ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )Tex->GraphHandle ;
-						else if( TexBase->UseUserGraphHandle ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-						else                                   StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-						D_SetTextureAddressModeUVW( DX_TEXADDRESS_CLAMP, DX_TEXADDRESS_CLAMP, D_D3DTADDRESS_CLAMP, StageNum ) ;
-
-						D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-						D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-						D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-					}
-					else
-					{
-						StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )_MV1GetDefaultToonTexture( Mesh->Material->SpecularGradTexture ) ;
-					}
-
-					StageInfo[ StageNum ].TextureCoordIndex = 2 ;
-
-					// テンポラリレジスタが使用できない場合は固定パラメータ
-					if( GRH.ValidTexTempRegFlag == FALSE )
-					{
-						StageInfo[ StageNum ].ResultTempARG = FALSE ;
-
-						// 加算固定
-						switch( Mesh->Material->SpecularGradBlendType )
-						{
-						case DX_MATERIAL_BLENDTYPE_TRANSLUCENT :
-							StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-							StageInfo[ StageNum ].ColorARG2 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].ColorOP   = D_D3DTOP_BLENDTEXTUREALPHA ;
-							StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-							break ;
-
-						case DX_MATERIAL_BLENDTYPE_ADDITIVE :
-							StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-							StageInfo[ StageNum ].ColorARG2 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].ColorOP   = D_D3DTOP_ADD ;
-							StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-							break ;
-						}
-					}
-					else
-					{
-						switch( Mesh->Material->SpecularGradBlendType )
-						{
-						case DX_MATERIAL_BLENDTYPE_TRANSLUCENT :
-							StageInfo[ StageNum - 1 ].ResultTempARG = TRUE ;
-
-							StageInfo[ StageNum ].ResultTempARG = FALSE ;
-							StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-							StageInfo[ StageNum ].ColorARG2 = D_D3DTA_SPECULAR ;
-							StageInfo[ StageNum ].ColorOP   = D_D3DTOP_MODULATE ;
-							StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-							StageNum ++ ;
-
-							StageInfo[ StageNum ].Texture = NULL ;
-							StageInfo[ StageNum ].TextureCoordIndex = 0 ;
-							StageInfo[ StageNum ].ResultTempARG = FALSE ;
-							StageInfo[ StageNum ].ColorARG1 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].ColorARG2 = D_D3DTA_TEMP ;
-							StageInfo[ StageNum ].ColorOP   = D_D3DTOP_BLENDCURRENTALPHA ;
-							StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_TEMP ;
-							StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-							StageNum ++ ;
-							break ;
-
-						case DX_MATERIAL_BLENDTYPE_ADDITIVE :
-							StageInfo[ StageNum - 1 ].ResultTempARG = TRUE ;
-
-							StageInfo[ StageNum ].ResultTempARG = FALSE ;
-							StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-							StageInfo[ StageNum ].ColorARG2 = D_D3DTA_SPECULAR ;
-							StageInfo[ StageNum ].ColorOP   = D_D3DTOP_MODULATE ;
-							StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-							StageNum ++ ;
-
-							StageInfo[ StageNum ].Texture = NULL ;
-							StageInfo[ StageNum ].TextureCoordIndex = 0 ;
-							StageInfo[ StageNum ].ResultTempARG = FALSE ;
-							StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEMP ;
-							StageInfo[ StageNum ].ColorARG2 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].ColorOP   = D_D3DTOP_ADD ;
-							StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_TEMP ;
-							StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-							StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-							break ;
-						}
-					}
-
-					StageNum ++ ;
-					break ;
-
-				case DX_MATERIAL_TYPE_TOON_2 :
-					StageInfo[ StageNum ].Texture = NULL ;
-					StageInfo[ StageNum ].TextureCoordIndex = -1 ;
-					StageInfo[ StageNum ].ResultTempARG = FALSE ;
-
-					// 加算固定
-					StageInfo[ StageNum ].ColorARG1 = D_D3DTA_SPECULAR ;
-					StageInfo[ StageNum ].ColorARG2 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].ColorOP   = D_D3DTOP_ADD ;
-					StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-
-					StageNum ++ ;
-					break ;
-				}
-			}
-			else
-			// トゥーンシェーディングではない場合でマルチテクスチャの場合
-			if( Mesh->Material->DiffuseLayerNum >= 2 )
-			{
-				Tex = &Model->Texture[ Mesh->Material->DiffuseLayer[ 1 ].Texture ] ;
-				TexBase = Tex->BaseData ;
-					 if( Tex->UseUserGraphHandle     ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )Tex->UserGraphHandle ;
-				else if( Tex->UseGraphHandle         ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )Tex->GraphHandle ;
-				else if( TexBase->UseUserGraphHandle ) StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )TexBase->UserGraphHandle ;
-				else                                   StageInfo[ StageNum ].Texture = ( void * )( DWORD_PTR )TexBase->GraphHandle ;
-				D_SetTextureAddressModeUVW( Tex->AddressModeU, Tex->AddressModeV, D_D3DTADDRESS_CLAMP, StageNum ) ;
-
-				D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MINFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 0 ] ) ;
-				D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MAGFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 1 ] ) ;
-				D_SetSampleFilterMode( StageNum, DX_D3DSAMP_MIPFILTER, DrawModeToFilterTable[ Tex->FilterMode ][ 2 ] ) ;
-
-				StageInfo[ StageNum ].TextureCoordIndex = 1 ;
-				StageInfo[ StageNum ].ResultTempARG = FALSE ;
-				StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-				StageInfo[ StageNum ].ColorARG2 = D_D3DTA_CURRENT ;
-
-				switch( Mesh->Material->DiffuseLayer[ 1 ].BlendType )
-				{
-				default :
-				case MV1_LAYERBLEND_TYPE_TRANSLUCENT :
-					StageInfo[ StageNum ].ColorOP   = D_D3DTOP_BLENDTEXTUREALPHA ;
-					break ;
-
-				case MV1_LAYERBLEND_TYPE_ADDITIVE :
-					StageInfo[ StageNum ].ColorOP   = D_D3DTOP_ADD  ;
-					break ;
-
-				case MV1_LAYERBLEND_TYPE_MODULATE :
-					StageInfo[ StageNum ].ColorOP   = D_D3DTOP_MODULATE ;
-					break ;
-
-				case MV1_LAYERBLEND_TYPE_MODULATE2 :
-					StageInfo[ StageNum ].ColorOP   = D_D3DTOP_MODULATE2X ;
-					break ;
-				}
-
-				StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-				StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_CURRENT ;
-				StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-				StageNum ++ ;
-			}
-
-			StageInfo[ StageNum ].ResultTempARG = FALSE ;
-			switch( BlendMode )
-			{
-			case DX_BLENDMODE_MULA :
-				if( BlendInfo->FactorColor != 0xffffffff )
-				{
-					StageInfo[ StageNum ].Texture   = NULL ;
-					StageInfo[ StageNum ].TextureCoordIndex = 0 ;
-					StageInfo[ StageNum ].ColorARG1 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].ColorARG2 = D_D3DTA_TFACTOR ;
-					StageInfo[ StageNum ].ColorOP   = D_D3DTOP_BLENDFACTORALPHA ;
-					StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_DIFFUSE ;
-					StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-					StageNum ++ ;
-				}
-				break ;
-
-			default :
-				if( BlendInfo->FactorColor != 0xffffffff )
-				{
-					StageInfo[ StageNum ].Texture   = NULL ;
-					StageInfo[ StageNum ].TextureCoordIndex = 0 ;
-					StageInfo[ StageNum ].ColorARG1 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].ColorARG2 = D_D3DTA_DIFFUSE ;
-					StageInfo[ StageNum ].ColorOP   = D_D3DTOP_SELECTARG1 ;
-					StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-					StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_TFACTOR ;
-					StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_MODULATE ;
-					StageNum ++ ;
-				}
-				break ;
-			}
-
-/*
-			if( BlendMode == DX_BLENDMODE_INVSRC )
-			{
-				StageInfo[ StageNum ].Texture   = NULL ;
-				StageInfo[ StageNum ].TextureCoordIndex = 0 ;
-				StageInfo[ StageNum ].ColorARG1 = D_D3DTA_CURRENT | D_D3DTA_COMPLEMENT ;
-				StageInfo[ StageNum ].ColorARG2 = D_D3DTA_DIFFUSE ;
-				StageInfo[ StageNum ].ColorOP   = D_D3DTOP_SELECTARG1 ;
-				StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_CURRENT ;
-				StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_DIFFUSE ;
-				StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_SELECTARG1 ;
-				StageNum ++ ;
-			}
-*/
-
-			StageInfo[ StageNum ].Texture   = NULL ;
-			StageInfo[ StageNum ].TextureCoordIndex = 0 ;
-			StageInfo[ StageNum ].ResultTempARG = FALSE ;
-			StageInfo[ StageNum ].ColorARG1 = D_D3DTA_TEXTURE ;
-			StageInfo[ StageNum ].ColorARG2 = D_D3DTA_DIFFUSE ;
-			StageInfo[ StageNum ].ColorOP   = D_D3DTOP_DISABLE ;
-			StageInfo[ StageNum ].AlphaARG1 = D_D3DTA_TEXTURE ;
-			StageInfo[ StageNum ].AlphaARG2 = D_D3DTA_DIFFUSE ;
-			StageInfo[ StageNum ].AlphaOP   = D_D3DTOP_DISABLE ;
-			StageNum ++ ;
-
-			BlendInfo->UseTextureStageNum = StageNum ;
-
-			// 設定を反映
-			D_SetUserBlendInfo( BlendInfo, FALSE ) ;
-		}
-	}
-}
-
-// 指定のトライアングルリストのテンポラリ情報をセットアップする
-static bool MV1SetupTListTempSimpleVertex( MV1_TRIANGLE_LIST_BASE *MBTList )
-{
-	int i, j, MeshVertUnitSize, DestUnitSize, VertexNum, UVNum ;
-	DWORD *MeshVertIndex ;
-	MV1_VERTEX_SIMPLE   *SMPVert ;
-	MV1_MESH_VERTEX     *MeshVert, *MVert ;
-	MV1_TLIST_NORMAL_POS *Norm ;
-
-	// 既に確保されていたら何もせずに終了
-	if( MBTList->TempSimpleVertex )
-		return true ;
-
-	// メモリの確保
-	UVNum = MBTList->Container->UVSetUnitNum ;
-	MeshVertUnitSize = MBTList->Container->VertUnitSize ;
-	DestUnitSize = sizeof( MV1_VERTEX_SIMPLE ) + ( UVNum - 1 ) * sizeof( float ) * 4 ;
-	MBTList->TempUnitSize = ( unsigned short )DestUnitSize ;
-	MBTList->TempSimpleVertex = ( MV1_VERTEX_SIMPLE * )DXALLOC( DestUnitSize * MBTList->VertexNum ) ;
-	if( MBTList->TempSimpleVertex == NULL )
-		return false ;
-
-	// 頂点の数をセット
-	VertexNum = MBTList->VertexNum ;
-
-	// 共通データをコピーする
-	SMPVert  = MBTList->TempSimpleVertex ;
-	MeshVert = MBTList->Container->Vertex ;
-	MeshVertIndex = MBTList->MeshVertexIndex ;
-	for( i = 0 ; i < VertexNum ; i ++,
-		SMPVert = ( MV1_VERTEX_SIMPLE * )( ( BYTE * )SMPVert + DestUnitSize ),
-		MeshVertIndex ++ )
-	{
-		MVert = ( MV1_MESH_VERTEX * )( ( BYTE * )MeshVert + MeshVertUnitSize * *MeshVertIndex ) ;
-		SMPVert->DiffuseColor  = MVert->DiffuseColor ;
-		SMPVert->SpecularColor = MVert->SpecularColor ;
-		for( j = 0 ; j < UVNum ; j ++ )
-		{
-			SMPVert->UVs[ j ][ 0 ] = MVert->UVs[ j ][ 0 ] ;
-			SMPVert->UVs[ j ][ 1 ] = MVert->UVs[ j ][ 1 ] ;
-			SMPVert->UVs[ j ][ 2 ] = 1.0f ;
-			SMPVert->UVs[ j ][ 3 ] = 1.0f ;
-		}
-	}
-
-	// 剛体メッシュの場合のみ座標と法線を代入してしまう
-	if( MBTList->VertexType == MV1_VERTEX_TYPE_NORMAL )
-	{
-		SMPVert = MBTList->TempSimpleVertex ;
-		Norm    = ( MV1_TLIST_NORMAL_POS * )ADDR16( MBTList->NormalPosition ) ;
-		for( i = 0 ; i < VertexNum ; i ++, Norm ++, SMPVert = ( MV1_VERTEX_SIMPLE * )( ( BYTE * )SMPVert + DestUnitSize ) )
-		{
-			SMPVert->Position = *( ( VECTOR * )&Norm->Position ) ;
-			SMPVert->Normal   = *( ( VECTOR * )&Norm->Normal ) ;
-		}
-	}
-
-	// 正常終了
-	return true ;
-}
-
-// 指定のトライアングルリストの輪郭線用テンポラリ情報をセットアップする
-static bool MV1SetupTListTempToonOutLineSimpleVertex( MV1_TRIANGLE_LIST_BASE *MBTList )
-{
-	MV1_VERTEX_SIMPLE_TOL *TOLVert ;
-	MV1_TLIST_NORMAL_POS *Norm ;
-	DWORD i, VertexNum ;
-
-	// 既に確保されていたら何もせずに終了
-	if( MBTList->TempToonOutLineSimpleVertex )
-		return true ;
-
-	// メモリの確保
-	MBTList->TempToonOutLineSimpleVertex = ( MV1_VERTEX_SIMPLE_TOL * )DXALLOC( sizeof( MV1_VERTEX_SIMPLE_TOL ) * MBTList->VertexNum + 16 ) ;
-	if( MBTList->TempToonOutLineSimpleVertex == NULL )
-		return false ;
-
-	// 剛体メッシュの場合のみ座標を計算してしまう
-	if( MBTList->VertexType == MV1_VERTEX_TYPE_NORMAL )
-	{
-		float OutLineWidth ;
-
-		OutLineWidth = MBTList->Container->Material->OutLineWidth ;
-
-		TOLVert = ( MV1_VERTEX_SIMPLE_TOL * )( ( ( DWORD_PTR )MBTList->TempToonOutLineSimpleVertex + 15 ) / 16 * 16 ) ;
-		Norm    = ( MV1_TLIST_NORMAL_POS * )ADDR16( MBTList->NormalPosition ) ;
-		VertexNum = MBTList->VertexNum ;
-		for( i = 0 ; i < VertexNum ; i ++, Norm ++, TOLVert ++ )
-		{
-			TOLVert->Position = VAdd( *( ( VECTOR * )&Norm->Position ), VScale( *( ( VECTOR * )&Norm->Normal ), OutLineWidth ) ) ;
-		}
-	}
-
-	// 正常終了
-	return true ;
-}
-
-// メッシュ描画部分を抜き出したもの
-__inline void _MV1DrawMesh( MV1_MESH *Mesh, int TriangleListIndex = -1 )
-{
-//	MV1_TEXTURE *Tex ;
-	MV1_TRIANGLE_LIST * RST TList ;
-	MV1_TRIANGLE_LIST_BASE * RST MBTList ;
-	MV1_VERTEX_SIMPLE * RST SMPVert ;
-	MV1_VERTEX_SIMPLE_TOL * RST TONVert ;
-	MV1_SKINBONE_BLEND * RST VBlend ;
-	MV1_MESH_BASE * RST MBMesh ;
-	MV1_MODEL_BASE * RST MBase ;
-	MV1_MODEL * RST Model ;
-	MV1_FRAME * RST Frame ;
-	MV1_FRAME_BASE * RST MBFrame ;
-	MV1_TLIST_SKIN_POS_4B * RST PosSK4B ;
-	MV1_TLIST_SKIN_POS_8B * RST PosSK8B ;
-	MV1_TLIST_SKIN_POS_FREEB * RST PosSKFB ;
-	MATRIX_4X4CT BlendMat, * RST Mat, * RST pSkinBoneMatrix[ DX_VS_CONSTF_WORLD_MAT_NUM ] ;
-	int i, j, k, MaxBoneNum, VertexNum ;
-	DWORD SrcUnitSize, DestUnitSize ;
-	float Weight ;
-//	MATRIX Tenti ;
-	int NowVertexShaderIndex, NowPixelShaderIndex ;
-	int VertexShaderIndex, PixelShaderIndex ;
-	int NowVertexShaderIndex_PL, NowPixelShaderIndex_PL ;
-	int VertexShaderIndex_PL, PixelShaderIndex_PL ;
-	DIRECT3DBLENDINFO BlendInfo ;
-//	int Shader = NS_GetNowCount() % 2000 > 1000 ? 1 : 0 ;
-	int SetupShaderMaterial ;
-	int SpecularEnable ;
-	MATRIX_4X4CT TempMatrixTable[ DX_VS_CONSTF_WORLD_MAT_NUM ] ;
-	bool IsScaling ;
-	float Scale ;
-	int BumpMap, SkinMesh, UVNum, TOutLine ; 
-
-	Frame = Mesh->Container ;
-	Model = Frame->Container ;
-	MBFrame = Frame->BaseData ;
-	MBase = Model->BaseData ;
-	MBMesh = Mesh->BaseData ;
-
-	// Direct3DDevice が存在しなかったら何もしない
-	if( GraphicsDevice_IsValid() == 0 ) return ;
-
-	VertexShaderIndex = GRH.UseBaseVertexShaderIndex ;
-	PixelShaderIndex = GRH.UseBasePixelShaderIndex ;
-	VertexShaderIndex_PL = GRH.UseBaseVertexShaderIndex_PL ;
-	PixelShaderIndex_PL = GRH.UseBasePixelShaderIndex_PL ;
-
-	// マテリアルの共通部分のセットアップ
-	if( MV1SetupMeshDrawMaterialCommon(
-			&VertexShaderIndex,     &PixelShaderIndex,
-			&VertexShaderIndex_PL, &PixelShaderIndex_PL,
-			&BlendInfo, Mesh, &SpecularEnable ) == false )
-			return ;
-
-	{
-		int type, sv, sdm, sk, bp, fg, lind, spc ;
-
-		type = VERTEXSHADER_GET_TYPE( VertexShaderIndex ) ;
-		sv   = VERTEXSHADER_GET_SHADERMODEL( VertexShaderIndex ) ;
-		sdm  = VERTEXSHADER_GET_SHADOWMAP( VertexShaderIndex ) ;
-		sk   = VERTEXSHADER_GET_MESHTYPE( VertexShaderIndex ) ;
-		bp   = VERTEXSHADER_GET_BUMPMAP( VertexShaderIndex ) ;
-		fg   = VERTEXSHADER_GET_FOGMODE( VertexShaderIndex ) ;
-		lind = VERTEXSHADER_GET_LIGHTINDEX( VertexShaderIndex ) ;
-		spc  = VERTEXSHADER_GET_SPECULAR( VertexShaderIndex ) ;
-		type = 0 ;
-	}
-
-	{
-		int type, sv, sdm, mtx, toon, ttype, tspop, tdbop, tsbop, sm, bp, lind, spc ;
-
-		type  = PIXELSHADER_GET_TYPE( PixelShaderIndex ) ;
-		sv    = PIXELSHADER_GET_SHADERMODEL( PixelShaderIndex ) ;
-		sdm   = PIXELSHADER_GET_SHADOWMAP( PixelShaderIndex ) ;
-		mtx   = PIXELSHADER_GET_MULTITEX( PixelShaderIndex ) ;
-		toon  = PIXELSHADER_GET_TOON( PixelShaderIndex ) ;
-		ttype = PIXELSHADER_GET_TOONTYPE( PixelShaderIndex ) ;
-		tspop = PIXELSHADER_GET_TOONSPHEREOP( PixelShaderIndex ) ;
-		tdbop = PIXELSHADER_GET_TOONDIFBLDOP( PixelShaderIndex ) ;
-		tsbop = PIXELSHADER_GET_TOONSPCBLDOP( PixelShaderIndex ) ;
-		sm    = PIXELSHADER_GET_SPECULARMAP( PixelShaderIndex ) ;
-		bp    = PIXELSHADER_GET_BUMPMAP( PixelShaderIndex ) ;
-		lind  = PIXELSHADER_GET_LIGHTINDEX( PixelShaderIndex ) ;
-		spc   = PIXELSHADER_GET_SPECULAR( PixelShaderIndex ) ;
-	}
-
-	{
-		int sdm, sk, bp, fg ;
-
-		sdm = PIXELLIGHTING_VERTEXSHADER_GET_SHADOWMAP( VertexShaderIndex_PL ) ;
-		sk  = PIXELLIGHTING_VERTEXSHADER_GET_SKINMESH( VertexShaderIndex_PL ) ;
-		bp  = PIXELLIGHTING_VERTEXSHADER_GET_BUMPMAP( VertexShaderIndex_PL ) ;
-		fg  = PIXELLIGHTING_VERTEXSHADER_GET_FOGMODE( VertexShaderIndex_PL ) ;
-	}
-
-	{
-		int type, sdm, mtx, ttype, tspop, tdbop, tsbop, sm, bp, lind, spc ;
-
-		type  = PIXELLIGHTING_PIXELSHADER_GET_TYPE( PixelShaderIndex_PL ) ;
-		sdm   = PIXELLIGHTING_PIXELSHADER_GET_SHADOWMAP( PixelShaderIndex_PL ) ;
-		mtx   = PIXELLIGHTING_PIXELSHADER_GET_MULTITEX( PixelShaderIndex_PL ) ;
-		ttype = PIXELLIGHTING_PIXELSHADER_GET_TOONTYPE( PixelShaderIndex_PL ) ;
-		tspop = PIXELLIGHTING_PIXELSHADER_GET_TOONSPHEREOP( PixelShaderIndex_PL ) ;
-		tdbop = PIXELLIGHTING_PIXELSHADER_GET_TOONDIFBLDOP( PixelShaderIndex_PL ) ;
-		tsbop = PIXELLIGHTING_PIXELSHADER_GET_TOONSPCBLDOP( PixelShaderIndex_PL ) ;
-		sm    = PIXELLIGHTING_PIXELSHADER_GET_SPECULARMAP( PixelShaderIndex_PL ) ;
-		bp    = PIXELLIGHTING_PIXELSHADER_GET_BUMPMAP( PixelShaderIndex_PL ) ;
-		lind  = PIXELLIGHTING_PIXELSHADER_GET_LIGHTINDEX( PixelShaderIndex_PL ) ;
-		spc   = PIXELLIGHTING_PIXELSHADER_GET_SPECULAR( PixelShaderIndex_PL ) ;
-	}
-
-	// 通常メッシュの非表示フラグが立っていたら描画しない
-	if( Model->MeshCategoryHide[ DX_MV1_MESHCATEGORY_NORMAL ] == FALSE )
-	{
-		// トライアングルリストの数だけ繰り返し
-		TList = Mesh->TriangleList ;
-		MBTList = MBMesh->TriangleList ;
-		SetupShaderMaterial = -1 ;
-		for( i = 0 ; i < MBMesh->TriangleListNum ; i ++ , MBTList ++, TList ++ )
-		{
-			// トライアングルリストの指定がある場合はそれ以外のトライアングルリストは描画しない
-			if( TriangleListIndex >= 0 && i != TriangleListIndex )
-				continue ;
-
-			// 頂点のタイプによって処理を分岐
-			NowVertexShaderIndex = VertexShaderIndex ;
-			NowPixelShaderIndex = PixelShaderIndex ;
-
-			NowVertexShaderIndex_PL = VertexShaderIndex_PL ;
-			NowPixelShaderIndex_PL = PixelShaderIndex_PL ;
-			switch( MBTList->VertexType )
-			{
-				// 剛体トライアングルリスト
-			case MV1_VERTEX_TYPE_NORMAL :
-				if( 1 )
-	//			if( Shader )
-	//			if( 0 )
-				{
-	//				MATRIX BlendMat2, BlendMat3 ;
-
-					// シェーダーを使用して描画
-
-					if( MBTList->VertexBuffer == NULL || MBTList->VertexBuffer->VertexBuffer == NULL || MBTList->VertexBuffer->IndexBuffer == NULL )
-						goto NONSDSIMPLE ;
-
-					// ユーザー設定を使用する場合
-					if( MV1Man.UseOrigShaderFlag )
-					{
-						// 頂点シェーダーのセットアップ
-						if( GRH.UserShaderRenderInfo.SetVertexShaderHandle > 0 )
-						{
-							if( SetDeviceVertexShaderToHandle( GRH.UserShaderRenderInfo.SetVertexShaderHandle ) < 0 )
-								goto NONSDSIMPLE ;
-						}
-
-						// ピクセルシェーダーのセットアップ
-						if( GRH.UserShaderRenderInfo.SetPixelShaderHandle > 0 )
-						{
-							if( SetDevicePixelShaderToHandle( GRH.UserShaderRenderInfo.SetPixelShaderHandle ) < 0 )
-								goto NONSDSIMPLE ;
-						}
-
-						// シェーダーのセットアップ
-						if( SetupShader( 
-							GRH.UserShaderRenderInfo.SetVertexShaderHandle > 0 ? -1 : NowVertexShaderIndex, NowVertexShaderIndex_PL,
-							GRH.UserShaderRenderInfo.SetPixelShaderHandle  > 0 ? -1 : NowPixelShaderIndex,  NowPixelShaderIndex_PL ) == FALSE )
-						{
-							goto NONSDSIMPLE ;
-						}
-					}
-					else
-					{
-						// デフォルト動作
-
-						// シェーダーのセットアップ
-						if( SetupShader( 
-								NowVertexShaderIndex, NowVertexShaderIndex_PL,
-								NowPixelShaderIndex,  NowPixelShaderIndex_PL ) == FALSE )
-						{
-							goto NONSDSIMPLE ;
-						}
-					}
-
-					// 頂点データのセットアップ
-					TOutLine = 0 ;
-
-					BumpMap = VERTEXSHADER_GET_BUMPMAP( NowVertexShaderIndex ) ;
-					SkinMesh = VERTEXSHADER_GET_MESHTYPE( NowVertexShaderIndex ) ;
-/*
-					TOutLine = VS_GET_TOONOUTLINE( NowVertexShaderIndex ) ;
-					TOutLine = 0 ;
-
-					BumpMap = VS_GET_BUMPMAP( NowVertexShaderIndex ) ;
-					SkinMesh = VS_GET_SKINMESH( NowVertexShaderIndex ) ;
-*/
-					if( TOutLine == 1 )
-					{
-						UVNum = 0 ;
-					}
-					else
-					{
-						UVNum = Mesh->Material->DiffuseLayerNum >= 2 ? 2 : 1 ;
-					}
-					SetupVertexDeclaration( BumpMap, SkinMesh, UVNum ) ;
-
-					// 頂点バッファのセットアップ
-					if( TList->VertexBuffer )
-					{
-						if( GRH.SetVB != TList->VertexBuffer )
-						{
-							GRH.SetVB = TList->VertexBuffer ;
-							GraphicsDevice_SetStreamSource( 0, GRH.SetVB, 0, MBTList->VertexBuffer->UnitSize ) ;
-						}
-					}
-					else
-					{
-						if( GRH.SetVB != MBTList->VertexBuffer->VertexBuffer )
-						{
-							GRH.SetVB = MBTList->VertexBuffer->VertexBuffer ;
-							GraphicsDevice_SetStreamSource( 0, GRH.SetVB, 0, MBTList->VertexBuffer->UnitSize ) ;
-						}
-					}
-
-					// マテリアルのセットアップ
-					if( SetupShaderMaterial != 1 )
-					{
-						MV1SetupMeshDrawMaterial( MBase, &BlendInfo, Mesh, true, SpecularEnable ) ;
-						SetupShaderMaterial = 1 ;
-					}
-
-					// インデックスバッファのセットアップ
-					if( GRH.SetIB != MBTList->VertexBuffer->IndexBuffer )
-					{
-						GRH.SetIB = MBTList->VertexBuffer->IndexBuffer ;
-						GraphicsDevice_SetIndices( GRH.SetIB ) ;
-					}
-
-					// 使用するローカル→ワールド行列の用意
-					SetShaderConstantSet(
-						&GRH.ShaderConstantInfo,
-						DX_SHADERCONSTANTTYPE_VS_FLOAT,
-						DX_SHADERCONSTANTSET_MV1,
-						DX_VS_CONSTF_WORLD_MAT_START,
-						&Frame->LocalWorldMatrix,
-						3,
-						FALSE
-					) ;
-
-#ifndef NOT_RENDER
-					// 描画
-					GraphicsDevice_DrawIndexedPrimitive(
-						DX_PRIMTYPE_TRIANGLELIST,
-						TList->VertexBuffer ? NULL : MBTList->VBStartVertex,
-						0,
-						MBTList->VertexNum,
-						MBTList->VBStartIndex,
-						MBTList->IndexNum / 3 ) ;
-#endif // NOT_RENDER
-				}
-				else
-				{
-	NONSDSIMPLE :
-					if( Frame->ValidLocalWorldMatrixNM == false )
-					{
-						Frame->ValidLocalWorldMatrixNM = true ;
-						ConvertMatrix4x4cToMatrix( &Frame->LocalWorldMatrixNM, &Frame->LocalWorldMatrix ) ;
-	//					CreateTransposeMatrix( &Frame->LocalWorldMatrixNM, &Frame->LocalWorldMatrix ) ;
-					}
-
-					// 行列のセット
-					D_SetTransformToWorld( &Frame->LocalWorldMatrixNM ) ;
-					MV1Man.WorldMatrixIsIdentity = FALSE ;
-
-					// マテリアルのセットアップ
-					if( SetupShaderMaterial != 0 )
-					{
-						MV1SetupMeshDrawMaterial( MBase, &BlendInfo, Mesh, false, SpecularEnable ) ;
-						SetupShaderMaterial = 0 ;
-					}
-
-					// 固定機能パイプラインに戻す
-					if( GRH.SetVS )
-					{
-						GraphicsDevice_SetVertexShader( NULL ) ;
-						GRH.SetVS = NULL ;
-						GRH.SetVD = NULL ;
-						GRH.SetFVF = 0 ;
-					}
-
-					if( GRH.SetPS )
-					{
-						GraphicsDevice_SetPixelShader( NULL ) ;
-						GRH.SetPS = NULL ;
-					}
-#ifndef NOT_RENDER
-
-					// テンポラリバッファがセットアップされていなかったらセットアップ
-					if( MBTList->TempSimpleVertex == NULL )
-						MV1SetupTListTempSimpleVertex( MBTList ) ;
-
-					// シェイプメッシュだった場合はここでテンポラリバッファに内容を書き込む
-					if( MBMesh->Shape )
-					{
-						MV1_TLIST_NORMAL_POS * RST Norm ;
-
-						// １頂点あたりのデータサイズを算出
-						DestUnitSize = MBTList->TempUnitSize ;
-
-						// データのセット
-						SMPVert   = MBTList->TempSimpleVertex ;
-						VertexNum = MBTList->VertexNum ;
-						Norm      = ( MV1_TLIST_NORMAL_POS * )ADDR16( TList->NormalPosition ) ;
-
-						for( j = 0 ; j < VertexNum ; j ++, Norm ++, SMPVert = ( MV1_VERTEX_SIMPLE  * )( ( BYTE * )SMPVert + DestUnitSize ) )
-						{
-							SMPVert->Position.x = Norm->Position.x ;
-							SMPVert->Position.y = Norm->Position.y ;
-							SMPVert->Position.z = Norm->Position.z ;
-						}
-					}
-
-					// トゥーンだった場合はライティング計算をここでする
-					if( Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON || Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 )
-					{
-						// スケーリングされるかどうかをチェック
-						IsScaling = false ;
-						Scale = Frame->LocalWorldMatrixNM.m[ 0 ][ 0 ] * Frame->LocalWorldMatrixNM.m[ 0 ][ 0 ] +
-								Frame->LocalWorldMatrixNM.m[ 1 ][ 0 ] * Frame->LocalWorldMatrixNM.m[ 1 ][ 0 ] +
-								Frame->LocalWorldMatrixNM.m[ 2 ][ 0 ] * Frame->LocalWorldMatrixNM.m[ 2 ][ 0 ] ;
-						if( Scale < 0.999f || Scale > 1.001 ) IsScaling = true ;
-
-						Scale = Frame->LocalWorldMatrixNM.m[ 0 ][ 1 ] * Frame->LocalWorldMatrixNM.m[ 0 ][ 1 ] +
-								Frame->LocalWorldMatrixNM.m[ 1 ][ 1 ] * Frame->LocalWorldMatrixNM.m[ 1 ][ 1 ] +
-								Frame->LocalWorldMatrixNM.m[ 2 ][ 1 ] * Frame->LocalWorldMatrixNM.m[ 2 ][ 1 ] ;
-						if( Scale < 0.999f || Scale > 1.001 ) IsScaling = true ;
-
-						Scale = Frame->LocalWorldMatrixNM.m[ 0 ][ 2 ] * Frame->LocalWorldMatrixNM.m[ 0 ][ 2 ] +
-								Frame->LocalWorldMatrixNM.m[ 1 ][ 2 ] * Frame->LocalWorldMatrixNM.m[ 1 ][ 2 ] +
-								Frame->LocalWorldMatrixNM.m[ 2 ][ 2 ] * Frame->LocalWorldMatrixNM.m[ 2 ][ 2 ] ;
-						if( Scale < 0.999f || Scale > 1.001 ) IsScaling = true ;
-
-						MV1TriangleListToonLighting( MBTList, IsScaling, &Frame->LocalWorldMatrixNM ) ;
-					}
-
-					GRH.SetIB = NULL ;
-					GRH.SetVB = NULL ;
-	//					if( GRH.SetFVF != ( D_D3DFVF_XYZ | D_D3DFVF_NORMAL | D_D3DFVF_DIFFUSE | D_D3DFVF_SPECULAR | UVNumFVFTable[ MBMesh->UVSetUnitNum + 2 ] ) )
-					{
-						GRH.SetFVF = D_D3DFVF_XYZ | D_D3DFVF_NORMAL | D_D3DFVF_DIFFUSE | D_D3DFVF_SPECULAR | UVNumFVFTable[ MBMesh->UVSetUnitNum + 2 ] ;
-						GraphicsDevice_SetFVF( GRH.SetFVF ) ;
-					}
-
-					GraphicsDevice_DrawIndexedPrimitiveUP(
-						DX_PRIMTYPE_TRIANGLELIST,
-						0,
-						MBTList->VertexNum,
-						MBTList->IndexNum / 3,
-						MBTList->Index,
-						D_D3DFMT_INDEX16,
-						MBTList->TempSimpleVertex,
-						MBTList->TempUnitSize ) ;
-#endif // NOT_RENDER
-				}
-				break ;
-
-				// ４ボーン以内トライアングルリストと８ボーン以内トライアングルリスト
-			case MV1_VERTEX_TYPE_SKIN_4BONE :
-			case MV1_VERTEX_TYPE_SKIN_8BONE :
-				if( MBTList->VertexType == MV1_VERTEX_TYPE_SKIN_4BONE )
-				{
-					NowVertexShaderIndex     += VERTEXSHADER_MESHTYPE( 1 ) ;
-					NowVertexShaderIndex_PL += PIXELLIGHTING_VERTEXSHADER_SKINMESH( 1 ) ;
-				}
-				else
-				{
-					NowVertexShaderIndex     += VERTEXSHADER_MESHTYPE( 2 ) ;
-					NowVertexShaderIndex_PL += PIXELLIGHTING_VERTEXSHADER_SKINMESH( 2 ) ;
-				}
-	//			if( 0 )
-				if( 1 )
-	//			if( Shader )
-				{
-					int n ;
-	//				DX_DIRECT3DVERTEXSHADER9 *UseVS ;
-
-					// シェーダーを使用して描画
-
-					if( MBTList->VertexBuffer == NULL || MBTList->VertexBuffer->VertexBuffer == NULL || MBTList->VertexBuffer->IndexBuffer == NULL )
-						goto NONSDSKIN ;
-
-					// ユーザー設定を使用する場合
-					if( MV1Man.UseOrigShaderFlag )
-					{
-						// 頂点シェーダーのセットアップ
-						if( GRH.UserShaderRenderInfo.SetVertexShaderHandle > 0 )
-						{
-							if( SetDeviceVertexShaderToHandle( GRH.UserShaderRenderInfo.SetVertexShaderHandle ) < 0 )
-								goto NONSDSKIN ;
-						}
-
-						// ピクセルシェーダーのセットアップ
-						if( GRH.UserShaderRenderInfo.SetPixelShaderHandle > 0 )
-						{
-							if( SetDevicePixelShaderToHandle( GRH.UserShaderRenderInfo.SetPixelShaderHandle ) < 0 )
-								goto NONSDSKIN ;
-						}
-
-						// シェーダーのセットアップ
-						if( SetupShader( 
-							GRH.UserShaderRenderInfo.SetVertexShaderHandle > 0 ? -1 : NowVertexShaderIndex, NowVertexShaderIndex_PL,
-							GRH.UserShaderRenderInfo.SetPixelShaderHandle  > 0 ? -1 : NowPixelShaderIndex,  NowPixelShaderIndex_PL ) == FALSE )
-						{
-							goto NONSDSKIN ;
-						}
-					}
-					else
-					{
-						// デフォルト動作
-
-						// シェーダーのセットアップ
-						if( SetupShader( 
-								NowVertexShaderIndex, NowVertexShaderIndex_PL,
-								NowPixelShaderIndex,  NowPixelShaderIndex_PL ) == FALSE )
-						{
-							goto NONSDSKIN ;
-						}
-					}
-
-					// 頂点データのセットアップ
-					TOutLine = 0 ;
-
-					BumpMap = VERTEXSHADER_GET_BUMPMAP( NowVertexShaderIndex ) ;
-					SkinMesh = VERTEXSHADER_GET_MESHTYPE( NowVertexShaderIndex ) ;
-/*
-					TOutLine = VS_GET_TOONOUTLINE( NowVertexShaderIndex ) ;
-					TOutLine = 0 ;
-
-					BumpMap = VS_GET_BUMPMAP( NowVertexShaderIndex ) ;
-					SkinMesh = VS_GET_SKINMESH( NowVertexShaderIndex ) ;
-*/
-
-					if( TOutLine == 1 )
-					{
-						UVNum = 0 ;
-					}
-					else
-					{
-						UVNum = Mesh->Material->DiffuseLayerNum >= 2 ? 2 : 1 ;
-					}
-					SetupVertexDeclaration( BumpMap, SkinMesh, UVNum ) ;
-
-					// マテリアルのセットアップ
-					if( SetupShaderMaterial != 1 )
-					{
-						MV1SetupMeshDrawMaterial( MBase, &BlendInfo, Mesh, true, SpecularEnable ) ;
-						SetupShaderMaterial = 1 ;
-					}
-
-					// 頂点バッファのセットアップ
-					if( TList->VertexBuffer )
-					{
-						if( GRH.SetVB != TList->VertexBuffer )
-						{
-							GRH.SetVB = TList->VertexBuffer ;
-							GraphicsDevice_SetStreamSource( 0, GRH.SetVB, 0, MBTList->VertexBuffer->UnitSize ) ;
-						}
-					}
-					else
-					{
-						if( GRH.SetVB != MBTList->VertexBuffer->VertexBuffer )
-						{
-							GRH.SetVB = MBTList->VertexBuffer->VertexBuffer ;
-							GraphicsDevice_SetStreamSource( 0, GRH.SetVB, 0, MBTList->VertexBuffer->UnitSize ) ;
-						}
-					}
-
-					// インデックスバッファのセットアップ
-					if( GRH.SetIB != MBTList->VertexBuffer->IndexBuffer )
-					{
-						GRH.SetIB = MBTList->VertexBuffer->IndexBuffer ;
-						GraphicsDevice_SetIndices( GRH.SetIB ) ;
-					}
-
-					for( n = 0 ; n < MBTList->UseBoneNum ; n ++ )
-					{
-						TempMatrixTable[ n ] = *Frame->UseSkinBoneMatrix[ MBTList->UseBone[ n ] ] ;
-					}
-					SetShaderConstantSet(
-						&GRH.ShaderConstantInfo,
-						DX_SHADERCONSTANTTYPE_VS_FLOAT,
-						DX_SHADERCONSTANTSET_MV1,
-						DX_VS_CONSTF_WORLD_MAT_START,
-						TempMatrixTable,
-						MBTList->UseBoneNum * 3,
-						FALSE
-					) ;
-#ifndef NOT_RENDER
-					GraphicsDevice_DrawIndexedPrimitive(
-						DX_PRIMTYPE_TRIANGLELIST,
-						TList->VertexBuffer ? NULL : MBTList->VBStartVertex,
-						0,
-						MBTList->VertexNum,
-						MBTList->VBStartIndex,
-						MBTList->IndexNum / 3 ) ;
-#endif
-				}
-				else
-				{
-	NONSDSKIN:
-					// マテリアルのセットアップ
-					if( SetupShaderMaterial != 0 )
-					{
-						MV1SetupMeshDrawMaterial( MBase, &BlendInfo, Mesh, false, SpecularEnable ) ;
-						SetupShaderMaterial = 0 ;
-					}
-
-					// 固定機能パイプラインに戻す
-					if( GRH.SetVS )
-					{
-						GraphicsDevice_SetVertexShader( NULL ) ;
-						GRH.SetVS = NULL ;
-						GRH.SetVD = NULL ;
-						GRH.SetFVF = 0 ;
-					}
-
-					if( GRH.SetPS )
-					{
-						GraphicsDevice_SetPixelShader( NULL ) ;
-						GRH.SetPS = NULL ;
-					}
-
-					// 単位行列をセット
-					if( MV1Man.WorldMatrixIsIdentity == FALSE )
-					{
-						MV1Man.WorldMatrixIsIdentity = TRUE ;
-						D_SetTransformToWorld( &IdentityMat ) ;
-					}
-
-					// テンポラリバッファがセットアップされていなかったらセットアップ
-					if( MBTList->TempSimpleVertex == NULL )
-						MV1SetupTListTempSimpleVertex( MBTList ) ;
-
-					// １頂点あたりのデータサイズを算出
-					DestUnitSize = MBTList->TempUnitSize ;
-
-					// データのセット
-					SMPVert    = MBTList->TempSimpleVertex ;
-					MaxBoneNum = MBTList->MaxBoneNum ;
-					VertexNum  = MBTList->VertexNum ;
-
-					// 使用する行列の準備を行う
-					for( j = 0 ; j < MBTList->UseBoneNum ; j ++ )
-					{
-						pSkinBoneMatrix[ j ] = Frame->UseSkinBoneMatrix[ MBTList->UseBone[ j ] ] ;
-					}
-
-					switch( MBTList->VertexType )
-					{
-					case MV1_VERTEX_TYPE_SKIN_4BONE :
-						PosSK4B = MBMesh->Shape ? ( MV1_TLIST_SKIN_POS_4B * )ADDR16( TList->SkinPosition4B ) : ( MV1_TLIST_SKIN_POS_4B * )ADDR16( MBTList->SkinPosition4B ) ;
-
-#ifdef VISUALCPP_2005
-#ifndef DX_NON_INLINE_ASM
-						if( WinData.UseSSEFlag )
-						{
-							__asm
-							{
-								mov esi, PosSK4B
-								mov edi, SMPVert
-	MV1_VERTEX_TYPE_SKIN_4BONE_LOOP:
-								mov eax, [ esi + 44 ]
-								movaps xmm0, [ esi + 0 ]
-
-								mov edx, eax
-								mov ebx, eax
-								mov ecx, eax
-								shr ebx, 8
-								shr ecx, 16
-								shr eax, 24
-								and edx, 0xff
-								and ebx, 0xff
-								and ecx, 0xff
-								mov edx, [ pSkinBoneMatrix + edx * 4 ]
-								mov ebx, [ pSkinBoneMatrix + ebx * 4 ]
-								mov ecx, [ pSkinBoneMatrix + ecx * 4 ]
-								mov eax, [ pSkinBoneMatrix + eax * 4 ]
-								movaps xmm1, xmm0
-								shufps xmm1, xmm0, 0
-								movaps xmm5, [ edx ]
-								movaps xmm6, [ edx + 16 ]
-								movaps xmm7, [ edx + 32 ]
-								mulps xmm5, xmm1
-								mulps xmm6, xmm1
-								mulps xmm7, xmm1
-
-								movaps xmm1, xmm0
-								shufps xmm1, xmm0, 0x55
-								movaps xmm2, [ ebx ]
-								movaps xmm3, [ ebx + 16 ]
-								movaps xmm4, [ ebx + 32 ]
-								mulps xmm2, xmm1
-								mulps xmm3, xmm1
-								mulps xmm4, xmm1
-								addps xmm5, xmm2
-								addps xmm6, xmm3
-								addps xmm7, xmm4
-
-								movaps xmm1, xmm0
-								shufps xmm1, xmm0, 0xaa
-								movaps xmm2, [ ecx ]
-								movaps xmm3, [ ecx + 16 ]
-								movaps xmm4, [ ecx + 32 ]
-								mulps xmm2, xmm1
-								mulps xmm3, xmm1
-								mulps xmm4, xmm1
-								addps xmm5, xmm2
-								addps xmm6, xmm3
-								addps xmm7, xmm4
-
-								movaps xmm1, xmm0
-								shufps xmm1, xmm0, 0xff
-								movaps xmm2, [ eax ]
-								movaps xmm3, [ eax + 16 ]
-								movaps xmm4, [ eax + 32 ]
-								mulps xmm2, xmm1
-								mulps xmm3, xmm1
-								mulps xmm4, xmm1
-								addps xmm5, xmm2			// xmm5 = 0w 0z 0y 0x
-								addps xmm6, xmm3			// xmm6 = 1w 1z 1y 1x
-								addps xmm7, xmm4			// xmm7 = 2w 2z 2y 2x
-
-								mov edx, [ edi + 24 ]
-								movaps xmm0, xmm5			// xmm0 = 0w 0z 0y 0x
-								movaps xmm2, xmm5			// xmm2 = 0w 0z 0y 0x
-
-								unpcklps xmm0, xmm6			// xmm0 = 1y 0y 1x 0x
-								unpckhps xmm2, xmm6			// xmm2 = 1w 0w 1z 0z
-
-								movaps xmm3, xmm2			// xmm3 = 1w 0w 1z 0z
-								shufps xmm3, xmm7, 0xfe		// xmm3 = 2w 2w 1w 0w  完成   xmm7:11 xmm7:11 xmm3:11 xmm3:10 = 0xfe
-
-								shufps  xmm2, xmm7, 0xe4	// xmm2 = 2w 2z 1z 0z  完成   xmm7:11 xmm7:10 xmm2:01 xmm2:00 = 0xe4
-
-								movaps  xmm1, xmm0			// xmm1 = 1y 0y 1x 0x
-								movlhps xmm0, xmm7			// xmm0 = 2y 2x 1x 0x  完成
-								shufps  xmm1, xmm7, 0x9e	// xmm1 = 2z 2y 1y 0y  完成   xmm7:10 xmm7:01 xmm1:11 xmm1:10 = 0x9e
-
-								movaps xmm4, [ esi + 16 ]
-								movaps xmm7, [ esi + 32 ]
-								movaps xmm5, xmm4
-								movaps xmm6, xmm4
-								shufps xmm5, xmm5, 0x55
-								shufps xmm6, xmm6, 0xaa
-								shufps xmm4, xmm4, 0x00
-
-								mulps xmm5, xmm1
-								mulps xmm6, xmm2
-								mulps xmm4, xmm0
-								addps xmm6, xmm3
-								addps xmm4, xmm5
-								addps xmm4, xmm6
-								movups [ edi ], xmm4
-
-								movaps xmm5, xmm7
-								movaps xmm6, xmm7
-								shufps xmm5, xmm5, 0x55
-								shufps xmm6, xmm6, 0xaa
-								shufps xmm7, xmm7, 0x00
-
-								mulps xmm5, xmm1
-								mulps xmm6, xmm2
-								mulps xmm7, xmm0
-								addps xmm5, xmm6
-								addps xmm5, xmm7
-								movups [ edi + 12 ], xmm5
-								mov [ edi + 24 ], edx
-
-								add esi, 48
-								add edi, DestUnitSize
-								dec VertexNum
-								jnz MV1_VERTEX_TYPE_SKIN_4BONE_LOOP
-							} ;
-						}
-						else
-#endif
-#endif // VISUALCPP_2005
-						{
-							for( j = 0 ; j < VertexNum ; j ++, PosSK4B ++,
-								SMPVert = ( MV1_VERTEX_SIMPLE  * )( ( BYTE * )SMPVert + DestUnitSize ) )
-							{
-								// ブレンド行列の作成
-								Weight = PosSK4B->MatrixWeight[ 0 ] ;
-
-								Mat = pSkinBoneMatrix[ PosSK4B->MatrixIndex[ 0 ] ] ;
-
-								if( Weight == 1.0f )
-								{
-									SMPVert->Position.x =
-										Mat->m[ 0 ][ 0 ] * PosSK4B->Position.x + 
-										Mat->m[ 0 ][ 1 ] * PosSK4B->Position.y + 
-										Mat->m[ 0 ][ 2 ] * PosSK4B->Position.z + 
-										Mat->m[ 0 ][ 3 ] ;
-									SMPVert->Position.y =
-										Mat->m[ 1 ][ 0 ] * PosSK4B->Position.x + 
-										Mat->m[ 1 ][ 1 ] * PosSK4B->Position.y + 
-										Mat->m[ 1 ][ 2 ] * PosSK4B->Position.z + 
-										Mat->m[ 1 ][ 3 ] ;
-									SMPVert->Position.z =
-										Mat->m[ 2 ][ 0 ] * PosSK4B->Position.x + 
-										Mat->m[ 2 ][ 1 ] * PosSK4B->Position.y + 
-										Mat->m[ 2 ][ 2 ] * PosSK4B->Position.z + 
-										Mat->m[ 2 ][ 3 ] ;
-
-									SMPVert->Normal.x =
-										Mat->m[ 0 ][ 0 ] * PosSK4B->Normal.x + 
-										Mat->m[ 0 ][ 1 ] * PosSK4B->Normal.y + 
-										Mat->m[ 0 ][ 2 ] * PosSK4B->Normal.z ;
-									SMPVert->Normal.y =
-										Mat->m[ 1 ][ 0 ] * PosSK4B->Normal.x + 
-										Mat->m[ 1 ][ 1 ] * PosSK4B->Normal.y + 
-										Mat->m[ 1 ][ 2 ] * PosSK4B->Normal.z ;
-									SMPVert->Normal.z =
-										Mat->m[ 2 ][ 0 ] * PosSK4B->Normal.x + 
-										Mat->m[ 2 ][ 1 ] * PosSK4B->Normal.y + 
-										Mat->m[ 2 ][ 2 ] * PosSK4B->Normal.z ;
-								}
-								else
-								{
-									BlendMat.m[ 0 ][ 0 ] = Mat->m[ 0 ][ 0 ] * Weight ;
-									BlendMat.m[ 0 ][ 1 ] = Mat->m[ 0 ][ 1 ] * Weight ;
-									BlendMat.m[ 0 ][ 2 ] = Mat->m[ 0 ][ 2 ] * Weight ;
-									BlendMat.m[ 0 ][ 3 ] = Mat->m[ 0 ][ 3 ] * Weight ;
-
-									BlendMat.m[ 1 ][ 0 ] = Mat->m[ 1 ][ 0 ] * Weight ;
-									BlendMat.m[ 1 ][ 1 ] = Mat->m[ 1 ][ 1 ] * Weight ;
-									BlendMat.m[ 1 ][ 2 ] = Mat->m[ 1 ][ 2 ] * Weight ;
-									BlendMat.m[ 1 ][ 3 ] = Mat->m[ 1 ][ 3 ] * Weight ;
-
-									BlendMat.m[ 2 ][ 0 ] = Mat->m[ 2 ][ 0 ] * Weight ;
-									BlendMat.m[ 2 ][ 1 ] = Mat->m[ 2 ][ 1 ] * Weight ;
-									BlendMat.m[ 2 ][ 2 ] = Mat->m[ 2 ][ 2 ] * Weight ;
-									BlendMat.m[ 2 ][ 3 ] = Mat->m[ 2 ][ 3 ] * Weight ;
-
-									for( k = 1 ; k < 4 ; k ++ )
-									{
-										Weight = PosSK4B->MatrixWeight[ k ] ;
-
-										if( Weight == 0.0f ) continue ;
-
-										Mat = pSkinBoneMatrix[ PosSK4B->MatrixIndex[ k ] ] ;
-										BlendMat.m[ 0 ][ 0 ] += Mat->m[ 0 ][ 0 ] * Weight ;
-										BlendMat.m[ 0 ][ 1 ] += Mat->m[ 0 ][ 1 ] * Weight ;
-										BlendMat.m[ 0 ][ 2 ] += Mat->m[ 0 ][ 2 ] * Weight ;
-										BlendMat.m[ 0 ][ 3 ] += Mat->m[ 0 ][ 3 ] * Weight ;
-
-										BlendMat.m[ 1 ][ 0 ] += Mat->m[ 1 ][ 0 ] * Weight ;
-										BlendMat.m[ 1 ][ 1 ] += Mat->m[ 1 ][ 1 ] * Weight ;
-										BlendMat.m[ 1 ][ 2 ] += Mat->m[ 1 ][ 2 ] * Weight ;
-										BlendMat.m[ 1 ][ 3 ] += Mat->m[ 1 ][ 3 ] * Weight ;
-
-										BlendMat.m[ 2 ][ 0 ] += Mat->m[ 2 ][ 0 ] * Weight ;
-										BlendMat.m[ 2 ][ 1 ] += Mat->m[ 2 ][ 1 ] * Weight ;
-										BlendMat.m[ 2 ][ 2 ] += Mat->m[ 2 ][ 2 ] * Weight ;
-										BlendMat.m[ 2 ][ 3 ] += Mat->m[ 2 ][ 3 ] * Weight ;
-									}
-
-									SMPVert->Position.x =
-										BlendMat.m[ 0 ][ 0 ] * PosSK4B->Position.x + 
-										BlendMat.m[ 0 ][ 1 ] * PosSK4B->Position.y + 
-										BlendMat.m[ 0 ][ 2 ] * PosSK4B->Position.z + 
-										BlendMat.m[ 0 ][ 3 ] ;
-									SMPVert->Position.y =
-										BlendMat.m[ 1 ][ 0 ] * PosSK4B->Position.x + 
-										BlendMat.m[ 1 ][ 1 ] * PosSK4B->Position.y + 
-										BlendMat.m[ 1 ][ 2 ] * PosSK4B->Position.z + 
-										BlendMat.m[ 1 ][ 3 ] ;
-									SMPVert->Position.z =
-										BlendMat.m[ 2 ][ 0 ] * PosSK4B->Position.x + 
-										BlendMat.m[ 2 ][ 1 ] * PosSK4B->Position.y + 
-										BlendMat.m[ 2 ][ 2 ] * PosSK4B->Position.z + 
-										BlendMat.m[ 2 ][ 3 ] ;
-
-									SMPVert->Normal.x =
-										BlendMat.m[ 0 ][ 0 ] * PosSK4B->Normal.x + 
-										BlendMat.m[ 0 ][ 1 ] * PosSK4B->Normal.y + 
-										BlendMat.m[ 0 ][ 2 ] * PosSK4B->Normal.z ;
-									SMPVert->Normal.y =
-										BlendMat.m[ 1 ][ 0 ] * PosSK4B->Normal.x + 
-										BlendMat.m[ 1 ][ 1 ] * PosSK4B->Normal.y + 
-										BlendMat.m[ 1 ][ 2 ] * PosSK4B->Normal.z ;
-									SMPVert->Normal.z =
-										BlendMat.m[ 2 ][ 0 ] * PosSK4B->Normal.x + 
-										BlendMat.m[ 2 ][ 1 ] * PosSK4B->Normal.y + 
-										BlendMat.m[ 2 ][ 2 ] * PosSK4B->Normal.z ;
-								}
-							}
-						}
-						break ;
-
-					case MV1_VERTEX_TYPE_SKIN_8BONE :
-						PosSK8B = MBMesh->Shape ? ( MV1_TLIST_SKIN_POS_8B * )ADDR16( TList->SkinPosition8B ) : ( MV1_TLIST_SKIN_POS_8B * )ADDR16( MBTList->SkinPosition8B ) ;
-						for( j = 0 ; j < VertexNum ; j ++, PosSK8B ++,
-							SMPVert = ( MV1_VERTEX_SIMPLE  * )( ( BYTE * )SMPVert + DestUnitSize ) )
-						{
-							// ブレンド行列の作成
-							Weight = PosSK8B->MatrixWeight[ 0 ] ;
-
-							Mat = pSkinBoneMatrix[ PosSK8B->MatrixIndex1[ 0 ] ] ;
-
-							if( Weight == 1.0f )
-							{
-								SMPVert->Position.x =
-									Mat->m[ 0 ][ 0 ] * PosSK8B->Position.x + 
-									Mat->m[ 0 ][ 1 ] * PosSK8B->Position.y + 
-									Mat->m[ 0 ][ 2 ] * PosSK8B->Position.z + 
-									Mat->m[ 0 ][ 3 ] ;
-								SMPVert->Position.y =
-									Mat->m[ 1 ][ 0 ] * PosSK8B->Position.x + 
-									Mat->m[ 1 ][ 1 ] * PosSK8B->Position.y + 
-									Mat->m[ 1 ][ 2 ] * PosSK8B->Position.z + 
-									Mat->m[ 1 ][ 3 ] ;
-								SMPVert->Position.z =
-									Mat->m[ 2 ][ 0 ] * PosSK8B->Position.x + 
-									Mat->m[ 2 ][ 1 ] * PosSK8B->Position.y + 
-									Mat->m[ 2 ][ 2 ] * PosSK8B->Position.z + 
-									Mat->m[ 2 ][ 3 ] ;
-
-								SMPVert->Normal.x =
-									Mat->m[ 0 ][ 0 ] * PosSK8B->Normal.x + 
-									Mat->m[ 0 ][ 1 ] * PosSK8B->Normal.y + 
-									Mat->m[ 0 ][ 2 ] * PosSK8B->Normal.z ;
-								SMPVert->Normal.y =
-									Mat->m[ 1 ][ 0 ] * PosSK8B->Normal.x + 
-									Mat->m[ 1 ][ 1 ] * PosSK8B->Normal.y + 
-									Mat->m[ 1 ][ 2 ] * PosSK8B->Normal.z ;
-								SMPVert->Normal.z =
-									Mat->m[ 2 ][ 0 ] * PosSK8B->Normal.x + 
-									Mat->m[ 2 ][ 1 ] * PosSK8B->Normal.y + 
-									Mat->m[ 2 ][ 2 ] * PosSK8B->Normal.z ;
-							}
-							else
-							{
-								BlendMat.m[ 0 ][ 0 ] = Mat->m[ 0 ][ 0 ] * Weight ;
-								BlendMat.m[ 0 ][ 1 ] = Mat->m[ 0 ][ 1 ] * Weight ;
-								BlendMat.m[ 0 ][ 2 ] = Mat->m[ 0 ][ 2 ] * Weight ;
-								BlendMat.m[ 0 ][ 3 ] = Mat->m[ 0 ][ 3 ] * Weight ;
-
-								BlendMat.m[ 1 ][ 0 ] = Mat->m[ 1 ][ 0 ] * Weight ;
-								BlendMat.m[ 1 ][ 1 ] = Mat->m[ 1 ][ 1 ] * Weight ;
-								BlendMat.m[ 1 ][ 2 ] = Mat->m[ 1 ][ 2 ] * Weight ;
-								BlendMat.m[ 1 ][ 3 ] = Mat->m[ 1 ][ 3 ] * Weight ;
-
-								BlendMat.m[ 2 ][ 0 ] = Mat->m[ 2 ][ 0 ] * Weight ;
-								BlendMat.m[ 2 ][ 1 ] = Mat->m[ 2 ][ 1 ] * Weight ;
-								BlendMat.m[ 2 ][ 2 ] = Mat->m[ 2 ][ 2 ] * Weight ;
-								BlendMat.m[ 2 ][ 3 ] = Mat->m[ 2 ][ 3 ] * Weight ;
-
-								for( k = 1 ; k < 4 ; k ++ )
-								{
-									Weight = PosSK8B->MatrixWeight[ k ] ;
-
-									if( Weight == 0.0f ) continue ;
-
-									Mat = pSkinBoneMatrix[ PosSK8B->MatrixIndex1[ k ] ] ;
-									BlendMat.m[ 0 ][ 0 ] += Mat->m[ 0 ][ 0 ] * Weight ;
-									BlendMat.m[ 0 ][ 1 ] += Mat->m[ 0 ][ 1 ] * Weight ;
-									BlendMat.m[ 0 ][ 2 ] += Mat->m[ 0 ][ 2 ] * Weight ;
-									BlendMat.m[ 0 ][ 3 ] += Mat->m[ 0 ][ 3 ] * Weight ;
-
-									BlendMat.m[ 1 ][ 0 ] += Mat->m[ 1 ][ 0 ] * Weight ;
-									BlendMat.m[ 1 ][ 1 ] += Mat->m[ 1 ][ 1 ] * Weight ;
-									BlendMat.m[ 1 ][ 2 ] += Mat->m[ 1 ][ 2 ] * Weight ;
-									BlendMat.m[ 1 ][ 3 ] += Mat->m[ 1 ][ 3 ] * Weight ;
-
-									BlendMat.m[ 2 ][ 0 ] += Mat->m[ 2 ][ 0 ] * Weight ;
-									BlendMat.m[ 2 ][ 1 ] += Mat->m[ 2 ][ 1 ] * Weight ;
-									BlendMat.m[ 2 ][ 2 ] += Mat->m[ 2 ][ 2 ] * Weight ;
-									BlendMat.m[ 2 ][ 3 ] += Mat->m[ 2 ][ 3 ] * Weight ;
-								}
-
-								for( k = 0 ; k < 4 ; k ++ )
-								{
-									Weight = PosSK8B->MatrixWeight[ k + 4 ] ;
-
-									if( Weight == 0.0f ) continue ;
-
-									Mat = pSkinBoneMatrix[ PosSK8B->MatrixIndex2[ k ] ] ;
-									BlendMat.m[ 0 ][ 0 ] += Mat->m[ 0 ][ 0 ] * Weight ;
-									BlendMat.m[ 0 ][ 1 ] += Mat->m[ 0 ][ 1 ] * Weight ;
-									BlendMat.m[ 0 ][ 2 ] += Mat->m[ 0 ][ 2 ] * Weight ;
-									BlendMat.m[ 0 ][ 3 ] += Mat->m[ 0 ][ 3 ] * Weight ;
-
-									BlendMat.m[ 1 ][ 0 ] += Mat->m[ 1 ][ 0 ] * Weight ;
-									BlendMat.m[ 1 ][ 1 ] += Mat->m[ 1 ][ 1 ] * Weight ;
-									BlendMat.m[ 1 ][ 2 ] += Mat->m[ 1 ][ 2 ] * Weight ;
-									BlendMat.m[ 1 ][ 3 ] += Mat->m[ 1 ][ 3 ] * Weight ;
-
-									BlendMat.m[ 2 ][ 0 ] += Mat->m[ 2 ][ 0 ] * Weight ;
-									BlendMat.m[ 2 ][ 1 ] += Mat->m[ 2 ][ 1 ] * Weight ;
-									BlendMat.m[ 2 ][ 2 ] += Mat->m[ 2 ][ 2 ] * Weight ;
-									BlendMat.m[ 2 ][ 3 ] += Mat->m[ 2 ][ 3 ] * Weight ;
-								}
-
-								SMPVert->Position.x =
-									BlendMat.m[ 0 ][ 0 ] * PosSK8B->Position.x + 
-									BlendMat.m[ 0 ][ 1 ] * PosSK8B->Position.y + 
-									BlendMat.m[ 0 ][ 2 ] * PosSK8B->Position.z + 
-									BlendMat.m[ 0 ][ 3 ] ;
-								SMPVert->Position.y =
-									BlendMat.m[ 1 ][ 0 ] * PosSK8B->Position.x + 
-									BlendMat.m[ 1 ][ 1 ] * PosSK8B->Position.y + 
-									BlendMat.m[ 1 ][ 2 ] * PosSK8B->Position.z + 
-									BlendMat.m[ 1 ][ 3 ] ;
-								SMPVert->Position.z =
-									BlendMat.m[ 2 ][ 0 ] * PosSK8B->Position.x + 
-									BlendMat.m[ 2 ][ 1 ] * PosSK8B->Position.y + 
-									BlendMat.m[ 2 ][ 2 ] * PosSK8B->Position.z + 
-									BlendMat.m[ 2 ][ 3 ] ;
-
-								SMPVert->Normal.x =
-									BlendMat.m[ 0 ][ 0 ] * PosSK8B->Normal.x + 
-									BlendMat.m[ 0 ][ 1 ] * PosSK8B->Normal.y + 
-									BlendMat.m[ 0 ][ 2 ] * PosSK8B->Normal.z ;
-								SMPVert->Normal.y =
-									BlendMat.m[ 1 ][ 0 ] * PosSK8B->Normal.x + 
-									BlendMat.m[ 1 ][ 1 ] * PosSK8B->Normal.y + 
-									BlendMat.m[ 1 ][ 2 ] * PosSK8B->Normal.z ;
-								SMPVert->Normal.z =
-									BlendMat.m[ 2 ][ 0 ] * PosSK8B->Normal.x + 
-									BlendMat.m[ 2 ][ 1 ] * PosSK8B->Normal.y + 
-									BlendMat.m[ 2 ][ 2 ] * PosSK8B->Normal.z ;
-							}
-						}
-						break ;
-					}
-
-					// トゥーンだった場合はライティング計算をここでする
-					if( Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON || Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 )
-					{
-						// スケーリングされるかどうかをチェック
-						IsScaling = false ;
-						for( j = 0 ; j < MBTList->UseBoneNum ; j ++ )
-						{
-							Scale = pSkinBoneMatrix[ j ]->m[ 0 ][ 0 ] * pSkinBoneMatrix[ j ]->m[ 0 ][ 0 ] +
-									pSkinBoneMatrix[ j ]->m[ 0 ][ 1 ] * pSkinBoneMatrix[ j ]->m[ 0 ][ 1 ] +
-									pSkinBoneMatrix[ j ]->m[ 0 ][ 2 ] * pSkinBoneMatrix[ j ]->m[ 0 ][ 2 ] ;
-							if( Scale < 0.999f || Scale > 1.001 ) IsScaling = true ;
-
-							Scale = pSkinBoneMatrix[ j ]->m[ 1 ][ 0 ] * pSkinBoneMatrix[ j ]->m[ 1 ][ 0 ] +
-									pSkinBoneMatrix[ j ]->m[ 1 ][ 1 ] * pSkinBoneMatrix[ j ]->m[ 1 ][ 1 ] +
-									pSkinBoneMatrix[ j ]->m[ 1 ][ 2 ] * pSkinBoneMatrix[ j ]->m[ 1 ][ 2 ] ;
-							if( Scale < 0.999f || Scale > 1.001 ) IsScaling = true ;
-
-							Scale = pSkinBoneMatrix[ j ]->m[ 2 ][ 0 ] * pSkinBoneMatrix[ j ]->m[ 2 ][ 0 ] +
-									pSkinBoneMatrix[ j ]->m[ 2 ][ 1 ] * pSkinBoneMatrix[ j ]->m[ 2 ][ 1 ] +
-									pSkinBoneMatrix[ j ]->m[ 2 ][ 2 ] * pSkinBoneMatrix[ j ]->m[ 2 ][ 2 ] ;
-							if( Scale < 0.999f || Scale > 1.001 ) IsScaling = true ;
-						}
-
-						MV1TriangleListToonLighting( MBTList, IsScaling, NULL ) ;
-					}
-
-					// 描画
-#ifndef NOT_RENDER
-					GRH.SetIB = NULL ;
-					GRH.SetVB = NULL ;
-					if( GRH.SetFVF != ( D_D3DFVF_XYZ | D_D3DFVF_NORMAL | D_D3DFVF_DIFFUSE | D_D3DFVF_SPECULAR | UVNumFVFTable[ MBMesh->UVSetUnitNum + 2 ] ) )
-					{
-						GRH.SetFVF = D_D3DFVF_XYZ | D_D3DFVF_NORMAL | D_D3DFVF_DIFFUSE | D_D3DFVF_SPECULAR | UVNumFVFTable[ MBMesh->UVSetUnitNum + 2 ] ;
-						GraphicsDevice_SetFVF( GRH.SetFVF ) ;
-					}
-					GraphicsDevice_DrawIndexedPrimitiveUP(
-						DX_PRIMTYPE_TRIANGLELIST,
-						0,
-						MBTList->VertexNum,
-						MBTList->IndexNum / 3,
-						MBTList->Index,
-						D_D3DFMT_INDEX16,
-						MBTList->TempSimpleVertex,
-						MBTList->TempUnitSize ) ;
-#endif
-				}
-				break ;
-
-
-				// ボーン数無制限トライアングルリスト
-			case MV1_VERTEX_TYPE_SKIN_FREEBONE :
-				// マテリアルのセットアップ
-				if( SetupShaderMaterial != 0 )
-				{
-					MV1SetupMeshDrawMaterial( MBase, &BlendInfo, Mesh, false, SpecularEnable ) ;
-					SetupShaderMaterial = 0 ;
-				}
-
-				// 固定機能パイプラインに戻す
-				if( GRH.SetVS )
-				{
-					GraphicsDevice_SetVertexShader( NULL ) ;
-					GRH.SetVS = NULL ;
-					GRH.SetVD = NULL ;
-					GRH.SetFVF = 0 ;
-				}
-
-				if( GRH.SetPS )
-				{
-					GraphicsDevice_SetPixelShader( NULL ) ;
-					GRH.SetPS = NULL ;
-				}
-
-				// 単位行列をセット
-				if( MV1Man.WorldMatrixIsIdentity == FALSE )
-				{
-					MV1Man.WorldMatrixIsIdentity = TRUE ;
-					D_SetTransformToWorld( &IdentityMat ) ;
-				}
-
-				// テンポラリバッファがセットアップされていなかったらセットアップ
-				if( MBTList->TempSimpleVertex == NULL )
-					MV1SetupTListTempSimpleVertex( MBTList ) ;
-
-				// １頂点のサイズを算出
-				SrcUnitSize  = MBTList->PosUnitSize ;
-				DestUnitSize = MBTList->TempUnitSize ;
-
-				// データのセット
-				SMPVert = MBTList->TempSimpleVertex ;
-				PosSKFB = MBMesh->Shape ? ( MV1_TLIST_SKIN_POS_FREEB * )ADDR16( TList->SkinPositionFREEB ) : ( MV1_TLIST_SKIN_POS_FREEB * )ADDR16( MBTList->SkinPositionFREEB ) ;
-
-				MaxBoneNum = MBTList->MaxBoneNum ;
-				VertexNum  = MBTList->VertexNum ;
-
-				// 使用しているボーンの最大数が DX_VS_CONSTF_WORLD_MAT_NUM 以下だったらテーブルを使用する
-				if( MBFrame->UseSkinBoneNum < DX_VS_CONSTF_WORLD_MAT_NUM )
-				{
-					// 使用する行列の準備を行う
-					for( j = 0 ; j < MBFrame->UseSkinBoneNum ; j ++ )
-					{
-						pSkinBoneMatrix[ j ] = Frame->UseSkinBoneMatrix[ j ] ;
-					}
-
-					for( j = 0 ; j < VertexNum ; j ++,
-						SMPVert = ( MV1_VERTEX_SIMPLE        * )( ( BYTE * )SMPVert + DestUnitSize ),
-						PosSKFB = ( MV1_TLIST_SKIN_POS_FREEB * )( ( BYTE * )PosSKFB + SrcUnitSize ) )
-					{
-						// 使われているボーンがひとつの場合はブレンド行列の作成はスキップする
-						if( PosSKFB->MatrixWeight[ 0 ].W == 1.0f )
-						{
-							Mat = pSkinBoneMatrix[ PosSKFB->MatrixWeight[ 0 ].Index ] ;
-
-							// 頂点座標とブレンド行列を乗算
-							SMPVert->Position.x =
-								Mat->m[ 0 ][ 0 ] * PosSKFB->Position.x + 
-								Mat->m[ 0 ][ 1 ] * PosSKFB->Position.y + 
-								Mat->m[ 0 ][ 2 ] * PosSKFB->Position.z + 
-								Mat->m[ 0 ][ 3 ] ;
-							SMPVert->Position.y =
-								Mat->m[ 1 ][ 0 ] * PosSKFB->Position.x + 
-								Mat->m[ 1 ][ 1 ] * PosSKFB->Position.y + 
-								Mat->m[ 1 ][ 2 ] * PosSKFB->Position.z + 
-								Mat->m[ 1 ][ 3 ] ;
-							SMPVert->Position.z =
-								Mat->m[ 2 ][ 0 ] * PosSKFB->Position.x + 
-								Mat->m[ 2 ][ 1 ] * PosSKFB->Position.y + 
-								Mat->m[ 2 ][ 2 ] * PosSKFB->Position.z + 
-								Mat->m[ 2 ][ 3 ] ;
-
-							// 頂点座標とブレンド行列を乗算(法線成分のみ)
-							SMPVert->Normal.x =
-								Mat->m[ 0 ][ 0 ] * PosSKFB->Normal.x + 
-								Mat->m[ 0 ][ 1 ] * PosSKFB->Normal.y + 
-								Mat->m[ 0 ][ 2 ] * PosSKFB->Normal.z ;
-							SMPVert->Normal.y =
-								Mat->m[ 1 ][ 0 ] * PosSKFB->Normal.x + 
-								Mat->m[ 1 ][ 1 ] * PosSKFB->Normal.y + 
-								Mat->m[ 1 ][ 2 ] * PosSKFB->Normal.z ;
-							SMPVert->Normal.z =
-								Mat->m[ 2 ][ 0 ] * PosSKFB->Normal.x + 
-								Mat->m[ 2 ][ 1 ] * PosSKFB->Normal.y + 
-								Mat->m[ 2 ][ 2 ] * PosSKFB->Normal.z ;
-						}
-						else
-						{
-							// ブレンド行列の作成
-							VBlend = PosSKFB->MatrixWeight ;
-							Weight = VBlend->W ;
-
-							// ０番目は加算ではないので別処理
-							Mat = pSkinBoneMatrix[ PosSKFB->MatrixWeight[ 0 ].Index ] ;
-							BlendMat.m[ 0 ][ 0 ] = Mat->m[ 0 ][ 0 ] * Weight ;
-							BlendMat.m[ 0 ][ 1 ] = Mat->m[ 0 ][ 1 ] * Weight ;
-							BlendMat.m[ 0 ][ 2 ] = Mat->m[ 0 ][ 2 ] * Weight ;
-							BlendMat.m[ 0 ][ 3 ] = Mat->m[ 0 ][ 3 ] * Weight ;
-
-							BlendMat.m[ 1 ][ 0 ] = Mat->m[ 1 ][ 0 ] * Weight ;
-							BlendMat.m[ 1 ][ 1 ] = Mat->m[ 1 ][ 1 ] * Weight ;
-							BlendMat.m[ 1 ][ 2 ] = Mat->m[ 1 ][ 2 ] * Weight ;
-							BlendMat.m[ 1 ][ 3 ] = Mat->m[ 1 ][ 3 ] * Weight ;
-
-							BlendMat.m[ 2 ][ 0 ] = Mat->m[ 2 ][ 0 ] * Weight ;
-							BlendMat.m[ 2 ][ 1 ] = Mat->m[ 2 ][ 1 ] * Weight ;
-							BlendMat.m[ 2 ][ 2 ] = Mat->m[ 2 ][ 2 ] * Weight ;
-							BlendMat.m[ 2 ][ 3 ] = Mat->m[ 2 ][ 3 ] * Weight ;
-							VBlend ++ ;
-
-							// １番目からは加算
-							for( k = 1 ; k < MaxBoneNum && VBlend->Index != -1 ; k ++, VBlend ++ )
-							{
-								Weight = VBlend->W ;
-
-								if( Weight == 0.0f ) continue ;
-
-								Mat = pSkinBoneMatrix[ VBlend->Index ] ;
-								BlendMat.m[ 0 ][ 0 ] += Mat->m[ 0 ][ 0 ] * Weight ;
-								BlendMat.m[ 0 ][ 1 ] += Mat->m[ 0 ][ 1 ] * Weight ;
-								BlendMat.m[ 0 ][ 2 ] += Mat->m[ 0 ][ 2 ] * Weight ;
-								BlendMat.m[ 0 ][ 3 ] += Mat->m[ 0 ][ 3 ] * Weight ;
-
-								BlendMat.m[ 1 ][ 0 ] += Mat->m[ 1 ][ 0 ] * Weight ;
-								BlendMat.m[ 1 ][ 1 ] += Mat->m[ 1 ][ 1 ] * Weight ;
-								BlendMat.m[ 1 ][ 2 ] += Mat->m[ 1 ][ 2 ] * Weight ;
-								BlendMat.m[ 1 ][ 3 ] += Mat->m[ 1 ][ 3 ] * Weight ;
-
-								BlendMat.m[ 2 ][ 0 ] += Mat->m[ 2 ][ 0 ] * Weight ;
-								BlendMat.m[ 2 ][ 1 ] += Mat->m[ 2 ][ 1 ] * Weight ;
-								BlendMat.m[ 2 ][ 2 ] += Mat->m[ 2 ][ 2 ] * Weight ;
-								BlendMat.m[ 2 ][ 3 ] += Mat->m[ 2 ][ 3 ] * Weight ;
-							}
-
-							// 頂点座標とブレンド行列を乗算
-							SMPVert->Position.x =
-								BlendMat.m[ 0 ][ 0 ] * PosSKFB->Position.x + 
-								BlendMat.m[ 0 ][ 1 ] * PosSKFB->Position.y + 
-								BlendMat.m[ 0 ][ 2 ] * PosSKFB->Position.z + 
-								BlendMat.m[ 0 ][ 3 ] ;
-							SMPVert->Position.y =
-								BlendMat.m[ 1 ][ 0 ] * PosSKFB->Position.x + 
-								BlendMat.m[ 1 ][ 1 ] * PosSKFB->Position.y + 
-								BlendMat.m[ 1 ][ 2 ] * PosSKFB->Position.z + 
-								BlendMat.m[ 1 ][ 3 ] ;
-							SMPVert->Position.z =
-								BlendMat.m[ 2 ][ 0 ] * PosSKFB->Position.x + 
-								BlendMat.m[ 2 ][ 1 ] * PosSKFB->Position.y + 
-								BlendMat.m[ 2 ][ 2 ] * PosSKFB->Position.z + 
-								BlendMat.m[ 2 ][ 3 ] ;
-
-							// 頂点座標とブレンド行列を乗算(法線成分のみ)
-							SMPVert->Normal.x =
-								BlendMat.m[ 0 ][ 0 ] * PosSKFB->Normal.x + 
-								BlendMat.m[ 0 ][ 1 ] * PosSKFB->Normal.y + 
-								BlendMat.m[ 0 ][ 2 ] * PosSKFB->Normal.z ;
-							SMPVert->Normal.y =
-								BlendMat.m[ 1 ][ 0 ] * PosSKFB->Normal.x + 
-								BlendMat.m[ 1 ][ 1 ] * PosSKFB->Normal.y + 
-								BlendMat.m[ 1 ][ 2 ] * PosSKFB->Normal.z ;
-							SMPVert->Normal.z =
-								BlendMat.m[ 2 ][ 0 ] * PosSKFB->Normal.x + 
-								BlendMat.m[ 2 ][ 1 ] * PosSKFB->Normal.y + 
-								BlendMat.m[ 2 ][ 2 ] * PosSKFB->Normal.z ;
-						}
-					}
-				}
-				else
-				{
-					for( j = 0 ; j < VertexNum ; j ++,
-						SMPVert = ( MV1_VERTEX_SIMPLE        * )( ( BYTE * )SMPVert + DestUnitSize ),
-						PosSKFB = ( MV1_TLIST_SKIN_POS_FREEB * )( ( BYTE * )PosSKFB + SrcUnitSize ) )
-					{
-						// 使われているボーンがひとつの場合はブレンド行列の作成はスキップする
-						if( PosSKFB->MatrixWeight[ 0 ].W == 1.0f )
-						{
-							Mat = Frame->UseSkinBoneMatrix[ PosSKFB->MatrixWeight[ 0 ].Index ] ;
-
-							// 頂点座標とブレンド行列を乗算
-							SMPVert->Position.x =
-								Mat->m[ 0 ][ 0 ] * PosSKFB->Position.x + 
-								Mat->m[ 0 ][ 1 ] * PosSKFB->Position.y + 
-								Mat->m[ 0 ][ 2 ] * PosSKFB->Position.z + 
-								Mat->m[ 0 ][ 3 ] ;
-							SMPVert->Position.y =
-								Mat->m[ 1 ][ 0 ] * PosSKFB->Position.x + 
-								Mat->m[ 1 ][ 1 ] * PosSKFB->Position.y + 
-								Mat->m[ 1 ][ 2 ] * PosSKFB->Position.z + 
-								Mat->m[ 1 ][ 3 ] ;
-							SMPVert->Position.z =
-								Mat->m[ 2 ][ 0 ] * PosSKFB->Position.x + 
-								Mat->m[ 2 ][ 1 ] * PosSKFB->Position.y + 
-								Mat->m[ 2 ][ 2 ] * PosSKFB->Position.z + 
-								Mat->m[ 2 ][ 3 ] ;
-
-							// 頂点座標とブレンド行列を乗算(法線成分のみ)
-							SMPVert->Normal.x =
-								Mat->m[ 0 ][ 0 ] * PosSKFB->Normal.x + 
-								Mat->m[ 0 ][ 1 ] * PosSKFB->Normal.y + 
-								Mat->m[ 0 ][ 2 ] * PosSKFB->Normal.z ;
-							SMPVert->Normal.y =
-								Mat->m[ 1 ][ 0 ] * PosSKFB->Normal.x + 
-								Mat->m[ 1 ][ 1 ] * PosSKFB->Normal.y + 
-								Mat->m[ 1 ][ 2 ] * PosSKFB->Normal.z ;
-							SMPVert->Normal.z =
-								Mat->m[ 2 ][ 0 ] * PosSKFB->Normal.x + 
-								Mat->m[ 2 ][ 1 ] * PosSKFB->Normal.y + 
-								Mat->m[ 2 ][ 2 ] * PosSKFB->Normal.z ;
-						}
-						else
-						{
-							// ブレンド行列の作成
-							VBlend = PosSKFB->MatrixWeight ;
-							Weight = VBlend->W ;
-
-							// ０番目は加算ではないので別処理
-							Mat = Frame->UseSkinBoneMatrix[ VBlend->Index ] ;
-							BlendMat.m[ 0 ][ 0 ] = Mat->m[ 0 ][ 0 ] * Weight ;
-							BlendMat.m[ 0 ][ 1 ] = Mat->m[ 0 ][ 1 ] * Weight ;
-							BlendMat.m[ 0 ][ 2 ] = Mat->m[ 0 ][ 2 ] * Weight ;
-							BlendMat.m[ 0 ][ 3 ] = Mat->m[ 0 ][ 3 ] * Weight ;
-
-							BlendMat.m[ 1 ][ 0 ] = Mat->m[ 1 ][ 0 ] * Weight ;
-							BlendMat.m[ 1 ][ 1 ] = Mat->m[ 1 ][ 1 ] * Weight ;
-							BlendMat.m[ 1 ][ 2 ] = Mat->m[ 1 ][ 2 ] * Weight ;
-							BlendMat.m[ 1 ][ 3 ] = Mat->m[ 1 ][ 3 ] * Weight ;
-
-							BlendMat.m[ 2 ][ 0 ] = Mat->m[ 2 ][ 0 ] * Weight ;
-							BlendMat.m[ 2 ][ 1 ] = Mat->m[ 2 ][ 1 ] * Weight ;
-							BlendMat.m[ 2 ][ 2 ] = Mat->m[ 2 ][ 2 ] * Weight ;
-							BlendMat.m[ 2 ][ 3 ] = Mat->m[ 2 ][ 3 ] * Weight ;
-							VBlend ++ ;
-
-							// １番目からは加算
-							for( k = 1 ; k < MaxBoneNum && VBlend->Index != -1 ; k ++, VBlend ++ )
-							{
-								Weight = VBlend->W ;
-
-								if( Weight == 0.0f ) continue ;
-
-								Mat = Frame->UseSkinBoneMatrix[ VBlend->Index ] ;
-								BlendMat.m[ 0 ][ 0 ] += Mat->m[ 0 ][ 0 ] * Weight ;
-								BlendMat.m[ 0 ][ 1 ] += Mat->m[ 0 ][ 1 ] * Weight ;
-								BlendMat.m[ 0 ][ 2 ] += Mat->m[ 0 ][ 2 ] * Weight ;
-								BlendMat.m[ 0 ][ 3 ] += Mat->m[ 0 ][ 3 ] * Weight ;
-
-								BlendMat.m[ 1 ][ 0 ] += Mat->m[ 1 ][ 0 ] * Weight ;
-								BlendMat.m[ 1 ][ 1 ] += Mat->m[ 1 ][ 1 ] * Weight ;
-								BlendMat.m[ 1 ][ 2 ] += Mat->m[ 1 ][ 2 ] * Weight ;
-								BlendMat.m[ 1 ][ 3 ] += Mat->m[ 1 ][ 3 ] * Weight ;
-
-								BlendMat.m[ 2 ][ 0 ] += Mat->m[ 2 ][ 0 ] * Weight ;
-								BlendMat.m[ 2 ][ 1 ] += Mat->m[ 2 ][ 1 ] * Weight ;
-								BlendMat.m[ 2 ][ 2 ] += Mat->m[ 2 ][ 2 ] * Weight ;
-								BlendMat.m[ 2 ][ 3 ] += Mat->m[ 2 ][ 3 ] * Weight ;
-							}
-
-							// 頂点座標とブレンド行列を乗算
-							SMPVert->Position.x =
-								BlendMat.m[ 0 ][ 0 ] * PosSKFB->Position.x + 
-								BlendMat.m[ 0 ][ 1 ] * PosSKFB->Position.y + 
-								BlendMat.m[ 0 ][ 2 ] * PosSKFB->Position.z + 
-								BlendMat.m[ 0 ][ 3 ] ;
-							SMPVert->Position.y =
-								BlendMat.m[ 1 ][ 0 ] * PosSKFB->Position.x + 
-								BlendMat.m[ 1 ][ 1 ] * PosSKFB->Position.y + 
-								BlendMat.m[ 1 ][ 2 ] * PosSKFB->Position.z + 
-								BlendMat.m[ 1 ][ 3 ] ;
-							SMPVert->Position.z =
-								BlendMat.m[ 2 ][ 0 ] * PosSKFB->Position.x + 
-								BlendMat.m[ 2 ][ 1 ] * PosSKFB->Position.y + 
-								BlendMat.m[ 2 ][ 2 ] * PosSKFB->Position.z + 
-								BlendMat.m[ 2 ][ 3 ] ;
-
-							// 頂点座標とブレンド行列を乗算(法線成分のみ)
-							SMPVert->Normal.x =
-								BlendMat.m[ 0 ][ 0 ] * PosSKFB->Normal.x + 
-								BlendMat.m[ 0 ][ 1 ] * PosSKFB->Normal.y + 
-								BlendMat.m[ 0 ][ 2 ] * PosSKFB->Normal.z ;
-							SMPVert->Normal.y =
-								BlendMat.m[ 1 ][ 0 ] * PosSKFB->Normal.x + 
-								BlendMat.m[ 1 ][ 1 ] * PosSKFB->Normal.y + 
-								BlendMat.m[ 1 ][ 2 ] * PosSKFB->Normal.z ;
-							SMPVert->Normal.z =
-								BlendMat.m[ 2 ][ 0 ] * PosSKFB->Normal.x + 
-								BlendMat.m[ 2 ][ 1 ] * PosSKFB->Normal.y + 
-								BlendMat.m[ 2 ][ 2 ] * PosSKFB->Normal.z ;
-						}
-					}
-				}
-
-				// トゥーンだった場合はライティング計算をここでする
-				if( Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON || Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 )
-				{
-					// スケーリングされるかどうかをチェック
-					IsScaling = false ;
-					for( j = 0 ; Frame->UseSkinBoneMatrix[ j ] ; j ++ )
-					{
-						Scale = Frame->UseSkinBoneMatrix[ j ]->m[ 0 ][ 0 ] * Frame->UseSkinBoneMatrix[ j ]->m[ 0 ][ 0 ] +
-								Frame->UseSkinBoneMatrix[ j ]->m[ 0 ][ 1 ] * Frame->UseSkinBoneMatrix[ j ]->m[ 0 ][ 1 ] +
-								Frame->UseSkinBoneMatrix[ j ]->m[ 0 ][ 2 ] * Frame->UseSkinBoneMatrix[ j ]->m[ 0 ][ 2 ] ;
-						if( Scale < 0.999f || Scale > 1.001 ) IsScaling = true ;
-
-						Scale = Frame->UseSkinBoneMatrix[ j ]->m[ 1 ][ 0 ] * Frame->UseSkinBoneMatrix[ j ]->m[ 1 ][ 0 ] +
-								Frame->UseSkinBoneMatrix[ j ]->m[ 1 ][ 1 ] * Frame->UseSkinBoneMatrix[ j ]->m[ 1 ][ 1 ] +
-								Frame->UseSkinBoneMatrix[ j ]->m[ 1 ][ 2 ] * Frame->UseSkinBoneMatrix[ j ]->m[ 1 ][ 2 ] ;
-						if( Scale < 0.999f || Scale > 1.001 ) IsScaling = true ;
-
-						Scale = Frame->UseSkinBoneMatrix[ j ]->m[ 2 ][ 0 ] * Frame->UseSkinBoneMatrix[ j ]->m[ 2 ][ 0 ] +
-								Frame->UseSkinBoneMatrix[ j ]->m[ 2 ][ 1 ] * Frame->UseSkinBoneMatrix[ j ]->m[ 2 ][ 1 ] +
-								Frame->UseSkinBoneMatrix[ j ]->m[ 2 ][ 2 ] * Frame->UseSkinBoneMatrix[ j ]->m[ 2 ][ 2 ] ;
-						if( Scale < 0.999f || Scale > 1.001 ) IsScaling = true ;
-					}
-					MV1TriangleListToonLighting( MBTList, IsScaling, NULL ) ;
-				}
-
-				// 描画
-#ifndef NOT_RENDER
-				GRH.SetIB = NULL ;
-				GRH.SetVB = NULL ;
-				if( GRH.SetFVF != ( D_D3DFVF_XYZ | D_D3DFVF_NORMAL | D_D3DFVF_DIFFUSE | D_D3DFVF_SPECULAR | UVNumFVFTable[ MBMesh->UVSetUnitNum + 2 ] ) )
-				{
-					GRH.SetFVF = D_D3DFVF_XYZ | D_D3DFVF_NORMAL | D_D3DFVF_DIFFUSE | D_D3DFVF_SPECULAR | UVNumFVFTable[ MBMesh->UVSetUnitNum + 2 ] ;
-					GraphicsDevice_SetFVF( GRH.SetFVF ) ;
-				}
-				GraphicsDevice_DrawIndexedPrimitiveUP(
-					DX_PRIMTYPE_TRIANGLELIST,
-					0,
-					MBTList->VertexNum,
-					MBTList->IndexNum / 3,
-					MBTList->Index,
-					D_D3DFMT_INDEX16,
-					MBTList->TempSimpleVertex,
-					MBTList->TempUnitSize ) ;
-#endif
-				break ;
-			}
-		}
-	}
-
-	// トゥーンがある場合は輪郭線を描画
-	if( ( ( Model->MeshCategoryHide[ DX_MV1_MESHCATEGORY_OUTLINE ]             == FALSE && MV1Man.UseOrigShaderFlag == FALSE ) ||
-		  ( Model->MeshCategoryHide[ DX_MV1_MESHCATEGORY_OUTLINE_ORIG_SHADER ] == FALSE && MV1Man.UseOrigShaderFlag == TRUE  ) ) && 
-		( Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON || Mesh->Material->BaseData->Type == DX_MATERIAL_TYPE_TOON_2 ) )
-	{
-		// 輪郭線の描画
-		if( Mesh->Material->OutLineWidth    > 0.000001f ||
-			Mesh->Material->OutLineDotWidth > 0.000001f )
-		{
-			float OutLineWidth ;
-			DWORD OutLineColor ;
-
-			// 輪郭線の太さをセット
-			OutLineWidth = Mesh->Material->OutLineWidth /*/ Mesh->Container->Container->Scale*/ ;
-
-			// もしスクリーン座標上で１ドットに満たない場合は太くする
-			{
-				VECTOR WorldPos1, WorldPos2 ;
-				VECTOR ScreenPos1, ScreenPos2 ;
-				float Width, DotWidth ;
-
-				WorldPos1.x = Frame->LocalWorldMatrix.m[ 0 ][ 3 ];
-				WorldPos1.y = Frame->LocalWorldMatrix.m[ 1 ][ 3 ];
-				WorldPos1.z = Frame->LocalWorldMatrix.m[ 2 ][ 3 ];
-				ScreenPos1 = NS_ConvWorldPosToScreenPos( WorldPos1 ) ;
-
-				WorldPos2.x = WorldPos1.x + GBASE.ViewMatrix.m[ 0 ][ 0 ] * OutLineWidth ;
-				WorldPos2.y = WorldPos1.y + GBASE.ViewMatrix.m[ 1 ][ 0 ] * OutLineWidth ;
-				WorldPos2.z = WorldPos1.z + GBASE.ViewMatrix.m[ 2 ][ 0 ] * OutLineWidth ;
-				ScreenPos2 = NS_ConvWorldPosToScreenPos( WorldPos2 ) ;
-
-				Width = ScreenPos1.x - ScreenPos2.x ;
-				if( Width < 0.0f ) Width = -Width ;
-
-				DotWidth = Mesh->Material->OutLineDotWidth ;
-				if( DotWidth < 0.0000001f )
-				{
-					DotWidth = 1.125f ;
-				}
-
-				if( Width < DotWidth )
-				{
-					if( Width < 0.00000001f )
-					{
-						OutLineWidth *= 10000000.0f ;
-					}
-					else
-					{
-						OutLineWidth *= DotWidth / Width ;
-					}
-				}
-			}
-
-			VertexShaderIndex     = VERTEXSHADER_TYPE( VERTEXSHADER_TYPE_TOON_OUTLINE ) + VERTEXSHADER_FOGMODE( GRH.FogEnable ? GRH.FogMode : DX_FOGMODE_NONE ) ;
-			PixelShaderIndex      = 0 ;
-
-			VertexShaderIndex_PL = 0 ;
-			PixelShaderIndex_PL  = 0 ;
-
-			// マテリアルの共通部分のセットアップ
-			MV1SetupToonOutLineMeshDrawMaterialCommon( &BlendInfo, Mesh, OutLineWidth ) ;
-
-			// トライアングルリストの数だけ繰り返し
-			TList = Mesh->TriangleList ;
-			MBTList = MBMesh->TriangleList ;
-			SetupShaderMaterial = -1 ;
-			for( i = 0 ; i < MBMesh->TriangleListNum ; i ++ , MBTList ++, TList ++ )
-			{
-				// トライアングルリストの指定がある場合はそれ以外のトライアングルリストは描画しない
-				if( TriangleListIndex >= 0 && i != TriangleListIndex )
-					continue ;
-
-				// トゥーンの輪郭線用のポリゴンが無い場合は何もしない
-				if( MBTList->ToonOutLineIndexNum == 0 ) continue ;
-
-				// 頂点のタイプによって処理を分岐
-				NowVertexShaderIndex     = VertexShaderIndex ;
-				NowPixelShaderIndex      = PixelShaderIndex ;
-
-				NowVertexShaderIndex_PL = VertexShaderIndex_PL ;
-				NowPixelShaderIndex_PL  = PixelShaderIndex_PL ;
-
-				switch( MBTList->VertexType )
-				{
-					// 剛体トライアングルリスト
-				case MV1_VERTEX_TYPE_NORMAL :
-					if( 1 )
-		//			if( Shader )
-		//			if( 0 )
-					{
-		//				MATRIX BlendMat2, BlendMat3 ;
-
-						// シェーダーを使用して描画
-						if( MBTList->VertexBuffer == NULL || MBTList->VertexBuffer->VertexBuffer == NULL || MBTList->VertexBuffer->IndexBuffer == NULL )
-							goto T_NONSDSIMPLE ;
-
-						// ユーザー設定を使用する場合
-						if( MV1Man.UseOrigShaderFlag )
-						{
-							// 頂点シェーダーのセットアップ
-							if( GRH.UserShaderRenderInfo.SetVertexShaderHandle > 0 )
-							{
-								if( SetDeviceVertexShaderToHandle( GRH.UserShaderRenderInfo.SetVertexShaderHandle ) < 0 )
-									goto T_NONSDSIMPLE ;
-							}
-
-							// ピクセルシェーダーのセットアップ
-							if( GRH.UserShaderRenderInfo.SetPixelShaderHandle > 0 )
-							{
-								if( SetDevicePixelShaderToHandle( GRH.UserShaderRenderInfo.SetPixelShaderHandle ) < 0 )
-									goto T_NONSDSIMPLE ;
-							}
-
-							// シェーダーのセットアップ
-							if( SetupShader( 
-								GRH.UserShaderRenderInfo.SetVertexShaderHandle > 0 ? -1 : NowVertexShaderIndex, NowVertexShaderIndex_PL,
-								GRH.UserShaderRenderInfo.SetPixelShaderHandle  > 0 ? -1 : NowPixelShaderIndex,  NowPixelShaderIndex_PL ) == FALSE )
-							{
-								goto T_NONSDSIMPLE ;
-							}
-						}
-						else
-						{
-							// デフォルト動作
-
-							// シェーダーのセットアップ
-							if( SetupShader( 
-									NowVertexShaderIndex, NowVertexShaderIndex_PL,
-									NowPixelShaderIndex,  NowPixelShaderIndex_PL ) == FALSE )
-							{
-								goto T_NONSDSIMPLE ;
-							}
-						}
-
-						// 頂点データのセットアップ
-						TOutLine = 0 ;
-
-						BumpMap = VERTEXSHADER_GET_BUMPMAP( NowVertexShaderIndex ) ;
-						SkinMesh = VERTEXSHADER_GET_MESHTYPE( NowVertexShaderIndex ) ;
-/*
-						TOutLine = VS_GET_TOONOUTLINE( NowVertexShaderIndex ) ;
-						TOutLine = 0 ;
-
-						BumpMap = VS_GET_BUMPMAP( NowVertexShaderIndex ) ;
-						SkinMesh = VS_GET_SKINMESH( NowVertexShaderIndex ) ;
-*/
-						UVNum = TOutLine == 1 ? 0 : 1 ;
-						SetupVertexDeclaration( BumpMap, SkinMesh, UVNum ) ;
-
-						// 頂点バッファのセットアップ
-						if( TList->VertexBuffer )
-						{
-							if( GRH.SetVB != TList->VertexBuffer )
-							{
-								GRH.SetVB = TList->VertexBuffer ;
-								GraphicsDevice_SetStreamSource( 0, GRH.SetVB, 0, MBTList->VertexBuffer->UnitSize ) ;
-							}
-						}
-						else
-						{
-							if( GRH.SetVB != MBTList->VertexBuffer->VertexBuffer )
-							{
-								GRH.SetVB = MBTList->VertexBuffer->VertexBuffer ;
-								GraphicsDevice_SetStreamSource( 0, GRH.SetVB, 0, MBTList->VertexBuffer->UnitSize ) ;
-							}
-						}
-
-						// マテリアルのセットアップ
-						if( SetupShaderMaterial != 1 )
-						{
-							MV1SetupToonOutLineMeshDrawMaterial( MBase, &BlendInfo, Mesh, true ) ;
-							SetupShaderMaterial = 1 ;
-						}
-
-						// インデックスバッファのセットアップ
-						if( GRH.SetIB != MBTList->VertexBuffer->IndexBuffer )
-						{
-							GRH.SetIB = MBTList->VertexBuffer->IndexBuffer ;
-							GraphicsDevice_SetIndices( GRH.SetIB ) ;
-						}
-
-						// 使用するローカル→ワールド行列の用意
-						SetShaderConstantSet(
-							&GRH.ShaderConstantInfo,
-							DX_SHADERCONSTANTTYPE_VS_FLOAT,
-							DX_SHADERCONSTANTSET_MV1,
-							DX_VS_CONSTF_WORLD_MAT_START,
-							&Frame->LocalWorldMatrix,
-							3,
-							FALSE
-						) ;
-
-#ifndef NOT_RENDER
-						// 描画
-						GraphicsDevice_DrawIndexedPrimitive(
-							DX_PRIMTYPE_TRIANGLELIST,
-							TList->VertexBuffer ? 0 : MBTList->VBStartVertex,
-							0,
-							MBTList->VertexNum,
-							MBTList->VBStartIndex + MBTList->IndexNum,
-							MBTList->ToonOutLineIndexNum / 3 ) ;
-#endif // NOT_RENDER
-					}
-					else
-					{
-		T_NONSDSIMPLE :
-						if( Frame->ValidLocalWorldMatrixNM == false )
-						{
-							Frame->ValidLocalWorldMatrixNM = true ;
-							ConvertMatrix4x4cToMatrix( &Frame->LocalWorldMatrixNM, &Frame->LocalWorldMatrix ) ;
-		//					CreateTransposeMatrix( &Frame->LocalWorldMatrixNM, &Frame->LocalWorldMatrix ) ;
-						}
-
-						// 行列のセット
-						D_SetTransformToWorld( &Frame->LocalWorldMatrixNM ) ;
-						MV1Man.WorldMatrixIsIdentity = FALSE ;
-
-						// マテリアルのセットアップ
-						if( SetupShaderMaterial != 0 )
-						{
-							MV1SetupToonOutLineMeshDrawMaterial( MBase, &BlendInfo, Mesh, false ) ;
-							SetupShaderMaterial = 0 ;
-						}
-
-						// 固定機能パイプラインに戻す
-						if( GRH.SetVS )
-						{
-							GraphicsDevice_SetVertexShader( NULL ) ;
-							GRH.SetVS = NULL ;
-							GRH.SetVD = NULL ;
-							GRH.SetFVF = 0 ;
-						}
-
-						if( GRH.SetPS )
-						{
-							GraphicsDevice_SetPixelShader( NULL ) ;
-							GRH.SetPS = NULL ;
-						}
-
-#ifndef NOT_RENDER
-
-						// テンポラリバッファがセットアップされていなかったらセットアップ
-						if( MBTList->TempSimpleVertex == NULL )
-							MV1SetupTListTempSimpleVertex( MBTList ) ;
-
-						// テンポラリバッファがセットアップされていなかったらセットアップ
-						if( MBTList->TempToonOutLineSimpleVertex == NULL )
-							MV1SetupTListTempToonOutLineSimpleVertex( MBTList ) ;
-
-						// シェイプメッシュだった場合はここでテンポラリバッファに内容を書き込む
-						if( MBMesh->Shape )
-						{
-							MV1_TLIST_NORMAL_POS * RST Norm ;
-
-							// １頂点あたりのデータサイズを算出
-							DestUnitSize = MBTList->TempUnitSize ;
-
-							// データのセット
-							TONVert   = ( MV1_VERTEX_SIMPLE_TOL * )( ( ( DWORD_PTR )MBTList->TempToonOutLineSimpleVertex + 15 ) / 16 * 16 ) ;
-							VertexNum = MBTList->VertexNum ;
-							Norm      = ( MV1_TLIST_NORMAL_POS * )ADDR16( TList->NormalPosition ) ;
-
-							for( j = 0 ; j < VertexNum ; j ++, Norm ++, TONVert ++ )
-							{
-								TONVert->Position.x = Norm->Position.x + Norm->Normal.x * OutLineWidth ;
-								TONVert->Position.y = Norm->Position.y + Norm->Normal.y * OutLineWidth ;
-								TONVert->Position.z = Norm->Position.z + Norm->Normal.z * OutLineWidth ;
-							}
-						}
-
-						// １頂点あたりのデータサイズを算出
-						DestUnitSize = MBTList->TempUnitSize ;
-
-						// データのセット
-						TONVert = ( MV1_VERTEX_SIMPLE_TOL * )( ( ( DWORD_PTR )MBTList->TempToonOutLineSimpleVertex + 15 ) / 16 * 16 ) ;
-						SMPVert = MBTList->TempSimpleVertex ;
-						OutLineColor =
-							( 255                                           << 24 ) |
-							( _FTOL( Mesh->Material->OutLineColor.r * 255 ) << 16 ) |
-							( _FTOL( Mesh->Material->OutLineColor.g * 255 ) << 8  ) |
-							( _FTOL( Mesh->Material->OutLineColor.b * 255 )       ) ;
-						VertexNum = MBTList->VertexNum ;
-						for( j = 0 ; j < VertexNum ; j ++, TONVert ++, SMPVert = ( MV1_VERTEX_SIMPLE  * )( ( BYTE * )SMPVert + DestUnitSize ) )
-						{
-							TONVert->Position.x = SMPVert->Position.x + SMPVert->Normal.x * OutLineWidth ;
-							TONVert->Position.y = SMPVert->Position.y + SMPVert->Normal.y * OutLineWidth ;
-							TONVert->Position.z = SMPVert->Position.z + SMPVert->Normal.z * OutLineWidth ;
-							*( ( DWORD * )&TONVert->DiffuseColor ) = OutLineColor ;
-						}
-
-
-						GRH.SetIB = NULL ;
-						GRH.SetVB = NULL ;
-	//					if( GRH.SetFVF != ( D_D3DFVF_XYZ | D_D3DFVF_DIFFUSE ) )
-						{
-							GRH.SetFVF = D_D3DFVF_XYZ | D_D3DFVF_DIFFUSE ;
-							GraphicsDevice_SetFVF( GRH.SetFVF ) ;
-						}
-
-						GraphicsDevice_DrawIndexedPrimitiveUP(
-							DX_PRIMTYPE_TRIANGLELIST,
-							0,
-							MBTList->VertexNum,
-							MBTList->ToonOutLineIndexNum / 3,
-							MBTList->ToonOutLineIndex,
-							D_D3DFMT_INDEX16,
-							( MV1_VERTEX_SIMPLE_TOL * )( ( ( DWORD_PTR )MBTList->TempToonOutLineSimpleVertex + 15 ) / 16 * 16 ),
-							sizeof( MV1_VERTEX_SIMPLE_TOL ) ) ;
-#endif // NOT_RENDER
-					}
-					break ;
-
-					// ４ボーン以内トライアングルリストと８ボーン以内トライアングルリスト
-				case MV1_VERTEX_TYPE_SKIN_4BONE :
-				case MV1_VERTEX_TYPE_SKIN_8BONE :
-					if( MBTList->VertexType == MV1_VERTEX_TYPE_SKIN_4BONE )
-					{
-						NowVertexShaderIndex    += VERTEXSHADER_MESHTYPE( 1 ) ;
-						NowVertexShaderIndex_PL += PIXELLIGHTING_VERTEXSHADER_SKINMESH( 1 ) ;
-					}
-					else
-					{
-						NowVertexShaderIndex    += VERTEXSHADER_MESHTYPE( 2 ) ;
-						NowVertexShaderIndex_PL += PIXELLIGHTING_VERTEXSHADER_SKINMESH( 2 ) ;
-					}
-		//			if( 0 )
-					if( 1 )
-		//			if( Shader )
-					{
-						int n ;
-		//				DX_DIRECT3DVERTEXSHADER9 *UseVS ;
-
-						// シェーダーを使用して描画
-
-						if( MBTList->VertexBuffer == NULL || MBTList->VertexBuffer->VertexBuffer == NULL || MBTList->VertexBuffer->IndexBuffer == NULL )
-							goto T_NONSDSKIN ;
-
-						// ユーザー設定を使用する場合
-						if( MV1Man.UseOrigShaderFlag )
-						{
-							// 頂点シェーダーのセットアップ
-							if( GRH.UserShaderRenderInfo.SetVertexShaderHandle > 0 )
-							{
-								if( SetDeviceVertexShaderToHandle( GRH.UserShaderRenderInfo.SetVertexShaderHandle ) < 0 )
-									goto T_NONSDSKIN ;
-							}
-
-							// ピクセルシェーダーのセットアップ
-							if( GRH.UserShaderRenderInfo.SetPixelShaderHandle > 0 )
-							{
-								if( SetDevicePixelShaderToHandle( GRH.UserShaderRenderInfo.SetPixelShaderHandle ) < 0 )
-									goto T_NONSDSKIN ;
-							}
-
-							// シェーダーのセットアップ
-							if( SetupShader( 
-								GRH.UserShaderRenderInfo.SetVertexShaderHandle > 0 ? -1 : NowVertexShaderIndex, NowVertexShaderIndex_PL,
-								GRH.UserShaderRenderInfo.SetPixelShaderHandle  > 0 ? -1 : NowPixelShaderIndex,  NowPixelShaderIndex_PL ) == FALSE )
-							{
-								goto T_NONSDSKIN ;
-							}
-						}
-						else
-						{
-							// デフォルト動作
-
-							// シェーダーのセットアップ
-							if( SetupShader( 
-									NowVertexShaderIndex, NowVertexShaderIndex_PL,
-									NowPixelShaderIndex,  NowPixelShaderIndex_PL ) == FALSE )
-							{
-								goto T_NONSDSKIN ;
-							}
-						}
-
-						// 頂点データのセットアップ
-						TOutLine = 0 ;
-
-						BumpMap = VERTEXSHADER_GET_BUMPMAP( NowVertexShaderIndex ) ;
-						SkinMesh = VERTEXSHADER_GET_MESHTYPE( NowVertexShaderIndex ) ;
-/*
-						TOutLine = VS_GET_TOONOUTLINE( NowVertexShaderIndex ) ;
-						TOutLine = 0 ;
-
-						BumpMap = VS_GET_BUMPMAP( NowVertexShaderIndex ) ;
-						SkinMesh = VS_GET_SKINMESH( NowVertexShaderIndex ) ;
-*/
-
-						UVNum = TOutLine == 1 ? 0 : 1 ;
-						SetupVertexDeclaration( BumpMap, SkinMesh, UVNum ) ;
-
-						// マテリアルのセットアップ
-						if( SetupShaderMaterial != 1 )
-						{
-							MV1SetupToonOutLineMeshDrawMaterial( MBase, &BlendInfo, Mesh, true ) ;
-							SetupShaderMaterial = 1 ;
-						}
-
-						// 頂点バッファのセットアップ
-						if( TList->VertexBuffer )
-						{
-							if( GRH.SetVB != TList->VertexBuffer )
-							{
-								GRH.SetVB = TList->VertexBuffer ;
-								GraphicsDevice_SetStreamSource( 0, GRH.SetVB, 0, MBTList->VertexBuffer->UnitSize ) ;
-							}
-						}
-						else
-						{
-							if( GRH.SetVB != MBTList->VertexBuffer->VertexBuffer )
-							{
-								GRH.SetVB = MBTList->VertexBuffer->VertexBuffer ;
-								GraphicsDevice_SetStreamSource( 0, GRH.SetVB, 0, MBTList->VertexBuffer->UnitSize ) ;
-							}
-						}
-
-						// インデックスバッファのセットアップ
-						if( GRH.SetIB != MBTList->VertexBuffer->IndexBuffer )
-						{
-							GRH.SetIB = MBTList->VertexBuffer->IndexBuffer ;
-							GraphicsDevice_SetIndices( GRH.SetIB ) ;
-						}
-
-						for( n = 0 ; n < MBTList->UseBoneNum ; n ++ )
-						{
-							TempMatrixTable[ n ] = *Frame->UseSkinBoneMatrix[ MBTList->UseBone[ n ] ] ;
-						}
-						SetShaderConstantSet(
-							&GRH.ShaderConstantInfo,
-							DX_SHADERCONSTANTTYPE_VS_FLOAT,
-							DX_SHADERCONSTANTSET_MV1,
-							DX_VS_CONSTF_WORLD_MAT_START,
-							TempMatrixTable,
-							MBTList->UseBoneNum * 3,
-							FALSE
-						) ;
-#ifndef NOT_RENDER
-						GraphicsDevice_DrawIndexedPrimitive(
-							DX_PRIMTYPE_TRIANGLELIST,
-							TList->VertexBuffer ? 0 : MBTList->VBStartVertex,
-							0,
-							MBTList->VertexNum,
-							MBTList->VBStartIndex + MBTList->IndexNum,
-							MBTList->ToonOutLineIndexNum / 3 ) ;
-#endif	// NOT_RENDER
-					}
-					else
-					{
-		T_NONSDSKIN:
-						// マテリアルのセットアップ
-						if( SetupShaderMaterial != 0 )
-						{
-							MV1SetupToonOutLineMeshDrawMaterial( MBase, &BlendInfo, Mesh, false ) ;
-							SetupShaderMaterial = 0 ;
-						}
-
-						// 固定機能パイプラインに戻す
-						if( GRH.SetVS )
-						{
-							GraphicsDevice_SetVertexShader( NULL ) ;
-							GRH.SetVS = NULL ;
-							GRH.SetVD = NULL ;
-							GRH.SetFVF = 0 ;
-						}
-
-						if( GRH.SetPS )
-						{
-							GraphicsDevice_SetPixelShader( NULL ) ;
-							GRH.SetPS = NULL ;
-						}
-
-						// 単位行列をセット
-						if( MV1Man.WorldMatrixIsIdentity == FALSE )
-						{
-							MV1Man.WorldMatrixIsIdentity = TRUE ;
-							D_SetTransformToWorld( &IdentityMat ) ;
-						}
-
-						// テンポラリバッファがセットアップされていなかったらセットアップ
-						if( MBTList->TempSimpleVertex == NULL )
-							MV1SetupTListTempSimpleVertex( MBTList ) ;
-
-						// テンポラリバッファがセットアップされていなかったらセットアップ
-						if( MBTList->TempToonOutLineSimpleVertex == NULL )
-							MV1SetupTListTempToonOutLineSimpleVertex( MBTList ) ;
-
-						// １頂点あたりのデータサイズを算出
-						DestUnitSize = MBTList->TempUnitSize ;
-
-						// データのセット
-						TONVert    = ( MV1_VERTEX_SIMPLE_TOL * )( ( ( DWORD_PTR )MBTList->TempToonOutLineSimpleVertex + 15 ) / 16 * 16 ) ;
-						SMPVert    = MBTList->TempSimpleVertex ;
-						VertexNum  = MBTList->VertexNum ;
-						OutLineColor =
-							( 255                                           << 24 ) |
-							( _FTOL( Mesh->Material->OutLineColor.r * 255 ) << 16 ) |
-							( _FTOL( Mesh->Material->OutLineColor.g * 255 ) << 8  ) |
-							( _FTOL( Mesh->Material->OutLineColor.b * 255 )       ) ;
-
-						for( j = 0 ; j < VertexNum ; j ++, TONVert ++, SMPVert = ( MV1_VERTEX_SIMPLE  * )( ( BYTE * )SMPVert + DestUnitSize ) )
-						{
-							TONVert->Position.x = SMPVert->Position.x + SMPVert->Normal.x * OutLineWidth ;
-							TONVert->Position.y = SMPVert->Position.y + SMPVert->Normal.y * OutLineWidth ;
-							TONVert->Position.z = SMPVert->Position.z + SMPVert->Normal.z * OutLineWidth ;
-							*( ( DWORD * )&TONVert->DiffuseColor ) = OutLineColor ;
-						}
-
-#ifndef NOT_RENDER
-						// 描画
-						GRH.SetIB = NULL ;
-						GRH.SetVB = NULL ;
-						if( GRH.SetFVF != ( D_D3DFVF_XYZ | D_D3DFVF_DIFFUSE ) )
-						{
-							GRH.SetFVF = D_D3DFVF_XYZ | D_D3DFVF_DIFFUSE ;
-							GraphicsDevice_SetFVF( GRH.SetFVF ) ;
-						}
-						GraphicsDevice_DrawIndexedPrimitiveUP(
-							DX_PRIMTYPE_TRIANGLELIST,
-							0,
-							MBTList->VertexNum,
-							MBTList->ToonOutLineIndexNum / 3,
-							MBTList->ToonOutLineIndex,
-							D_D3DFMT_INDEX16,
-							( MV1_VERTEX_SIMPLE_TOL * )( ( ( DWORD_PTR )MBTList->TempToonOutLineSimpleVertex + 15 ) / 16 * 16 ),
-							sizeof( MV1_VERTEX_SIMPLE_TOL ) ) ;
-#endif	// NOT_RENDER
-					}
-					break ;
-
-					// ボーン数無制限トライアングルリスト
-				case MV1_VERTEX_TYPE_SKIN_FREEBONE :
-					goto T_NONSDSKIN ;
-				}
-			}
-		}
-
-		// ライティングの有無設定を元に戻す
-		D_SetLightEnable( GBASE.Light.ProcessDisable ? FALSE : TRUE ) ;
-	}
-
-//	SetUserBlendInfo( NULL ) ;
-}
 
 // ビットデータリストを初期化する( -1:失敗  0:成功 )
 int InitBitList( BITLIST *BitList, int BitDepth, int DataNum, MEMINFO **FirstMem )
@@ -5946,10 +2388,10 @@ int InitBitList( BITLIST *BitList, int BitDepth, int DataNum, MEMINFO **FirstMem
 	BitList->DataNum = 0 ;
 	BitList->MaxDataNum = DataNum ;
 
-	BitList->Data = ADDMEMAREA( ( BitList->UnitSize + 4 ) * DataNum, FirstMem ) ;
+	BitList->Data = ADDMEMAREA( ( size_t )( ( BitList->UnitSize + 4 ) * DataNum ), FirstMem ) ;
 	if( BitList->Data == NULL )
 	{
-		DXST_ERRORLOG_ADD( _T( "ビットデータを格納するメモリの確保に失敗しました\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\xd3\x30\xc3\x30\xc8\x30\xc7\x30\xfc\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ビットデータを格納するメモリの確保に失敗しました\n" @*/ ) ;
 		return -1 ;
 	}
 	BitList->PressData = ( int * )( ( BYTE * )BitList->Data + BitList->UnitSize * DataNum ) ;
@@ -6239,14 +2681,14 @@ int GetBitListNumber( BITLIST *BitList, int Index, WORD *Buffer )
 	BitCount = 0 ;
 	for( i = 0 ; i < ByteNum ; i ++, BitCount += 8, Src ++ )
 	{
-		if( *Src & 0x01 ){ Buffer[ Num ] = BitCount + 0 ; Num ++ ; }
-		if( *Src & 0x02 ){ Buffer[ Num ] = BitCount + 1 ; Num ++ ; }
-		if( *Src & 0x04 ){ Buffer[ Num ] = BitCount + 2 ; Num ++ ; }
-		if( *Src & 0x08 ){ Buffer[ Num ] = BitCount + 3 ; Num ++ ; }
-		if( *Src & 0x10 ){ Buffer[ Num ] = BitCount + 4 ; Num ++ ; }
-		if( *Src & 0x20 ){ Buffer[ Num ] = BitCount + 5 ; Num ++ ; }
-		if( *Src & 0x40 ){ Buffer[ Num ] = BitCount + 6 ; Num ++ ; }
-		if( *Src & 0x80 ){ Buffer[ Num ] = BitCount + 7 ; Num ++ ; }
+		if( *Src & 0x01 ){ Buffer[ Num ] = ( WORD )( BitCount + 0 ) ; Num ++ ; }
+		if( *Src & 0x02 ){ Buffer[ Num ] = ( WORD )( BitCount + 1 ) ; Num ++ ; }
+		if( *Src & 0x04 ){ Buffer[ Num ] = ( WORD )( BitCount + 2 ) ; Num ++ ; }
+		if( *Src & 0x08 ){ Buffer[ Num ] = ( WORD )( BitCount + 3 ) ; Num ++ ; }
+		if( *Src & 0x10 ){ Buffer[ Num ] = ( WORD )( BitCount + 4 ) ; Num ++ ; }
+		if( *Src & 0x20 ){ Buffer[ Num ] = ( WORD )( BitCount + 5 ) ; Num ++ ; }
+		if( *Src & 0x40 ){ Buffer[ Num ] = ( WORD )( BitCount + 6 ) ; Num ++ ; }
+		if( *Src & 0x80 ){ Buffer[ Num ] = ( WORD )( BitCount + 7 ) ; Num ++ ; }
 	}
 
 	BitNum = BitList->BitDepth - ByteNum * 8 ;
@@ -6297,129 +2739,129 @@ extern BYTE MV1AnimKey16BitMinFtoB( float Min )
 			ret |= 0x20 ;
 
 			// ピッタリな値があるか調べる
-			f = 0.1f ;               if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 1 ;
-			f = 0.01f ;              if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 2 ;
-			f = 0.001f ;             if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 3 ;
-			f = 0.0001f ;            if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 4 ;
-			f = 0.00001f ;           if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 5 ;
-			f = 0.000001f ;          if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 6 ;
-			f = 0.0000001f ;         if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 7 ;
-			f = 0.00000001f ;        if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 8 ;
-			f = 0.000000001f ;       if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 9 ;
-			f = 0.0000000001f ;      if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 10 ;
-			f = 0.00000000001f ;     if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 11 ;
-			f = 0.000000000001f ;    if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 12 ;
-			f = 0.0000000000001f ;   if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 13 ;
-			f = 0.00000000000001f ;  if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 14 ;
-			f = 0.000000000000001f ; if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 15 ;
+			f = 0.1f ;               if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 1 ) ;
+			f = 0.01f ;              if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 2 ) ;
+			f = 0.001f ;             if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 3 ) ;
+			f = 0.0001f ;            if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 4 ) ;
+			f = 0.00001f ;           if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 5 ) ;
+			f = 0.000001f ;          if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 6 ) ;
+			f = 0.0000001f ;         if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 7 ) ;
+			f = 0.00000001f ;        if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 8 ) ;
+			f = 0.000000001f ;       if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 9 ) ;
+			f = 0.0000000001f ;      if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 10 ) ;
+			f = 0.00000000001f ;     if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 11 ) ;
+			f = 0.000000000001f ;    if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 12 ) ;
+			f = 0.0000000000001f ;   if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 13 ) ;
+			f = 0.00000000000001f ;  if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 14 ) ;
+			f = 0.000000000000001f ; if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 15 ) ;
 
 			// マイナスかどうかで処理を分岐
 			// 元の値より小さい値を設定する
 			if( ret & 0x40 )
 			{
 				// マイナスの場合
-				if( Min < 0.00000000000001f && Min >= 0.000000000000001f ) return ret | 14 ;
-				if( Min < 0.0000000000001f  && Min >= 0.00000000000001f  ) return ret | 13 ;
-				if( Min < 0.000000000001f   && Min >= 0.0000000000001f   ) return ret | 12 ;
-				if( Min < 0.00000000001f    && Min >= 0.000000000001f    ) return ret | 11 ;
-				if( Min < 0.0000000001f     && Min >= 0.00000000001f     ) return ret | 10 ;
-				if( Min < 0.000000001f      && Min >= 0.0000000001f      ) return ret | 9 ;
-				if( Min < 0.00000001f       && Min >= 0.000000001f       ) return ret | 8 ;
-				if( Min < 0.0000001f        && Min >= 0.00000001f        ) return ret | 7 ;
-				if( Min < 0.000001f         && Min >= 0.0000001f         ) return ret | 6 ;
-				if( Min < 0.00001f          && Min >= 0.000001f          ) return ret | 5 ;
-				if( Min < 0.0001f           && Min >= 0.00001f           ) return ret | 4 ;
-				if( Min < 0.001f            && Min >= 0.0001f            ) return ret | 3 ;
-				if( Min < 0.01f             && Min >= 0.001f             ) return ret | 2 ;
-				if( Min < 0.1f              && Min >= 0.01f              ) return ret | 1 ;
-				if( Min < 1.0f              && Min >= 0.1f               ) return ret | 0 ;
-				return ret | 0 ;
+				if( Min < 0.00000000000001f && Min >= 0.000000000000001f ) return ( BYTE )( ret | 14 ) ;
+				if( Min < 0.0000000000001f  && Min >= 0.00000000000001f  ) return ( BYTE )( ret | 13 ) ;
+				if( Min < 0.000000000001f   && Min >= 0.0000000000001f   ) return ( BYTE )( ret | 12 ) ;
+				if( Min < 0.00000000001f    && Min >= 0.000000000001f    ) return ( BYTE )( ret | 11 ) ;
+				if( Min < 0.0000000001f     && Min >= 0.00000000001f     ) return ( BYTE )( ret | 10 ) ;
+				if( Min < 0.000000001f      && Min >= 0.0000000001f      ) return ( BYTE )( ret | 9 ) ;
+				if( Min < 0.00000001f       && Min >= 0.000000001f       ) return ( BYTE )( ret | 8 ) ;
+				if( Min < 0.0000001f        && Min >= 0.00000001f        ) return ( BYTE )( ret | 7 ) ;
+				if( Min < 0.000001f         && Min >= 0.0000001f         ) return ( BYTE )( ret | 6 ) ;
+				if( Min < 0.00001f          && Min >= 0.000001f          ) return ( BYTE )( ret | 5 ) ;
+				if( Min < 0.0001f           && Min >= 0.00001f           ) return ( BYTE )( ret | 4 ) ;
+				if( Min < 0.001f            && Min >= 0.0001f            ) return ( BYTE )( ret | 3 ) ;
+				if( Min < 0.01f             && Min >= 0.001f             ) return ( BYTE )( ret | 2 ) ;
+				if( Min < 0.1f              && Min >= 0.01f              ) return ( BYTE )( ret | 1 ) ;
+				if( Min < 1.0f              && Min >= 0.1f               ) return ( BYTE )( ret | 0 ) ;
+				return ( BYTE )( ret | 0 ) ;
 			}
 			else
 			{
 				// プラスの場合
-				if( Min < 0.00000000000001f && Min >= 0.000000000000001f ) return ret | 15 ;
-				if( Min < 0.0000000000001f  && Min >= 0.00000000000001f  ) return ret | 14 ;
-				if( Min < 0.000000000001f   && Min >= 0.0000000000001f   ) return ret | 13 ;
-				if( Min < 0.00000000001f    && Min >= 0.000000000001f    ) return ret | 12 ;
-				if( Min < 0.0000000001f     && Min >= 0.00000000001f     ) return ret | 11 ;
-				if( Min < 0.000000001f      && Min >= 0.0000000001f      ) return ret | 10 ;
-				if( Min < 0.00000001f       && Min >= 0.000000001f       ) return ret | 9 ;
-				if( Min < 0.0000001f        && Min >= 0.00000001f        ) return ret | 8 ;
-				if( Min < 0.000001f         && Min >= 0.0000001f         ) return ret | 7 ;
-				if( Min < 0.00001f          && Min >= 0.000001f          ) return ret | 6 ;
-				if( Min < 0.0001f           && Min >= 0.00001f           ) return ret | 5 ;
-				if( Min < 0.001f            && Min >= 0.0001f            ) return ret | 4 ;
-				if( Min < 0.01f             && Min >= 0.001f             ) return ret | 3 ;
-				if( Min < 0.1f              && Min >= 0.01f              ) return ret | 2 ;
-				if( Min < 1.0f              && Min >= 0.1f               ) return ret | 1 ;
+				if( Min < 0.00000000000001f && Min >= 0.000000000000001f ) return ( BYTE )( ret | 15 ) ;
+				if( Min < 0.0000000000001f  && Min >= 0.00000000000001f  ) return ( BYTE )( ret | 14 ) ;
+				if( Min < 0.000000000001f   && Min >= 0.0000000000001f   ) return ( BYTE )( ret | 13 ) ;
+				if( Min < 0.00000000001f    && Min >= 0.000000000001f    ) return ( BYTE )( ret | 12 ) ;
+				if( Min < 0.0000000001f     && Min >= 0.00000000001f     ) return ( BYTE )( ret | 11 ) ;
+				if( Min < 0.000000001f      && Min >= 0.0000000001f      ) return ( BYTE )( ret | 10 ) ;
+				if( Min < 0.00000001f       && Min >= 0.000000001f       ) return ( BYTE )( ret | 9 ) ;
+				if( Min < 0.0000001f        && Min >= 0.00000001f        ) return ( BYTE )( ret | 8 ) ;
+				if( Min < 0.000001f         && Min >= 0.0000001f         ) return ( BYTE )( ret | 7 ) ;
+				if( Min < 0.00001f          && Min >= 0.000001f          ) return ( BYTE )( ret | 6 ) ;
+				if( Min < 0.0001f           && Min >= 0.00001f           ) return ( BYTE )( ret | 5 ) ;
+				if( Min < 0.001f            && Min >= 0.0001f            ) return ( BYTE )( ret | 4 ) ;
+				if( Min < 0.01f             && Min >= 0.001f             ) return ( BYTE )( ret | 3 ) ;
+				if( Min < 0.1f              && Min >= 0.01f              ) return ( BYTE )( ret | 2 ) ;
+				if( Min < 1.0f              && Min >= 0.1f               ) return ( BYTE )( ret | 1 ) ;
 				return 0x80 ;
 			}
 		}
 		else
 		{
 			// ピッタリな値があるか調べる
-			f = 1.0f ;                if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 0 ;
-			f = 10.0f ;               if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 1 ;
-			f = 100.0f ;              if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 2 ;
-			f = 1000.0f ;             if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 3 ;
-			f = 10000.0f ;            if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 4 ;
-			f = 100000.0f ;           if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 5 ;
-			f = 1000000.0f ;          if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 6 ;
-			f = 10000000.0f ;         if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 7 ;
-			f = 100000000.0f ;        if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 8 ;
-			f = 1000000000.0f ;       if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 9 ;
-			f = 10000000000.0f ;      if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 10 ;
-			f = 100000000000.0f ;     if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 11 ;
-			f = 1000000000000.0f ;    if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 12 ;
-			f = 10000000000000.0f ;   if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 13 ;
-			f = 100000000000000.0f ;  if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 14 ;
-			f = 1000000000000000.0f ; if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ret | 15 ;
+			f = 1.0f ;                if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 0 ) ;
+			f = 10.0f ;               if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 1 ) ;
+			f = 100.0f ;              if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 2 ) ;
+			f = 1000.0f ;             if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 3 ) ;
+			f = 10000.0f ;            if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 4 ) ;
+			f = 100000.0f ;           if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 5 ) ;
+			f = 1000000.0f ;          if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 6 ) ;
+			f = 10000000.0f ;         if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 7 ) ;
+			f = 100000000.0f ;        if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 8 ) ;
+			f = 1000000000.0f ;       if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 9 ) ;
+			f = 10000000000.0f ;      if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 10 ) ;
+			f = 100000000000.0f ;     if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 11 ) ;
+			f = 1000000000000.0f ;    if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 12 ) ;
+			f = 10000000000000.0f ;   if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 13 ) ;
+			f = 100000000000000.0f ;  if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 14 ) ;
+			f = 1000000000000000.0f ; if( *( ( DWORD * )&f ) == *( ( DWORD * )&Min ) ) return ( BYTE )( ret | 15 ) ;
 
 			// マイナスかどうかで処理を分岐
 			// 元の値より小さい値を設定する
 			if( ret & 0x40 )
 			{
 				// マイナスの場合
-				if( Min < 1.0f                && Min >= 0.0f               ) return ret | 0 ;
-				if( Min < 10.0f               && Min >= 1.0f               ) return ret | 1 ;
-				if( Min < 100.0f              && Min >= 10.0f              ) return ret | 2 ;
-				if( Min < 1000.0f             && Min >= 100.0f             ) return ret | 3 ;
-				if( Min < 10000.0f            && Min >= 1000.0f            ) return ret | 4 ;
-				if( Min < 100000.0f           && Min >= 10000.0f           ) return ret | 5 ;
-				if( Min < 1000000.0f          && Min >= 100000.0f          ) return ret | 6 ;
-				if( Min < 10000000.0f         && Min >= 1000000.0f         ) return ret | 7 ;
-				if( Min < 100000000.0f        && Min >= 10000000.0f        ) return ret | 8 ;
-				if( Min < 1000000000.0f       && Min >= 100000000.0f       ) return ret | 9 ;
-				if( Min < 10000000000.0f      && Min >= 1000000000.0f      ) return ret | 10 ;
-				if( Min < 100000000000.0f     && Min >= 10000000000.0f     ) return ret | 11 ;
-				if( Min < 1000000000000.0f    && Min >= 100000000000.0f    ) return ret | 12 ;
-				if( Min < 10000000000000.0f   && Min >= 1000000000000.0f   ) return ret | 13 ;
-				if( Min < 100000000000000.0f  && Min >= 10000000000000.0f  ) return ret | 14 ;
-				if( Min < 1000000000000000.0f && Min >= 100000000000000.0f ) return ret | 15 ;
-				return ret | 15 ;
+				if( Min < 1.0f                && Min >= 0.0f               ) return ( BYTE )( ret | 0 ) ;
+				if( Min < 10.0f               && Min >= 1.0f               ) return ( BYTE )( ret | 1 ) ;
+				if( Min < 100.0f              && Min >= 10.0f              ) return ( BYTE )( ret | 2 ) ;
+				if( Min < 1000.0f             && Min >= 100.0f             ) return ( BYTE )( ret | 3 ) ;
+				if( Min < 10000.0f            && Min >= 1000.0f            ) return ( BYTE )( ret | 4 ) ;
+				if( Min < 100000.0f           && Min >= 10000.0f           ) return ( BYTE )( ret | 5 ) ;
+				if( Min < 1000000.0f          && Min >= 100000.0f          ) return ( BYTE )( ret | 6 ) ;
+				if( Min < 10000000.0f         && Min >= 1000000.0f         ) return ( BYTE )( ret | 7 ) ;
+				if( Min < 100000000.0f        && Min >= 10000000.0f        ) return ( BYTE )( ret | 8 ) ;
+				if( Min < 1000000000.0f       && Min >= 100000000.0f       ) return ( BYTE )( ret | 9 ) ;
+				if( Min < 10000000000.0f      && Min >= 1000000000.0f      ) return ( BYTE )( ret | 10 ) ;
+				if( Min < 100000000000.0f     && Min >= 10000000000.0f     ) return ( BYTE )( ret | 11 ) ;
+				if( Min < 1000000000000.0f    && Min >= 100000000000.0f    ) return ( BYTE )( ret | 12 ) ;
+				if( Min < 10000000000000.0f   && Min >= 1000000000000.0f   ) return ( BYTE )( ret | 13 ) ;
+				if( Min < 100000000000000.0f  && Min >= 10000000000000.0f  ) return ( BYTE )( ret | 14 ) ;
+				if( Min < 1000000000000000.0f && Min >= 100000000000000.0f ) return ( BYTE )( ret | 15 ) ;
+				return ( BYTE )( ret | 15 ) ;
 			}
 			else
 			{
 				// プラスの場合
 				if( Min < 1.0f                 && Min >= 0.0f                ) return 0x80 ;
-				if( Min < 10.0f                && Min >= 1.0f                ) return ret | 0 ;
-				if( Min < 100.0f               && Min >= 10.0f               ) return ret | 1 ;
-				if( Min < 1000.0f              && Min >= 100.0f              ) return ret | 2 ;
-				if( Min < 10000.0f             && Min >= 1000.0f             ) return ret | 3 ;
-				if( Min < 100000.0f            && Min >= 10000.0f            ) return ret | 4 ;
-				if( Min < 1000000.0f           && Min >= 100000.0f           ) return ret | 5 ;
-				if( Min < 10000000.0f          && Min >= 1000000.0f          ) return ret | 6 ;
-				if( Min < 100000000.0f         && Min >= 10000000.0f         ) return ret | 7 ;
-				if( Min < 1000000000.0f        && Min >= 100000000.0f        ) return ret | 8 ;
-				if( Min < 10000000000.0f       && Min >= 1000000000.0f       ) return ret | 9 ;
-				if( Min < 100000000000.0f      && Min >= 10000000000.0f      ) return ret | 10 ;
-				if( Min < 1000000000000.0f     && Min >= 100000000000.0f     ) return ret | 11 ;
-				if( Min < 10000000000000.0f    && Min >= 1000000000000.0f    ) return ret | 12 ;
-				if( Min < 100000000000000.0f   && Min >= 10000000000000.0f   ) return ret | 13 ;
-				if( Min < 1000000000000000.0f  && Min >= 100000000000000.0f  ) return ret | 14 ;
-				if( Min < 10000000000000000.0f && Min >= 1000000000000000.0f ) return ret | 15 ;
-				return ret | 15 ;
+				if( Min < 10.0f                && Min >= 1.0f                ) return ( BYTE )( ret | 0 ) ;
+				if( Min < 100.0f               && Min >= 10.0f               ) return ( BYTE )( ret | 1 ) ;
+				if( Min < 1000.0f              && Min >= 100.0f              ) return ( BYTE )( ret | 2 ) ;
+				if( Min < 10000.0f             && Min >= 1000.0f             ) return ( BYTE )( ret | 3 ) ;
+				if( Min < 100000.0f            && Min >= 10000.0f            ) return ( BYTE )( ret | 4 ) ;
+				if( Min < 1000000.0f           && Min >= 100000.0f           ) return ( BYTE )( ret | 5 ) ;
+				if( Min < 10000000.0f          && Min >= 1000000.0f          ) return ( BYTE )( ret | 6 ) ;
+				if( Min < 100000000.0f         && Min >= 10000000.0f         ) return ( BYTE )( ret | 7 ) ;
+				if( Min < 1000000000.0f        && Min >= 100000000.0f        ) return ( BYTE )( ret | 8 ) ;
+				if( Min < 10000000000.0f       && Min >= 1000000000.0f       ) return ( BYTE )( ret | 9 ) ;
+				if( Min < 100000000000.0f      && Min >= 10000000000.0f      ) return ( BYTE )( ret | 10 ) ;
+				if( Min < 1000000000000.0f     && Min >= 100000000000.0f     ) return ( BYTE )( ret | 11 ) ;
+				if( Min < 10000000000000.0f    && Min >= 1000000000000.0f    ) return ( BYTE )( ret | 12 ) ;
+				if( Min < 100000000000000.0f   && Min >= 10000000000000.0f   ) return ( BYTE )( ret | 13 ) ;
+				if( Min < 1000000000000000.0f  && Min >= 100000000000000.0f  ) return ( BYTE )( ret | 14 ) ;
+				if( Min < 10000000000000000.0f && Min >= 1000000000000000.0f ) return ( BYTE )( ret | 15 ) ;
+				return ( BYTE )( ret | 15 ) ;
 			}
 		}
 	}
@@ -6568,8 +3010,8 @@ extern float MV1AnimKey16BitUnitBtoF( BYTE Unit )
 
 
 
-// MATRIX 構造体を MATRIX_4X4CT 構造体に変換する
-extern void ConvertMatrixToMatrix4x4c( MATRIX_4X4CT *Out, MATRIX *In )
+// MATRIX 構造体を MATRIX_4X4CT_F 構造体に変換する
+extern void ConvertMatrixFToMatrix4x4cF( MATRIX_4X4CT_F *Out, const MATRIX *In )
 {
 	Out->m[ 0 ][ 0 ] = In->m[ 0 ][ 0 ] ;
 	Out->m[ 1 ][ 0 ] = In->m[ 0 ][ 1 ] ;
@@ -6588,8 +3030,68 @@ extern void ConvertMatrixToMatrix4x4c( MATRIX_4X4CT *Out, MATRIX *In )
 	Out->m[ 2 ][ 3 ] = In->m[ 3 ][ 2 ] ;
 }
 
-// MATRIX_4X4CT 構造体を MATRIX 構造体に変換する
-extern void ConvertMatrix4x4cToMatrix( MATRIX *Out, MATRIX_4X4CT *In )
+// MATRIX_D 構造体を MATRIX_4X4CT_D 構造体に変換する
+extern void ConvertMatrixDToMatrix4x4cD( MATRIX_4X4CT_D *Out, const MATRIX_D *In )
+{
+	Out->m[ 0 ][ 0 ] = In->m[ 0 ][ 0 ] ;
+	Out->m[ 1 ][ 0 ] = In->m[ 0 ][ 1 ] ;
+	Out->m[ 2 ][ 0 ] = In->m[ 0 ][ 2 ] ;
+
+	Out->m[ 0 ][ 1 ] = In->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] = In->m[ 1 ][ 1 ] ;
+	Out->m[ 2 ][ 1 ] = In->m[ 1 ][ 2 ] ;
+
+	Out->m[ 0 ][ 2 ] = In->m[ 2 ][ 0 ] ;
+	Out->m[ 1 ][ 2 ] = In->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] = In->m[ 2 ][ 2 ] ;
+
+	Out->m[ 0 ][ 3 ] = In->m[ 3 ][ 0 ] ;
+	Out->m[ 1 ][ 3 ] = In->m[ 3 ][ 1 ] ;
+	Out->m[ 2 ][ 3 ] = In->m[ 3 ][ 2 ] ;
+}
+
+// MATRIX_D 構造体を MATRIX_4X4CT_F 構造体に変換する
+extern void ConvertMatrixDToMatrix4x4cF( MATRIX_4X4CT_F *Out, const MATRIX_D *In )
+{
+	Out->m[ 0 ][ 0 ] = ( float )In->m[ 0 ][ 0 ] ;
+	Out->m[ 1 ][ 0 ] = ( float )In->m[ 0 ][ 1 ] ;
+	Out->m[ 2 ][ 0 ] = ( float )In->m[ 0 ][ 2 ] ;
+
+	Out->m[ 0 ][ 1 ] = ( float )In->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] = ( float )In->m[ 1 ][ 1 ] ;
+	Out->m[ 2 ][ 1 ] = ( float )In->m[ 1 ][ 2 ] ;
+
+	Out->m[ 0 ][ 2 ] = ( float )In->m[ 2 ][ 0 ] ;
+	Out->m[ 1 ][ 2 ] = ( float )In->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] = ( float )In->m[ 2 ][ 2 ] ;
+
+	Out->m[ 0 ][ 3 ] = ( float )In->m[ 3 ][ 0 ] ;
+	Out->m[ 1 ][ 3 ] = ( float )In->m[ 3 ][ 1 ] ;
+	Out->m[ 2 ][ 3 ] = ( float )In->m[ 3 ][ 2 ] ;
+}
+
+// MATRIX 構造体を MATRIX_4X4CT_D 構造体に変換する
+extern void ConvertMatrixFToMatrix4x4cD( MATRIX_4X4CT_D *Out, const MATRIX *In )
+{
+	Out->m[ 0 ][ 0 ] = In->m[ 0 ][ 0 ] ;
+	Out->m[ 1 ][ 0 ] = In->m[ 0 ][ 1 ] ;
+	Out->m[ 2 ][ 0 ] = In->m[ 0 ][ 2 ] ;
+
+	Out->m[ 0 ][ 1 ] = In->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] = In->m[ 1 ][ 1 ] ;
+	Out->m[ 2 ][ 1 ] = In->m[ 1 ][ 2 ] ;
+
+	Out->m[ 0 ][ 2 ] = In->m[ 2 ][ 0 ] ;
+	Out->m[ 1 ][ 2 ] = In->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] = In->m[ 2 ][ 2 ] ;
+
+	Out->m[ 0 ][ 3 ] = In->m[ 3 ][ 0 ] ;
+	Out->m[ 1 ][ 3 ] = In->m[ 3 ][ 1 ] ;
+	Out->m[ 2 ][ 3 ] = In->m[ 3 ][ 2 ] ;
+}
+
+// MATRIX_4X4CT_F 構造体を MATRIX 構造体に変換する
+extern void ConvertMatrix4x4cFToMatrixF( MATRIX *Out, const MATRIX_4X4CT_F *In )
 {
 	Out->m[ 0 ][ 0 ] = In->m[ 0 ][ 0 ] ;
 	Out->m[ 0 ][ 1 ] = In->m[ 1 ][ 0 ] ;
@@ -6609,15 +3111,210 @@ extern void ConvertMatrix4x4cToMatrix( MATRIX *Out, MATRIX_4X4CT *In )
 	Out->m[ 3 ][ 3 ] = 1.0f ;
 }
 
+// MATRIX_4X4CT_D 構造体を MATRIX_D 構造体に変換する
+extern void ConvertMatrix4x4cDToMatrixD( MATRIX_D *Out, const MATRIX_4X4CT_D *In )
+{
+	Out->m[ 0 ][ 0 ] = In->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] = In->m[ 1 ][ 0 ] ;
+	Out->m[ 0 ][ 2 ] = In->m[ 2 ][ 0 ] ;
+	Out->m[ 0 ][ 3 ] = 0.0 ;
+	Out->m[ 1 ][ 0 ] = In->m[ 0 ][ 1 ] ;
+	Out->m[ 1 ][ 1 ] = In->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] = In->m[ 2 ][ 1 ] ;
+	Out->m[ 1 ][ 3 ] = 0.0 ;
+	Out->m[ 2 ][ 0 ] = In->m[ 0 ][ 2 ] ;
+	Out->m[ 2 ][ 1 ] = In->m[ 1 ][ 2 ] ;
+	Out->m[ 2 ][ 2 ] = In->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] = 0.0 ;
+	Out->m[ 3 ][ 0 ] = In->m[ 0 ][ 3 ] ;
+	Out->m[ 3 ][ 1 ] = In->m[ 1 ][ 3 ] ;
+	Out->m[ 3 ][ 2 ] = In->m[ 2 ][ 3 ] ;
+	Out->m[ 3 ][ 3 ] = 1.0 ;
+}
 
+// MATRIX_4X4CT_D 構造体を MATRIX   構造体に変換する
+extern void ConvertMatrix4x4cDToMatrixF( MATRIX   *Out, const MATRIX_4X4CT_D *In )
+{
+	Out->m[ 0 ][ 0 ] = ( float )In->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] = ( float )In->m[ 1 ][ 0 ] ;
+	Out->m[ 0 ][ 2 ] = ( float )In->m[ 2 ][ 0 ] ;
+	Out->m[ 0 ][ 3 ] = 0.0f ;
+	Out->m[ 1 ][ 0 ] = ( float )In->m[ 0 ][ 1 ] ;
+	Out->m[ 1 ][ 1 ] = ( float )In->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] = ( float )In->m[ 2 ][ 1 ] ;
+	Out->m[ 1 ][ 3 ] = 0.0f ;
+	Out->m[ 2 ][ 0 ] = ( float )In->m[ 0 ][ 2 ] ;
+	Out->m[ 2 ][ 1 ] = ( float )In->m[ 1 ][ 2 ] ;
+	Out->m[ 2 ][ 2 ] = ( float )In->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] = 0.0f ;
+	Out->m[ 3 ][ 0 ] = ( float )In->m[ 0 ][ 3 ] ;
+	Out->m[ 3 ][ 1 ] = ( float )In->m[ 1 ][ 3 ] ;
+	Out->m[ 3 ][ 2 ] = ( float )In->m[ 2 ][ 3 ] ;
+	Out->m[ 3 ][ 3 ] = 1.0f ;
+}
 
+// MATRIX_4X4CT_F 構造体を MATRIX_D 構造体に変換する
+extern void ConvertMatrix4x4cFToMatrixD( MATRIX_D *Out, const MATRIX_4X4CT_F *In )
+{
+	Out->m[ 0 ][ 0 ] = In->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] = In->m[ 1 ][ 0 ] ;
+	Out->m[ 0 ][ 2 ] = In->m[ 2 ][ 0 ] ;
+	Out->m[ 0 ][ 3 ] = 0.0 ;
+	Out->m[ 1 ][ 0 ] = In->m[ 0 ][ 1 ] ;
+	Out->m[ 1 ][ 1 ] = In->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] = In->m[ 2 ][ 1 ] ;
+	Out->m[ 1 ][ 3 ] = 0.0 ;
+	Out->m[ 2 ][ 0 ] = In->m[ 0 ][ 2 ] ;
+	Out->m[ 2 ][ 1 ] = In->m[ 1 ][ 2 ] ;
+	Out->m[ 2 ][ 2 ] = In->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] = 0.0 ;
+	Out->m[ 3 ][ 0 ] = In->m[ 0 ][ 3 ] ;
+	Out->m[ 3 ][ 1 ] = In->m[ 1 ][ 3 ] ;
+	Out->m[ 3 ][ 2 ] = In->m[ 2 ][ 3 ] ;
+	Out->m[ 3 ][ 3 ] = 1.0 ;
+}
 
+// MATRIX_4X4CT_F   構造体を MATRIX_4X4CT_D 構造体に変換する
+extern void ConvertMatrix4x4cFToMatrix4x4cD(  MATRIX_4X4CT_D *Out, const MATRIX_4X4CT_F *In )
+{
+	Out->m[ 0 ][ 0 ] = In->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] = In->m[ 0 ][ 1 ] ;
+	Out->m[ 0 ][ 2 ] = In->m[ 0 ][ 2 ] ;
+	Out->m[ 0 ][ 3 ] = In->m[ 0 ][ 3 ] ;
 
+	Out->m[ 1 ][ 0 ] = In->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] = In->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] = In->m[ 1 ][ 2 ] ;
+	Out->m[ 1 ][ 3 ] = In->m[ 1 ][ 3 ] ;
 
+	Out->m[ 2 ][ 0 ] = In->m[ 2 ][ 0 ] ;
+	Out->m[ 2 ][ 1 ] = In->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] = In->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] = In->m[ 2 ][ 3 ] ;
+}
 
+// MATRIX_4X4CT_F   構造体を MATRIX_4X4CT_D 構造体に変換する
+extern void ConvertMatrix4x4cDToMatrix4x4cF(  MATRIX_4X4CT_F   *Out, const MATRIX_4X4CT_D *In )
+{
+	Out->m[ 0 ][ 0 ] = ( float )In->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] = ( float )In->m[ 0 ][ 1 ] ;
+	Out->m[ 0 ][ 2 ] = ( float )In->m[ 0 ][ 2 ] ;
+	Out->m[ 0 ][ 3 ] = ( float )In->m[ 0 ][ 3 ] ;
 
+	Out->m[ 1 ][ 0 ] = ( float )In->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] = ( float )In->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] = ( float )In->m[ 1 ][ 2 ] ;
+	Out->m[ 1 ][ 3 ] = ( float )In->m[ 1 ][ 3 ] ;
 
+	Out->m[ 2 ][ 0 ] = ( float )In->m[ 2 ][ 0 ] ;
+	Out->m[ 2 ][ 1 ] = ( float )In->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] = ( float )In->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] = ( float )In->m[ 2 ][ 3 ] ;
+}
 
+// MATRIX 構造体を MATRIX_4X4CT 構造体に変換する
+extern void ConvertMatrixFToMatrix4x4c( MATRIX_4X4CT *Out, const MATRIX   *In )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		ConvertMatrixFToMatrix4x4cD( &Out->md, In ) ;
+	}
+	else
+	{
+		ConvertMatrixFToMatrix4x4cF( &Out->mf, In ) ;
+	}
+}
+
+// MATRIX_D 構造体を MATRIX_4X4CT 構造体に変換する
+extern void ConvertMatrixDToMatrix4x4c( MATRIX_4X4CT *Out, const MATRIX_D *In )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		ConvertMatrixDToMatrix4x4cD( &Out->md, In ) ;
+	}
+	else
+	{
+		ConvertMatrixDToMatrix4x4cF( &Out->mf, In ) ;
+	}
+}
+
+// MATRIX_4X4CT 構造体を MATRIX 構造体に変換する
+extern void ConvertMatrix4x4cToMatrixF( MATRIX   *Out, const MATRIX_4X4CT *In )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		ConvertMatrix4x4cDToMatrixF( Out, &In->md ) ;
+	}
+	else
+	{
+		ConvertMatrix4x4cFToMatrixF( Out, &In->mf ) ;
+	}
+}
+
+// MATRIX_4X4CT   構造体を MATRIX_D 構造体に変換する
+extern void ConvertMatrix4x4cToMatrixD( MATRIX_D *Out, const MATRIX_4X4CT *In )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		ConvertMatrix4x4cDToMatrixD( Out, &In->md ) ;
+	}
+	else
+	{
+		ConvertMatrix4x4cFToMatrixD( Out, &In->mf ) ;
+	}
+}
+
+// MATRIX_4X4CT   構造体を MATRIX_4X4CT_F 構造体に変換する
+extern void ConvertMatrix4x4cToMatrix4x4cF(  MATRIX_4X4CT_F *Out, const MATRIX_4X4CT *In )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		ConvertMatrix4x4cDToMatrix4x4cF( Out, &In->md ) ;
+	}
+	else
+	{
+		*Out = In->mf ;
+	}
+}
+
+// MATRIX_4X4CT   構造体を MATRIX_4X4CT_D 構造体に変換する
+extern void ConvertMatrix4x4cToMatrix4x4cD(  MATRIX_4X4CT_D *Out, const MATRIX_4X4CT *In )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		*Out = In->md ;
+	}
+	else
+	{
+		ConvertMatrix4x4cFToMatrix4x4cD( Out, &In->mf ) ;
+	}
+}
+
+// MATRIX_4X4CT_F 構造体を MATRIX_4X4CT 構造体に変換する
+extern void ConvertMatrix4x4cFToMatrix4x4c( MATRIX_4X4CT *Out, const MATRIX_4X4CT_F *In )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		ConvertMatrix4x4cFToMatrix4x4cD( &Out->md, In ) ;
+	}
+	else
+	{
+		Out->mf = *In ;
+	}
+}
+
+// MATRIX_4X4CT_D 構造体を MATRIX_4X4CT 構造体に変換する
+extern void ConvertMatrix4x4cDToMatrix4x4c( MATRIX_4X4CT *Out, const MATRIX_4X4CT_D *In )
+{
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		Out->md = *In ;
+	}
+	else
+	{
+		ConvertMatrix4x4cDToMatrix4x4cF( &Out->mf, In ) ;
+	}
+}
 
 
 
@@ -6735,7 +3432,7 @@ static int _MV1AnimSetSyncNowKey( MV1_ANIMSET *AnimSet, bool AboutSetting )
 }
 
 // 名前やインデックスからモデル基本データ内のアニメーションを取得する
-static MV1_ANIMSET_BASE *MV1GetAnimSetBase( int MV1ModelHandle, const char *Name, int Index )
+static MV1_ANIMSET_BASE *MV1GetAnimSetBase( int MV1ModelHandle, const wchar_t *Name, int Index )
 {
 	MV1_MODEL_BASE *ModelBase ;
 	MV1_ANIMSET_BASE *AnimSetBase ;
@@ -6756,7 +3453,7 @@ static MV1_ANIMSET_BASE *MV1GetAnimSetBase( int MV1ModelHandle, const char *Name
 	{
 		// 名前が同じなアニメーションセットを探す
 		AnimSetBase = ModelBase->AnimSet ;
-		for( i = 0 ; i < ModelBase->AnimSetNum && _STRCMP( AnimSetBase->Name, Name ) != 0 ; i ++, AnimSetBase ++ ){}
+		for( i = 0 ; i < ModelBase->AnimSetNum && _WCSCMP( AnimSetBase->NameW, Name ) != 0 ; i ++, AnimSetBase ++ ){}
 		return i == ModelBase->AnimSetNum ? NULL : &ModelBase->AnimSet[ i ] ;
 	}
 }
@@ -6781,9 +3478,9 @@ static MV1_ANIMSET *MV1CreateAnimSet( MV1_ANIMSET_BASE *MV1AnimSetBase )
 	}
 
 	// メモリの確保
-	AnimSet = ( MV1_ANIMSET * )MDALLOCMEM( AllocSize ) ;
+	AnimSet = ( MV1_ANIMSET * )MDALLOCMEM( ( size_t )AllocSize ) ;
 	if( AnimSet == NULL ) return NULL ;
-	_MEMSET( AnimSet, 0, AllocSize ) ;
+	_MEMSET( AnimSet, 0, ( size_t )AllocSize ) ;
 
 	// 情報のセット
 	AllocSize = 0 ;
@@ -6818,7 +3515,7 @@ static MV1_ANIMSET *MV1CreateAnimSet( MV1_ANIMSET_BASE *MV1AnimSetBase )
 }
 
 // アニメーションセットから特定の名前、若しくはインデックスのアニメーションを得る
-static MV1_ANIM *MV1GetAnimSetAnim( MV1_ANIMSET *AnimSet, const char *Name, int Index )
+static MV1_ANIM *MV1GetAnimSetAnim( MV1_ANIMSET *AnimSet, const wchar_t *Name, int Index )
 {
 	MV1_ANIM_BASE *AnimBase ;
 	MV1_ANIMSET_BASE *AnimSetBase ;
@@ -6832,32 +3529,10 @@ static MV1_ANIM *MV1GetAnimSetAnim( MV1_ANIMSET *AnimSet, const char *Name, int 
 	AnimBase = AnimSetBase->Anim ;
 	for( i = 0 ; i < AnimSetBase->AnimNum ; i ++, AnimBase ++ )
 	{
-		if( _STRCMP( AnimBase->TargetFrame->Name, Name ) == 0 ) break ;
+		if( _WCSCMP( AnimBase->TargetFrame->NameW, Name ) == 0 ) break ;
 	}
 	return i == AnimSetBase->AnimNum ? NULL : AnimSet->Anim + i ;
 }
-
-/*
-// アニメーションを再生する
-static int MV1PlayAnimSet( MV1_ANIMSET *AnimSet, int Loop )
-{
-	// 既に再生されていたら何もしない
-	if( AnimSet->PlayFlag ) return 0 ;
-
-	// 再生中フラグを立てる
-	AnimSet->PlayFlag = true ;
-
-	// ループ指定フラグをセットする
-	AnimSet->LoopFlag = Loop == TRUE ;
-
-	// ループしたフラグを倒す
-	AnimSet->LoopCompFlag = false ;
-	
-	// 終了
-	return 0 ;
-}
-
-*/
 
 // アニメーションを指定の時間まで進める
 static int MV1SetAnimSetTime( MV1_ANIMSET *AnimSet, float Time )
@@ -6879,104 +3554,38 @@ static int MV1SetAnimSetTime( MV1_ANIMSET *AnimSet, float Time )
 	return 0 ;
 }
 
-/*
-// アニメーションを進める
-static int MV1AnimSetAddTime( MV1_ANIMSET *AnimSet, float AddTime )
-{
-	MV1_ANIMSET_BASE *AnimSetBase ;
-
-	// パラメータのセットアップフラグを倒す
-	AnimSet->ParamSetup = false ;
-
-	// アドレスをセット
-	AnimSetBase = AnimSet->BaseData ;
-
-	// 経過時間を足す
-	AnimSet->NowTime += AddTime ;
-
-	// アニメーションの総時間を越えていたらアニメーション終了
-	if( AnimSet->NowTime >= AnimSetBase->MaxTime )
-	{
-		// ループする場合としない場合で処理を分岐
-		if( AnimSet->LoopFlag )
-		{
-			// ループする場合
-			if( AnimSetBase->MaxTime != 0.0f )
-			{
-				while( AnimSet->NowTime > AnimSetBase->MaxTime )
-					AnimSet->NowTime -= AnimSetBase->MaxTime ;
-			}
-			else
-			{
-				AnimSet->NowTime = 0.0f ;
-			}
-
-			// ループしたフラグを立てる
-			AnimSet->LoopCompFlag = true ;
-
-			// 時間を反映
-			_MV1AnimSetSyncNowKey( AnimSet, true ) ;
-		}
-		else
-		{
-			// ループしない場合
-
-			// 再生時間をアニメーションの終端でストップ
-			AnimSet->NowTime = AnimSetBase->MaxTime ;
-
-			// 再生フラグを倒す
-			AnimSet->PlayFlag = false ;
-
-			// 時間を反映
-			_MV1AnimSetSyncNowKey( AnimSet, false ) ;
-		}
-	}
-	else
-	{
-		// 時間を反映
-		_MV1AnimSetSyncNowKey( AnimSet, false ) ;
-	}
-
-	// 終了
-	return 0 ;
-}
-
-// アニメーションを止める
-static int MV1StopAnimSet( MV1_ANIMSET *AnimSet )
-{
-	// 再生フラグを倒す
-	AnimSet->PlayFlag = false ;
-
-	// 終了
-	return 0 ;
-}
-
-
-// アニメーションが再生中かどうかを取得する( TRUE:再生中  FALSE:停止中 )
-static int MV1GetAnimSetState( MV1_ANIMSET *AnimSet )
-{
-	// フラグを返す
-	return AnimSet->PlayFlag ? TRUE : FALSE ;
-}
-
-*/
-
 // アニメーションの現在の再生経過時間に合わせたパラメータを計算する
 static int MV1AnimSetSetupParam( MV1_ANIMSET *AnimSet )
 {
-	MV1_ANIM             *Anim ;
-	MV1_ANIMSET_BASE     *AnimSetBase ;
-	MV1_ANIM_KEYSET_BASE *KeySetBase ;
-	VECTOR                 * RST KeyVector1,      * RST KeyVector2 ;
-	float                  * RST KeyLinear1,      * RST KeyLinear2 ;
-	VECTOR Translate, Scale, Rotate, vdata ;
-	int RotateOrder ;
-	int i, j, NowKey, NextKey, QtType = 0 ;
-	FLOAT4 Quaternion, * RST q1, * RST q2 ;
-	float t, fdata ;
-	bool AddParam ;
-	float Sub ;
-	VECTOR SubVec ;
+	MV1_ANIM                     *Anim ;
+	MV1_ANIMSET_BASE             *AnimSetBase ;
+	MV1_ANIM_KEYSET_BASE         *KeySetBase ;
+	VECTOR                  * RST KeyVector1 ;
+	VECTOR                  * RST KeyVector2 ;
+	float                   * RST KeyLinear1 ;
+	float                   * RST KeyLinear2 ;
+	MV1_ANIM_KEY_MATRIX4X4C * RST KeyMatrix4x4C1 ;
+	MV1_ANIM_KEY_MATRIX4X4C * RST KeyMatrix4x4C2 ;
+	VECTOR                        Translate ;
+	VECTOR                        Scale ;
+	VECTOR                        Rotate ;
+	VECTOR                        vdata ;
+	int                           RotateOrder = 0 ;
+	int                           i ;
+	int                           j ;
+	int                           NowKey ;
+	int                           NextKey ;
+	int                           QtType = 0 ;
+	FLOAT4                        Quaternion ;
+	FLOAT4                  * RST q1 ;
+	FLOAT4                  * RST q2 ;
+	MATRIX_4X4CT_F                Matrix ;
+	int                           ValidMatrix ;
+	float                         t ;
+	float                         fdata ;
+	bool                          AddParam ;
+	float                         Sub ;
+	VECTOR                        SubVec ;
 
 	// パラメータのセットアップが済んでいる場合は何もせずに終了
 	if( AnimSet->ParamSetup ) return 0 ;
@@ -7002,8 +3611,8 @@ MATRIXLINEARBLEND :
 		Anim = AnimSet->Anim ;
 		for( i = 0 ; i < AnimSetBase->AnimNum ; i ++, Anim ++ )
 		{
-			MATRIX_4X4CT RotMat1, RotMat2 ;
-			MATRIX_4X4CT PreRotMat, PostRotMat ;
+			MATRIX_4X4CT_F RotMat1, RotMat2 ;
+			MATRIX_4X4CT_F PreRotMat, PostRotMat ;
 
 			// セットアップ情報をリセット
 			Anim->ValidFlag = 0 ;
@@ -7029,12 +3638,12 @@ MATRIXLINEARBLEND :
 					PreRotate = &Anim->Frame->BaseData->PreRotate ;
 					switch( RotateOrder )
 					{
-					case MV1_ROTATE_ORDER_XYZ : CreateRotationXYZMatrix4X4CT( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
-					case MV1_ROTATE_ORDER_XZY : CreateRotationXZYMatrix4X4CT( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
-					case MV1_ROTATE_ORDER_YXZ : CreateRotationYXZMatrix4X4CT( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
-					case MV1_ROTATE_ORDER_YZX : CreateRotationYZXMatrix4X4CT( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
-					case MV1_ROTATE_ORDER_ZXY : CreateRotationZXYMatrix4X4CT( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
-					case MV1_ROTATE_ORDER_ZYX : CreateRotationZYXMatrix4X4CT( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_XYZ : CreateRotationXYZMatrix4X4CTF( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_XZY : CreateRotationXZYMatrix4X4CTF( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_YXZ : CreateRotationYXZMatrix4X4CTF( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_YZX : CreateRotationYZXMatrix4X4CTF( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_ZXY : CreateRotationZXYMatrix4X4CTF( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_ZYX : CreateRotationZYXMatrix4X4CTF( &PreRotMat, PreRotate->x, PreRotate->y, PreRotate->z ) ; break ;
 					default: return -1;
 					}
 				}
@@ -7048,12 +3657,12 @@ MATRIXLINEARBLEND :
 					PostRotate = &Anim->Frame->BaseData->PostRotate ;
 					switch( RotateOrder )
 					{
-					case MV1_ROTATE_ORDER_XYZ : CreateRotationXYZMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
-					case MV1_ROTATE_ORDER_XZY : CreateRotationXZYMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
-					case MV1_ROTATE_ORDER_YXZ : CreateRotationYXZMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
-					case MV1_ROTATE_ORDER_YZX : CreateRotationYZXMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
-					case MV1_ROTATE_ORDER_ZXY : CreateRotationZXYMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
-					case MV1_ROTATE_ORDER_ZYX : CreateRotationZYXMatrix4X4CT( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_XYZ : CreateRotationXYZMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_XZY : CreateRotationXZYMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_YXZ : CreateRotationYXZMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_YZX : CreateRotationYZXMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_ZXY : CreateRotationZXYMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
+					case MV1_ROTATE_ORDER_ZYX : CreateRotationZYXMatrix4X4CTF( &PostRotMat, PostRotate->x, PostRotate->y, PostRotate->z ) ; break ;
 					default: return -1;
 					}
 				}
@@ -7091,6 +3700,12 @@ MATRIXLINEARBLEND :
 			{
 				NowKey     = Anim->KeySet[ j ].NowKey ;
 				KeySetBase = Anim->KeySet[ j ].BaseData ;
+
+				if( KeySetBase->Num == 0 )
+				{
+					continue ;
+				}
+
 				NextKey    = NowKey == KeySetBase->Num - 1 ? 0 : NowKey + 1 ;
 
 				if( NowKey == KeySetBase->Num - 1 )
@@ -7221,12 +3836,12 @@ MATRIXLINEARBLEND :
 			{
 				switch( RotateOrder )
 				{
-				case MV1_ROTATE_ORDER_XYZ : CreateRotationXYZMatrix4X4CT( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationXYZMatrix4X4CT( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
-				case MV1_ROTATE_ORDER_XZY : CreateRotationXZYMatrix4X4CT( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationXZYMatrix4X4CT( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
-				case MV1_ROTATE_ORDER_YXZ : CreateRotationYXZMatrix4X4CT( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationYXZMatrix4X4CT( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
-				case MV1_ROTATE_ORDER_YZX : CreateRotationYZXMatrix4X4CT( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationYZXMatrix4X4CT( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
-				case MV1_ROTATE_ORDER_ZXY : CreateRotationZXYMatrix4X4CT( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationZXYMatrix4X4CT( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
-				case MV1_ROTATE_ORDER_ZYX : CreateRotationZYXMatrix4X4CT( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationZYXMatrix4X4CT( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
+				case MV1_ROTATE_ORDER_XYZ : CreateRotationXYZMatrix4X4CTF( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationXYZMatrix4X4CTF( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
+				case MV1_ROTATE_ORDER_XZY : CreateRotationXZYMatrix4X4CTF( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationXZYMatrix4X4CTF( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
+				case MV1_ROTATE_ORDER_YXZ : CreateRotationYXZMatrix4X4CTF( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationYXZMatrix4X4CTF( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
+				case MV1_ROTATE_ORDER_YZX : CreateRotationYZXMatrix4X4CTF( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationYZXMatrix4X4CTF( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
+				case MV1_ROTATE_ORDER_ZXY : CreateRotationZXYMatrix4X4CTF( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationZXYMatrix4X4CTF( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
+				case MV1_ROTATE_ORDER_ZYX : CreateRotationZYXMatrix4X4CTF( &RotMat1, NowRot.x, NowRot.y, NowRot.z ) ; CreateRotationZYXMatrix4X4CTF( &RotMat2, NextRot.x, NextRot.y, NextRot.z ) ; break ;
 				default: return -1;
 				}
 
@@ -7248,33 +3863,8 @@ MATRIXLINEARBLEND :
 				switch( QtType )
 				{
 				case MV1_ANIMKEY_TYPE_QUATERNION_X :
-					MATRIX TempMatrix1, TempMatrix2 ;
-
-					TempMatrix1.m[3][0] = -NowQt.x ; TempMatrix1.m[3][1] = -NowQt.y ; TempMatrix1.m[3][2] = -NowQt.z ; TempMatrix1.m[3][3] =  NowQt.w ;
-					TempMatrix1.m[2][0] = -NowQt.y ; TempMatrix1.m[2][1] =  NowQt.x ; TempMatrix1.m[2][2] =  NowQt.w ; TempMatrix1.m[2][3] =  NowQt.z ;
-					TempMatrix1.m[1][0] =  NowQt.z ; TempMatrix1.m[1][1] =  NowQt.w ; TempMatrix1.m[1][2] = -NowQt.x ; TempMatrix1.m[1][3] =  NowQt.y ;
-					TempMatrix1.m[0][0] =  NowQt.w ; TempMatrix1.m[0][1] = -NowQt.z ; TempMatrix1.m[0][2] =  NowQt.y ; TempMatrix1.m[0][3] =  NowQt.x ;
-
-					TempMatrix2.m[3][0] =  NowQt.x ; TempMatrix2.m[3][1] =  NowQt.y ; TempMatrix2.m[3][2] =  NowQt.z ; TempMatrix2.m[3][3] =  NowQt.w ;
-					TempMatrix2.m[2][0] = -NowQt.y ; TempMatrix2.m[2][1] =  NowQt.x ; TempMatrix2.m[2][2] =  NowQt.w ; TempMatrix2.m[2][3] = -NowQt.z ;
-					TempMatrix2.m[1][0] =  NowQt.z ; TempMatrix2.m[1][1] =  NowQt.w ; TempMatrix2.m[1][2] = -NowQt.x ; TempMatrix2.m[1][3] = -NowQt.y ;
-					TempMatrix2.m[0][0] =  NowQt.w ; TempMatrix2.m[0][1] = -NowQt.z ; TempMatrix2.m[0][2] =  NowQt.y ; TempMatrix2.m[0][3] = -NowQt.x ;
-
-					CreateMultiplyMatrix( &TempMatrix1, &TempMatrix2, &TempMatrix1 ) ;
-					ConvertMatrixToMatrix4x4c( &RotMat1, &TempMatrix1 ) ;
-
-					TempMatrix1.m[3][0] = -NextQt.x ; TempMatrix1.m[3][1] = -NextQt.y ; TempMatrix1.m[3][2] = -NextQt.z ; TempMatrix1.m[3][3] =  NextQt.w ;
-					TempMatrix1.m[2][0] = -NextQt.y ; TempMatrix1.m[2][1] =  NextQt.x ; TempMatrix1.m[2][2] =  NextQt.w ; TempMatrix1.m[2][3] =  NextQt.z ;
-					TempMatrix1.m[1][0] =  NextQt.z ; TempMatrix1.m[1][1] =  NextQt.w ; TempMatrix1.m[1][2] = -NextQt.x ; TempMatrix1.m[1][3] =  NextQt.y ;
-					TempMatrix1.m[0][0] =  NextQt.w ; TempMatrix1.m[0][1] = -NextQt.z ; TempMatrix1.m[0][2] =  NextQt.y ; TempMatrix1.m[0][3] =  NextQt.x ;
-
-					TempMatrix2.m[3][0] =  NextQt.x ; TempMatrix2.m[3][1] =  NextQt.y ; TempMatrix2.m[3][2] =  NextQt.z ; TempMatrix2.m[3][3] =  NextQt.w ;
-					TempMatrix2.m[2][0] = -NextQt.y ; TempMatrix2.m[2][1] =  NextQt.x ; TempMatrix2.m[2][2] =  NextQt.w ; TempMatrix2.m[2][3] = -NextQt.z ;
-					TempMatrix2.m[1][0] =  NextQt.z ; TempMatrix2.m[1][1] =  NextQt.w ; TempMatrix2.m[1][2] = -NextQt.x ; TempMatrix2.m[1][3] = -NextQt.y ;
-					TempMatrix2.m[0][0] =  NextQt.w ; TempMatrix2.m[0][1] = -NextQt.z ; TempMatrix2.m[0][2] =  NextQt.y ; TempMatrix2.m[0][3] = -NextQt.x ;
-
-					CreateMultiplyMatrix( &TempMatrix1, &TempMatrix2, &TempMatrix1 ) ;
-					ConvertMatrixToMatrix4x4c( &RotMat2, &TempMatrix1 ) ;
+					CreateQuaternionRotateMatrix4X4CTF( &RotMat1, &NowQt  ) ;
+					CreateQuaternionRotateMatrix4X4CTF( &RotMat2, &NextQt ) ;
 					break ;
 
 				case MV1_ANIMKEY_TYPE_QUATERNION_VMD :
@@ -7344,12 +3934,12 @@ MATRIXLINEARBLEND :
 				{
 					switch( RotateOrder )
 					{
-					case MV1_ROTATE_ORDER_XYZ : CreateRotationXYZMatrix4X4CT( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
-					case MV1_ROTATE_ORDER_XZY : CreateRotationXZYMatrix4X4CT( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
-					case MV1_ROTATE_ORDER_YXZ : CreateRotationYXZMatrix4X4CT( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
-					case MV1_ROTATE_ORDER_YZX : CreateRotationYZXMatrix4X4CT( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
-					case MV1_ROTATE_ORDER_ZXY : CreateRotationZXYMatrix4X4CT( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
-					case MV1_ROTATE_ORDER_ZYX : CreateRotationZYXMatrix4X4CT( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
+					case MV1_ROTATE_ORDER_XYZ : CreateRotationXYZMatrix4X4CTF( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
+					case MV1_ROTATE_ORDER_XZY : CreateRotationXZYMatrix4X4CTF( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
+					case MV1_ROTATE_ORDER_YXZ : CreateRotationYXZMatrix4X4CTF( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
+					case MV1_ROTATE_ORDER_YZX : CreateRotationYZXMatrix4X4CTF( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
+					case MV1_ROTATE_ORDER_ZXY : CreateRotationZXYMatrix4X4CTF( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
+					case MV1_ROTATE_ORDER_ZYX : CreateRotationZYXMatrix4X4CTF( &Anim->Matrix, NowRot.x, NowRot.y, NowRot.z ) ; break ;
 					default :
 						return -1 ;
 					}
@@ -7371,8 +3961,8 @@ MATRIXLINEARBLEND :
 			}
 			else
 			{
-				MATRIX_4X4CT RotXMatTemp, RotYMatTemp, RotZMatTemp ;
-				MATRIX_4X4CT TempMat ;
+				MATRIX_4X4CT_F RotXMatTemp, RotYMatTemp, RotZMatTemp ;
+				MATRIX_4X4CT_F TempMat ;
 				float Sin1, Cos1, Sin2, Cos2 ;
 
 
@@ -7466,51 +4056,51 @@ MATRIXLINEARBLEND :
 				switch( RotateOrder )
 				{
 				case MV1_ROTATE_ORDER_XYZ :
-					UnSafeMultiplyMatrix4X4CT( &TempMat, &RotXMatTemp, &RotYMatTemp ) ;
-					UnSafeMultiplyMatrix4X4CT( &Anim->Matrix, &TempMat, &RotZMatTemp ) ;
+					UnSafeMultiplyMatrix4X4CTF( &TempMat, &RotXMatTemp, &RotYMatTemp ) ;
+					UnSafeMultiplyMatrix4X4CTF( &Anim->Matrix, &TempMat, &RotZMatTemp ) ;
 					break ;
 
 				case MV1_ROTATE_ORDER_XZY :
-					UnSafeMultiplyMatrix4X4CT( &TempMat, &RotXMatTemp, &RotZMatTemp ) ;
-					UnSafeMultiplyMatrix4X4CT( &Anim->Matrix, &TempMat, &RotYMatTemp ) ;
+					UnSafeMultiplyMatrix4X4CTF( &TempMat, &RotXMatTemp, &RotZMatTemp ) ;
+					UnSafeMultiplyMatrix4X4CTF( &Anim->Matrix, &TempMat, &RotYMatTemp ) ;
 					break ;
 
 				case MV1_ROTATE_ORDER_YZX :
-					UnSafeMultiplyMatrix4X4CT( &TempMat, &RotYMatTemp, &RotZMatTemp ) ;
-					UnSafeMultiplyMatrix4X4CT( &Anim->Matrix, &TempMat, &RotXMatTemp ) ;
+					UnSafeMultiplyMatrix4X4CTF( &TempMat, &RotYMatTemp, &RotZMatTemp ) ;
+					UnSafeMultiplyMatrix4X4CTF( &Anim->Matrix, &TempMat, &RotXMatTemp ) ;
 					break ;
 
 				case MV1_ROTATE_ORDER_ZXY :
-					UnSafeMultiplyMatrix4X4CT( &TempMat, &RotZMatTemp, &RotXMatTemp ) ;
-					UnSafeMultiplyMatrix4X4CT( &Anim->Matrix, &TempMat, &RotYMatTemp ) ;
+					UnSafeMultiplyMatrix4X4CTF( &TempMat, &RotZMatTemp, &RotXMatTemp ) ;
+					UnSafeMultiplyMatrix4X4CTF( &Anim->Matrix, &TempMat, &RotYMatTemp ) ;
 					break ;
 
 				case MV1_ROTATE_ORDER_ZYX :
-					UnSafeMultiplyMatrix4X4CT( &TempMat, &RotZMatTemp, &RotYMatTemp ) ;
-					UnSafeMultiplyMatrix4X4CT( &Anim->Matrix, &TempMat, &RotXMatTemp ) ;
+					UnSafeMultiplyMatrix4X4CTF( &TempMat, &RotZMatTemp, &RotYMatTemp ) ;
+					UnSafeMultiplyMatrix4X4CTF( &Anim->Matrix, &TempMat, &RotXMatTemp ) ;
 					break ;
 				}
 			}
 
 			// 前後行列の掛け合わせ
 			{
-				MATRIX_4X4CT TempMatrix ;
+				MATRIX_4X4CT_F TempMatrix ;
 
 				if( PreRotate != NULL && PostRotate != NULL )
 				{
-					UnSafeMultiplyMatrix4X4CT( &TempMatrix, &Anim->Matrix, &PreRotMat ) ;
-					UnSafeMultiplyMatrix4X4CT( &Anim->Matrix, &PostRotMat, &TempMatrix ) ;
+					UnSafeMultiplyMatrix4X4CTF( &TempMatrix, &Anim->Matrix, &PreRotMat ) ;
+					UnSafeMultiplyMatrix4X4CTF( &Anim->Matrix, &PostRotMat, &TempMatrix ) ;
 				}
 				else
 				if( PreRotate != NULL )
 				{
-					UnSafeMultiplyMatrix4X4CT( &TempMatrix, &Anim->Matrix, &PreRotMat ) ;
+					UnSafeMultiplyMatrix4X4CTF( &TempMatrix, &Anim->Matrix, &PreRotMat ) ;
 					Anim->Matrix = TempMatrix ;
 				}
 				else
 				if( PostRotate != NULL )
 				{
-					UnSafeMultiplyMatrix4X4CT( &TempMatrix, &PostRotMat, &Anim->Matrix ) ;
+					UnSafeMultiplyMatrix4X4CTF( &TempMatrix, &PostRotMat, &Anim->Matrix ) ;
 					Anim->Matrix = TempMatrix ;
 				}
 			}
@@ -7549,6 +4139,7 @@ MATRIXLINEARBLEND :
 			Anim->ValidFlag = 0 ;
 
 			// 初期状態では目標ノードのデフォルト値を入れておく
+			ValidMatrix = FALSE ;
 			if( Anim->Frame )
 			{
 				Translate   = Anim->Frame->BaseData->Translate ;
@@ -7582,6 +4173,12 @@ MATRIXLINEARBLEND :
 			{
 				NowKey     = Anim->KeySet[ j ].NowKey ;
 				KeySetBase = Anim->KeySet[ j ].BaseData ;
+
+				if( KeySetBase->Num == 0 )
+				{
+					continue ;
+				}
+
 				NextKey    = NowKey == KeySetBase->Num - 1 ? 0 : NowKey + 1 ;
 
 				if( NowKey == KeySetBase->Num - 1 )
@@ -7831,28 +4428,57 @@ MATRIXLINEARBLEND :
 					Quaternion = *q1 ;
 #endif
 					break ;
+
+				case MV1_ANIMKEY_TYPE_MATRIX4X4C :
+					KeyMatrix4x4C1 = &KeySetBase->KeyMatrix4x4C[ NowKey  ] ;
+					KeyMatrix4x4C2 = &KeySetBase->KeyMatrix4x4C[ NextKey ] ;
+
+					ValidMatrix = TRUE ;
+					Matrix.m[ 0 ][ 0 ] = ( KeyMatrix4x4C2->Matrix[ 0 ][ 0 ] - KeyMatrix4x4C1->Matrix[ 0 ][ 0 ] ) * t + KeyMatrix4x4C1->Matrix[ 0 ][ 0 ] ;
+					Matrix.m[ 0 ][ 1 ] = ( KeyMatrix4x4C2->Matrix[ 1 ][ 0 ] - KeyMatrix4x4C1->Matrix[ 1 ][ 0 ] ) * t + KeyMatrix4x4C1->Matrix[ 1 ][ 0 ] ;
+					Matrix.m[ 0 ][ 2 ] = ( KeyMatrix4x4C2->Matrix[ 2 ][ 0 ] - KeyMatrix4x4C1->Matrix[ 2 ][ 0 ] ) * t + KeyMatrix4x4C1->Matrix[ 2 ][ 0 ] ;
+					Matrix.m[ 0 ][ 3 ] = ( KeyMatrix4x4C2->Matrix[ 3 ][ 0 ] - KeyMatrix4x4C1->Matrix[ 3 ][ 0 ] ) * t + KeyMatrix4x4C1->Matrix[ 3 ][ 0 ] ;
+
+					Matrix.m[ 1 ][ 0 ] = ( KeyMatrix4x4C2->Matrix[ 0 ][ 1 ] - KeyMatrix4x4C1->Matrix[ 0 ][ 1 ] ) * t + KeyMatrix4x4C1->Matrix[ 0 ][ 1 ] ;
+					Matrix.m[ 1 ][ 1 ] = ( KeyMatrix4x4C2->Matrix[ 1 ][ 1 ] - KeyMatrix4x4C1->Matrix[ 1 ][ 1 ] ) * t + KeyMatrix4x4C1->Matrix[ 1 ][ 1 ] ;
+					Matrix.m[ 1 ][ 2 ] = ( KeyMatrix4x4C2->Matrix[ 2 ][ 1 ] - KeyMatrix4x4C1->Matrix[ 2 ][ 1 ] ) * t + KeyMatrix4x4C1->Matrix[ 2 ][ 1 ] ;
+					Matrix.m[ 1 ][ 3 ] = ( KeyMatrix4x4C2->Matrix[ 3 ][ 1 ] - KeyMatrix4x4C1->Matrix[ 3 ][ 1 ] ) * t + KeyMatrix4x4C1->Matrix[ 3 ][ 1 ] ;
+
+					Matrix.m[ 2 ][ 0 ] = ( KeyMatrix4x4C2->Matrix[ 0 ][ 2 ] - KeyMatrix4x4C1->Matrix[ 0 ][ 2 ] ) * t + KeyMatrix4x4C1->Matrix[ 0 ][ 2 ] ;
+					Matrix.m[ 2 ][ 1 ] = ( KeyMatrix4x4C2->Matrix[ 1 ][ 2 ] - KeyMatrix4x4C1->Matrix[ 1 ][ 2 ] ) * t + KeyMatrix4x4C1->Matrix[ 1 ][ 2 ] ;
+					Matrix.m[ 2 ][ 2 ] = ( KeyMatrix4x4C2->Matrix[ 2 ][ 2 ] - KeyMatrix4x4C1->Matrix[ 2 ][ 2 ] ) * t + KeyMatrix4x4C1->Matrix[ 2 ][ 2 ] ;
+					Matrix.m[ 2 ][ 3 ] = ( KeyMatrix4x4C2->Matrix[ 3 ][ 2 ] - KeyMatrix4x4C1->Matrix[ 3 ][ 2 ] ) * t + KeyMatrix4x4C1->Matrix[ 3 ][ 2 ] ;
+					break ;
 				}
 			}
 
 			// 情報をセット
-			Anim->Translate = Translate ;
-			if( Translate.x != 0.0f || Translate.y != 0.0f || Translate.z != 0.0f )
-				Anim->ValidFlag |= MV1_ANIMVALUE_TRANSLATE ;
-
-			Anim->Scale = Scale ;
-			if( Scale.x != 1.0f || Scale.y != 1.0f || Scale.z != 1.0f )
-				Anim->ValidFlag |= MV1_ANIMVALUE_SCALE ;
-
-			Anim->Rotate = Rotate ;
-			Anim->RotateOrder = RotateOrder ;
-			if( Rotate.x != 0.0f || Rotate.y != 0.0f || Rotate.z != 0.0f )
-				Anim->ValidFlag |= MV1_ANIMVALUE_ROTATE ;
-
-			Anim->Quaternion = Quaternion ;
-			if( Quaternion.w != 1.0f || Quaternion.x != 0.0f || Quaternion.y != 0.0f || Quaternion.z != 0.0f )
+			if( ValidMatrix )
 			{
-				Anim->ValidFlag |= QtType == MV1_ANIMKEY_TYPE_QUATERNION_X ? MV1_ANIMVALUE_QUATERNION_X : MV1_ANIMVALUE_QUATERNION_VMD ;
-				Anim->ValidFlag &= ~MV1_ANIMVALUE_ROTATE ;
+				Anim->Matrix = Matrix ;
+				Anim->ValidFlag = MV1_ANIMVALUE_MATRIX ;
+			}
+			else
+			{
+				Anim->Translate = Translate ;
+				if( Translate.x != 0.0f || Translate.y != 0.0f || Translate.z != 0.0f )
+					Anim->ValidFlag |= MV1_ANIMVALUE_TRANSLATE ;
+
+				Anim->Scale = Scale ;
+				if( Scale.x != 1.0f || Scale.y != 1.0f || Scale.z != 1.0f )
+					Anim->ValidFlag |= MV1_ANIMVALUE_SCALE ;
+
+				Anim->Rotate = Rotate ;
+				Anim->RotateOrder = RotateOrder ;
+				if( Rotate.x != 0.0f || Rotate.y != 0.0f || Rotate.z != 0.0f )
+					Anim->ValidFlag |= MV1_ANIMVALUE_ROTATE ;
+
+				Anim->Quaternion = Quaternion ;
+				if( Quaternion.w != 1.0f || Quaternion.x != 0.0f || Quaternion.y != 0.0f || Quaternion.z != 0.0f )
+				{
+					Anim->ValidFlag |= QtType == MV1_ANIMKEY_TYPE_QUATERNION_X ? MV1_ANIMVALUE_QUATERNION_X : MV1_ANIMVALUE_QUATERNION_VMD ;
+					Anim->ValidFlag &= ~MV1_ANIMVALUE_ROTATE ;
+				}
 			}
 
 			// 目標ノードの行列を更新するようにセット
@@ -7884,9 +4510,9 @@ MATRIXLINEARBLEND :
 
 // メモリ領域の確保
 #if !defined( __BCC ) || defined( _DEBUG )
-extern void *AddMemArea( int Size, MEMINFO **FirstMem, const char *FileName, int Line )
+extern void *AddMemArea( size_t Size, MEMINFO **FirstMem, const char *FileName, int Line )
 #else
-extern void *AddMemArea( int Size, MEMINFO **FirstMem )
+extern void *AddMemArea( size_t Size, MEMINFO **FirstMem )
 #endif
 {
 	MEMINFO *MI ;
@@ -7898,7 +4524,7 @@ extern void *AddMemArea( int Size, MEMINFO **FirstMem )
 	if( ( MI = ( MEMINFO * )NS_DxAlloc( sizeof( MEMINFO ) + Size ) ) == NULL )
 #endif
 	{
-		DXST_ERRORLOG_ADD( _T( "メモリアドレス保存データ＋実際のデータを保存するメモリ領域の確保に失敗しました\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\xe1\x30\xe2\x30\xea\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\xdd\x4f\x58\x5b\xc7\x30\xfc\x30\xbf\x30\x0b\xff\x9f\x5b\x9b\x96\x6e\x30\xc7\x30\xfc\x30\xbf\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"メモリアドレス保存データ＋実際のデータを保存するメモリ領域の確保に失敗しました\n" @*/ ) ;
 		return NULL ;
 	}
 
@@ -7913,12 +4539,12 @@ extern void *AddMemArea( int Size, MEMINFO **FirstMem )
 	MI->NextInfo = *FirstMem ;
 	if( *FirstMem == NULL )
 	{
-		MI->TotalSize = Size ;
+		MI->TotalSize = ( int )Size ;
 	}
 	else
 	{
 		( *FirstMem )->PrevInfo = MI ;
-		MI->TotalSize = (*FirstMem)->TotalSize + Size ;
+		MI->TotalSize = ( int )( (*FirstMem)->TotalSize + Size ) ;
 	}
 	*FirstMem = MI;
 
@@ -8038,7 +4664,7 @@ extern void MakeDataCmpInfo( DATACMPINFO *CmpInfo, void *Image, int Size )
 	_MEMSET( CmpInfo, 0, sizeof( DATACMPINFO ) ) ;
 
 	// サイズを保存
-	CmpInfo->Size = Size ;
+	CmpInfo->Size = ( DWORD )Size ;
 
 	// ３２バイト何個分か調べる
 	PackNum = Size / 32 ;
@@ -8096,10 +4722,10 @@ extern void MV1ChangeInfoSetup( MV1_CHANGE_BASE *ChangeB, void *FillTable, int B
 	DWORD *Dest ;
 	DWORD Bit, i ;
 
-	ChangeB->Target   = BitAddress / 32 ;
+	ChangeB->Target   = ( DWORD )( BitAddress / 32 ) ;
 	ChangeB->Fill     = ( DWORD * )FillTable ;
-	ChangeB->CheckBit = 1 << ( BitAddress % 32 ) ;
-	ChangeB->Size     = ( BitAddress % 32 + FillBitNum + 31 ) / 32 ;
+	ChangeB->CheckBit = ( DWORD )( 1 << ( BitAddress % 32 ) ) ;
+	ChangeB->Size     = ( DWORD )( ( BitAddress % 32 + FillBitNum + 31 ) / 32 ) ;
 
 	if( ChangeB->Fill )
 	{
@@ -8171,10 +4797,10 @@ extern int MV1MakeMeshBinormalsAndTangents( MV1_MESH_BASE *Mesh )
 		UseFlag = ( BYTE * )DXALLOC( sizeof( BYTE ) * NormalNum ) ;
 		if( UseFlag == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "頂点の接線と従法線の作成作業に必要なメモリ領域の確保に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x02\x98\xb9\x70\x6e\x30\xa5\x63\xda\x7d\x68\x30\x93\x5f\xd5\x6c\xda\x7d\x6e\x30\x5c\x4f\x10\x62\x5c\x4f\x6d\x69\x6b\x30\xc5\x5f\x81\x89\x6a\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"頂点の接線と従法線の作成作業に必要なメモリ領域の確保に失敗しました\n" @*/ )) ;
 			return -1 ;
 		}
-		_MEMSET( UseFlag, 0, Mesh->Container->NormalNum ) ;
+		_MEMSET( UseFlag, 0, ( size_t )Mesh->Container->NormalNum ) ;
 
 		VT = Vertex ;
 		for( i = 0 ; i < Mesh->VertexNum ; i ++, VT = ( MV1_MESH_VERTEX * )( ( BYTE * )VT + VertUnitSize ) )
@@ -8572,6 +5198,120 @@ extern int MV1SetupShapeTriangleListPositionAndNormal( MV1_TRIANGLE_LIST *TList 
 
 
 
+
+
+
+
+
+
+
+
+
+// 共通データ系
+
+// グラデーション画像を作成する
+extern int MV1CreateGradationGraph( void )
+{
+	DWORD i ;
+	BASEIMAGE BaseImage ;
+	DWORD *Dest, DestData ;
+	int Handle ;
+	LOADGRAPH_GPARAM GParam ;
+
+	if( NS_CreateXRGB8ColorBaseImage( 256, 8, &BaseImage ) < 0 )
+		return -1 ;
+
+	Dest = ( DWORD * )BaseImage.GraphData ;
+	for( i = 0 ; i < 256 ; i ++, Dest ++ )
+	{
+		DestData = i | ( i << 8 ) | ( i << 16 ) ;
+		Dest[ 256 * 0 ] = DestData ;
+		Dest[ 256 * 1 ] = DestData ;
+		Dest[ 256 * 2 ] = DestData ;
+		Dest[ 256 * 3 ] = DestData ;
+		Dest[ 256 * 4 ] = DestData ;
+		Dest[ 256 * 5 ] = DestData ;
+		Dest[ 256 * 6 ] = DestData ;
+		Dest[ 256 * 7 ] = DestData ;
+	}
+
+	Graphics_Image_InitLoadGraphGParam( &GParam ) ;
+	GParam.CreateGraphGParam.NotUseTransColor = TRUE ;
+	Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam.CreateGraphGParam.InitHandleGParam, 32, TRUE, FALSE ) ;
+	Handle = Graphics_Image_CreateGraphFromGraphImage_UseGParam( &GParam, FALSE, -1, &BaseImage, NULL, TRUE, FALSE, FALSE, FALSE ) ;
+
+	NS_ReleaseBaseImage( &BaseImage ) ;
+
+	return Handle ;
+}
+
+// デフォルトトゥーンテクスチャを取得する
+extern int MV1GetDefaultToonTexture( int Type )
+{
+	switch( Type )
+	{
+	case -1 :
+		if( MV1Man.ToonDefaultGradTexHandle[ 0 ] < 0 )
+		{
+			LOADGRAPH_GPARAM GParam ;
+
+			Graphics_Image_InitLoadGraphGParam( &GParam ) ;
+			GParam.CreateGraphGParam.NotUseTransColor = TRUE ;
+			Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam.CreateGraphGParam.InitHandleGParam, 32, TRUE, FALSE ) ;
+			MV1Man.ToonDefaultGradTexHandle[ 0 ] = Graphics_Image_CreateGraphFromMem_UseGParam( &GParam, FALSE, -1, TgaDiffuseDefaultGradFileImage, sizeof( TgaDiffuseDefaultGradFileImage ), NULL, 0, TRUE, FALSE, FALSE ) ;
+			NS_SetDeleteHandleFlag( MV1Man.ToonDefaultGradTexHandle[ 0 ], &MV1Man.ToonDefaultGradTexHandle[ 0 ] ) ;
+			NS_SetDeviceLostDeleteGraphFlag( MV1Man.ToonDefaultGradTexHandle[ 0 ], TRUE ) ;
+		}
+		return MV1Man.ToonDefaultGradTexHandle[ 0 ] ;
+
+	case -2 :
+		if( MV1Man.ToonDefaultGradTexHandle[ 1 ] < 0 )
+		{
+			MV1Man.ToonDefaultGradTexHandle[ 1 ] = MV1CreateGradationGraph() ;
+			NS_SetDeleteHandleFlag( MV1Man.ToonDefaultGradTexHandle[ 1 ], &MV1Man.ToonDefaultGradTexHandle[ 1 ] ) ;
+			NS_SetDeviceLostDeleteGraphFlag( MV1Man.ToonDefaultGradTexHandle[ 1 ], TRUE ) ;
+		}
+		return MV1Man.ToonDefaultGradTexHandle[ 1 ] ;
+	}
+
+	return -1 ;
+}
+
+// TexNoneHandle のセットアップを行う
+extern void MV1SetupTexNoneHandle( void )
+{
+	LOADGRAPH_GPARAM GParam ;
+	Graphics_Image_InitLoadGraphGParam( &GParam ) ;
+	GParam.CreateGraphGParam.NotUseTransColor            = FALSE ;
+	GParam.CreateGraphGParam.LeftUpColorIsTransColorFlag = FALSE ;
+	Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam.CreateGraphGParam.InitHandleGParam, 32, TRUE, FALSE ) ;
+	GParam.CreateGraphGParam.InitHandleGParam.TransColor = ( BYTE )255 << 16 | ( BYTE )0 << 8 | ( BYTE )255 ;
+	MV1Man.TexNoneHandle      = Graphics_Image_CreateGraphFromMem_UseGParam( &GParam, FALSE, -1, Tga8x8TextureFileImage,      sizeof( Tga8x8TextureFileImage      ), NULL, 0, TRUE, FALSE, FALSE ) ;
+	MV1Man.TexNoneBlackHandle = Graphics_Image_CreateGraphFromMem_UseGParam( &GParam, FALSE, -1, Tga8x8BlackTextureFileImage, sizeof( Tga8x8BlackTextureFileImage ), NULL, 0, TRUE, FALSE, FALSE ) ;
+	NS_SetDeleteHandleFlag( MV1Man.TexNoneHandle,      &MV1Man.TexNoneHandle      ) ;
+	NS_SetDeleteHandleFlag( MV1Man.TexNoneBlackHandle, &MV1Man.TexNoneBlackHandle ) ;
+	NS_SetDeviceLostDeleteGraphFlag( MV1Man.TexNoneHandle,      TRUE ) ;
+	NS_SetDeviceLostDeleteGraphFlag( MV1Man.TexNoneBlackHandle, TRUE ) ;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // モデル機能の初期化
 extern int MV1Initialize()
 {
@@ -8582,13 +5322,21 @@ extern int MV1Initialize()
 	if( MV1Man.Initialize ) return 0 ;
 
 	// ハードウエアの機能を使用できない場合は何もせず終了
-	if( GRA2.ValidHardWare == FALSE ) return 0 ;
+	if( GSYS.Setting.ValidHardware == FALSE ) return 0 ;
+
+	// トライアングルリスト基データの環境依存用バッファのサイズチェック
+	if( MV1_TRIANGLE_LIST_BASE_PF_BUFFER_SIZE < sizeof( MV1_TRIANGLE_LIST_BASE_PF ) )
+	{
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xc8\x30\xe9\x30\xa4\x30\xa2\x30\xf3\x30\xb0\x30\xeb\x30\xea\x30\xb9\x30\xc8\x30\xfa\x57\xc7\x30\xfc\x30\xbf\x30\x6e\x30\xb0\x74\x83\x58\x9d\x4f\x58\x5b\x28\x75\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xb5\x30\xa4\x30\xba\x30\x4c\x30\xb3\x8d\x8a\x30\x7e\x30\x5b\x30\x93\x30\x20\x00\x4d\x00\x56\x00\x31\x00\x5f\x00\x54\x00\x52\x00\x49\x00\x41\x00\x4e\x00\x47\x00\x4c\x00\x45\x00\x5f\x00\x4c\x00\x49\x00\x53\x00\x54\x00\x5f\x00\x42\x00\x41\x00\x53\x00\x45\x00\x5f\x00\x50\x00\x46\x00\x5f\x00\x42\x00\x55\x00\x46\x00\x46\x00\x45\x00\x52\x00\x5f\x00\x53\x00\x49\x00\x5a\x00\x45\x00\x3a\x00\x25\x00\x64\x00\x62\x00\x79\x00\x74\x00\x65\x00\x20\x00\x20\x00\x73\x00\x69\x00\x7a\x00\x65\x00\x6f\x00\x66\x00\x28\x00\x20\x00\x4d\x00\x56\x00\x31\x00\x5f\x00\x54\x00\x52\x00\x49\x00\x41\x00\x4e\x00\x47\x00\x4c\x00\x45\x00\x5f\x00\x4c\x00\x49\x00\x53\x00\x54\x00\x5f\x00\x42\x00\x41\x00\x53\x00\x45\x00\x5f\x00\x50\x00\x46\x00\x20\x00\x29\x00\x3a\x00\x25\x00\x64\x00\x62\x00\x79\x00\x74\x00\x65\x00\x00"/*@ L"トライアングルリスト基データの環境依存用バッファのサイズが足りません MV1_TRIANGLE_LIST_BASE_PF_BUFFER_SIZE:%dbyte  sizeof( MV1_TRIANGLE_LIST_BASE_PF ):%dbyte" @*/,
+			MV1_TRIANGLE_LIST_BASE_PF_BUFFER_SIZE, sizeof( MV1_TRIANGLE_LIST_BASE_PF ) ));
+		return -1 ;
+	}
 
 	// モデル基本データハンドルの初期化
-	InitializeHandleManage( DX_HANDLETYPE_MODEL_BASE, sizeof( MV1_MODEL_BASE ), MAX_MODEL_BASE_NUM, InitializeModelBaseHandle, TerminateModelBaseHandle, DXSTRING( _T( "３Ｄモデル" ) ) ) ;
+	InitializeHandleManage( DX_HANDLETYPE_MODEL_BASE, sizeof( MV1_MODEL_BASE ), MAX_MODEL_BASE_NUM, InitializeModelBaseHandle, TerminateModelBaseHandle, L"ModelBase" ) ;
 
 	// モデルデータハンドルの初期化
-	InitializeHandleManage( DX_HANDLETYPE_MODEL, sizeof( MV1_MODEL ), MAX_MODEL_NUM, InitializeModelHandle, TerminateModelHandle, DXSTRING( _T( "３Ｄモデル" ) ) ) ;
+	InitializeHandleManage( DX_HANDLETYPE_MODEL, sizeof( MV1_MODEL ), MAX_MODEL_NUM, InitializeModelHandle, TerminateModelHandle, L"Model" ) ;
 
 	// サインテーブルの初期化
 	for( i = 0 ; i < MV1_SINTABLE_DIV ; i ++ )
@@ -8648,6 +5396,9 @@ extern int MV1Terminate()
 		MV1Man.DrawMeshListSize = 0 ;
 	}
 
+	// 環境依存の後始末処理を実行
+	MV1_Terminate_PF() ;
+
 	// モデルデータハンドル管理情報の後始末
 	TerminateHandleManage( DX_HANDLETYPE_MODEL ) ;
 
@@ -8679,7 +5430,7 @@ extern int MV1CreateTextureColorBaseImage(
 	{
 		if( NS_CreateBaseImage( NULL, ColorFileImage, ColorFileSize, LOADIMAGE_TYPE_MEM, DestColorBaseImage, FALSE ) < 0 )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "MV1CreateTextureColorBaseImage : Error 1\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"MV1CreateTextureColorBaseImage : Error 1\n" )) ;
 			return -1 ;
 		}
 	}
@@ -8689,7 +5440,7 @@ extern int MV1CreateTextureColorBaseImage(
 		if( NS_CreateBaseImage( NULL, AlphaFileImage, AlphaFileSize, LOADIMAGE_TYPE_MEM, DestAlphaBaseImage, FALSE ) < 0 )
 		{
 			if( ColorFileImage ) NS_ReleaseBaseImage( DestColorBaseImage ) ;
-			DXST_ERRORLOGFMT_ADD( ( _T( "MV1CreateTextureColorBaseImage : Error 2\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"MV1CreateTextureColorBaseImage : Error 2\n" )) ;
 			return -1 ;
 		}
 	}
@@ -8700,10 +5451,10 @@ extern int MV1CreateTextureColorBaseImage(
 		if( NS_CreateXRGB8ColorBaseImage( DestAlphaBaseImage->Width, DestAlphaBaseImage->Height, DestColorBaseImage ) < 0 )
 		{
 			if( AlphaFileImage ) NS_ReleaseBaseImage( DestAlphaBaseImage ) ;
-			DXST_ERRORLOGFMT_ADD( ( _T( "MV1CreateTextureColorBaseImage : Error 3\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"MV1CreateTextureColorBaseImage : Error 3\n" )) ;
 			return -1 ;
 		}
-		_MEMSET( DestColorBaseImage->GraphData, 0xff, DestColorBaseImage->Pitch * DestColorBaseImage->Height ) ;
+		_MEMSET( DestColorBaseImage->GraphData, 0xff, ( size_t )( DestColorBaseImage->Pitch * DestColorBaseImage->Height ) ) ;
 	}
 
 	// バンプマップ指定の場合は法線マップ化する
@@ -8720,7 +5471,7 @@ extern int MV1CreateTextureColorBaseImage(
 		{
 			NS_ReleaseBaseImage( DestColorBaseImage ) ;
 			if( AlphaFileImage ) NS_ReleaseBaseImage( DestAlphaBaseImage ) ;
-			DXST_ERRORLOGFMT_ADD( ( _T( "MV1CreateTextureColorBaseImage : Error 4\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"MV1CreateTextureColorBaseImage : Error 4\n" )) ;
 			return -1 ;
 		}
 
@@ -8755,14 +5506,14 @@ extern int MV1CreateTextureColorBaseImage(
 		if( SizeX != DestColorBaseImage->Width || SizeY != DestColorBaseImage->Height )
 		{
 			// ハードウエアが対応している最大テクスチャサイズ / 2は超えないようにする
-			if( GRH.DeviceCaps.MaxTextureWidth  / 2 < ( DWORD )SizeX ) SizeX = ( int )GRH.DeviceCaps.MaxTextureWidth  / 2 ;
-			if( GRH.DeviceCaps.MaxTextureHeight / 2 < ( DWORD )SizeY ) SizeY = ( int )GRH.DeviceCaps.MaxTextureHeight / 2 ;
+			if( GSYS.HardInfo.MaxTextureSize / 2 < SizeX ) SizeX = GSYS.HardInfo.MaxTextureSize / 2 ;
+			if( GSYS.HardInfo.MaxTextureSize / 2 < SizeY ) SizeY = GSYS.HardInfo.MaxTextureSize / 2 ;
 
 			if( NS_CreateColorDataBaseImage( SizeX, SizeY, &DestColorBaseImage->ColorData, &ScaleBaseImage ) < 0 )
 			{
 				NS_ReleaseBaseImage( DestColorBaseImage ) ;
 				if( AlphaFileImage ) NS_ReleaseBaseImage( DestAlphaBaseImage ) ;
-				DXST_ERRORLOGFMT_ADD( ( _T( "MV1CreateTextureColorBaseImage : Error 5\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDW(( L"MV1CreateTextureColorBaseImage : Error 5\n" )) ;
 				return -1 ;
 			}
 			
@@ -8789,14 +5540,14 @@ extern int MV1CreateTextureColorBaseImage(
 		if( SizeX != DestAlphaBaseImage->Width || SizeY != DestAlphaBaseImage->Height )
 		{
 			// ハードウエアが対応している最大テクスチャサイズは超えないようにする
-			if( GRH.DeviceCaps.MaxTextureWidth  / 2 < ( DWORD )SizeX ) SizeX = ( int )GRH.DeviceCaps.MaxTextureWidth  / 2 ;
-			if( GRH.DeviceCaps.MaxTextureHeight / 2 < ( DWORD )SizeY ) SizeY = ( int )GRH.DeviceCaps.MaxTextureHeight / 2 ;
+			if( GSYS.HardInfo.MaxTextureSize / 2 < SizeX ) SizeX = GSYS.HardInfo.MaxTextureSize / 2 ;
+			if( GSYS.HardInfo.MaxTextureSize / 2 < SizeY ) SizeY = GSYS.HardInfo.MaxTextureSize / 2 ;
 
 			if( NS_CreateColorDataBaseImage( SizeX, SizeY, &DestAlphaBaseImage->ColorData, &ScaleAlphaBaseImage ) < 0 )
 			{
 				NS_ReleaseBaseImage( DestColorBaseImage ) ;
 				NS_ReleaseBaseImage( DestAlphaBaseImage ) ;
-				DXST_ERRORLOGFMT_ADD( ( _T( "MV1CreateTextureColorBaseImage : Error 6\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDW(( L"MV1CreateTextureColorBaseImage : Error 6\n" )) ;
 				return -1 ;
 			}
 			
@@ -8825,7 +5576,7 @@ extern int MV1CreateTextureColorBaseImage(
 			{
 				NS_ReleaseBaseImage( DestColorBaseImage ) ;
 				NS_ReleaseBaseImage( DestAlphaBaseImage ) ;
-				DXST_ERRORLOGFMT_ADD( ( _T( "MV1CreateTextureColorBaseImage : Error 7\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDW(( L"MV1CreateTextureColorBaseImage : Error 7\n" )) ;
 				return -1 ;
 			}
 			
@@ -8842,7 +5593,7 @@ extern int MV1CreateTextureColorBaseImage(
 			{
 				NS_ReleaseBaseImage( DestColorBaseImage ) ;
 				NS_ReleaseBaseImage( DestAlphaBaseImage ) ;
-				DXST_ERRORLOGFMT_ADD( ( _T( "MV1CreateTextureColorBaseImage : Error 8\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDW(( L"MV1CreateTextureColorBaseImage : Error 8\n" )) ;
 				return -1 ;
 			}
 			
@@ -8873,12 +5624,12 @@ extern int MV1ReloadTexture( void )
 	if( HandleManageArray[ DX_HANDLETYPE_MODEL_BASE ].InitializeFlag == FALSE )
 		return -1 ;
 
-	InitLoadGraphGParam( &GParam ) ;
+	Graphics_Image_InitLoadGraphGParam( &GParam ) ;
 	GParam.CreateGraphGParam.NotUseTransColor = TRUE ;
-	InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam.CreateGraphGParam.InitHandleGParam, 32, TRUE, FALSE ) ;
-	CreateGraphFromMem_UseGParam( &GParam, MV1Man.TexNoneHandle,                 -1, Tga8x8TextureFileImage,         sizeof( Tga8x8TextureFileImage ),         NULL, 0, TRUE, FALSE, FALSE ) ;
-	CreateGraphFromMem_UseGParam( &GParam, MV1Man.TexNoneBlackHandle,            -1, Tga8x8BlackTextureFileImage,    sizeof( Tga8x8BlackTextureFileImage ),    NULL, 0, TRUE, FALSE, FALSE ) ;
-	CreateGraphFromMem_UseGParam( &GParam, MV1Man.ToonDefaultGradTexHandle[ 0 ], -1, TgaDiffuseDefaultGradFileImage, sizeof( TgaDiffuseDefaultGradFileImage ), NULL, 0, TRUE, FALSE, FALSE ) ;
+	Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam.CreateGraphGParam.InitHandleGParam, 32, TRUE, FALSE ) ;
+	Graphics_Image_CreateGraphFromMem_UseGParam( &GParam, MV1Man.TexNoneHandle,                 -1, Tga8x8TextureFileImage,         sizeof( Tga8x8TextureFileImage ),         NULL, 0, TRUE, FALSE, FALSE ) ;
+	Graphics_Image_CreateGraphFromMem_UseGParam( &GParam, MV1Man.TexNoneBlackHandle,            -1, Tga8x8BlackTextureFileImage,    sizeof( Tga8x8BlackTextureFileImage ),    NULL, 0, TRUE, FALSE, FALSE ) ;
+	Graphics_Image_CreateGraphFromMem_UseGParam( &GParam, MV1Man.ToonDefaultGradTexHandle[ 0 ], -1, TgaDiffuseDefaultGradFileImage, sizeof( TgaDiffuseDefaultGradFileImage ), NULL, 0, TRUE, FALSE, FALSE ) ;
 //	NS_ReCreateGraphFromMem( &TgaSpecularDefaultGradFileImage, sizeof( TgaSpecularDefaultGradFileImage ), MV1Man.ToonDefaultGradTexHandle[ 1 ] ) ;
 	_MV1ReCreateGradationGraph( MV1Man.ToonDefaultGradTexHandle[ 1 ] ) ;
 
@@ -8897,7 +5648,7 @@ extern int MV1ReloadTexture( void )
 					TexBase->AlphaImage, TexBase->AlphaImageSize,
 					TexBase->BumpImageFlag, TexBase->BumpImageNextPixelLength ) == 0 )
 			{
-				CreateGraphFromGraphImage_UseGParam( &GParam, TRUE, TexBase->GraphHandle, &ColorBaseImage, TexBase->AlphaImage ? &AlphaBaseImage : NULL, TRUE, FALSE, FALSE, FALSE ) ;
+				Graphics_Image_CreateGraphFromGraphImage_UseGParam( &GParam, TRUE, TexBase->GraphHandle, &ColorBaseImage, TexBase->AlphaImage ? &AlphaBaseImage : NULL, TRUE, FALSE, FALSE, FALSE ) ;
 
 				NS_ReleaseBaseImage( &ColorBaseImage ) ;
 				if( TexBase->AlphaImage ) NS_ReleaseBaseImage( &AlphaBaseImage ) ;
@@ -8923,7 +5674,7 @@ extern int MV1ReloadTexture( void )
 					Tex->AlphaImage, Tex->AlphaImageSize,
 					Tex->BumpImageFlag, Tex->BumpImageNextPixelLength ) == 0 )
 			{
-				CreateGraphFromGraphImage_UseGParam( &GParam, TRUE, Tex->GraphHandle, &ColorBaseImage, Tex->AlphaImage ? &AlphaBaseImage : NULL, TRUE, FALSE, FALSE, FALSE ) ;
+				Graphics_Image_CreateGraphFromGraphImage_UseGParam( &GParam, TRUE, Tex->GraphHandle, &ColorBaseImage, Tex->AlphaImage ? &AlphaBaseImage : NULL, TRUE, FALSE, FALSE, FALSE ) ;
 
 				NS_ReleaseBaseImage( &ColorBaseImage ) ;
 				if( Tex->AlphaImage ) NS_ReleaseBaseImage( &AlphaBaseImage ) ;
@@ -8984,7 +5735,7 @@ extern int MV1InitModelBase( void )
 // モデルデータハンドルの初期化
 extern int InitializeModelBaseHandle( HANDLEINFO * )
 {
-	// 不需要特别处理
+	// 特に何もしない
 	return 0 ;
 }
 
@@ -9005,7 +5756,10 @@ extern int TerminateModelBaseHandle( HANDLEINFO *HandleInfo )
 		return 1 ;
 
 	// 頂点バッファを開放
-	MV1TerminateVertexBufferBase( HandleInfo->Handle ) ;
+	MV1_TerminateVertexBufferBase_PF( HandleInfo->Handle ) ;
+
+	// 環境依存のデータの後始末
+	MV1_TerminateModelBaseHandle_PF( MBase ) ;
 
 	// 頂点データの解放
 	if( MBase->VertexData != NULL )
@@ -9027,8 +5781,19 @@ extern int TerminateModelBaseHandle( HANDLEINFO *HandleInfo )
 		// 名前の解放
 		if( Texture->NameAllocMem )
 		{
-			DXFREE( Texture->Name ) ;
-			Texture->Name = NULL ;
+#ifndef UNICODE
+			if( Texture->NameA )
+			{
+				DXFREE( Texture->NameA ) ;
+				Texture->NameA = NULL ;
+			}
+#endif
+
+			if( Texture->NameW )
+			{
+				DXFREE( Texture->NameW ) ;
+				Texture->NameW = NULL ;
+			}
 		}
 
 		// 画像ハンドルを削除
@@ -9038,14 +5803,34 @@ extern int TerminateModelBaseHandle( HANDLEINFO *HandleInfo )
 		// ファイルパスの解放
 		if( Texture->ColorImageFilePathAllocMem )
 		{
-			DXFREE( Texture->ColorFilePath ) ;
-			Texture->ColorFilePath = NULL ;
+#ifndef UNICODE
+			if( Texture->ColorFilePathA )
+			{
+				DXFREE( Texture->ColorFilePathA ) ;
+			}
+			Texture->ColorFilePathA = NULL ;
+#endif
+			if( Texture->ColorFilePathW )
+			{
+				DXFREE( Texture->ColorFilePathW ) ;
+			}
+			Texture->ColorFilePathW = NULL ;
 		}
 
 		if( Texture->AlphaImageFilePathAllocMem )
 		{
-			DXFREE( Texture->AlphaFilePath ) ;
-			Texture->AlphaFilePath = NULL ;
+#ifndef UNICODE
+			if( Texture->AlphaFilePathA )
+			{
+				DXFREE( Texture->AlphaFilePathA ) ;
+			}
+			Texture->AlphaFilePathA = NULL ;
+#endif
+			if( Texture->AlphaFilePathW )
+			{
+				DXFREE( Texture->AlphaFilePathW ) ;
+			}
+			Texture->AlphaFilePathW = NULL ;
 		}
 
 		// ファイルイメージの解放
@@ -9101,16 +5886,10 @@ extern int TerminateModelBaseHandle( HANDLEINFO *HandleInfo )
 	TList = MBase->TriangleList ;
 	for( i = 0 ; i < MBase->TriangleListNum ; i ++, TList ++ )
 	{
-		if( TList->TempSimpleVertex )
-		{
-			DXFREE( TList->TempSimpleVertex ) ;
-			TList->TempSimpleVertex = NULL ;
-		}
-		if( TList->TempToonOutLineSimpleVertex )
-		{
-			DXFREE( TList->TempToonOutLineSimpleVertex ) ;
-			TList->TempToonOutLineSimpleVertex = NULL ;
-		}
+		MV1_TRIANGLE_LIST_BASE_PF *TListPF ;
+
+		TListPF = ( MV1_TRIANGLE_LIST_BASE_PF * )TList->PFBuffer ;
+
 		if( TList->MeshVertexIndexAllocMem )
 		{
 			DXFREE( TList->MeshVertexIndex ) ;
@@ -9121,6 +5900,8 @@ extern int TerminateModelBaseHandle( HANDLEINFO *HandleInfo )
 			DXFREE( TList->NormalPosition ) ;
 			TList->NormalPosition = NULL ;
 		}
+
+		MV1_TerminateTriangleListBaseTempBuffer_PF( TList ) ;
 	}
 
 	// アニメーション名を後から変更した場合は開放する
@@ -9129,12 +5910,13 @@ extern int TerminateModelBaseHandle( HANDLEINFO *HandleInfo )
 	{
 		if( AnimSetBase->NameAllocMem )
 		{
-			if( AnimSetBase->Name )
+#ifndef UNICODE
+			if( AnimSetBase->NameA )
 			{
-				DXFREE( AnimSetBase->Name ) ;
-				AnimSetBase->Name = NULL ;
+				DXFREE( AnimSetBase->NameA ) ;
+				AnimSetBase->NameA = NULL ;
 			}
-
+#endif
 			if( AnimSetBase->NameW )
 			{
 				DXFREE( AnimSetBase->NameW ) ;
@@ -9159,9 +5941,9 @@ extern int TerminateModelBaseHandle( HANDLEINFO *HandleInfo )
 }
 
 // モデル基本データを追加する( -1:エラー  0以上:モデル基本データハンドル )
-int MV1AddModelBase( void )
+int MV1AddModelBase( int ASyncThread )
 {
-	return AddHandle( DX_HANDLETYPE_MODEL_BASE ) ;
+	return AddHandle( DX_HANDLETYPE_MODEL_BASE, ASyncThread, -1 ) ;
 }
 
 // モデル基本データを削除する
@@ -9220,14 +6002,14 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 		_MEMSET( &MTBase, 0, sizeof( MTBase ) ) ;
 		AllocSize = 0 ;
 
-		MTBase.Name = ( TCHAR * )AllocSize ;
-		AllocSize += ( ( lstrlen( FHeader->Name ) + 1 ) * sizeof( TCHAR ) + 3 ) / 4 * 4 ;
+		MTBase.Name = ( wchar_t * )AllocSize ;
+		AllocSize += ( ( _WCSLEN( FHeader->Name ) + 1 ) * sizeof( wchar_t ) + 3 ) / 4 * 4 ;
 
-		MTBase.FilePath = ( TCHAR * )AllocSize ;
-		AllocSize += ( ( lstrlen( FHeader->FilePath ) + 1 ) * sizeof( TCHAR ) + 3 ) / 4 * 4 ;
+		MTBase.FilePath = ( wchar_t * )AllocSize ;
+		AllocSize += ( ( _WCSLEN( FHeader->FilePath ) + 1 ) * sizeof( wchar_t ) + 3 ) / 4 * 4 ;
 
-		MTBase.DirectoryPath = ( TCHAR * )AllocSize ;
-		AllocSize += ( ( lstrlen( FHeader->DirectoryPath ) + 1 ) * sizeof( TCHAR ) + 3 ) / 4 * 4 ;
+		MTBase.DirectoryPath = ( wchar_t * )AllocSize ;
+		AllocSize += ( ( _WCSLEN( FHeader->DirectoryPath ) + 1 ) * sizeof( wchar_t ) + 3 ) / 4 * 4 ;
 
 		MTBase.Frame = ( MV1_FRAME_BASE * )AllocSize ;
 		AllocSize += FHeader->FrameNum * sizeof( MV1_FRAME_BASE ) ;
@@ -9258,8 +6040,13 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 		MTBase.TriangleListIndex = ( WORD * )AllocSize ;
 		AllocSize += sizeof( WORD ) * FHeader->TriangleListIndexNum * 2 ;
 
-		MTBase.StringBuffer = ( char * )AllocSize ;
-		AllocSize += FHeader->StringSize ;
+#ifndef UNICODE
+		MTBase.StringBufferA = ( char * )AllocSize ;
+		AllocSize += FHeader->StringSizeA ;
+#endif
+
+		MTBase.StringBufferW = ( wchar_t * )AllocSize ;
+		AllocSize += FHeader->StringSizeW ;
 
 		MTBase.ChangeDrawMaterialTable = ( DWORD * )AllocSize ;
 		AllocSize += FHeader->ChangeDrawMaterialTableSize ;
@@ -9302,21 +6089,29 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 	}
 
 	// モデル基データハンドルの作成
-	NewHandle = MV1AddModelBase() ;
-	if( NewHandle < 0 ) goto ERRORLABEL ;
+	NewHandle = MV1AddModelBase( FALSE ) ;
+	if( NewHandle < 0 )
+	{
+		goto ERRORLABEL ;
+	}
 
 	// メモリの確保
-	if( MV1BMDLCHK( NewHandle, MBase ) )
+	if( MV1BMDLCHK_ASYNC( NewHandle, MBase ) )
+	{
 		return -1 ;
+	}
 	MBase->DataBuffer = MDALLOCMEM( AllocSize ) ;
-	if( MBase->DataBuffer == NULL ) goto ERRORLABEL ;
+	if( MBase->DataBuffer == NULL )
+	{
+		goto ERRORLABEL ;
+	}
 	_MEMSET( MBase->DataBuffer, 0, AllocSize ) ;
 	MBase->AllocMemorySize = AllocSize ;
 
 	// メモリアドレスのセット
-	MBase->Name                   = ( TCHAR * )                     ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Name                 ) ;
-	MBase->FilePath               = ( TCHAR * )                     ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.FilePath             ) ;
-	MBase->DirectoryPath          = ( TCHAR * )                     ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.DirectoryPath        ) ;
+	MBase->Name                   = ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Name                 ) ;
+	MBase->FilePath               = ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.FilePath             ) ;
+	MBase->DirectoryPath          = ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.DirectoryPath        ) ;
 	MBase->ChangeMatrixTable      = ( DWORD * )                     ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.ChangeMatrixTable    ) ;
 	MBase->ChangeDrawMaterialTable = ( DWORD * )                    ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.ChangeDrawMaterialTable ) ;
 	MBase->Frame                  = ( MV1_FRAME_BASE * )            ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Frame                ) ;
@@ -9329,7 +6124,10 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 	MBase->Mesh                   = ( MV1_MESH_BASE * )             ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Mesh                 ) ;
 	MBase->TriangleList           = ( MV1_TRIANGLE_LIST_BASE * )    ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.TriangleList         ) ;
 	MBase->TriangleListIndex      = ( WORD * )                      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.TriangleListIndex    ) ;
-	MBase->StringBuffer           = ( char * )                      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.StringBuffer         ) ;
+#ifndef UNICODE
+	MBase->StringBufferA          = ( char * )                      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.StringBufferA        ) ;
+#endif
+	MBase->StringBufferW          = ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.StringBufferW        ) ;
 	MBase->AnimSet                = ( MV1_ANIMSET_BASE * )          ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.AnimSet              ) ;
 	MBase->Anim                   = ( MV1_ANIM_BASE * )             ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Anim                 ) ;
 	MBase->AnimKeySet             = ( MV1_ANIM_KEYSET_BASE * )      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.AnimKeySet           ) ;
@@ -9355,13 +6153,16 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 	// アニメーションキーデータのコピー
 	if( FHeader->AnimKeyDataSize != 0 )
 	{
-		_MEMCPY( MBase->AnimKeyData, FHeader->AnimKeyData, FHeader->AnimKeyDataSize ) ;
+		_MEMCPY( MBase->AnimKeyData, FHeader->AnimKeyData, ( size_t )FHeader->AnimKeyDataSize ) ;
 	}
 
 	// モデル名とファイルパスとフォルダパスを保存
-	lstrcpy( MBase->Name, FHeader->Name ) ;
-	lstrcpy( MBase->FilePath, FHeader->FilePath ) ;
-	lstrcpy( MBase->DirectoryPath, FHeader->DirectoryPath ) ;
+	_WCSCPY( MBase->Name,          FHeader->Name ) ;
+	_WCSCPY( MBase->FilePath,      FHeader->FilePath ) ;
+	_WCSCPY( MBase->DirectoryPath, FHeader->DirectoryPath ) ;
+
+	// 同時複数描画に対応するかどうかを保存
+	MBase->UsePackDraw = FHeader->UsePackDraw ;
 
 	// 座標系情報を保存
 	MBase->RightHandType = FHeader->RightHandType ;
@@ -9372,8 +6173,8 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 	// 変更チェック用テーブルに必要なデータのサイズの保存とコピー
 	MBase->ChangeDrawMaterialTableSize  = FHeader->ChangeDrawMaterialTableSize ;
 	MBase->ChangeMatrixTableSize        = FHeader->ChangeMatrixTableSize ;
-	_MEMCPY( MBase->ChangeDrawMaterialTable, FHeader->ChangeDrawMaterialTable, FHeader->ChangeDrawMaterialTableSize ) ;
-	_MEMCPY( MBase->ChangeMatrixTable,       FHeader->ChangeMatrixTable,       FHeader->ChangeMatrixTableSize ) ;
+	_MEMCPY( MBase->ChangeDrawMaterialTable, FHeader->ChangeDrawMaterialTable, ( size_t )FHeader->ChangeDrawMaterialTableSize ) ;
+	_MEMCPY( MBase->ChangeMatrixTable,       FHeader->ChangeMatrixTable,       ( size_t )FHeader->ChangeMatrixTableSize ) ;
 
 	// ポリゴン数を保存
 	MBase->TriangleNum = FHeader->TriangleNum ;
@@ -9392,8 +6193,12 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 	_MEMCPY( MBase->SkinBoneUseFrame, FHeader->SkinBoneUseFrame, FHeader->SkinBoneUseFrameNum * sizeof( MV1_SKIN_BONE_USE_FRAME_F1 ) ) ;
 
 	// 文字列データをコピー
-	_MEMCPY( MBase->StringBuffer, FHeader->StringBuffer, FHeader->StringSize ) ;
-	MBase->StringSize = FHeader->StringSize ;
+#ifndef UNICODE
+	_MEMCPY( MBase->StringBufferA, FHeader->StringBufferA, ( size_t )FHeader->StringSizeA ) ;
+	MBase->StringSizeA = FHeader->StringSizeA ;
+#endif
+	_MEMCPY( MBase->StringBufferW, FHeader->StringBufferW, ( size_t )FHeader->StringSizeW ) ;
+	MBase->StringSizeW = FHeader->StringSizeW ;
 
 	// 各オブジェクトの数の情報を保存
 	MBase->FrameNum              = FHeader->FrameNum ;
@@ -9496,7 +6301,10 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 	{
 		Frame->Container = MBase ;
 
-		Frame->Name = MBase->StringBuffer + ( F1Frame->Name - FHeader->StringBuffer ) ;
+#ifndef UNICODE
+		Frame->NameA = MBase->StringBufferA + ( F1Frame->NameA - FHeader->StringBufferA ) ;
+#endif
+		Frame->NameW = MBase->StringBufferW + ( F1Frame->NameW - FHeader->StringBufferW ) ;
 		Frame->AutoCreateNormal = F1Frame->AutoCreateNormal ;
 
 		Frame->Index = F1Frame->Index ;
@@ -9584,7 +6392,7 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 		}
 		else
 		{
-			Frame->PosUnitSize = sizeof( MV1_MESH_POSITION ) + ( Frame->MaxBoneBlendNum - 4 ) * sizeof( MV1_SKINBONE_BLEND ) ;
+			Frame->PosUnitSize = ( int )( sizeof( MV1_MESH_POSITION ) + ( Frame->MaxBoneBlendNum - 4 ) * sizeof( MV1_SKINBONE_BLEND ) ) ;
 
 			Frame->Position = ( MV1_MESH_POSITION * )( ( BYTE * )MBase->MeshPosition + MBase->MeshPositionSize ) ;
 			Frame->Normal   = MBase->MeshNormal + MBase->MeshNormalNum ;
@@ -9592,7 +6400,7 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 			MBase->MeshNormalNum    += Frame->NormalNum ;
 
 			// 頂点データのコピー
-			_MEMCPY( Frame->Position, F1Frame->Position, Frame->PosUnitSize * Frame->PositionNum ) ;
+			_MEMCPY( Frame->Position, F1Frame->Position, ( size_t )( Frame->PosUnitSize * Frame->PositionNum ) ) ;
 
 			// 法線データのコピー
 			_MEMCPY( Frame->Normal, F1Frame->Normal, sizeof( MV1_MESH_NORMAL ) * Frame->NormalNum ) ;
@@ -9613,7 +6421,10 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 
 		// 名前を保存
 		Texture->NameAllocMem = FALSE ;
-		Texture->Name = MBase->StringBuffer + ( F1Texture->Name - FHeader->StringBuffer ) ;
+#ifndef UNICODE
+		Texture->NameA = MBase->StringBufferA + ( F1Texture->NameA - FHeader->StringBufferA ) ;
+#endif
+		Texture->NameW = MBase->StringBufferW + ( F1Texture->NameW - FHeader->StringBufferW ) ;
 
 		// 反転フラグをセットする
 		Texture->ReverseFlag = F1Texture->ReverseFlag ;
@@ -9628,6 +6439,9 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 				&Texture->GraphHandle,
 				&Texture->SemiTransFlag,
 				&Texture->IsDefaultTexture,
+#ifndef UNICODE
+				NULL, NULL,
+#endif
 				NULL, NULL,
 				NULL,
 				NULL,
@@ -9639,7 +6453,7 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 				true,
 				FALSE ) == -1 )
 		{
-			DXST_ERRORLOGFMT_ADDA( ( "MV1 CloneModel Error : テクスチャ %s の読み込みに失敗しました\n", Texture->Name ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"MV1 CloneModel Error : Texture LoadError : %s\n", Texture->NameW ) ) ;
 			goto ERRORLABEL ;
 		}
 
@@ -9650,16 +6464,26 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 		// ファイルパスを保存
 		if( Texture->ColorImage )
 		{
-			Texture->ColorFilePath = MBase->StringBuffer + ( F1Texture->ColorFilePath - FHeader->StringBuffer ) ;
+#ifndef UNICODE
+			Texture->ColorFilePathA = MBase->StringBufferA + ( F1Texture->ColorFilePathA - FHeader->StringBufferA ) ;
+#endif
+			Texture->ColorFilePathW = MBase->StringBufferW + ( F1Texture->ColorFilePathW - FHeader->StringBufferW ) ;
 		}
 		if( Texture->AlphaImage )
 		{
-			Texture->AlphaFilePath = MBase->StringBuffer + ( F1Texture->AlphaFilePath - FHeader->StringBuffer ) ;
+#ifndef UNICODE
+			Texture->AlphaFilePathA = MBase->StringBufferA + ( F1Texture->AlphaFilePathA - FHeader->StringBufferA ) ;
+#endif
+			Texture->AlphaFilePathW = MBase->StringBufferW + ( F1Texture->AlphaFilePathW - FHeader->StringBufferW ) ;
 		}
 
 		// アドレッシングモードのセット
 		Texture->AddressModeU = F1Texture->AddressModeU ;
 		Texture->AddressModeV = F1Texture->AddressModeV ;
+
+		// ＵＶのスケール値をセット
+		Texture->ScaleU = F1Texture->ScaleU ;
+		Texture->ScaleV = F1Texture->ScaleV ;
 
 		// フィルタリングモードのセット
 		Texture->FilterMode = F1Texture->FilterMode ;
@@ -9677,7 +6501,10 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 	F1Material = FHeader->Material ;
 	for( i = 0 ; i < MBase->MaterialNum ; i ++, Material ++, F1Material ++ )
 	{
-		Material->Name = MBase->StringBuffer + ( F1Material->Name - FHeader->StringBuffer ) ;
+#ifndef UNICODE
+		Material->NameA = MBase->StringBufferA + ( F1Material->NameA - FHeader->StringBufferA ) ;
+#endif
+		Material->NameW = MBase->StringBufferW + ( F1Material->NameW - FHeader->StringBufferW ) ;
 
 		Material->Diffuse  = F1Material->Diffuse ;
 		Material->Ambient  = F1Material->Ambient ;
@@ -9736,7 +6563,10 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 	F1Light = FHeader->Light ;
 	for( i = 0 ; i < MBase->LightNum ; i ++, Light ++, F1Light ++ )
 	{
-		Light->Name = MBase->StringBuffer + ( F1Light->Name - FHeader->StringBuffer ) ;
+#ifndef UNICODE
+		Light->NameA = MBase->StringBufferA + ( F1Light->NameA - FHeader->StringBufferA ) ;
+#endif
+		Light->NameW = MBase->StringBufferW + ( F1Light->NameW - FHeader->StringBufferW ) ;
 
 		Light->Index = F1Light->Index ;
 		Light->FrameIndex = F1Light->FrameIndex ;
@@ -9792,7 +6622,7 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 		Mesh->VertexNum = F1Mesh->VertexNum ;
 		Mesh->FaceNum = 0 ;
 
-		Mesh->VertUnitSize = sizeof( MV1_MESH_VERTEX ) + Mesh->UVSetUnitNum * Mesh->UVUnitNum * sizeof( float ) - sizeof( float ) * 2 ;
+		Mesh->VertUnitSize = ( int )( sizeof( MV1_MESH_VERTEX ) + Mesh->UVSetUnitNum * Mesh->UVUnitNum * sizeof( float ) - sizeof( float ) * 2 ) ;
 
 		// 頂点データを取得する
 		{
@@ -9815,7 +6645,11 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 				Shape->Container = MBase->Frame + F1Shape->Container->Index ;
 			}
 
-			Shape->Name = MBase->StringBuffer + ( F1Shape->Name - FHeader->StringBuffer ) ;
+#ifndef UNICODE
+			Shape->NameA = MBase->StringBufferA + ( F1Shape->NameA - FHeader->StringBufferA ) ;
+#endif
+			Shape->NameW = MBase->StringBufferW + ( F1Shape->NameW - FHeader->StringBufferW ) ;
+
 			Shape->MeshNum = F1Shape->MeshNum ;
 
 			if( F1Shape->Mesh )
@@ -9852,7 +6686,11 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 		for( i = 0 ; i < MBase->PhysicsRigidBodyNum ; i ++, PhysicsRigidBody ++, F1PhysicsRigidBody ++ )
 		{
 			PhysicsRigidBody->Index = F1PhysicsRigidBody->Index ;
-			PhysicsRigidBody->Name = MBase->StringBuffer + ( F1PhysicsRigidBody->Name - FHeader->StringBuffer ) ;
+
+#ifndef UNICODE
+			PhysicsRigidBody->NameA = MBase->StringBufferA + ( F1PhysicsRigidBody->NameA - FHeader->StringBufferA ) ;
+#endif
+			PhysicsRigidBody->NameW = MBase->StringBufferW + ( F1PhysicsRigidBody->NameW - FHeader->StringBufferW ) ;
 
 			if( F1PhysicsRigidBody->TargetFrame )
 			{
@@ -9882,7 +6720,11 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 		for( i = 0 ; i < MBase->PhysicsJointNum ; i ++, PhysicsJoint ++, F1PhysicsJoint ++ )
 		{
 			PhysicsJoint->Index = F1PhysicsJoint->Index ;
-			PhysicsJoint->Name = MBase->StringBuffer + ( F1PhysicsJoint->Name - FHeader->StringBuffer ) ;
+
+#ifndef UNICODE
+			PhysicsJoint->NameA = MBase->StringBufferA + ( F1PhysicsJoint->NameA - FHeader->StringBufferA ) ;
+#endif
+			PhysicsJoint->NameW = MBase->StringBufferW + ( F1PhysicsJoint->NameW - FHeader->StringBufferW ) ;
 
 			if( F1PhysicsJoint->RigidBodyA )
 			{
@@ -9987,7 +6829,7 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 				TriangleList->SkinPositionFREEB = ( MV1_TLIST_SKIN_POS_FREEB * )( ( BYTE * )MBase->TriangleListSkinPositionFREEB + MBase->TriangleListSkinPositionFREEBSize ) ;
 				TriangleList->SkinPositionFREEB = ( MV1_TLIST_SKIN_POS_FREEB * )( ( ( DWORD_PTR )TriangleList->SkinPositionFREEB + 15 ) / 16 * 16 ) ;
 				TriangleList->PosUnitSize = ( unsigned short )( sizeof( MV1_TLIST_SKIN_POS_FREEB ) + sizeof( MV1_SKINBONE_BLEND ) * ( TriangleList->MaxBoneNum - 4 ) ) ;
-				TriangleList->PosUnitSize = ( TriangleList->PosUnitSize + 15 ) / 16 * 16 ;
+				TriangleList->PosUnitSize = ( unsigned short )( ( TriangleList->PosUnitSize + 15 ) / 16 * 16 ) ;
 				MBase->TriangleListSkinPositionFREEBSize += TriangleList->PosUnitSize * TriangleList->VertexNum ;
 				break ;
 			}
@@ -10020,65 +6862,69 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 		}
 	}
 
-	// 法線の自動生成
+	// 法線の再生成の指定がある場合は生成を行う
+	if( MV1Man.LoadModelToReMakeNormal )
 	{
-		VECTOR Nrm ;
-		MV1_MESH_NORMAL *MNrm ;
-		MV1_MESH_VERTEX *Vertex[ 3 ] ;
-		DWORD VertUnitSize, PosUnitSize ;
-
-		// 全てのフレームを処理
-		Frame = MBase->Frame ;
-		for( i = 0 ; i < MBase->FrameNum ; i ++, Frame ++ )
+		// 法線の自動生成
 		{
-			if( Frame->AutoCreateNormal == 0 ) continue ;
+			VECTOR Nrm ;
+			MV1_MESH_NORMAL *MNrm ;
+			MV1_MESH_VERTEX *Vertex[ 3 ] ;
+			DWORD VertUnitSize, PosUnitSize ;
 
-			PosUnitSize = Frame->PosUnitSize ;
-
-			// 面の法線を算出しながら足していく
-			Mesh = Frame->Mesh ;
-			for( j = 0 ; j < Frame->MeshNum ; j ++, Mesh ++ )
+			// 全てのフレームを処理
+			Frame = MBase->Frame ;
+			for( i = 0 ; i < MBase->FrameNum ; i ++, Frame ++ )
 			{
-				VertUnitSize = Mesh->VertUnitSize ;
+				if( Frame->AutoCreateNormal == 0 ) continue ;
 
-				Face = Mesh->Face ;
-				for( k = 0 ; k < Mesh->FaceNum ; k ++, Face ++ )
+				PosUnitSize = ( DWORD )Frame->PosUnitSize ;
+
+				// 面の法線を算出しながら足していく
+				Mesh = Frame->Mesh ;
+				for( j = 0 ; j < Frame->MeshNum ; j ++, Mesh ++ )
 				{
-					Vertex[ 0 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 0 ] ) ;
-					Vertex[ 1 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 1 ] ) ;
-					Vertex[ 2 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 2 ] ) ;
+					VertUnitSize = ( DWORD )Mesh->VertUnitSize ;
 
-					Nrm = VNorm( VCross( 
-						VSub( ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 1 ]->PositionIndex ) )->Position, 
-						      ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 0 ]->PositionIndex ) )->Position ),
-						VSub( ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 2 ]->PositionIndex ) )->Position, 
-						      ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 0 ]->PositionIndex ) )->Position ) ) ) ;
+					Face = Mesh->Face ;
+					for( k = 0 ; k < Mesh->FaceNum ; k ++, Face ++ )
+					{
+						Vertex[ 0 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 0 ] ) ;
+						Vertex[ 1 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 1 ] ) ;
+						Vertex[ 2 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 2 ] ) ;
 
-					MNrm = &Frame->Normal[ Vertex[ 0 ]->NormalIndex ] ;
-					MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
+						Nrm = VNorm( VCross( 
+							VSub( ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 1 ]->PositionIndex ) )->Position, 
+								  ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 0 ]->PositionIndex ) )->Position ),
+							VSub( ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 2 ]->PositionIndex ) )->Position, 
+								  ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 0 ]->PositionIndex ) )->Position ) ) ) ;
 
-					MNrm = &Frame->Normal[ Vertex[ 1 ]->NormalIndex ] ;
-					MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
+						MNrm = &Frame->Normal[ Vertex[ 0 ]->NormalIndex ] ;
+						MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
 
-					MNrm = &Frame->Normal[ Vertex[ 2 ]->NormalIndex ] ;
-					MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
+						MNrm = &Frame->Normal[ Vertex[ 1 ]->NormalIndex ] ;
+						MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
+
+						MNrm = &Frame->Normal[ Vertex[ 2 ]->NormalIndex ] ;
+						MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
+					}
+				}
+
+				// 法線を正規化する
+				MNrm = Frame->Normal ;
+				for( j = 0 ; j < Frame->NormalNum ; j ++, MNrm ++ )
+				{
+					MNrm->Normal = VNorm( MNrm->Normal ) ;
 				}
 			}
-
-			// 法線を正規化する
-			MNrm = Frame->Normal ;
-			for( j = 0 ; j < Frame->NormalNum ; j ++, MNrm ++ )
-			{
-				MNrm->Normal = VNorm( MNrm->Normal ) ;
-			}
 		}
-	}
 
-	// 接線と従法線の構築
-	Mesh = MBase->Mesh ;
-	for( i = 0 ; i < MBase->MeshNum ; i ++, Mesh ++ )
-	{
-		MV1MakeMeshBinormalsAndTangents( Mesh ) ;
+		// 接線と従法線の構築
+		Mesh = MBase->Mesh ;
+		for( i = 0 ; i < MBase->MeshNum ; i ++, Mesh ++ )
+		{
+			MV1MakeMeshBinormalsAndTangents( Mesh ) ;
+		}
 	}
 
 	// アニメーションキーセットの情報をセット
@@ -10112,7 +6958,10 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 	F1AnimSet = FHeader->AnimSet ;
 	for( i = 0 ; i < MBase->AnimSetNum ; i ++, AnimSet ++, F1AnimSet ++ )
 	{
-		AnimSet->Name = MBase->StringBuffer + ( F1AnimSet->Name - FHeader->StringBuffer ) ;
+#ifndef UNICODE
+		AnimSet->NameA = MBase->StringBufferA + ( F1AnimSet->NameA - FHeader->StringBufferA ) ;
+#endif
+		AnimSet->NameW = MBase->StringBufferW + ( F1AnimSet->NameW - FHeader->StringBufferW ) ;
 
 		AnimSet->Index = F1AnimSet->Index ;
 		AnimSet->MaxTime = F1AnimSet->MaxTime ;
@@ -10135,7 +6984,6 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 			Anim->Container = MBase->AnimSet + F1Anim->Container->Index ;
 		}
 
-//		Anim->TargetFrameName = MBase->StringBuffer + ( DWORD_PTR )F1Anim->TargetFrameName ;
 		Anim->TargetFrame = MBase->Frame + F1Anim->TargetFrameIndex ;
 		Anim->TargetFrameIndex = F1Anim->TargetFrameIndex ;
 		Anim->MaxTime = F1Anim->MaxTime ;
@@ -10148,6 +6996,15 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 
 	// 行列のセットアップ
 	MV1SetupInitializeMatrixBase( MBase ) ;
+
+	// メッシュの半透明かどうかの情報をセットアップする
+	MV1SetupMeshSemiTransStateBase( MBase ) ;
+
+	// 同時複数描画関係の情報をセットアップする
+	if( MBase->UsePackDraw )
+	{
+		MV1SetupPackDrawInfo( MBase ) ;
+	}
 
 	// メモリの解放
 	//DXFREE( FHeader ) ;
@@ -10201,13 +7058,17 @@ extern void MV1SetupInitializeMatrixBase( MV1_MODEL_BASE *ModelBase )
 	MBFrame = ModelBase->Frame ;
 	for( i = 0 ; i < ModelBase->FrameNum ; i ++, MBFrame ++ )
 	{
+		// スケーリングを使用しているかどうかのフラグをセットする
+		MBFrame->LocalTransformMatrixUseScaling =
+			MBFrame->Scale.x < 0.9999999f || MBFrame->Scale.x > 1.0000001f ||
+			MBFrame->Scale.y < 0.9999999f || MBFrame->Scale.y > 1.0000001f ||
+			MBFrame->Scale.z < 0.9999999f || MBFrame->Scale.z > 1.0000001f;
+
 		// 単位行列かどうかを調べる
 		if( ( *( ( DWORD * )&MBFrame->Rotate.x ) & 0x7fffffff ) == 0 &&
 			( *( ( DWORD * )&MBFrame->Rotate.y ) & 0x7fffffff ) == 0 &&
 			( *( ( DWORD * )&MBFrame->Rotate.z ) & 0x7fffffff ) == 0 &&
-			MBFrame->Scale.x == 1.0f &&
-			MBFrame->Scale.y == 1.0f &&
-			MBFrame->Scale.z == 1.0f )
+			MBFrame->LocalTransformMatrixUseScaling == false )
 		{
 			if( ( *( ( DWORD * )&MBFrame->Translate.x ) & 0x7fffffff ) == 0 &&
 				( *( ( DWORD * )&MBFrame->Translate.y ) & 0x7fffffff ) == 0 &&
@@ -10219,7 +7080,7 @@ extern void MV1SetupInitializeMatrixBase( MV1_MODEL_BASE *ModelBase )
 			else
 			{
 				MBFrame->LocalTransformMatrixType = 1 ;
-				CreateTranslationMatrix( &TempMatrix, MBFrame->Translate.x, MBFrame->Translate.y, MBFrame->Translate.z ) ;
+				CreateTranslationMatrix( &TempMatrix, ( float )MBFrame->Translate.x, ( float )MBFrame->Translate.y, ( float )MBFrame->Translate.z ) ;
 			}
 		}
 		else
@@ -10238,26 +7099,132 @@ extern void MV1SetupInitializeMatrixBase( MV1_MODEL_BASE *ModelBase )
 				MBFrame->RotateOrder
 			) ;
 		}
-		ConvertMatrixToMatrix4x4c( &MBFrame->LocalTransformMatrix, &TempMatrix ) ;
+		ConvertMatrixFToMatrix4x4cF( &MBFrame->LocalTransformMatrix, &TempMatrix ) ;
 
 		// 初期のローカル→ワールド行列を作成
 		if( MBFrame->Parent == NULL )
 		{
-			ConvertMatrix4x4cToMatrix( &TempMatrix, &MBFrame->LocalTransformMatrix ) ;
+			ConvertMatrix4x4cFToMatrixF( &TempMatrix, &MBFrame->LocalTransformMatrix ) ;
 			MBFrame->TransformMatrix = MBFrame->LocalTransformMatrix ;
 		}
 		else
 		{
 			MATRIX LocalMatrix, ParentMatrix ;
 
-			ConvertMatrix4x4cToMatrix( &LocalMatrix, &MBFrame->LocalTransformMatrix ) ;
-			ConvertMatrix4x4cToMatrix( &ParentMatrix, &MBFrame->Parent->TransformMatrix ) ;
+			ConvertMatrix4x4cFToMatrixF( &LocalMatrix,  &MBFrame->LocalTransformMatrix ) ;
+			ConvertMatrix4x4cFToMatrixF( &ParentMatrix, &MBFrame->Parent->TransformMatrix ) ;
 			CreateMultiplyMatrix( &TempMatrix, &LocalMatrix, &ParentMatrix ) ;
-			ConvertMatrixToMatrix4x4c( &MBFrame->TransformMatrix, &TempMatrix ) ;
+			ConvertMatrixFToMatrix4x4cF( &MBFrame->TransformMatrix, &TempMatrix ) ;
 		}
 		CreateInverseMatrix( &TempMatrix, &TempMatrix ) ;
-		ConvertMatrixToMatrix4x4c( &MBFrame->InverseTransformMatrix, &TempMatrix ) ;
+		ConvertMatrixFToMatrix4x4cF( &MBFrame->InverseTransformMatrix, &TempMatrix ) ;
 	}
+}
+
+// 同時複数描画関係の情報をセットアップする
+extern void MV1SetupPackDrawInfo( MV1_MODEL_BASE *ModelBase )
+{
+	MV1_TRIANGLE_LIST_BASE *MBTList ;
+	int i ;
+	int UseBoneNum ;
+
+	// トライアングルリストが無い場合は適用できない
+	if( ModelBase->TriangleListNum == 0 )
+	{
+		ModelBase->UsePackDraw = FALSE ;
+		return ;
+	}
+
+	// 頂点シェーダーが使用できない場合は同時複数描画は適用できない
+	if( GSYS.HardInfo.UseShader == FALSE )
+	{
+		ModelBase->UsePackDraw = FALSE ;
+		return ;
+	}
+
+	// １トライアングルリストで同時に使用するボーン数が８より多いものがある場合は同時複数描画は適用できない
+	if( ModelBase->TriangleListSkinPositionFREEBSize > 0 )
+	{
+		ModelBase->UsePackDraw = FALSE ;
+		return ;
+	}
+
+	// シェイプが使用されているモデルでは同時複数描画の適用はできない
+	if( ModelBase->ShapeNum > 0 )
+	{
+		ModelBase->UsePackDraw = FALSE ;
+		return ;
+	}
+
+	// 最小・最大頂点数と最小・最大使用行列数を取得する
+	MBTList = ModelBase->TriangleList ;
+	ModelBase->TriangleListMaxVertexNum = 0 ;
+	ModelBase->TriangleListMinVertexNum = 0x7fffffff ;
+	ModelBase->TriangleListMaxIndexNum = 0 ;
+	ModelBase->TriangleListMinIndexNum = 0x7fffffff ;
+	ModelBase->TriangleListMaxMatrixNum = 0 ;
+	ModelBase->TriangleListMinMatrixNum = 0x7fffffff ;
+	for( i = 0 ; i < ModelBase->TriangleListNum ; i ++, MBTList ++ )
+	{
+		switch( MBTList->VertexType )
+		{
+		case MV1_VERTEX_TYPE_NORMAL :
+			UseBoneNum = 1 ;
+			break ;
+
+		case MV1_VERTEX_TYPE_SKIN_FREEBONE :
+			continue ;
+
+		default :
+			UseBoneNum = MBTList->UseBoneNum ;
+			break ;
+		}
+
+		if( UseBoneNum > ModelBase->TriangleListMaxMatrixNum )
+		{
+			ModelBase->TriangleListMaxMatrixNum = UseBoneNum ;
+		}
+
+		if( UseBoneNum < ModelBase->TriangleListMinMatrixNum )
+		{
+			ModelBase->TriangleListMinMatrixNum = UseBoneNum ;
+		}
+
+		if( MBTList->IndexNum + MBTList->ToonOutLineIndexNum > ModelBase->TriangleListMaxIndexNum )
+		{
+			ModelBase->TriangleListMaxIndexNum = MBTList->IndexNum + MBTList->ToonOutLineIndexNum ;
+		}
+
+		if( MBTList->IndexNum + MBTList->ToonOutLineIndexNum < ModelBase->TriangleListMinIndexNum )
+		{
+			ModelBase->TriangleListMinIndexNum = MBTList->IndexNum + MBTList->ToonOutLineIndexNum ;
+		}
+
+		if( MBTList->VertexNum > ModelBase->TriangleListMaxVertexNum )
+		{
+			ModelBase->TriangleListMaxVertexNum = MBTList->VertexNum ;
+		}
+
+		if( MBTList->VertexNum < ModelBase->TriangleListMinVertexNum )
+		{
+			ModelBase->TriangleListMinVertexNum = MBTList->VertexNum ;
+		}
+	}
+
+	// 頂点やインデックスが一つも無い場合は適用できない
+	if( ModelBase->TriangleListMaxVertexNum == 0 ||
+		ModelBase->TriangleListMaxIndexNum  == 0 ||
+		ModelBase->TriangleListMaxMatrixNum == 0 )
+	{
+		ModelBase->UsePackDraw = FALSE ;
+		return ;
+	}
+
+	// 同時複数描画関係の情報のセットアップの環境依存処理
+	MV1_SetupPackDrawInfo_PF( ModelBase ) ;
+
+	// 同時複数描画の一描画分で使用する行列の数をセットする
+	ModelBase->PackDrawMatrixUnitNum = ModelBase->SkinBoneNum + ModelBase->FrameNum ;
 }
 
 // トゥーン輪郭線用のメッシュを作成する
@@ -10469,6 +7436,62 @@ extern void MV1SetupToonOutLineTriangleList( MV1_TRIANGLE_LIST_BASE *MBTList )
 	return ;
 }
 
+// モデル中のメッシュの半透明要素があるかどうかを調べる
+extern void MV1SetupMeshSemiTransStateBase( MV1_MODEL_BASE *ModelBase )
+{
+	MV1_MESH_BASE     *MBMesh ;
+	MV1_MATERIAL_BASE *MBMaterial ;
+	MV1_TEXTURE_BASE  *MBTexture ;
+	int               i ;
+
+	// メッシュの数だけ繰り返し
+	MBMesh = ModelBase->Mesh ;
+	for( i = 0 ; i < ModelBase->MeshNum ; i ++, MBMesh ++ )
+	{
+		do
+		{
+			MBMesh->SemiTransState = 1 ;
+
+			MBMaterial = MBMesh->Material ;
+
+			// 描画モードがアルファブレンド以外なら半透明
+			if( MBMaterial->DrawBlendMode != DX_BLENDMODE_ALPHA )
+				break ;
+
+			// ブレンドパラメータが 255 以外なら半透明
+			if( MBMaterial->DrawBlendParam != 255 )
+				break ;
+
+			// 頂点カラーを使用するかどうかで分岐
+			if( MBMesh->UseVertexDiffuseColor )
+			{
+				// 頂点ディフューズカラーに 1.0 以外のアルファ値があったら半透明
+				if( MBMesh->NotOneDiffuseAlpha )
+					break ;
+			}
+			else
+			{
+				// マテリアルのディフューズカラーのアルファ値が１．０以外なら半透明
+				if( MBMaterial->Diffuse.a != 1.0f )
+					break ;
+			}
+
+			// 半透明テクスチャを使用していたら半透明
+			if( MBMaterial->DiffuseLayerNum )
+			{
+				MBTexture = &ModelBase->Texture[ MBMaterial->DiffuseLayer[ 0 ].Texture ] ;
+				if( MBTexture->SemiTransFlag )
+				{
+					break ;
+				}
+			}
+
+			// ここにきたら半透明要素はないということ
+			MBMesh->SemiTransState = 0 ;
+		}while( 0 ) ;
+	}
+}
+
 // モデル全体の法線を再計算する
 extern int MV1ReMakeNormalBase( int MBHandle, float SmoothingAngle, int ASyncThread )
 {
@@ -10484,7 +7507,7 @@ extern int MV1ReMakeNormalBase( int MBHandle, float SmoothingAngle, int ASyncThr
 		return -1 ;
 
 	// 頂点バッファを解放する
-	MV1TerminateVertexBufferBase( MBHandle ) ;
+	MV1_TerminateVertexBufferBase_PF( MBHandle ) ;
 
 	// フレームの数だけ繰り返し
 	Frame = ModelBase->Frame ;
@@ -10497,7 +7520,7 @@ extern int MV1ReMakeNormalBase( int MBHandle, float SmoothingAngle, int ASyncThr
 	}
 
 	// 頂点バッファを構築する
-	MV1SetupVertexBufferBase( MBHandle, 1, ASyncThread ) ;
+	MV1_SetupVertexBufferBase_PF( MBHandle, 1, ASyncThread ) ;
 
 	// 終了
 	return 0 ;
@@ -10526,14 +7549,14 @@ extern int MV1ReMakeNormalFrameBase( int MBHandle, int FrameIndex, float Smoothi
 		return -1 ;
 
 	// 頂点バッファを解放する
-	MV1TerminateVertexBufferBase( MBHandle ) ;
+	MV1_TerminateVertexBufferBase_PF( MBHandle ) ;
 
 	// フレームの再計算
 	if( _MV1ReMakeNormalFrameBase( Frame, SmoothingAngle ) == -1 )
 		return -1 ;
 
 	// 頂点バッファを構築する
-	MV1SetupVertexBufferBase( MBHandle ) ;
+	MV1_SetupVertexBufferBase_PF( MBHandle ) ;
 
 	// 終了
 	return 0 ;
@@ -10549,7 +7572,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 	MV1_MESH_VERTEX *NewVertex, *Vert ;
 	MV1_MESH_FACE *Face, *FaceT, *OldFace = NULL, *OFace ;
 	VECTOR *FaceNormal, *FNorm, Pos[ 3 ], TPos[ 3 ] ;
-	int *FaceNormalIndex, *FNInd, *FNInd2, *MFNInd, Index, *VertValidBuffer ;
+	int *FaceNormalIndex, *FNInd, *FNInd2, *MFNInd = NULL, Index, *VertValidBuffer ;
 	int NormalNum, IndexNum, PosInd[ 3 ], TPosInd[ 3 ], MPosInd[ 3 ] ;
 	VECTOR *P0, *P1, *P2, V1, V2, V3, Norm, tv, xv, yv, zv, FaceNorm ;
 	VECTOR *NormalBuf = NULL ;
@@ -10603,7 +7626,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 		sizeof( MV1_SHAPE_VERTEX_BASE ) * Frame->PositionNum * Frame->ShapeNum ) ;
 	if( FaceNormal == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "法線再計算用のメモリの確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x6c\xda\x7d\x8d\x51\x08\x8a\x97\x7b\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"法線再計算用のメモリの確保に失敗しました\n" @*/ )) ;
 		goto ERR ;
 	}
 	FaceNormalIndex = ( int * )( FaceNormal + FaceNum ) ;
@@ -10667,7 +7690,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 	NormalBuf = ( VECTOR * )DXALLOC( ( sizeof( VECTOR ) + sizeof( BYTE ) + sizeof( DWORD ) + sizeof( DWORD ) ) * NormalNum ) ;
 	if( NormalBuf == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "法線再計算用のメモリの確保に失敗しました_2\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x6c\xda\x7d\x8d\x51\x08\x8a\x97\x7b\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x5f\x00\x32\x00\x0a\x00\x00"/*@ L"法線再計算用のメモリの確保に失敗しました_2\n" @*/ )) ;
 		goto ERR ;
 	}
 	_MEMSET( NormalBuf, 0, ( sizeof( VECTOR ) + sizeof( BYTE ) + sizeof( DWORD ) + sizeof( DWORD ) ) * NormalNum ) ;
@@ -10681,7 +7704,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 		VertexFaceList = ( MV1_MAKEVERTINDEXINFO ** )DXALLOC( sizeof( MV1_MAKEVERTINDEXINFO * ) * Frame->PositionNum + sizeof( MV1_MAKEVERTINDEXINFO ) * IndexNum ) ;
 		if( VertexFaceList == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "法線再計算用のメモリの確保に失敗しました_3\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x6c\xda\x7d\x8d\x51\x08\x8a\x97\x7b\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x5f\x00\x33\x00\x0a\x00\x00"/*@ L"法線再計算用のメモリの確保に失敗しました_3\n" @*/ )) ;
 			goto ERR ;
 		}
 		_MEMSET( VertexFaceList, 0, sizeof( MV1_MAKEVERTINDEXINFO * ) * Frame->PositionNum ) ;
@@ -10695,9 +7718,9 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 			Face = Mesh->Face ;
 			for( j = 0 ; j < Mesh->FaceNum ; j ++, Face ++ )
 			{
-				PosInd[ 0 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + Mesh->VertUnitSize * Face->VertexIndex[ 0 ] ) )->PositionIndex ;
-				PosInd[ 1 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + Mesh->VertUnitSize * Face->VertexIndex[ 1 ] ) )->PositionIndex ;
-				PosInd[ 2 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + Mesh->VertUnitSize * Face->VertexIndex[ 2 ] ) )->PositionIndex ;
+				PosInd[ 0 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + Mesh->VertUnitSize * Face->VertexIndex[ 0 ] ) )->PositionIndex ;
+				PosInd[ 1 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + Mesh->VertUnitSize * Face->VertexIndex[ 1 ] ) )->PositionIndex ;
+				PosInd[ 2 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + Mesh->VertUnitSize * Face->VertexIndex[ 2 ] ) )->PositionIndex ;
 
 				VFBuf->Face = Face ;
 				VFBuf->Mesh = Mesh ;
@@ -10764,9 +7787,9 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 						MPosInd[ 2 ] = -1 ;
 
 						// 座標インデックスをセットしておく
-						PosInd[ 0 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 0 ] ) )->PositionIndex ;
-						PosInd[ 1 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 1 ] ) )->PositionIndex ;
-						PosInd[ 2 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 2 ] ) )->PositionIndex ;
+						PosInd[ 0 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 0 ] ) )->PositionIndex ;
+						PosInd[ 1 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 1 ] ) )->PositionIndex ;
+						PosInd[ 2 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 2 ] ) )->PositionIndex ;
 
 						// 座標をセットしておく
 						Pos[ 0 ] = ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + Frame->PosUnitSize * PosInd[ 0 ] ) )->Position ;
@@ -10806,9 +7829,9 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 							if( FaceT == CurFace || FaceT == BackCurFace ) continue ;
 
 							// 座標インデックスをセットしておく
-							TPosInd[ 0 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 0 ] ) )->PositionIndex ;
-							TPosInd[ 1 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 1 ] ) )->PositionIndex ;
-							TPosInd[ 2 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 2 ] ) )->PositionIndex ;
+							TPosInd[ 0 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 0 ] ) )->PositionIndex ;
+							TPosInd[ 1 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 1 ] ) )->PositionIndex ;
+							TPosInd[ 2 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 2 ] ) )->PositionIndex ;
 
 							// 座標をセットしておく
 							TPos[ 0 ] = ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + Frame->PosUnitSize * TPosInd[ 0 ] ) )->Position ;
@@ -10955,9 +7978,9 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 							MPosInd[ 2 ] = -1 ;
 
 							// 座標インデックスをセットしておく
-							PosInd[ 0 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 0 ] ) )->PositionIndex ;
-							PosInd[ 1 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 1 ] ) )->PositionIndex ;
-							PosInd[ 2 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 2 ] ) )->PositionIndex ;
+							PosInd[ 0 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 0 ] ) )->PositionIndex ;
+							PosInd[ 1 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 1 ] ) )->PositionIndex ;
+							PosInd[ 2 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )CurMesh->Vertex + CurMesh->VertUnitSize * CurFace->VertexIndex[ 2 ] ) )->PositionIndex ;
 
 							// 座標をセットしておく
 							Pos[ 0 ] = ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + Frame->PosUnitSize * PosInd[ 0 ] ) )->Position ;
@@ -10997,9 +8020,9 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 								if( FaceT == CurFace || FaceT == BackCurFace ) continue ;
 
 								// 座標インデックスをセットしておく
-								TPosInd[ 0 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 0 ] ) )->PositionIndex ;
-								TPosInd[ 1 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 1 ] ) )->PositionIndex ;
-								TPosInd[ 2 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 2 ] ) )->PositionIndex ;
+								TPosInd[ 0 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 0 ] ) )->PositionIndex ;
+								TPosInd[ 1 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 1 ] ) )->PositionIndex ;
+								TPosInd[ 2 ] = ( int )( ( MV1_MESH_VERTEX * )( ( BYTE * )TMesh->Vertex + TMesh->VertUnitSize * FaceT->VertexIndex[ 2 ] ) )->PositionIndex ;
 
 								// 座標をセットしておく
 								TPos[ 0 ] = ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + Frame->PosUnitSize * TPosInd[ 0 ] ) )->Position ;
@@ -11155,7 +8178,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 	// 使用している法線をインデックスの若い順に詰める
 	{
 		// 使用されている法線のマップを作成する
-		_MEMSET( NormalUseTable, 0, NormalNum ) ;
+		_MEMSET( NormalUseTable, 0, ( size_t )NormalNum ) ;
 		Mesh = Frame->Mesh ;
 		UseNormalNum = 0 ;
 		FNInd = FaceNormalIndex ;
@@ -11166,25 +8189,25 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 			{
 				if( NormalUseTable[ FNInd[ 0 ] ] == 0 )
 				{
-					NormalUseTable[ FNInd[ 0 ] ] = 1 ;
-					UseNormalIndex[ UseNormalNum ] = FNInd[ 0 ] ;
-					NewNormalIndex[ FNInd[ 0 ] ] = UseNormalNum ;
+					NormalUseTable[ FNInd[ 0 ] ]   = 1 ;
+					UseNormalIndex[ UseNormalNum ] = ( DWORD )FNInd[ 0 ] ;
+					NewNormalIndex[ FNInd[ 0 ] ]   = ( DWORD )UseNormalNum ;
 					UseNormalNum ++ ;
 				}
 
 				if( NormalUseTable[ FNInd[ 1 ] ] == 0 )
 				{
-					NormalUseTable[ FNInd[ 1 ] ] = 1 ;
-					UseNormalIndex[ UseNormalNum ] = FNInd[ 1 ] ;
-					NewNormalIndex[ FNInd[ 1 ] ] = UseNormalNum ;
+					NormalUseTable[ FNInd[ 1 ] ]   = 1 ;
+					UseNormalIndex[ UseNormalNum ] = ( DWORD )FNInd[ 1 ] ;
+					NewNormalIndex[ FNInd[ 1 ] ]   = ( DWORD )UseNormalNum ;
 					UseNormalNum ++ ;
 				}
 
 				if( NormalUseTable[ FNInd[ 2 ] ] == 0 )
 				{
-					NormalUseTable[ FNInd[ 2 ] ] = 1 ;
-					UseNormalIndex[ UseNormalNum ] = FNInd[ 2 ] ;
-					NewNormalIndex[ FNInd[ 2 ] ] = UseNormalNum ;
+					NormalUseTable[ FNInd[ 2 ] ]   = 1 ;
+					UseNormalIndex[ UseNormalNum ] = ( DWORD )FNInd[ 2 ] ;
+					NewNormalIndex[ FNInd[ 2 ] ]   = ( DWORD )UseNormalNum ;
 					UseNormalNum ++ ;
 				}
 			}
@@ -11208,7 +8231,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 			RNormal = ( MV1_MESH_NORMAL * )DXALLOC( sizeof( MV1_MESH_NORMAL ) * UseNormalNum ) ;
 			if( RNormal == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "法線再計算で法線を格納するメモリの確保に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x6c\xda\x7d\x8d\x51\x08\x8a\x97\x7b\x67\x30\xd5\x6c\xda\x7d\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"法線再計算で法線を格納するメモリの確保に失敗しました\n" @*/ )) ;
 				goto ERR ;
 			}
 			Frame->Normal = RNormal ;
@@ -11229,9 +8252,9 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 			Face = Mesh->Face ;
 			for( j = 0 ; j < Mesh->FaceNum ; j ++, Face ++, FNInd += 3 )
 			{
-				FNInd[ 0 ] = NewNormalIndex[ FNInd[ 0 ] ] ;
-				FNInd[ 1 ] = NewNormalIndex[ FNInd[ 1 ] ] ;
-				FNInd[ 2 ] = NewNormalIndex[ FNInd[ 2 ] ] ;
+				FNInd[ 0 ] = ( int )NewNormalIndex[ FNInd[ 0 ] ] ;
+				FNInd[ 1 ] = ( int )NewNormalIndex[ FNInd[ 1 ] ] ;
+				FNInd[ 2 ] = ( int )NewNormalIndex[ FNInd[ 2 ] ] ;
 			}
 		}
 
@@ -11259,7 +8282,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 		VertInfoTable = ( MV1_MAKEVERTINDEXINFO ** )DXALLOC( sizeof( MV1_MAKEVERTINDEXINFO * ) * Frame->PositionNum + sizeof( MV1_MAKEVERTINDEXINFO ) * Frame->TriangleNum * 3 ) ;
 		if( VertInfoTable == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "法線再計算に使用する作業用メモリの確保に失敗しました_3\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x6c\xda\x7d\x8d\x51\x08\x8a\x97\x7b\x6b\x30\x7f\x4f\x28\x75\x59\x30\x8b\x30\x5c\x4f\x6d\x69\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x5f\x00\x33\x00\x0a\x00\x00"/*@ L"法線再計算に使用する作業用メモリの確保に失敗しました_3\n" @*/ )) ;
 			goto ERR ;
 		}
 		VertInfoBuffer = ( MV1_MAKEVERTINDEXINFO * )( VertInfoTable + Frame->PositionNum ) ;
@@ -11274,10 +8297,10 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 				continue ;
 
 			// 新たな頂点データを格納するメモリ領域の確保
-			NewVertex = ( MV1_MESH_VERTEX * )DXALLOC( Mesh->VertUnitSize * Mesh->FaceNum * 3 ) ;
+			NewVertex = ( MV1_MESH_VERTEX * )DXALLOC( ( size_t )( Mesh->VertUnitSize * Mesh->FaceNum * 3 ) ) ;
 			if( NewVertex == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "法線再計算に使用する作業用メモリの確保に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x6c\xda\x7d\x8d\x51\x08\x8a\x97\x7b\x6b\x30\x7f\x4f\x28\x75\x59\x30\x8b\x30\x5c\x4f\x6d\x69\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"法線再計算に使用する作業用メモリの確保に失敗しました\n" @*/ )) ;
 				goto ERR ;
 			}
 
@@ -11285,7 +8308,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 			OldFace = ( MV1_MESH_FACE * )DXALLOC( sizeof( MV1_MESH_FACE ) * Mesh->FaceNum ) ;
 			if( OldFace == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "法線再計算に使用する作業用メモリの確保に失敗しました_2\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x6c\xda\x7d\x8d\x51\x08\x8a\x97\x7b\x6b\x30\x7f\x4f\x28\x75\x59\x30\x8b\x30\x5c\x4f\x6d\x69\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x5f\x00\x32\x00\x0a\x00\x00"/*@ L"法線再計算に使用する作業用メモリの確保に失敗しました_2\n" @*/ )) ;
 				goto ERR ;
 			}
 			_MEMCPY( OldFace, Mesh->Face, sizeof( MV1_MESH_FACE ) * Mesh->FaceNum ) ;
@@ -11303,8 +8326,8 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 				{
 					// 追加しようとしている頂点データの作成
 					Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + Mesh->VertUnitSize * OFace->VertexIndex[ m ] ) ;
-					_MEMCPY( TVertex, Vert, Mesh->VertUnitSize ) ;
-					TVertex->NormalIndex = FNInd[ m ] ;
+					_MEMCPY( TVertex, Vert, ( size_t )Mesh->VertUnitSize ) ;
+					TVertex->NormalIndex = ( DWORD )FNInd[ m ] ;
 
 					// 今までに同じ頂点データが無かったかどうかを調べる
 					for( VInfo = VertInfoTable[ Vert->PositionIndex ] ; VInfo ; VInfo = VInfo->Next )
@@ -11322,14 +8345,14 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 						VInfo->Next = VertInfoTable[ Vert->PositionIndex ] ;
 						VertInfoTable[ Vert->PositionIndex ] = VInfo ;
 
-						_MEMCPY( ( BYTE * )NewVertex + NewVertexNum * Mesh->VertUnitSize, TVertex, Mesh->VertUnitSize ) ;
-						Face->VertexIndex[ m ] = NewVertexNum ;
+						_MEMCPY( ( BYTE * )NewVertex + NewVertexNum * Mesh->VertUnitSize, TVertex, ( size_t )Mesh->VertUnitSize ) ;
+						Face->VertexIndex[ m ] = ( DWORD )NewVertexNum ;
 						NewVertexNum ++ ;
 					}
 					else
 					{
 						// あったらインデックスをセット
-						Face->VertexIndex[ m ] = VInfo->VertexIndex ;
+						Face->VertexIndex[ m ] = ( DWORD )VInfo->VertexIndex ;
 					}
 				}
 			}
@@ -11344,7 +8367,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 				// 減った場合
 
 				// 新たに確保した頂点用のメモリは解放する
-				_MEMCPY( Mesh->Vertex, NewVertex, NewVertexNum * Mesh->VertUnitSize ) ;
+				_MEMCPY( Mesh->Vertex, NewVertex, ( size_t )( NewVertexNum * Mesh->VertUnitSize ) ) ;
 				DXFREE( NewVertex ) ;
 			}
 			else
@@ -11379,12 +8402,8 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 			TList = Mesh->TriangleList ;
 			for( j = 0 ; j < Mesh->TriangleListNum ; j ++, TList ++ )
 			{
-				// シェーダー未使用時の頂点データを解放
-				if( TList->TempSimpleVertex )
-				{
-					DXFREE( TList->TempSimpleVertex ) ;
-					TList->TempSimpleVertex = NULL ;
-				}
+				// 環境依存のテンポラリバッファを開放
+				MV1_TerminateTriangleListBaseTempBuffer_PF( TList ) ;
 
 				// 頂点が既に存在しているかどうかのフラグを初期化する
 				_MEMSET( VertValidBuffer, 0xff, Mesh->VertexNum * sizeof( int ) ) ;
@@ -11393,7 +8412,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 				NewMeshVertexIndex = ( DWORD * )DXALLOC( sizeof( int ) * Mesh->VertexNum ) ;
 				if( NewMeshVertexIndex == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "トライアングルリストのメッシュ頂点インデックス格納用メモリの確保に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\xc8\x30\xe9\x30\xa4\x30\xa2\x30\xf3\x30\xb0\x30\xeb\x30\xea\x30\xb9\x30\xc8\x30\x6e\x30\xe1\x30\xc3\x30\xb7\x30\xe5\x30\x02\x98\xb9\x70\xa4\x30\xf3\x30\xc7\x30\xc3\x30\xaf\x30\xb9\x30\x3c\x68\x0d\x7d\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"トライアングルリストのメッシュ頂点インデックス格納用メモリの確保に失敗しました\n" @*/ )) ;
 					goto ERR ;
 				}
 
@@ -11450,10 +8469,10 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 					{
 						DXFREE( TList->NormalPosition ) ;
 					}
-					TList->NormalPosition = ( MV1_TLIST_NORMAL_POS * )DXALLOC( TList->PosUnitSize * NewTVertexNum + 16 ) ;
+					TList->NormalPosition = ( MV1_TLIST_NORMAL_POS * )DXALLOC( ( size_t )( TList->PosUnitSize * NewTVertexNum + 16 ) ) ;
 					if( TList->NormalPosition == NULL )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "トライアングルリストの座標データ格納用メモリの確保に失敗しました\n" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\xc8\x30\xe9\x30\xa4\x30\xa2\x30\xf3\x30\xb0\x30\xeb\x30\xea\x30\xb9\x30\xc8\x30\x6e\x30\xa7\x5e\x19\x6a\xc7\x30\xfc\x30\xbf\x30\x3c\x68\x0d\x7d\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"トライアングルリストの座標データ格納用メモリの確保に失敗しました\n" @*/ )) ;
 						goto ERR ;
 					}
 					TList->PositionAllocMem = TRUE ;
@@ -11502,7 +8521,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 				NewShapeVertBuffer = ( MV1_SHAPE_VERTEX_BASE * )DXALLOC( sizeof( MV1_SHAPE_VERTEX_BASE ) * Mesh->VertexNum ) ;
 				if( NewShapeVertBuffer == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "シェイプ頂点データ格納用メモリの確保に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\xb7\x30\xa7\x30\xa4\x30\xd7\x30\x02\x98\xb9\x70\xc7\x30\xfc\x30\xbf\x30\x3c\x68\x0d\x7d\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"シェイプ頂点データ格納用メモリの確保に失敗しました\n" @*/ )) ;
 					goto ERR ;
 				}
 
@@ -11514,9 +8533,9 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 					if( ShapeFrameVert[ Vert->PositionIndex ].TargetMeshVertex == -1 ) continue ;
 
 					// 情報の追加
-					NewShapeVertBuffer[ NewShapeVertexNum ].TargetMeshVertex = k ;
-					NewShapeVertBuffer[ NewShapeVertexNum ].Position = ShapeFrameVert[ Vert->PositionIndex ].Position ;
-					NewShapeVertBuffer[ NewShapeVertexNum ].Normal = VGet( 0.0f, 0.0f, 0.0f ) ;
+					NewShapeVertBuffer[ NewShapeVertexNum ].TargetMeshVertex = ( DWORD )k ;
+					NewShapeVertBuffer[ NewShapeVertexNum ].Position         = ShapeFrameVert[ Vert->PositionIndex ].Position ;
+					NewShapeVertBuffer[ NewShapeVertexNum ].Normal           = VGet( 0.0f, 0.0f, 0.0f ) ;
 					NewShapeVertexNum ++ ;
 				}
 
@@ -11544,7 +8563,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 				ModelBase->ShapeVertexNum += NewShapeVertexNum - ShapeMesh->VertexNum ;
 
 				// シェイプの頂点数を更新する
-				ShapeMesh->VertexNum = NewShapeVertexNum ;
+				ShapeMesh->VertexNum = ( DWORD )NewShapeVertexNum ;
 			}
 		}
 	}
@@ -11646,7 +8665,7 @@ extern int MV1PositionOptimizeBase( int MBHandle )
 		return -1 ;
 
 	// 頂点バッファを解放する
-	MV1TerminateVertexBufferBase( MBHandle ) ;
+	MV1_TerminateVertexBufferBase_PF( MBHandle ) ;
 
 	// フレームの数だけ繰り返し
 	Frame = ModelBase->Frame ;
@@ -11659,7 +8678,7 @@ extern int MV1PositionOptimizeBase( int MBHandle )
 	}
 
 	// 頂点バッファを構築する
-	MV1SetupVertexBufferBase( MBHandle ) ;
+	MV1_SetupVertexBufferBase_PF( MBHandle ) ;
 
 	// 終了
 	return 0 ;
@@ -11688,14 +8707,14 @@ extern int MV1PositionOptimizeFrameBase( int MBHandle, int FrameIndex )
 		return -1 ;
 
 	// 頂点バッファを解放する
-	MV1TerminateVertexBufferBase( MBHandle ) ;
+	MV1_TerminateVertexBufferBase_PF( MBHandle ) ;
 
 	// フレームの再計算
 	if( _MV1PositionOptimizeFrameBase( Frame ) == -1 )
 		return -1 ;
 
 	// 頂点バッファを構築する
-	MV1SetupVertexBufferBase( MBHandle ) ;
+	MV1_SetupVertexBufferBase_PF( MBHandle ) ;
 
 	// 終了
 	return 0 ;
@@ -11742,7 +8761,7 @@ static int _MV1PositionOptimizeFrameBase( MV1_FRAME_BASE *Frame )
 	DisableFlag = ( BYTE * )DXALLOC( ( sizeof( int ) * 2 + sizeof( BYTE ) ) * MaxNum ) ;
 	if( DisableFlag == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "頂点情報最適化処理用のメモリの確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x02\x98\xb9\x70\xc5\x60\x31\x58\x00\x67\x69\x90\x16\x53\xe6\x51\x06\x74\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"頂点情報最適化処理用のメモリの確保に失敗しました\n" @*/ )) ;
 		goto ERR ;
 	}
 	NewIndex = ( int * )( DisableFlag + MaxNum ) ;
@@ -11790,7 +8809,7 @@ static int _MV1PositionOptimizeFrameBase( MV1_FRAME_BASE *Frame )
 				for( l = 0 ; l < Mesh->VertexNum ; l ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 				{
 					if( Vert->PositionIndex != ( DWORD )j ) continue ;
-					Vert->PositionIndex = i ;
+					Vert->PositionIndex = ( DWORD )i ;
 /*
 					int n, o, p, q ;
 					MV1_TRIANGLE_LIST_BASE *TTList ;
@@ -11849,7 +8868,7 @@ static int _MV1PositionOptimizeFrameBase( MV1_FRAME_BASE *Frame )
 			if( DisableFlag[ i ] ) continue ;
 
 			NewIndex[ i ] = NewNum ;
-			_MEMCPY( Pos2, Pos1, Frame->PosUnitSize ) ;
+			_MEMCPY( Pos2, Pos1, ( size_t )Frame->PosUnitSize ) ;
 			Pos2 = ( MV1_MESH_POSITION * )( ( BYTE * )Pos2 + Frame->PosUnitSize ) ;
 			NewNum ++ ;
 		}
@@ -11864,7 +8883,7 @@ static int _MV1PositionOptimizeFrameBase( MV1_FRAME_BASE *Frame )
 			Vert = Mesh->Vertex ;
 			for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 			{
-				Vert->PositionIndex = NewIndex[ Vert->PositionIndex ] ;
+				Vert->PositionIndex = ( DWORD )NewIndex[ Vert->PositionIndex ] ;
 			}
 		}
 
@@ -11897,11 +8916,11 @@ static int _MV1PositionOptimizeFrameBase( MV1_FRAME_BASE *Frame )
 					for( l = 0 ; l < Mesh->FaceNum ; l ++, Face ++ )
 					{
 						if( Face->VertexIndex[ 0 ] == ( DWORD )k )
-							Face->VertexIndex[ 0 ] = j ;
+							Face->VertexIndex[ 0 ] = ( DWORD )j ;
 						if( Face->VertexIndex[ 1 ] == ( DWORD )k )
-							Face->VertexIndex[ 1 ] = j ;
+							Face->VertexIndex[ 1 ] = ( DWORD )j ;
 						if( Face->VertexIndex[ 2 ] == ( DWORD )k )
-							Face->VertexIndex[ 2 ] = j ;
+							Face->VertexIndex[ 2 ] = ( DWORD )j ;
 					}
 					TList = Mesh->TriangleList ;
 					for( l = 0 ; l < Mesh->TriangleListNum ; l ++, TList ++ )
@@ -11910,7 +8929,7 @@ static int _MV1PositionOptimizeFrameBase( MV1_FRAME_BASE *Frame )
 						for( m = 0 ; m < TList->VertexNum ; m ++, MInd1 ++ )
 						{
 							if( *MInd1 == ( DWORD )k )
-								*MInd1 = j ;
+								*MInd1 = ( DWORD )j ;
 						}
 					}
 
@@ -11938,7 +8957,7 @@ static int _MV1PositionOptimizeFrameBase( MV1_FRAME_BASE *Frame )
 						for( l = 0 ; ( DWORD )l < ShapeMesh->VertexNum ; l ++, ShapeVertex ++ )
 						{
 							if( NewMVertIndex[ ShapeVertex->TargetMeshVertex ] == -1 ) continue ;
-							ShapeVertex->TargetMeshVertex = NewMVertIndex[ ShapeVertex->TargetMeshVertex ] ;
+							ShapeVertex->TargetMeshVertex = ( DWORD )NewMVertIndex[ ShapeVertex->TargetMeshVertex ] ;
 						}
 					}
 				}
@@ -11958,7 +8977,7 @@ static int _MV1PositionOptimizeFrameBase( MV1_FRAME_BASE *Frame )
 					if( DisableFlag[ j ] ) continue ;
 
 					NewIndex[ j ] = NewNum ;
-					_MEMCPY( Vert2, Vert1, Mesh->VertUnitSize ) ;
+					_MEMCPY( Vert2, Vert1, ( size_t )Mesh->VertUnitSize ) ;
 					Vert2 = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert2 + Mesh->VertUnitSize ) ;
 					NewNum ++ ;
 				}
@@ -11970,27 +8989,22 @@ static int _MV1PositionOptimizeFrameBase( MV1_FRAME_BASE *Frame )
 				Face = Mesh->Face ;
 				for( j = 0 ; j < Mesh->FaceNum ; j ++, Face ++ )
 				{
-					Face->VertexIndex[ 0 ] = NewIndex[ Face->VertexIndex[ 0 ] ] ;
-					Face->VertexIndex[ 1 ] = NewIndex[ Face->VertexIndex[ 1 ] ] ;
-					Face->VertexIndex[ 2 ] = NewIndex[ Face->VertexIndex[ 2 ] ] ;
+					Face->VertexIndex[ 0 ] = ( DWORD )NewIndex[ Face->VertexIndex[ 0 ] ] ;
+					Face->VertexIndex[ 1 ] = ( DWORD )NewIndex[ Face->VertexIndex[ 1 ] ] ;
+					Face->VertexIndex[ 2 ] = ( DWORD )NewIndex[ Face->VertexIndex[ 2 ] ] ;
 				}
 				TList = Mesh->TriangleList ;
 				for( j = 0 ; j < Mesh->TriangleListNum ; j ++, TList ++ )
 				{
 					for( k = 0 ; k < TList->VertexNum ; k ++ )
-						TList->MeshVertexIndex[ k ] = NewIndex[ TList->MeshVertexIndex[ k ] ] ;
+						TList->MeshVertexIndex[ k ] = ( DWORD )NewIndex[ TList->MeshVertexIndex[ k ] ] ;
 				}
 
 				// トライアングルリストのシェーダー未使用時の頂点データを解放する
 				TList = Mesh->TriangleList ;
 				for( j = 0 ; j < Mesh->TriangleListNum ; j ++, TList ++ )
 				{
-					// シェーダー未使用時の頂点データを解放
-					if( TList->TempSimpleVertex )
-					{
-						DXFREE( TList->TempSimpleVertex ) ;
-						TList->TempSimpleVertex = NULL ;
-					}
+					MV1_TerminateTriangleListBaseTempBuffer_PF( TList ) ;
 				}
 
 				// トライアングルリスト内のメッシュ頂点インデックスで重複している情報を列挙する
@@ -12354,11 +9368,11 @@ static bool _MV1CreateWideCharNameBase( MV1_MODEL_BASE *MBase, const char *NameA
 {
 	wchar_t TempName[ 512 ] ;
 
-	MBCharToWChar( _GET_CODEPAGE(), NameA, ( DXWCHAR * )TempName, 512 ) ;
+	ConvString( NameA, CHAR_CODEPAGE, ( char * )TempName, WCHAR_T_CODEPAGE ) ;
 	*NameWP = ( wchar_t * )ADDMEMAREA( ( _WCSLEN( TempName ) + 1 ) * sizeof( wchar_t ), &MBase->AddFirstMem ) ;
 	if( *NameWP == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "ワイド文字保存用のメモリ領域の確保に失敗しました(１)" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xef\x30\xa4\x30\xc9\x30\x87\x65\x57\x5b\xdd\x4f\x58\x5b\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x28\x00\x11\xff\x29\x00\x00"/*@ L"ワイド文字保存用のメモリ領域の確保に失敗しました(１)" @*/ )) ;
 		return false ;
 	}
 	_WCSCPY( *NameWP, TempName ) ;
@@ -12371,59 +9385,63 @@ static bool _MV1CreateMultiByteNameBase( MV1_MODEL_BASE *MBase, const wchar_t *N
 {
 	char TempName[ 512 ] ;
 
-	WCharToMBChar( _GET_CODEPAGE(), ( DXWCHAR * )NameW, TempName, 512 ) ;
-	*NameAP = ( char * )ADDMEMAREA( lstrlenA( TempName ) + 1, &MBase->AddFirstMem ) ;
+	ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, TempName, CHAR_CODEPAGE ) ;
+	*NameAP = ( char * )ADDMEMAREA( ( size_t )( _STRLEN( TempName ) + 1 ), &MBase->AddFirstMem ) ;
 	if( *NameAP == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "マルチバイト文字保存用のメモリ領域の確保に失敗しました(１)" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xde\x30\xeb\x30\xc1\x30\xd0\x30\xa4\x30\xc8\x30\x87\x65\x57\x5b\xdd\x4f\x58\x5b\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x28\x00\x11\xff\x29\x00\x00"/*@ L"マルチバイト文字保存用のメモリ領域の確保に失敗しました(１)" @*/ )) ;
 		return false ;
 	}
-	lstrcpyA( *NameAP, TempName ) ;
+	_STRCPY( *NameAP, TempName ) ;
 
 	return true ;
 }
 
 // ファイルパスからファイル名とディレクトリパスを作成する
-static void _MV1CreateFileNameAndCurrentDirectory( const TCHAR *FilePath, TCHAR *Name, TCHAR *CurrentDirectory )
+static void _MV1CreateFileNameAndCurrentDirectory( const wchar_t *FilePath, wchar_t *Name, wchar_t *CurrentDirectory )
 {
-	TCHAR FileName2[ MAX_PATH ], *cpt ;
+	wchar_t FileName2[ FILEPATH_MAX ], *cpt ;
 	int i, Last = 0 ;
 
 	// モデルファイルのあるディレクトリパスを作成する
-	if( _TSTRCHR( FilePath, _T( '\\' ) ) != NULL || _TSTRCHR( FilePath, _T( '/' ) ) != NULL || _TSTRCHR( FilePath, _T( ':' ) ) != NULL )
+	if( _WCSCHR( FilePath, L'\\' ) != NULL || _WCSCHR( FilePath, L'/' ) != NULL || _WCSCHR( FilePath, L':' ) != NULL )
 	{
-		TCHAR TempDirectory[ 1024 ] ;
+		wchar_t TempDirectory[ 1024 ] ;
 
 		// 最後に『\』又は『/』が出てくるところを探す
-		for( i = 0 ; FilePath[ i ] != _T( '\0' ) ; )
+		for( i = 0 ; FilePath[ i ] != L'\0' ; )
 		{
-			if( _TMULT( FilePath[ i ], _GET_CODEPAGE() ) )
+			if( CHECK_WCHAR_T_DOUBLE( FilePath[ i ] ) )
 			{
 				i += 2 ;
 			}
 			else
 			{
-				if( FilePath[ i ] == _T( '\\' ) || 
-					FilePath[ i ] == _T( '/' ) || 
-					FilePath[ i ] == _T( ':' ) ) Last = i ;
+				if( FilePath[ i ] == L'\\' || 
+					FilePath[ i ] == L'/' || 
+					FilePath[ i ] == L':' ) Last = i ;
 				i ++ ;
 			}
 		}
 
 		// ディレクトリ指定部分のみをコピー
-		_TSTRNCPY( TempDirectory, FilePath, Last + 1 + 1 ) ;
+		_WCSNCPY( TempDirectory, FilePath, Last + 1 + 1 ) ;
 
 		// 終端文字をセット
-		if( ( TempDirectory[ Last ] == _T( '/' ) || TempDirectory[ Last ] == _T( '\\' ) ) && ( Last == 0 || TempDirectory[ Last - 1 ] != _T( ':' ) ) )
-			TempDirectory[ Last ] = _T( '\0' ) ;
+		if( ( TempDirectory[ Last ] == L'/' || TempDirectory[ Last ] == L'\\' ) && ( Last == 0 || TempDirectory[ Last - 1 ] != L':' ) )
+		{
+			TempDirectory[ Last ] = L'\0' ;
+		}
 		else
-			TempDirectory[ Last + 1 ] = _T( '\0' ) ;
+		{
+			TempDirectory[ Last + 1 ] = L'\0' ;
+		}
 
 		// ディレクトリをフルパスにする
-		ConvertFullPathT_( TempDirectory, CurrentDirectory ) ;
+		ConvertFullPathW_( TempDirectory, CurrentDirectory ) ;
 
 		// ファイル名部分のみをコピー
-		lstrcpy( FileName2, &FilePath[ Last + 1 ] ) ;
+		_WCSCPY( FileName2, &FilePath[ Last + 1 ] ) ;
 	}
 	else
 	{
@@ -12431,13 +9449,13 @@ static void _MV1CreateFileNameAndCurrentDirectory( const TCHAR *FilePath, TCHAR 
 		FGETDIR( CurrentDirectory ) ;
 
 		// ファイル名をコピー
-		lstrcpy( FileName2, FilePath ) ;
+		_WCSCPY( FileName2, FilePath ) ;
 	}
 
 	// 拡張子を抜いたファイル名を得る
-	lstrcpy( Name, FileName2 ) ;
-	cpt = _TSTRRCHR( Name, '.' ) ;
-	if( cpt ) *cpt = _T( '\0' ) ;
+	_WCSCPY( Name, FileName2 ) ;
+	cpt = ( wchar_t * )_WCSRCHR( Name, L'.' ) ;
+	if( cpt ) *cpt = L'\0' ;
 }
 
 // マルチバイト文字名からワイド文字名を作成する
@@ -12445,11 +9463,12 @@ static bool _MV1CreateWideCharName( const char *NameA, wchar_t **NameWP )
 {
 	wchar_t TempName[ 512 ] ;
 
-	MBCharToWChar( _GET_CODEPAGE(), NameA, ( DXWCHAR * )TempName, 512 ) ;
+	ConvString( NameA, CHAR_CODEPAGE, ( char * )TempName, WCHAR_T_CODEPAGE ) ;
+
 	*NameWP = ( wchar_t * )DXALLOC( ( _WCSLEN( TempName ) + 1 ) * sizeof( wchar_t ) ) ;
 	if( *NameWP == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "ワイド文字保存用のメモリ領域の確保に失敗しました(２)" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xef\x30\xa4\x30\xc9\x30\x87\x65\x57\x5b\xdd\x4f\x58\x5b\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x28\x00\x12\xff\x29\x00\x00"/*@ L"ワイド文字保存用のメモリ領域の確保に失敗しました(２)" @*/ )) ;
 		return false ;
 	}
 	_WCSCPY( *NameWP, TempName ) ;
@@ -12462,11 +9481,12 @@ static bool _MV1CreateMultiByteName( const wchar_t *NameW, char **NameAP )
 {
 	char TempName[ 512 ] ;
 
-	WCharToMBChar( _GET_CODEPAGE(), ( DXWCHAR * )NameW, TempName, 512 ) ;
-	*NameAP = ( char * )DXALLOC( lstrlenA( TempName ) + 1 ) ;
+	ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, TempName, CHAR_CODEPAGE ) ;
+
+	*NameAP = ( char * )DXALLOC( ( size_t )( _STRLEN( TempName ) + 1 ) ) ;
 	if( *NameAP == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "マルチバイト文字保存用のメモリ領域の確保に失敗しました(２)" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xde\x30\xeb\x30\xc1\x30\xd0\x30\xa4\x30\xc8\x30\x87\x65\x57\x5b\xdd\x4f\x58\x5b\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x28\x00\x12\xff\x29\x00\x00"/*@ L"マルチバイト文字保存用のメモリ領域の確保に失敗しました(２)" @*/ )) ;
 		return false ;
 	}
 	_STRCPY( *NameAP, TempName ) ;
@@ -12480,7 +9500,7 @@ static bool _MV1AllocAndMultiByteNameCopy( const char *NameA, char **NameAP )
 	*NameAP = ( char * )DXALLOC( ( _STRLEN( NameA ) + 1 ) * sizeof( char ) ) ;
 	if( *NameAP == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "マルチバイト文字保存用のメモリ領域の確保に失敗しました(３)" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xde\x30\xeb\x30\xc1\x30\xd0\x30\xa4\x30\xc8\x30\x87\x65\x57\x5b\xdd\x4f\x58\x5b\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x28\x00\x13\xff\x29\x00\x00"/*@ L"マルチバイト文字保存用のメモリ領域の確保に失敗しました(３)" @*/ )) ;
 		return false ;
 	}
 	_STRCPY( *NameAP, NameA ) ;
@@ -12494,7 +9514,7 @@ static bool _MV1AllocAndWideCharNameCopy( const wchar_t *NameW, wchar_t **NameWP
 	*NameWP = ( wchar_t * )DXALLOC( ( _WCSLEN( NameW ) + 1 ) * sizeof( wchar_t ) ) ;
 	if( *NameWP == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "ワイド文字保存用のメモリ領域の確保に失敗しました(３)" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xef\x30\xa4\x30\xc9\x30\x87\x65\x57\x5b\xdd\x4f\x58\x5b\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x28\x00\x13\xff\x29\x00\x00"/*@ L"ワイド文字保存用のメモリ領域の確保に失敗しました(３)" @*/ )) ;
 		return false ;
 	}
 	_WCSCPY( *NameWP, NameW ) ;
@@ -12508,7 +9528,10 @@ extern int __MV1LoadTexture(
 	int *GraphHandle,
 	int *SemiTransFlag,
 	int *DefaultTextureFlag,
-	char **ColorFilePathMem, char **AlphaFilePathMem,
+#ifndef UNICODE
+	char    **ColorFilePathAMem, char    **AlphaFilePathAMem,
+#endif
+	wchar_t **ColorFilePathWMem, wchar_t **AlphaFilePathWMem,
 	const wchar_t *ColorFilePath, const wchar_t *AlphaFilePath, const wchar_t *StartFolderPath,
 	int BumpImageFlag, float BumpImageNextPixelLength,
 	int ReverseFlag,
@@ -12519,16 +9542,21 @@ extern int __MV1LoadTexture(
 	)
 {
 	BASEIMAGE ColorBaseImage, AlphaBaseImage ;
-	wchar_t ColorFileRelativePath[ 1024 ], AlphaFileRelativePath[ 1024 ] ;
+#ifndef UNICODE
 	char TempPath[ 1024 ] ;
+#endif
 	int i/*, j*/, Result ;
 	void *DataAddr ;
 
 	// ポインタの初期化
 	if( ValidImageAddr == false )
 	{
-		if( ColorFilePathMem ) *ColorFilePathMem = NULL ;
-		if( AlphaFilePathMem ) *AlphaFilePathMem = NULL ;
+#ifndef UNICODE
+		if( ColorFilePathAMem ) *ColorFilePathAMem = NULL ;
+		if( AlphaFilePathAMem ) *AlphaFilePathAMem = NULL ;
+#endif
+		if( ColorFilePathWMem ) *ColorFilePathWMem = NULL ;
+		if( AlphaFilePathWMem ) *AlphaFilePathWMem = NULL ;
 		*AlphaImage = NULL ;
 		*ColorImage = NULL ;
 	}
@@ -12539,30 +9567,64 @@ extern int __MV1LoadTexture(
 
 	if( ValidImageAddr == false )
 	{
+#ifndef UNICODE
+		char    RelativePathA[ 1024 ] ;
+		int StrLengthA ;
+#endif
+		wchar_t RelativePathW[ 1024 ] ;
+		int StrLengthW ;
+
 		// ファイルパスを保存するメモリ領域の確保
-		if( ColorFilePath && ColorFilePathMem && StartFolderPath )
+		if( ColorFilePath && ColorFilePathWMem && StartFolderPath )
 		{
-			CreateRelativePathW_( ColorFilePath, StartFolderPath, ColorFileRelativePath ) ;
-			WCharToMBChar( _GET_CODEPAGE(), ( DXWCHAR * )ColorFileRelativePath, TempPath, 1024 ) ;
-			*ColorFilePathMem = ( char * )DXALLOC( lstrlenA( TempPath ) + 1 ) ;
-			if( *ColorFilePathMem == NULL )
+			CreateRelativePathW_( ColorFilePath, StartFolderPath, RelativePathW ) ;
+			StrLengthW = _WCSLEN( RelativePathW ) ;
+
+#ifndef UNICODE
+			ConvString( ( const char * )RelativePathW, WCHAR_T_CODEPAGE, RelativePathA, CHAR_CODEPAGE ) ;
+			StrLengthA = _STRLEN( RelativePathA ) ;
+
+			*ColorFilePathAMem = ( char * )DXALLOC( ( size_t )( ( StrLengthA + 1 ) * sizeof( char ) ) ) ;
+			if( *ColorFilePathAMem == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "Load Texture Error : テクスチャ用のカラー画像ファイルパスを保存するメモリ領域の確保に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x54\x00\x65\x00\x78\x00\x74\x00\x75\x00\x72\x00\x65\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x28\x75\x6e\x30\xab\x30\xe9\x30\xfc\x30\x3b\x75\xcf\x50\xd5\x30\xa1\x30\xa4\x30\xeb\x30\xd1\x30\xb9\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load Texture Error : テクスチャ用のカラー画像ファイルパスを保存するメモリ領域の確保に失敗しました\n" @*/ )) ;
 				goto ERRORLABEL ;
 			}
-			lstrcpyA( *ColorFilePathMem, TempPath ) ;
+			_STRCPY( *ColorFilePathAMem, RelativePathA ) ;
+#endif
+			*ColorFilePathWMem = ( wchar_t * )DXALLOC( ( size_t )( ( StrLengthW + 1 ) * sizeof( wchar_t ) ) ) ;
+			if( *ColorFilePathWMem == NULL )
+			{
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x54\x00\x65\x00\x78\x00\x74\x00\x75\x00\x72\x00\x65\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x28\x75\x6e\x30\xab\x30\xe9\x30\xfc\x30\x3b\x75\xcf\x50\xd5\x30\xa1\x30\xa4\x30\xeb\x30\xd1\x30\xb9\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load Texture Error : テクスチャ用のカラー画像ファイルパスを保存するメモリ領域の確保に失敗しました\n" @*/ )) ;
+				goto ERRORLABEL ;
+			}
+			_WCSCPY( *ColorFilePathWMem, RelativePathW ) ;
 		}
-		if( AlphaFilePath && AlphaFilePathMem && StartFolderPath )
+		if( AlphaFilePath && AlphaFilePathWMem && StartFolderPath )
 		{
-			CreateRelativePathW_( AlphaFilePath, StartFolderPath, AlphaFileRelativePath ) ;
-			WCharToMBChar( _GET_CODEPAGE(), ( DXWCHAR * )AlphaFileRelativePath, TempPath, 1024 ) ;
-			*AlphaFilePathMem = ( char * )DXALLOC( lstrlenA( TempPath ) + 1 ) ;
-			if( AlphaFilePathMem == NULL )
+			CreateRelativePathW_( AlphaFilePath, StartFolderPath, RelativePathW ) ;
+			StrLengthW = _WCSLEN( RelativePathW ) ;
+
+#ifndef UNICODE
+			ConvString( ( const char * )RelativePathW, WCHAR_T_CODEPAGE, RelativePathA, CHAR_CODEPAGE ) ;
+			StrLengthA = _STRLEN( RelativePathA ) ;
+
+			*AlphaFilePathAMem = ( char * )DXALLOC( ( size_t )( ( StrLengthA + 1 ) * sizeof( char ) ) ) ;
+			if( AlphaFilePathAMem == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "Load Texture Error : テクスチャ用のアルファ画像ファイルパスを保存するメモリ領域の確保に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x54\x00\x65\x00\x78\x00\x74\x00\x75\x00\x72\x00\x65\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x28\x75\x6e\x30\xa2\x30\xeb\x30\xd5\x30\xa1\x30\x3b\x75\xcf\x50\xd5\x30\xa1\x30\xa4\x30\xeb\x30\xd1\x30\xb9\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load Texture Error : テクスチャ用のアルファ画像ファイルパスを保存するメモリ領域の確保に失敗しました\n" @*/ )) ;
 				goto ERRORLABEL ;
 			}
-			lstrcpyA( *AlphaFilePathMem, TempPath ) ;
+			_STRCPY( *AlphaFilePathAMem, RelativePathA ) ;
+#endif
+
+			*AlphaFilePathWMem = ( wchar_t * )DXALLOC( ( size_t )( ( StrLengthW + 1 ) * sizeof( wchar_t ) ) ) ;
+			if( AlphaFilePathWMem == NULL )
+			{
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x54\x00\x65\x00\x78\x00\x74\x00\x75\x00\x72\x00\x65\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x28\x75\x6e\x30\xa2\x30\xeb\x30\xd5\x30\xa1\x30\x3b\x75\xcf\x50\xd5\x30\xa1\x30\xa4\x30\xeb\x30\xd1\x30\xb9\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load Texture Error : テクスチャ用のアルファ画像ファイルパスを保存するメモリ領域の確保に失敗しました\n" @*/ )) ;
+				goto ERRORLABEL ;
+			}
+			_WCSCPY( *AlphaFilePathWMem, RelativePathW ) ;
 		}
 
 		// カラーテクスチャファイルを読み込む
@@ -12574,22 +9636,22 @@ extern int __MV1LoadTexture(
 #ifdef UNICODE
 				Result = FileReadFunc->Read( ColorFilePath, &DataAddr, ColorImageSize, FileReadFunc->Data ) ;
 #else
-				WCharToMBChar( 932 /* _GET_CODEPAGE() */, ( DXWCHAR * )ColorFilePath, TempPath, 1024 ) ;
+				ConvString( ( const char * )ColorFilePath, WCHAR_T_CODEPAGE, TempPath, CHAR_CODEPAGE ) ;
 				Result = FileReadFunc->Read( TempPath, &DataAddr, ColorImageSize, FileReadFunc->Data ) ;
 #endif
 				if( Result != -1 )
 				{
-					*ColorImage = DXALLOC( *ColorImageSize ) ;
+					*ColorImage = DXALLOC( ( size_t )( *ColorImageSize ) ) ;
 					if( *ColorImage == NULL )
 					{
 #ifndef DX_GCC_COMPILE
-						DXST_ERRORLOGFMT_ADDW( ( L"Load Texture Error : カラーチャンネル画像ファイル %s を保存するメモリの確保に失敗しました\n", ColorFilePath ) ) ;
+						DXST_ERRORLOGFMT_ADDW(( L"Load Texture Error : Color Channel Image File : Memory Alloc Error : %s\n", ColorFilePath ) ) ;
 #endif
 						Result = -1 ;
 					}
 					else
 					{
-						_MEMCPY( *ColorImage, DataAddr, *ColorImageSize ) ;
+						_MEMCPY( *ColorImage, DataAddr, ( size_t )( *ColorImageSize ) ) ;
 					}
 					if( FileReadFunc->Release )
 					{
@@ -12605,14 +9667,14 @@ extern int __MV1LoadTexture(
 			if( Result == -1 )
 			{
 #ifndef DX_GCC_COMPILE
-				DXST_ERRORLOGFMT_ADDW( ( L"Load Texture Error : カラーチャンネル画像ファイル %s の読み込みに失敗しました\n", ColorFilePath ) ) ;
+				DXST_ERRORLOGFMT_ADDW(( L"Load Texture Error : Color Channel Image File : Read Error : %s\n", ColorFilePath ) ) ;
 #endif
 
 				// 読み込みに失敗した場合はエラー時用テクスチャを充てる
 				*ColorImage = DXALLOC( sizeof( Tga8x8TextureFileImage ) ) ;
 				if( *ColorImage == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load Texture Error : エラー回避用テクスチャを格納する領域の確保に失敗しました" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x54\x00\x65\x00\x78\x00\x74\x00\x75\x00\x72\x00\x65\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xa8\x30\xe9\x30\xfc\x30\xde\x56\x7f\x90\x28\x75\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"Load Texture Error : エラー回避用テクスチャを格納する領域の確保に失敗しました" @*/ )) ;
 					goto ERRORLABEL ;
 				}
 				_MEMCPY( *ColorImage, Tga8x8TextureFileImage, sizeof( Tga8x8TextureFileImage ) ) ;
@@ -12631,22 +9693,23 @@ extern int __MV1LoadTexture(
 #ifdef UNICODE
 				Result = FileReadFunc->Read( AlphaFilePath, &DataAddr, AlphaImageSize, FileReadFunc->Data ) ;
 #else
-				WCharToMBChar( 932 /* _GET_CODEPAGE() */, ( DXWCHAR * )AlphaFilePath, TempPath, 1024 ) ;
+				ConvString( ( const char * )AlphaFilePath, WCHAR_T_CODEPAGE, TempPath, CHAR_CODEPAGE ) ;
 				Result = FileReadFunc->Read( TempPath, &DataAddr, AlphaImageSize, FileReadFunc->Data ) ;
 #endif
+
 				if( Result != -1 )
 				{
-					*AlphaImage = DXALLOC( *AlphaImageSize ) ;
+					*AlphaImage = DXALLOC( ( size_t )( *AlphaImageSize ) ) ;
 					if( *AlphaImage == NULL )
 					{
 #ifndef DX_GCC_COMPILE
-						DXST_ERRORLOGFMT_ADDW( ( L"Load Texture Error : カラーチャンネル画像ファイル %s を保存するメモリの確保に失敗しました\n", AlphaFilePath ) ) ;
+						DXST_ERRORLOGFMT_ADDW(( L"Load Texture Error : Alpha Channel Image : Memory Alloc Error : %s\n", AlphaFilePath ) ) ;
 #endif
 						Result = -1 ;
 					}
 					else
 					{
-						_MEMCPY( *AlphaImage, DataAddr, *AlphaImageSize ) ;
+						_MEMCPY( *AlphaImage, DataAddr, ( size_t )( *AlphaImageSize ) ) ;
 					}
 					if( FileReadFunc->Release )
 					{
@@ -12662,14 +9725,14 @@ extern int __MV1LoadTexture(
 			if( Result == -1 )
 			{
 #ifndef DX_GCC_COMPILE
-				DXST_ERRORLOGFMT_ADDW( ( L"Load Texture Error : アルファチャンネル用テクスチャファイル %s の読み込みに失敗しました\n", AlphaFilePath ) ) ;
+				DXST_ERRORLOGFMT_ADDW(( L"Load Texture Error : Alpha Channel Image : Read Error : %s\n", AlphaFilePath ) ) ;
 #endif
 
 				// 読み込みに失敗した場合はエラー時用テクスチャを充てる
 				*AlphaImage = DXALLOC( sizeof( Tga8x8TextureFileImage ) ) ;
 				if( *AlphaImage == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load Texture Error : エラー回避用テクスチャを格納する領域の確保に失敗しました" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x54\x00\x65\x00\x78\x00\x74\x00\x75\x00\x72\x00\x65\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xa8\x30\xe9\x30\xfc\x30\xde\x56\x7f\x90\x28\x75\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"Load Texture Error : エラー回避用テクスチャを格納する領域の確保に失敗しました" @*/ )) ;
 					goto ERRORLABEL ;
 				}
 				_MEMCPY( *AlphaImage, Tga8x8TextureFileImage, sizeof( Tga8x8TextureFileImage ) ) ;
@@ -12683,7 +9746,7 @@ extern int __MV1LoadTexture(
 			int len ;
 
 			_WCSCPY( TempAlphaFilePath, ColorFilePath ) ;
-			len = lstrlenW( ColorFilePath ) ;
+			len = _WCSLEN( ColorFilePath ) ;
 			for( i = len - 1 ; i >= 0 && ColorFilePath[ i ] != L'.' && ColorFilePath[ i ] != L'\0' && ColorFilePath[ i ] != L'\\' && ColorFilePath[ i ] != L':' ; i -- ){}
 			if( ColorFilePath[ i ] == L'.' )
 			{
@@ -12700,22 +9763,22 @@ extern int __MV1LoadTexture(
 #ifdef UNICODE
 				Result = FileReadFunc->Read( TempAlphaFilePath, &DataAddr, AlphaImageSize, FileReadFunc->Data ) ;
 #else
-				WCharToMBChar( 932 /* _GET_CODEPAGE() */, ( DXWCHAR * )TempAlphaFilePath, TempPath, 1024 ) ;
+				ConvString( ( const char * )TempAlphaFilePath, WCHAR_T_CODEPAGE, TempPath, CHAR_CODEPAGE ) ;
 				Result = FileReadFunc->Read( TempPath, &DataAddr, AlphaImageSize, FileReadFunc->Data ) ;
 #endif
 				if( Result != -1 )
 				{
-					*AlphaImage = DXALLOC( *AlphaImageSize ) ;
+					*AlphaImage = DXALLOC( ( size_t )( *AlphaImageSize ) ) ;
 					if( *AlphaImage == NULL )
 					{
 #ifndef DX_GCC_COMPILE
-						DXST_ERRORLOGFMT_ADDW( ( L"Load Texture Error : カラーチャンネル画像ファイル %s を保存するメモリの確保に失敗しました\n", AlphaFilePath ) ) ;
+						DXST_ERRORLOGFMT_ADDW(( L"Load Texture Error : Alpha Channel Image File : Memory Alloc Error : %s\n", AlphaFilePath ) ) ;
 #endif
 						Result = -1 ;
 					}
 					else
 					{
-						_MEMCPY( *AlphaImage, DataAddr, *AlphaImageSize ) ;
+						_MEMCPY( *AlphaImage, DataAddr, ( size_t )( *AlphaImageSize ) ) ;
 					}
 					if( FileReadFunc->Release )
 					{
@@ -12740,18 +9803,19 @@ extern int __MV1LoadTexture(
 				BumpImageFlag, BumpImageNextPixelLength, ReverseFlag ) == -1 )
 	{
 		SetBmp32AllZeroAlphaToXRGB8( FALSE ) ;
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load Texture Error : テクスチャ用の BASEIMAGE の作成に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x54\x00\x65\x00\x78\x00\x74\x00\x75\x00\x72\x00\x65\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x28\x75\x6e\x30\x20\x00\x42\x00\x41\x00\x53\x00\x45\x00\x49\x00\x4d\x00\x41\x00\x47\x00\x45\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load Texture Error : テクスチャ用の BASEIMAGE の作成に失敗しました\n" @*/ )) ;
 		goto ERRORLABEL ;
 	}
 	SetBmp32AllZeroAlphaToXRGB8( FALSE ) ;
 
 	// ハンドルを得る
 	LOADGRAPH_GPARAM GParam ;
-	InitLoadGraphGParam( &GParam ) ;
+	Graphics_Image_InitLoadGraphGParam( &GParam ) ;
 	GParam.LoadBaseImageGParam.ConvertPremultipliedAlpha = FALSE ;
 	GParam.CreateGraphGParam.NotUseTransColor = TRUE ;
 	GParam.CreateGraphGParam.InitHandleGParam.MipMapCount = -1 ;
-	*GraphHandle = CreateGraphFromGraphImage_UseGParam( &GParam, FALSE, -1, &ColorBaseImage, *AlphaImage ? &AlphaBaseImage : NULL, TRUE, FALSE, FALSE, ASyncThread ) ;
+	GParam.CreateGraphGParam.InitHandleGParam.NotInitGraphDelete = TRUE ;
+	*GraphHandle = Graphics_Image_CreateGraphFromGraphImage_UseGParam( &GParam, FALSE, -1, &ColorBaseImage, *AlphaImage ? &AlphaBaseImage : NULL, TRUE, FALSE, FALSE, ASyncThread ) ;
 	if( *GraphHandle < 0 )
 	{
 		NS_ReleaseBaseImage( &ColorBaseImage ) ;
@@ -12825,15 +9889,27 @@ extern int __MV1LoadTexture(
 ERRORLABEL :
 	if( ValidImageAddr == false )
 	{
-		if( ColorFilePathMem && *ColorFilePathMem )
+#ifndef UNICODE
+		if( ColorFilePathAMem && *ColorFilePathAMem )
 		{
-			DXFREE( *ColorFilePathMem ) ;
-			*ColorFilePathMem = NULL ;
+			DXFREE( *ColorFilePathAMem ) ;
+			*ColorFilePathAMem = NULL ;
 		}
-		if( AlphaFilePathMem && *AlphaFilePathMem )
+		if( AlphaFilePathAMem && *AlphaFilePathAMem )
 		{
-			DXFREE( *AlphaFilePathMem ) ;
-			*AlphaFilePathMem = NULL ;
+			DXFREE( *AlphaFilePathAMem ) ;
+			*AlphaFilePathAMem = NULL ;
+		}
+#endif
+		if( ColorFilePathWMem && *ColorFilePathWMem )
+		{
+			DXFREE( *ColorFilePathWMem ) ;
+			*ColorFilePathWMem = NULL ;
+		}
+		if( AlphaFilePathWMem && *AlphaFilePathWMem )
+		{
+			DXFREE( *AlphaFilePathWMem ) ;
+			*AlphaFilePathWMem = NULL ;
 		}
 		if( *ColorImage )
 		{
@@ -12860,7 +9936,6 @@ ERRORLABEL :
 // 現在の設定でテクスチャを読み込む
 static int _MV1TextureLoadBase(
 	MV1_MODEL_BASE *ModelBase, MV1_TEXTURE_BASE *Texture,
-	const char *ColorFilePathA, const char *AlphaFilePathA,
 	const wchar_t *ColorFilePathW, const wchar_t *AlphaFilePathW,
 	int BumpImageFlag, float BumpImageNextPixelLength,
 	bool ReverseFlag,
@@ -12868,63 +9943,38 @@ static int _MV1TextureLoadBase(
 	int ASyncThread )
 {
 	void *ColorImage, *AlphaImage ;
-	char *ColorFilePathMem, *AlphaFilePathMem ;
+	wchar_t *ColorFilePathWMem, *AlphaFilePathWMem ;
+#ifndef UNICODE
+	char    *ColorFilePathAMem, *AlphaFilePathAMem ;
+#endif
 	int ColorImageSize, AlphaImageSize ;
 	int GraphHandle, SemiTransFlag, DefaultTextureFlag ;
-	wchar_t ColorPathW[ 512 ], AlphaPathW[ 512 ], *DirW ;
+	wchar_t *DirW ;
 	int Result ;
 
-#ifdef UNICODE
 	DirW = ModelBase->DirectoryPath ;
-#else
-	wchar_t DirectoryPathW[ 512 ] ;
-	MBCharToWChar( CP_ACP, ModelBase->DirectoryPath, ( DXWCHAR * )DirectoryPathW, 512 ) ;
-	DirW = DirectoryPathW ;
-#endif
 
 	// テクスチャの読み込み
-	if( ColorFilePathW )
-	{
-		Result =  __MV1LoadTexture(
-						&ColorImage, &ColorImageSize,
-						&AlphaImage, &AlphaImageSize,
-						&GraphHandle, &SemiTransFlag, &DefaultTextureFlag,
-						&ColorFilePathMem, &AlphaFilePathMem,
-						ColorFilePathW, AlphaFilePathW, DirW,
-						BumpImageFlag, BumpImageNextPixelLength,
-						ReverseFlag,
-						Bmp32AllZeroAlphaToXRGB8Flag,
-						NULL,
-						false,
-						ASyncThread
-				) ;
-	}
-	else
-	{
-		MBCharToWChar( CP_ACP, ColorFilePathA, ( DXWCHAR * )ColorPathW, 512 ) ;
-		if( AlphaFilePathA != NULL )
-		{
-			MBCharToWChar( CP_ACP, AlphaFilePathA, ( DXWCHAR * )AlphaPathW, 512 ) ;
-		}
-
-		Result = __MV1LoadTexture(
-						&ColorImage, &ColorImageSize,
-						&AlphaImage, &AlphaImageSize,
-						&GraphHandle, &SemiTransFlag, &DefaultTextureFlag,
-						&ColorFilePathMem, &AlphaFilePathMem,
-						ColorPathW, AlphaFilePathA ? AlphaPathW : NULL, DirW,
-						BumpImageFlag, BumpImageNextPixelLength,
-						ReverseFlag,
-						Bmp32AllZeroAlphaToXRGB8Flag,
-						NULL,
-						false,
-						ASyncThread
-				) ;
-	}
+	Result =  __MV1LoadTexture(
+					&ColorImage, &ColorImageSize,
+					&AlphaImage, &AlphaImageSize,
+					&GraphHandle, &SemiTransFlag, &DefaultTextureFlag,
+#ifndef UNICODE
+					&ColorFilePathAMem, &AlphaFilePathAMem,
+#endif
+					&ColorFilePathWMem, &AlphaFilePathWMem,
+					ColorFilePathW, AlphaFilePathW, DirW,
+					BumpImageFlag, BumpImageNextPixelLength,
+					ReverseFlag,
+					Bmp32AllZeroAlphaToXRGB8Flag,
+					NULL,
+					false,
+					ASyncThread
+			) ;
 
 	if( Result == -1 )
 	{
-		DXST_ERRORLOGFMT_ADDA( ( "Load Texture Error : テクスチャ %s 用の読み込みに失敗しました\n", Texture->Name ) ) ;
+		DXST_ERRORLOGFMT_ADDW(( L"Load Texture Error : Texture File : Load Error : %s\n", Texture->NameW ) ) ;
 		return -1 ;
 	}
 
@@ -12952,18 +10002,46 @@ static int _MV1TextureLoadBase(
 	{
 		if( Texture->ColorImageFilePathAllocMem )
 		{
-			DXFREE( Texture->ColorFilePath ) ;
+#ifndef UNICODE
+			if( Texture->ColorFilePathA )
+			{
+				DXFREE( Texture->ColorFilePathA ) ;
+				Texture->ColorFilePathA = NULL ;
+			}
+#endif
+			if( Texture->ColorFilePathW )
+			{
+				DXFREE( Texture->ColorFilePathW ) ;
+				Texture->ColorFilePathW = NULL ;
+			}
 		}
-		Texture->ColorFilePath = ColorFilePathMem ;
+#ifndef UNICODE
+		Texture->ColorFilePathA = ColorFilePathAMem ;
+#endif
+		Texture->ColorFilePathW = ColorFilePathWMem ;
 		Texture->ColorImageFilePathAllocMem = TRUE ;
 	}
 	if( Texture->AlphaImage )
 	{
 		if( Texture->AlphaImageFilePathAllocMem )
 		{
-			DXFREE( Texture->AlphaFilePath ) ;
+#ifndef UNICODE
+			if( Texture->AlphaFilePathA )
+			{
+				DXFREE( Texture->AlphaFilePathA ) ;
+				Texture->AlphaFilePathA = NULL ;
+			}
+#endif
+			if( Texture->AlphaFilePathW )
+			{
+				DXFREE( Texture->AlphaFilePathW ) ;
+				Texture->AlphaFilePathW = NULL ;
+			}
 		}
-		Texture->AlphaFilePath = AlphaFilePathMem ;
+#ifndef UNICODE
+		Texture->AlphaFilePathA = AlphaFilePathAMem ;
+#endif
+		Texture->AlphaFilePathW = AlphaFilePathWMem ;
 		Texture->AlphaImageFilePathAllocMem = TRUE ;
 	}
 
@@ -12990,7 +10068,6 @@ static int _MV1TextureLoadBase(
 
 static int _MV1TextureLoad(
 	MV1_MODEL_BASE *ModelBase, MV1_TEXTURE *Texture,
-	const char *ColorFilePathA, const char *AlphaFilePathA,
 	const wchar_t *ColorFilePathW, const wchar_t *AlphaFilePathW,
 	int BumpImageFlag, float BumpImageNextPixelLength,
 	bool ReverseFlag,
@@ -12999,60 +10076,36 @@ static int _MV1TextureLoad(
 {
 	void *ColorImage, *AlphaImage ;
 	int ColorImageSize, AlphaImageSize ;
-	char *ColorFilePathMem, *AlphaFilePathMem ;
+#ifndef UNICODE
+	char    *ColorFilePathAMem, *AlphaFilePathAMem ;
+#endif
+	wchar_t *ColorFilePathWMem, *AlphaFilePathWMem ;
 	int GraphHandle, SemiTransFlag, DefaultTextureFlag ;
-	wchar_t ColorPathW[ 512 ], AlphaPathW[ 512 ], *DirW ;
+	wchar_t *DirW ;
 	int Result ;
 
-#ifdef UNICODE
 	DirW = ModelBase->DirectoryPath ;
-#else
-	wchar_t DirectoryPathW[ 512 ] ;
-	MBCharToWChar( CP_ACP, ModelBase->DirectoryPath, ( DXWCHAR * )DirectoryPathW, 512 ) ;
-	DirW = DirectoryPathW ;
-#endif
 
 	// テクスチャの読み込み
-	if( ColorFilePathW )
-	{
-		Result =  __MV1LoadTexture(
-						&ColorImage, &ColorImageSize,
-						&AlphaImage, &AlphaImageSize,
-						&GraphHandle, &SemiTransFlag, &DefaultTextureFlag,
-						&ColorFilePathMem, &AlphaFilePathMem,
-						ColorFilePathW, AlphaFilePathW, DirW,
-						BumpImageFlag, BumpImageNextPixelLength,
-						ReverseFlag,
-						Bmp32AllZeroAlphaToXRGB8Flag,
-						NULL,
-						false,
-						ASyncThread ) ;
-	}
-	else
-	{
-		MBCharToWChar( CP_ACP, ColorFilePathA, ( DXWCHAR * )ColorPathW, 512 ) ;
-		if( AlphaFilePathA )
-		{
-			MBCharToWChar( CP_ACP, AlphaFilePathA, ( DXWCHAR * )AlphaPathW, 512 ) ;
-		}
-
-		Result = __MV1LoadTexture(
-						&ColorImage, &ColorImageSize,
-						&AlphaImage, &AlphaImageSize,
-						&GraphHandle, &SemiTransFlag, &DefaultTextureFlag,
-						&ColorFilePathMem, &AlphaFilePathMem,
-						ColorPathW, AlphaFilePathA ? AlphaPathW : NULL, DirW,
-						BumpImageFlag, BumpImageNextPixelLength,
-						ReverseFlag,
-						Bmp32AllZeroAlphaToXRGB8Flag,
-						NULL,
-						false,
-						ASyncThread ) ;
-	}
+	Result =  __MV1LoadTexture(
+					&ColorImage, &ColorImageSize,
+					&AlphaImage, &AlphaImageSize,
+					&GraphHandle, &SemiTransFlag, &DefaultTextureFlag,
+#ifndef UNICODE
+					&ColorFilePathAMem, &AlphaFilePathAMem,
+#endif
+					&ColorFilePathWMem, &AlphaFilePathWMem,
+					ColorFilePathW, AlphaFilePathW, DirW,
+					BumpImageFlag, BumpImageNextPixelLength,
+					ReverseFlag,
+					Bmp32AllZeroAlphaToXRGB8Flag,
+					NULL,
+					false,
+					ASyncThread ) ;
 
 	if( Result == -1 )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load Texture Error : テクスチャの読み込みに失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x54\x00\x65\x00\x78\x00\x74\x00\x75\x00\x72\x00\x65\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x6e\x30\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load Texture Error : テクスチャの読み込みに失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -13069,15 +10122,27 @@ static int _MV1TextureLoad(
 			DXFREE( Texture->AlphaImage ) ;
 			Texture->AlphaImage = NULL ;
 		}
-		if( Texture->ColorFilePath )
+#ifndef UNICODE
+		if( Texture->ColorFilePathA_ )
 		{
-			DXFREE( Texture->ColorFilePath ) ;
-			Texture->ColorFilePath = NULL ;
+			DXFREE( Texture->ColorFilePathA_ ) ;
+			Texture->ColorFilePathA_ = NULL ;
 		}
-		if( Texture->AlphaFilePath )
+		if( Texture->AlphaFilePathA_ )
 		{
-			DXFREE( Texture->AlphaFilePath ) ;
-			Texture->AlphaFilePath = NULL ;
+			DXFREE( Texture->AlphaFilePathA_ ) ;
+			Texture->AlphaFilePathA_ = NULL ;
+		}
+#endif
+		if( Texture->ColorFilePathW_ )
+		{
+			DXFREE( Texture->ColorFilePathW_ ) ;
+			Texture->ColorFilePathW_ = NULL ;
+		}
+		if( Texture->AlphaFilePathW_ )
+		{
+			DXFREE( Texture->AlphaFilePathW_ ) ;
+			Texture->AlphaFilePathW_ = NULL ;
 		}
 	}
 
@@ -13091,11 +10156,32 @@ static int _MV1TextureLoad(
 	// ファイルパスを保存
 	if( Texture->ColorImage )
 	{
-		Texture->ColorFilePath = ColorFilePathMem ;
+#ifndef UNICODE
+		Texture->ColorFilePathA_ = ColorFilePathAMem ;
+#endif
+		Texture->ColorFilePathW_ = ColorFilePathWMem ;
 	}
+	else
+	{
+#ifndef UNICODE
+		Texture->ColorFilePathA_ = NULL ;
+#endif
+		Texture->ColorFilePathW_ = NULL ;
+	}
+
 	if( Texture->AlphaImage )
 	{
-		Texture->AlphaFilePath = AlphaFilePathMem ;
+#ifndef UNICODE
+		Texture->AlphaFilePathA_ = AlphaFilePathAMem ;
+#endif
+		Texture->AlphaFilePathW_ = AlphaFilePathWMem ;
+	}
+	else
+	{
+#ifndef UNICODE
+		Texture->AlphaFilePathA_ = NULL ;
+#endif
+		Texture->AlphaFilePathW_ = NULL ;
 	}
 
 	// 画像ハンドルの保存
@@ -13136,25 +10222,23 @@ extern int MV1GetMaterialNumBase( int MBHandle )
 	return ModelBase->MaterialNum ;
 }
 
+#ifndef UNICODE
+
 // 指定のマテリアルの名前を取得する
 extern	const char *MV1GetMaterialNameBase( int MBHandle, int MaterialIndex )
 {
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, NULL ) ;
 
 	// 返す
-	return Material->Name ;
+	return Material->NameA ;
 }
+
+#endif
 
 // 指定のマテリアルの名前を取得する
 extern	const wchar_t *MV1GetMaterialNameBaseW( int MBHandle, int MaterialIndex )
 {
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, NULL ) ;
-
-	if( Material->NameW == NULL )
-	{
-		if( _MV1CreateWideCharNameBase( ModelBase, Material->Name, &Material->NameW ) == false )
-			return NULL ;
-	}
 
 	// 返す
 	return Material->NameW ;
@@ -13172,6 +10256,9 @@ extern int MV1SetMaterialTypeBase( int MBHandle, int MaterialIndex, int Type )
 
 	// 今までとタイプが同じだった場合は何もしない
 	if( Material->Type == Type ) return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// タイプを保存
 	Material->Type = Type ;
@@ -13268,6 +10355,9 @@ extern int MV1SetMaterialDifMapTextureBase( int MBHandle, int MaterialIndex, int
 	if( TexIndex < 0 || TexIndex >= ModelBase->TextureNum )
 		return -1 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 今までディフューズマップが無かった場合は１にする
 	if( Material->DiffuseLayerNum == 0 )
 	{
@@ -13317,6 +10407,9 @@ extern int MV1SetMaterialSpcMapTextureBase( int MBHandle, int MaterialIndex, int
 	if( TexIndex >= ModelBase->TextureNum )
 		return -1 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// テクスチャインデックスが 0 以下だった場合はスペキュラマップを解除する
 	if( TexIndex < 0 )
 	{
@@ -13357,6 +10450,9 @@ extern int MV1SetMaterialNormalMapTextureBase( int MBHandle, int MaterialIndex, 
 	if( TexIndex >= ModelBase->TextureNum )
 		return -1 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// テクスチャインデックスが 0 以下だった場合は法線マップを解除する
 	if( TexIndex < 0 )
 	{
@@ -13375,8 +10471,8 @@ extern int MV1SetMaterialNormalMapTextureBase( int MBHandle, int MaterialIndex, 
 	}
 
 	// 頂点バッファの作り直し
-	MV1TerminateVertexBufferBase( MBHandle ) ;
-	MV1SetupVertexBufferBase( MBHandle ) ;
+	MV1_TerminateVertexBufferBase_PF( MBHandle ) ;
+	MV1_SetupVertexBufferBase_PF( MBHandle ) ;
 
 	// 終了
 	return 0 ;
@@ -13409,6 +10505,9 @@ extern int MV1SetMaterialDifColorBase( int MBHandle, int MaterialIndex, COLOR_F 
 		*( ( DWORD * )&Material->Diffuse.b ) == *( ( DWORD * )&Color.b ) &&
 		*( ( DWORD * )&Material->Diffuse.a ) == *( ( DWORD * )&Color.a ) )
 		return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// セット
 	Material->Diffuse = Color ;
@@ -13449,6 +10548,9 @@ extern int MV1SetMaterialSpcColorBase( int MBHandle, int MaterialIndex, COLOR_F 
 		*( ( DWORD * )&Material->Specular.a ) == *( ( DWORD * )&Color.a ) )
 		return 0 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// セット
 	Material->Specular = Color ;
 
@@ -13486,6 +10588,9 @@ extern int MV1SetMaterialEmiColorBase( int MBHandle, int MaterialIndex, COLOR_F 
 		*( ( DWORD * )&Material->Emissive.b ) == *( ( DWORD * )&Color.b ) &&
 		*( ( DWORD * )&Material->Emissive.a ) == *( ( DWORD * )&Color.a ) )
 		return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// セット
 	Material->Emissive = Color ;
@@ -13525,6 +10630,9 @@ extern int MV1SetMaterialAmbColorBase( int MBHandle, int MaterialIndex, COLOR_F 
 		*( ( DWORD * )&Material->Ambient.a ) == *( ( DWORD * )&Color.a ) )
 		return 0 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// セット
 	Material->Ambient = Color ;
 
@@ -13552,6 +10660,14 @@ extern int MV1SetMaterialSpcPowerBase( int MBHandle, int MaterialIndex, float Po
 {
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
 
+	if( Material->Power == Power )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// セット
 	Material->Power = Power ;
 
@@ -13572,6 +10688,14 @@ extern int MV1SetMaterialDifGradTextureBase( int MBHandle, int MaterialIndex, in
 
 	if( TexIndex < -1 || TexIndex >= ModelBase->TextureNum )
 		return -1 ;
+
+	if( Material->DiffuseGradTexture == TexIndex )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// 設定
 	Material->DiffuseGradTexture = TexIndex ;
@@ -13619,6 +10743,14 @@ extern int MV1SetMaterialSpcGradTextureBase( int MBHandle, int MaterialIndex, in
 	if( TexIndex < -1 || TexIndex >= ModelBase->TextureNum )
 		return -1 ;
 
+	if( Material->SpecularGradTexture == TexIndex )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 設定
 	Material->SpecularGradTexture = TexIndex ;
 
@@ -13665,6 +10797,14 @@ extern int MV1SetMaterialSphereMapTextureBase( int MBHandle, int MaterialIndex, 
 	if( TexIndex < -1 || TexIndex >= ModelBase->TextureNum )
 		return -1 ;
 
+	if( Material->SphereMapTexture == TexIndex )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 設定
 	Material->SphereMapTexture = TexIndex ;
 
@@ -13707,6 +10847,14 @@ extern int MV1SetMaterialDifGradBlendTypeBase( int MBHandle, int MaterialIndex, 
 	int i ;
 
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
+
+	if( Material->DiffuseGradBlendType == BlendType )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// 設定
 	Material->DiffuseGradBlendType = BlendType ;
@@ -13751,6 +10899,14 @@ extern int MV1SetMaterialSpcGradBlendTypeBase( int MBHandle, int MaterialIndex, 
 
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
 
+	if( Material->SpecularGradBlendType == BlendType )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 設定
 	Material->SpecularGradBlendType = BlendType ;
 
@@ -13793,6 +10949,14 @@ extern int MV1SetMaterialSphereMapBlendTypeBase( int MBHandle, int MaterialIndex
 	int i ;
 
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
+
+	if( Material->SphereMapBlendType == BlendType )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// 設定
 	Material->SphereMapBlendType = BlendType ;
@@ -13837,6 +11001,14 @@ extern int MV1SetMaterialOutLineWidthBase( int MBHandle, int MaterialIndex, floa
 
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
 
+	if( Material->OutLineWidth == Width )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 設定
 	Material->OutLineWidth = Width ;
 
@@ -13879,6 +11051,14 @@ extern int MV1SetMaterialOutLineDotWidthBase( int MBHandle, int MaterialIndex, f
 	int i ;
 
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
+
+	if( Material->OutLineDotWidth == Width )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// 設定
 	Material->OutLineDotWidth = Width ;
@@ -13923,6 +11103,17 @@ extern int MV1SetMaterialOutLineColorBase( int MBHandle, int MaterialIndex, COLO
 
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
 
+	if( Material->OutLineColor.r == Color.r &&
+		Material->OutLineColor.g == Color.g &&
+		Material->OutLineColor.b == Color.b &&
+		Material->OutLineColor.a == Color.a )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 設定
 	Material->OutLineColor = Color ;
 
@@ -13966,6 +11157,14 @@ extern int MV1SetMaterialDrawBlendModeBase( int MBHandle, int MaterialIndex, int
 	int i ;
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
 
+	if( Material->DrawBlendMode == BlendMode )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// ブレンドモードのセット
 	Material->DrawBlendMode = BlendMode ;
 
@@ -13997,6 +11196,14 @@ extern int MV1SetMaterialDrawBlendParamBase( int MBHandle, int MaterialIndex, in
 	MV1_MESH *Mesh ;
 	int i ;
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
+
+	if( Material->DrawBlendParam == BlendParam )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// ブレンドパラメータのセット
 	Material->DrawBlendParam = BlendParam ;
@@ -14043,6 +11250,16 @@ extern int MV1GetMaterialDrawBlendParamBase( int MBHandle, int MaterialIndex )
 extern int MV1SetMaterialDrawAlphaTestBase( int MBHandle, int MaterialIndex, int Enable, int Mode, int Param )
 {
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
+
+	if( Material->UseAlphaTest == Enable &&
+		Material->AlphaFunc == Mode &&
+		Material->AlphaRef == Param )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// パラメータのセット
 	Material->UseAlphaTest = Enable ;
@@ -14100,8 +11317,7 @@ extern int MV1GetTextureNumBase( int MBHandle )
 // テクスチャの追加
 extern int MV1AddTextureBase( 
 	int MBHandle,
-	const char *Name,
-	const char *ColorFilePathA, const char *AlphaFilePathA,
+	const wchar_t *Name,
 	const wchar_t *ColorFilePathW, const wchar_t *AlphaFilePathW,
 	void * /*ColorFileImage*/, void * /*AlphaFileImage*/,
 	int AddressModeU, int AddressModeV, int FilterMode,
@@ -14115,28 +11331,28 @@ extern int MV1AddTextureBase(
 	MV1_TEXTURE_BASE *NewMBTexDim = NULL, *MBTexture = NULL ;
 	MV1_TEXTURE *NewTexDim = NULL, *Texture ;
 	int i, j ;
-	char *ColorFilePathMem = NULL, *AlphaFilePathMem = NULL ;
-	wchar_t ColorPathW[ 512 ], AlphaPathW[ 512 ], *DirW ;
+	wchar_t *ColorFilePathWMem = NULL, *AlphaFilePathWMem = NULL ;
+#ifndef UNICODE
+	char    *ColorFilePathAMem = NULL, *AlphaFilePathAMem = NULL ;
+#endif
+	wchar_t *DirW ;
 	int Result ;
 
 	if( MV1BMDLCHK( MBHandle, ModelBase ) )
 		return -1 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 新しいテクスチャの情報を格納するメモリ領域の確保
 	NewMBTexDim = ( MV1_TEXTURE_BASE * )DXALLOC( sizeof( MV1_TEXTURE_BASE ) * ( ModelBase->TextureNum + 1 ) ) ;
 	if( NewMBTexDim == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "新しいテクスチャ基本情報を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xb0\x65\x57\x30\x44\x30\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xfa\x57\x2c\x67\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"新しいテクスチャ基本情報を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		goto ERRORLABEL ;
 	}
 
-#ifdef UNICODE
 	DirW = ModelBase->DirectoryPath ;
-#else
-	wchar_t DirectoryPathW[ 512 ] ;
-	MBCharToWChar( CP_ACP, ModelBase->DirectoryPath, ( DXWCHAR * )DirectoryPathW, 512 ) ;
-	DirW = DirectoryPathW ;
-#endif
 
 	// 既存のデータを丸々コピー
 	_MEMCPY( NewMBTexDim, ModelBase->Texture, sizeof( MV1_TEXTURE_BASE ) * ModelBase->TextureNum ) ;
@@ -14153,10 +11369,13 @@ extern int MV1AddTextureBase(
 		MBTexture->UserGraphHandle = 0 ;
 
 		// 名前を保存
-		if( Name == NULL ) Name = "NoName" ;
+		if( Name == NULL )
+		{
+			Name = L"NoName" ;
+		}
 		MBTexture->NameAllocMem = TRUE ;
-		MBTexture->Name = ( char * )DXALLOC( lstrlenA( Name ) + 1 ) ;
-		_STRCPY( MBTexture->Name, Name ) ;
+		MBTexture->NameW = ( wchar_t * )DXALLOC( ( size_t )( ( _WCSLEN( Name ) + 1 ) * sizeof( wchar_t ) ) ) ;
+		_WCSCPY( MBTexture->NameW, Name ) ;
 
 		// 反転フラグをセット
 		MBTexture->ReverseFlag = ReverseFlag ? TRUE : FALSE ;
@@ -14165,50 +11384,27 @@ extern int MV1AddTextureBase(
 		MBTexture->Bmp32AllZeroAlphaToXRGB8Flag = Bmp32AllZeroAlphaToXRGB8Flag ? TRUE : FALSE ;
 
 		// テクスチャの読み込み
-		if( ColorFilePathW )
-		{
-			Result = __MV1LoadTexture(
-					&MBTexture->ColorImage, &MBTexture->ColorImageSize,
-					&MBTexture->AlphaImage, &MBTexture->AlphaImageSize,
-					&MBTexture->GraphHandle,
-					&MBTexture->SemiTransFlag,
-					&MBTexture->IsDefaultTexture,
-					&ColorFilePathMem, &AlphaFilePathMem,
-					ColorFilePathW, AlphaFilePathW, DirW,
-					BumpImageFlag, BumpImageNextPixelLength,
-					MBTexture->ReverseFlag,
-					MBTexture->Bmp32AllZeroAlphaToXRGB8Flag,
-					NULL,
-					false,
-					ASyncThread ) ;
-		}
-		else
-		{
-			MBCharToWChar( CP_ACP, ColorFilePathA, ( DXWCHAR * )ColorPathW, 512 ) ;
-			if( AlphaFilePathA )
-			{
-				MBCharToWChar( CP_ACP, AlphaFilePathA, ( DXWCHAR * )AlphaPathW, 512 ) ;
-			}
-
-			Result = __MV1LoadTexture(
-							&MBTexture->ColorImage, &MBTexture->ColorImageSize,
-							&MBTexture->AlphaImage, &MBTexture->AlphaImageSize,
-							&MBTexture->GraphHandle,
-							&MBTexture->SemiTransFlag,
-							&MBTexture->IsDefaultTexture,
-							&ColorFilePathMem, &AlphaFilePathMem,
-							ColorPathW, AlphaFilePathA ? AlphaPathW : NULL, DirW,
-							BumpImageFlag, BumpImageNextPixelLength,
-							MBTexture->ReverseFlag,
-							MBTexture->Bmp32AllZeroAlphaToXRGB8Flag,
-							NULL,
-							false,
-							ASyncThread ) ;
-		}
+		Result = __MV1LoadTexture(
+				&MBTexture->ColorImage, &MBTexture->ColorImageSize,
+				&MBTexture->AlphaImage, &MBTexture->AlphaImageSize,
+				&MBTexture->GraphHandle,
+				&MBTexture->SemiTransFlag,
+				&MBTexture->IsDefaultTexture,
+#ifndef UNICODE
+				&ColorFilePathAMem, &AlphaFilePathAMem,
+#endif
+				&ColorFilePathWMem, &AlphaFilePathWMem,
+				ColorFilePathW, AlphaFilePathW, DirW,
+				BumpImageFlag, BumpImageNextPixelLength,
+				MBTexture->ReverseFlag,
+				MBTexture->Bmp32AllZeroAlphaToXRGB8Flag,
+				NULL,
+				false,
+				ASyncThread ) ;
 
 		if( Result == -1 )
 		{
-			DXST_ERRORLOGFMT_ADDA( ( "Read Model Convert Error : テクスチャ %s の読み込みに失敗しました\n", Name ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Read Model Convert Error : Texture File : Load Error : %s\n", Name ) ) ;
 			goto ERRORLABEL ;
 		}
 
@@ -14216,17 +11412,27 @@ extern int MV1AddTextureBase(
 		if( MBTexture->ColorImage )
 		{
 			MBTexture->ColorImageFilePathAllocMem = TRUE ;
-			MBTexture->ColorFilePath = ColorFilePathMem ;
+			MBTexture->ColorFilePathW = ColorFilePathWMem ;
+#ifndef UNICODE
+			MBTexture->ColorFilePathA = ColorFilePathAMem ;
+#endif
 		}
 		if( MBTexture->AlphaImage )
 		{
 			MBTexture->AlphaImageFilePathAllocMem = TRUE ;
-			MBTexture->AlphaFilePath = AlphaFilePathMem ;
+			MBTexture->AlphaFilePathW = AlphaFilePathWMem ;
+#ifndef UNICODE
+			MBTexture->AlphaFilePathA = AlphaFilePathAMem ;
+#endif
 		}
 
 		// アドレッシングモードのセット
 		MBTexture->AddressModeU = AddressModeU ;
 		MBTexture->AddressModeV = AddressModeV ;
+
+		// ＵＶのスケール値をセット
+		MBTexture->ScaleU = 1.0f ;
+		MBTexture->ScaleV = 1.0f ;
 
 		// フィルタリングモードのセット
 		MBTexture->FilterMode = FilterMode ;
@@ -14247,7 +11453,7 @@ extern int MV1AddTextureBase(
 		NewTexDim = ( MV1_TEXTURE * )DXALLOC( sizeof( MV1_TEXTURE ) * ( ModelBase->TextureNum + 1 ) ) ;
 		if( NewTexDim == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "新しいテクスチャ情報を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xb0\x65\x57\x30\x44\x30\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"新しいテクスチャ情報を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 			goto ERRORLABEL ;
 		}
 
@@ -14260,13 +11466,17 @@ extern int MV1AddTextureBase(
 
 			Texture->BaseData = MBTexture ;
 
-			Texture->AlphaFilePath = MBTexture->AlphaFilePath ;
-			Texture->AlphaFilePathW = MBTexture->AlphaFilePathW ;
+#ifndef UNICODE
+			Texture->AlphaFilePathA_ = MBTexture->AlphaFilePathA ;
+#endif
+			Texture->AlphaFilePathW_ = MBTexture->AlphaFilePathW ;
 			Texture->AlphaImage = NULL ;
 			Texture->AlphaImageSize = 0 ;
 
-			Texture->ColorFilePath = MBTexture->ColorFilePath ;
-			Texture->ColorFilePathW = MBTexture->ColorFilePathW ;
+#ifndef UNICODE
+			Texture->ColorFilePathA_ = MBTexture->ColorFilePathA ;
+#endif
+			Texture->ColorFilePathW_ = MBTexture->ColorFilePathW ;
 			Texture->ColorImage = NULL ;
 			Texture->ColorImageSize = 0 ;
 
@@ -14287,6 +11497,8 @@ extern int MV1AddTextureBase(
 
 			Texture->AddressModeU = MBTexture->AddressModeU ;
 			Texture->AddressModeV = MBTexture->AddressModeV ;
+			Texture->ScaleU = MBTexture->ScaleU ;
+			Texture->ScaleV = MBTexture->ScaleV ;
 			Texture->FilterMode = MBTexture->FilterMode ;
 
 			Texture->ReverseFlag = MBTexture->ReverseFlag ;
@@ -14347,39 +11559,57 @@ ERRORLABEL :
 		NewTexDim = NULL ;
 	}
 
-	if( ColorFilePathMem )
+#ifndef UNICODE
+	if( ColorFilePathAMem )
 	{
-		DXFREE( ColorFilePathMem ) ;
-		ColorFilePathMem = NULL ;
+		DXFREE( ColorFilePathAMem ) ;
+		ColorFilePathAMem = NULL ;
 	}
 
-	if( AlphaFilePathMem )
+	if( AlphaFilePathAMem )
 	{
-		DXFREE( AlphaFilePathMem ) ;
-		AlphaFilePathMem = NULL ;
+		DXFREE( AlphaFilePathAMem ) ;
+		AlphaFilePathAMem = NULL ;
+	}
+#endif
+
+	if( ColorFilePathWMem )
+	{
+		DXFREE( ColorFilePathWMem ) ;
+		ColorFilePathWMem = NULL ;
+	}
+
+	if( AlphaFilePathWMem )
+	{
+		DXFREE( AlphaFilePathWMem ) ;
+		AlphaFilePathWMem = NULL ;
 	}
 
 	if( MBTexture )
 	{
-		if( MBTexture->Name )
+		if( MBTexture->AlphaFilePathW )
 		{
-			DXFREE( MBTexture->Name ) ;
-			MBTexture->Name = NULL ;
-		}
+#ifndef UNICODE
+			DXFREE( MBTexture->AlphaFilePathA ) ;
+			MBTexture->AlphaFilePathA = NULL ;
+#endif
+			DXFREE( MBTexture->AlphaFilePathW ) ;
+			MBTexture->AlphaFilePathW = NULL ;
 
-		if( MBTexture->AlphaFilePath )
-		{
-			DXFREE( MBTexture->AlphaFilePath ) ;
 			DXFREE( MBTexture->AlphaImage ) ;
-			MBTexture->AlphaFilePath = NULL ;
 			MBTexture->AlphaImage = NULL ;
 		}
 
-		if( MBTexture->ColorFilePath )
+		if( MBTexture->ColorFilePathW )
 		{
-			DXFREE( MBTexture->ColorFilePath ) ;
+#ifndef UNICODE
+			DXFREE( MBTexture->ColorFilePathA ) ;
+			MBTexture->ColorFilePathA = NULL ;
+#endif
+			DXFREE( MBTexture->ColorFilePathW ) ;
+			MBTexture->ColorFilePathW = NULL ;
+
 			DXFREE( MBTexture->ColorImage ) ;
-			MBTexture->ColorFilePath = NULL ;
 			MBTexture->ColorImage = NULL ;
 		}
 	}
@@ -14398,6 +11628,9 @@ extern int MV1DeleteTextureBase( int MBHandle, int TexIndex )
 
 	if( MV1BMDLCHK( MBHandle, ModelBase ) )
 		return -1 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// 指定のテクスチャインデックスが基本データと基本データを使用しているモデルデータで使用されていないか調べる
 	MBMaterial = ModelBase->Material ;
@@ -14419,7 +11652,7 @@ extern int MV1DeleteTextureBase( int MBHandle, int TexIndex )
 	// 使用されていたらエラー
 	if( i != ModelBase->MaterialNum )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "削除しようとしたテクスチャは基本データのマテリアルで使用されています\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4a\x52\x64\x96\x57\x30\x88\x30\x46\x30\x68\x30\x57\x30\x5f\x30\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x6f\x30\xfa\x57\x2c\x67\xc7\x30\xfc\x30\xbf\x30\x6e\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x67\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"削除しようとしたテクスチャは基本データのマテリアルで使用されています\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -14443,7 +11676,7 @@ extern int MV1DeleteTextureBase( int MBHandle, int TexIndex )
 	// 使用されていたらエラー
 	if( k != ModelBase->UseNum )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "削除しようとしたテクスチャはモデルデータのマテリアルで使用されています\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4a\x52\x64\x96\x57\x30\x88\x30\x46\x30\x68\x30\x57\x30\x5f\x30\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x6f\x30\xe2\x30\xc7\x30\xeb\x30\xc7\x30\xfc\x30\xbf\x30\x6e\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x67\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"削除しようとしたテクスチャはモデルデータのマテリアルで使用されています\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -14513,49 +11746,24 @@ extern int MV1DeleteTextureBase( int MBHandle, int TexIndex )
 	return 0 ;
 }
 
+#ifndef UNICODE
 // テクスチャの名前を取得
 extern const char *MV1GetTextureNameBase( int MBHandle, int TexIndex )
 {
 	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, NULL ) ;
 
 	// 値を返す
-	return Texture->Name ;
+	return Texture->NameA ;
 }
+#endif
 
 // テクスチャの名前を取得
 extern const wchar_t *MV1GetTextureNameBaseW( int MBHandle, int TexIndex )
 {
 	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, NULL ) ;
 
-	if( Texture->NameW == NULL )
-	{
-		if( _MV1CreateWideCharNameBase( ModelBase, Texture->Name, &Texture->NameW ) == false )
-			return NULL ;
-	}
-
 	// 値を返す
 	return Texture->NameW ;
-}
-
-// カラーテクスチャのファイルパスを変更する
-extern int MV1SetTextureColorFilePathBase( int MBHandle, int TexIndex, const char *FilePath )
-{
-	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, -1 ) ;
-
-	if( Texture->AlphaFilePathW && Texture->AlphaFilePath == NULL )
-	{
-		if( _MV1CreateMultiByteNameBase( ModelBase, Texture->AlphaFilePathW, &Texture->AlphaFilePath ) == false )
-			return -1 ;
-	}
-
-	return _MV1TextureLoadBase(
-				ModelBase, Texture,
-				FilePath, Texture->AlphaFilePath,
-				NULL, NULL,
-				Texture->BumpImageFlag, Texture->BumpImageNextPixelLength,
-				Texture->ReverseFlag != 0,
-				Texture->Bmp32AllZeroAlphaToXRGB8Flag != 0,
-				FALSE ) ;
 }
 
 // カラーテクスチャのファイルパスを変更する
@@ -14563,15 +11771,8 @@ extern int MV1SetTextureColorFilePathBaseW( int MBHandle, int TexIndex, const wc
 {
 	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, -1 ) ;
 
-	if( Texture->AlphaFilePath && Texture->AlphaFilePathW == NULL )
-	{
-		if( _MV1CreateWideCharNameBase( ModelBase, Texture->AlphaFilePath, &Texture->AlphaFilePathW ) == false )
-			return -1 ;
-	}
-
 	return _MV1TextureLoadBase(
 				ModelBase, Texture,
-				NULL, NULL,
 				FilePathW, Texture->AlphaFilePathW,
 				Texture->BumpImageFlag, Texture->BumpImageNextPixelLength,
 				Texture->ReverseFlag != 0,
@@ -14580,54 +11781,12 @@ extern int MV1SetTextureColorFilePathBaseW( int MBHandle, int TexIndex, const wc
 }
 
 // カラーテクスチャのファイルパスを取得
-extern const char *MV1GetTextureColorFilePathBase( int MBHandle, int TexIndex )
-{
-	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, NULL ) ;
-
-	if( Texture->ColorFilePathW && Texture->ColorFilePath == NULL )
-	{
-		if( _MV1CreateMultiByteNameBase( ModelBase, Texture->ColorFilePathW, &Texture->ColorFilePath ) == false )
-			return NULL ;
-	}
-
-	// 値を返す
-	return Texture->ColorFilePath ;
-}
-
-// カラーテクスチャのファイルパスを取得
 extern const wchar_t *MV1GetTextureColorFilePathBaseW( int MBHandle, int TexIndex )
 {
 	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, NULL ) ;
 
-	if( Texture->ColorFilePath && Texture->ColorFilePathW == NULL )
-	{
-		if( _MV1CreateWideCharNameBase( ModelBase, Texture->ColorFilePath, &Texture->ColorFilePathW ) == false )
-			return NULL ;
-	}
-
 	// 値を返す
 	return Texture->ColorFilePathW ;
-}
-
-// アルファテクスチャのファイルパスを変更する
-extern int MV1SetTextureAlphaFilePathBase( int MBHandle, int TexIndex, const char *FilePath )
-{
-	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, -1 ) ;
-
-	if( Texture->ColorFilePathW && Texture->ColorFilePath == NULL )
-	{
-		if( _MV1CreateMultiByteNameBase( ModelBase, Texture->ColorFilePathW, &Texture->ColorFilePath ) == false )
-			return -1 ;
-	}
-
-	return _MV1TextureLoadBase(
-				ModelBase, Texture,
-				Texture->ColorFilePath, FilePath,
-				NULL, NULL,
-				Texture->BumpImageFlag, Texture->BumpImageNextPixelLength,
-				Texture->ReverseFlag != 0,
-				Texture->Bmp32AllZeroAlphaToXRGB8Flag != 0,
-				FALSE ) ;
 }
 
 // アルファテクスチャのファイルパスを変更する
@@ -14635,15 +11794,8 @@ extern int MV1SetTextureAlphaFilePathBaseW( int MBHandle, int TexIndex, const wc
 {
 	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, -1 ) ;
 
-	if( Texture->ColorFilePath && Texture->ColorFilePathW == NULL )
-	{
-		if( _MV1CreateWideCharNameBase( ModelBase, Texture->ColorFilePath, &Texture->ColorFilePathW ) == false )
-			return -1 ;
-	}
-
 	return _MV1TextureLoadBase(
 				ModelBase, Texture,
-				NULL, NULL,
 				Texture->ColorFilePathW, FilePathW,
 				Texture->BumpImageFlag, Texture->BumpImageNextPixelLength,
 				Texture->ReverseFlag != 0,
@@ -14652,30 +11804,9 @@ extern int MV1SetTextureAlphaFilePathBaseW( int MBHandle, int TexIndex, const wc
 }
 
 // アルファテクスチャのファイルパスを取得
-extern const char *MV1GetTextureAlphaFilePathBase( int MBHandle, int TexIndex )
-{
-	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, NULL ) ;
-
-	if( Texture->AlphaFilePathW && Texture->AlphaFilePath == NULL )
-	{
-		if( _MV1CreateMultiByteNameBase( ModelBase, Texture->AlphaFilePathW, &Texture->AlphaFilePath ) == false )
-			return NULL ;
-	}
-
-	// 値を返す
-	return Texture->AlphaFilePath ;
-}
-
-// アルファテクスチャのファイルパスを取得
 extern const wchar_t *MV1GetTextureAlphaFilePathBaseW( int MBHandle, int TexIndex )
 {
 	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, NULL ) ;
-
-	if( Texture->AlphaFilePath && Texture->AlphaFilePathW == NULL )
-	{
-		if( _MV1CreateWideCharNameBase( ModelBase, Texture->AlphaFilePath, &Texture->AlphaFilePathW ) == false )
-			return NULL ;
-	}
 
 	// 値を返す
 	return Texture->AlphaFilePathW ;
@@ -14716,6 +11847,15 @@ extern int MV1GetTextureGraphHandleBase( int MBHandle, int TexIndex )
 extern int MV1SetTextureAddressModeBase( int MBHandle, int TexIndex, int AddrUMode, int AddrVMode )
 {
 	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, -1 ) ;
+
+	if( Texture->AddressModeU == AddrUMode &&
+		Texture->AddressModeV == AddrVMode )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	Texture->AddressModeU = AddrUMode ;
 	Texture->AddressModeV = AddrVMode ;
@@ -14771,8 +11911,7 @@ extern int MV1SetTextureBumpImageFlagBase( int MBHandle, int TexIndex, int Flag 
 
 	return _MV1TextureLoadBase(
 				ModelBase, Texture,
-				Texture->ColorFilePath, Texture->AlphaFilePath,
-				NULL, NULL,
+				Texture->ColorFilePathW, Texture->AlphaFilePathW,
 				Flag, Texture->BumpImageNextPixelLength,
 				Texture->ReverseFlag != 0,
 				Texture->Bmp32AllZeroAlphaToXRGB8Flag != 0,
@@ -14792,12 +11931,19 @@ extern int MV1SetTextureBumpImageNextPixelLengthBase( int MBHandle, int TexIndex
 {
 	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, -1 ) ;
 
+	if( Texture->BumpImageNextPixelLength == Length )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	Texture->BumpImageNextPixelLength = Length ;
 
 	return _MV1TextureLoadBase(
 				ModelBase, Texture,
-				Texture->ColorFilePath, Texture->AlphaFilePath,
-				NULL, NULL,
+				Texture->ColorFilePathW, Texture->AlphaFilePathW,
 				Texture->BumpImageFlag, Length,
 				Texture->ReverseFlag != 0,
 				Texture->Bmp32AllZeroAlphaToXRGB8Flag != 0,
@@ -14816,6 +11962,14 @@ extern float MV1GetTextureBumpImageNextPixelLengthBase( int MBHandle, int TexInd
 extern int MV1SetTextureSampleFilterModeBase( int MBHandle, int TexIndex, int FilterMode )
 {
 	MV1BASETEXTURELSTART( MBHandle, ModelBase, Texture, TexIndex, -1 ) ;
+
+	if( Texture->FilterMode == FilterMode )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	Texture->FilterMode = FilterMode ;
 
@@ -14849,6 +12003,9 @@ extern int MV1SetMeshUseVertDifColorBase( int MBHandle, int MeshIndex, int UseFl
 	if( MBMesh->UseVertexDiffuseColor == UseFlag )
 		return 0 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 設定を保存する
 	MBMesh->UseVertexDiffuseColor = UseFlag ;
 
@@ -14874,6 +12031,9 @@ extern int MV1SetMeshUseVertSpcColorBase( int MBHandle, int MeshIndex, int UseFl
 	// 今までとフラグが同じである場合は何もしない
 	if( MBMesh->UseVertexSpecularColor == UseFlag )
 		return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// 設定を保存する
 	MBMesh->UseVertexSpecularColor = UseFlag ;
@@ -14937,7 +12097,7 @@ extern int MV1GetShapeNumBase( int MBHandle )
 }
 
 // シェイプの名前からモデル中のシェイプのシェイプインデックスを取得する( 無かった場合は戻り値が-1 )
-extern int MV1SearchShapeBase( int MBHandle, const TCHAR *ShapeName )
+extern int MV1SearchShapeBase( int MBHandle, const wchar_t *ShapeName )
 {
 	MV1_MODEL_BASE *ModelBase ;
 	MV1_SHAPE_BASE *MBShape ;
@@ -14950,57 +12110,33 @@ extern int MV1SearchShapeBase( int MBHandle, const TCHAR *ShapeName )
 	if( MV1BMDLCHK( MBHandle, ModelBase ) )
 		return -1 ;
 
-#ifdef UNICODE
-
 	// 同名のシェイプを探す
 	MBShape = ModelBase->Shape ;
-	for( i = 0 ; i < ModelBase->ShapeNum ; i ++, MBShape ++ )
-	{
-		if( MBShape->NameW == NULL )
-		{
-			if( _MV1CreateWideCharNameBase( ModelBase, MBShape->Name, &MBShape->NameW ) == false )
-				return -1 ;
-		}
-
-		if( _WCSCMP( MBShape->NameW, ShapeName ) == 0 )
-			break ;
-	}
-
-#else
-
-	// 同名のシェイプを探す
-	MBShape = ModelBase->Shape ;
-	for( i = 0 ; i < ModelBase->ShapeNum && _STRCMP( MBShape->Name, ShapeName ) != 0 ; i ++, MBShape ++ ){}
-
-#endif
+	for( i = 0 ; i < ModelBase->ShapeNum && _WCSCMP( MBShape->NameW, ShapeName ) != 0 ; i ++, MBShape ++ ){}
 
 	// シェイプのインデックスを返す
 	return i == ModelBase->ShapeNum ? -2 : i ;
 }
 
 
+#ifndef UNICODE
 // 指定シェイプの名前を取得する
-extern const TCHAR *MV1GetShapeNameBase( int MBHandle, int ShapeIndex )
+extern const char *MV1GetShapeNameBaseA( int MBHandle, int ShapeIndex )
 {
 	MV1BASESHAPESTART( MBHandle, ModelBase, Shape, ShapeIndex, NULL ) ;
 
-#ifdef UNICODE
+	// シェイプの名前を返す
+	return Shape->NameA ;
+}
+#endif
 
-	if( Shape->NameW == NULL )
-	{
-		if( _MV1CreateWideCharNameBase( ModelBase, Shape->Name, &Shape->NameW ) == false )
-			return NULL ;
-	}
+// 指定シェイプの名前を取得する
+extern const wchar_t *MV1GetShapeNameBaseW( int MBHandle, int ShapeIndex )
+{
+	MV1BASESHAPESTART( MBHandle, ModelBase, Shape, ShapeIndex, NULL ) ;
 
 	// シェイプの名前を返す
 	return Shape->NameW ;
-
-#else
-
-	// シェイプの名前を返す
-	return Shape->Name ;
-
-#endif
 }
 
 // 指定シェイプが対象としているメッシュの数を取得する
@@ -15021,7 +12157,7 @@ extern int MV1GetShapeTargetMeshBase( int MBHandle, int ShapeIndex, int Index )
 		return -1 ;
 	}
 
-	return Shape->Mesh[ Index ].TargetMesh - ModelBase->Mesh ;
+	return ( int )( Shape->Mesh[ Index ].TargetMesh - ModelBase->Mesh ) ;
 }
 
 
@@ -15050,7 +12186,7 @@ extern int MV1GetShapeTargetMeshBase( int MBHandle, int ShapeIndex, int Index )
 // モデルデータハンドルの初期化
 extern int InitializeModelHandle( HANDLEINFO * )
 {
-	// 不需要特别处理
+	// 特に何もしない
 	return 0 ;
 }
 
@@ -15069,7 +12205,7 @@ extern int TerminateModelHandle( HANDLEINFO *HandleInfo )
 			NS_MV1DetachAnim( Model->HandleInfo.Handle, i ) ;
 
 		// 頂点データの解放
-		MV1TerminateVertexBuffer( Model->HandleInfo.Handle ) ;
+		MV1_TerminateVertexBuffer_PF( Model->HandleInfo.Handle ) ;
 
 		// アニメーションポインタ格納用メモリの解放
 		if( Model->AnimSet )
@@ -15110,28 +12246,29 @@ extern int TerminateModelHandle( HANDLEINFO *HandleInfo )
 		{
 			if( Texture->UseGraphHandle )
 			{
-				if( Texture->ColorFilePath )
+#ifndef UNICODE
+				if( Texture->ColorFilePathA_ )
 				{
-					DXFREE( Texture->ColorFilePath ) ;
-					Texture->ColorFilePath = NULL ;
+					DXFREE( Texture->ColorFilePathA_ ) ;
+					Texture->ColorFilePathA_ = NULL ;
 				}
 
-				if( Texture->AlphaFilePath )
+				if( Texture->AlphaFilePathA_ )
 				{
-					DXFREE( Texture->AlphaFilePath ) ;
-					Texture->AlphaFilePath = NULL ;
+					DXFREE( Texture->AlphaFilePathA_ ) ;
+					Texture->AlphaFilePathA_ = NULL ;
+				}
+#endif
+				if( Texture->ColorFilePathW_ )
+				{
+					DXFREE( Texture->ColorFilePathW_ ) ;
+					Texture->ColorFilePathW_ = NULL ;
 				}
 
-				if( Texture->ColorFilePathW )
+				if( Texture->AlphaFilePathW_ )
 				{
-					DXFREE( Texture->ColorFilePathW ) ;
-					Texture->ColorFilePathW = NULL ;
-				}
-
-				if( Texture->AlphaFilePathW )
-				{
-					DXFREE( Texture->AlphaFilePathW ) ;
-					Texture->AlphaFilePathW = NULL ;
+					DXFREE( Texture->AlphaFilePathW_ ) ;
+					Texture->AlphaFilePathW_ = NULL ;
 				}
 
 				if( Texture->ColorImage )
@@ -15192,9 +12329,9 @@ extern int TerminateModelHandle( HANDLEINFO *HandleInfo )
 }
 
 // モデルデータを追加する( -1:エラー  0以上:モデルデータハンドル )
-extern int MV1AddModel( void )
+extern int MV1AddModel( int ASyncThread )
 {
-	return AddHandle( DX_HANDLETYPE_MODEL ) ;
+	return AddHandle( DX_HANDLETYPE_MODEL, ASyncThread, -1 ) ;
 }
 
 // モデル基データからモデルデータを構築する( -1:エラー 0:成功 )
@@ -15219,7 +12356,8 @@ extern int MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncTh
 	MV1_PHYSICS_RIGIDBODY *PhysicsRigidBody ;
 	MV1_PHYSICS_JOINT_BASE *MBPhysicsJoint ;
 	MV1_PHYSICS_JOINT *PhysicsJoint ;
-	int i, j, k, Size, Num ;
+	int i, j, k ;
+	DWORD Size, Num ;
 	MV1_DRAW_MATERIAL InitDrawMat ;
 	int ShapeNormalPositionNum ;
 	int ShapeSkinPosition4BNum ;
@@ -15270,15 +12408,16 @@ extern int MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncTh
 	}
 
 	// モデルデータを格納するメモリ領域の確保
-	ChangeDrawMaterialFlagSize = ( 1 + MBase->FrameNum + MBase->MeshNum + 31 ) / 32 ;
-	ChangeMatrixFlagSize       = ( 1 + MBase->FrameNum                  + 31 ) / 32 ;
+	ChangeDrawMaterialFlagSize = ( DWORD )( ( 1 + MBase->FrameNum + MBase->MeshNum + 31 ) / 32 ) ;
+	ChangeMatrixFlagSize       = ( DWORD )( ( 1 + MBase->FrameNum                  + 31 ) / 32 ) ;
 	Size = 
 		sizeof( MV1_FRAME             ) * MBase->FrameNum * 2             +
 		sizeof( MATRIX_4X4CT          ) * MBase->SkinBoneNum              + 16 +
+		sizeof( MATRIX_4X4CT_F        ) * ( MBase->PackDrawMatrixUnitNum * MBase->PackDrawMaxNum ) +
 		sizeof( MATRIX_4X4CT *        ) * MBase->FrameUseSkinBoneNum      +
 		sizeof( MV1_MESH              ) * MBase->MeshNum                  + 
 		sizeof( MV1_SHAPE             ) * MBase->ShapeNum                 + 
-		sizeof( MV1_TRIANGLE_LIST     ) * MBase->TriangleListNum          +
+		( sizeof( MV1_TRIANGLE_LIST ) + sizeof( MV1_TRIANGLE_LIST_PF ) ) * MBase->TriangleListNum          +
 		sizeof( MV1_MATERIAL          ) * MBase->MaterialNum              +
 		sizeof( MV1_TEXTURE           ) * MBase->TextureNum               +
 		sizeof( MV1_TLIST_NORMAL_POS  ) * MBase->ShapeNormalPositionNum   + 16 +
@@ -15297,14 +12436,15 @@ extern int MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncTh
 	Model->Mesh                     = ( MV1_MESH                 * )( Model->Frame                    + MBase->FrameNum * 2        ) ;
 	Model->Shape                    = ( MV1_SHAPE                * )( Model->Mesh                     + MBase->MeshNum             ) ;
 	Model->TriangleList             = ( MV1_TRIANGLE_LIST        * )( Model->Shape                    + MBase->ShapeNum            ) ;
-	Model->Material                 = ( MV1_MATERIAL             * )( Model->TriangleList             + MBase->TriangleListNum     ) ;
+	Model->Material                 = ( MV1_MATERIAL             * )( ( BYTE * )Model->TriangleList + ( sizeof( MV1_TRIANGLE_LIST ) + sizeof( MV1_TRIANGLE_LIST_PF ) ) * MBase->TriangleListNum ) ;
 	Model->Texture                  = ( MV1_TEXTURE              * )( Model->Material                 + MBase->MaterialNum         ) ;
 	Model->PhysicsRigidBody         = ( MV1_PHYSICS_RIGIDBODY    * )( Model->Texture                  + MBase->TextureNum          ) ;
 	Model->PhysicsJoint             = ( MV1_PHYSICS_JOINT        * )( Model->PhysicsRigidBody         + MBase->PhysicsRigidBodyNum ) ;
 	Model->ChangeDrawMaterialFlag   = ( DWORD                    * )( Model->PhysicsJoint             + MBase->PhysicsJointNum     ) ;
 	Model->ChangeMatrixFlag         = ( DWORD                    * )( Model->ChangeDrawMaterialFlag   + ChangeDrawMaterialFlagSize ) ;
 	Model->SkinBoneMatrix           = ( MATRIX_4X4CT             * )( ( ( DWORD_PTR )( Model->ChangeMatrixFlag + ChangeMatrixFlagSize ) + 15 ) / 16 * 16 ) ;
-	Model->SkinBoneUseFrameMatrix   = ( MATRIX_4X4CT            ** )( Model->SkinBoneMatrix           + MBase->SkinBoneNum         ) ;
+	Model->PackDrawMatrix           = ( MATRIX_4X4CT_F           * )( Model->SkinBoneMatrix           + MBase->SkinBoneNum         ) ;
+	Model->SkinBoneUseFrameMatrix   = ( MATRIX_4X4CT            ** )( Model->PackDrawMatrix           + MBase->PackDrawMatrixUnitNum * MBase->PackDrawMaxNum ) ;
 	Model->ShapeVertex              = ( MV1_SHAPE_VERTEX         * )( Model->SkinBoneUseFrameMatrix   + MBase->FrameUseSkinBoneNum ) ;
 	Model->ShapeNormalPosition      = ( MV1_TLIST_NORMAL_POS     * )( ( ( DWORD_PTR )( Model->ShapeVertex + MBase->ShapeTargetMeshVertexNum ) + 15 ) / 16 * 16 ) ;
 	Model->ShapeSkinPosition4B      = ( MV1_TLIST_SKIN_POS_4B    * )( Model->ShapeNormalPosition      + MBase->ShapeNormalPositionNum ) ;
@@ -15380,13 +12520,17 @@ extern int MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncTh
 	{
 		Texture->BaseData = MBTexture ;
 
-		Texture->AlphaFilePath = MBTexture->AlphaFilePath ;
-		Texture->AlphaFilePathW = MBTexture->AlphaFilePathW ;
+#ifndef UNICODE
+		Texture->AlphaFilePathA_ = MBTexture->AlphaFilePathA ;
+#endif
+		Texture->AlphaFilePathW_ = MBTexture->AlphaFilePathW ;
 		Texture->AlphaImage = NULL ;
 		Texture->AlphaImageSize = 0 ;
 
-		Texture->ColorFilePath = MBTexture->ColorFilePath ;
-		Texture->ColorFilePathW = MBTexture->ColorFilePathW ;
+#ifndef UNICODE
+		Texture->ColorFilePathA_ = MBTexture->ColorFilePathA ;
+#endif
+		Texture->ColorFilePathW_ = MBTexture->ColorFilePathW ;
 		Texture->ColorImage = NULL ;
 		Texture->ColorImageSize = 0 ;
 
@@ -15407,6 +12551,8 @@ extern int MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncTh
 
 		Texture->AddressModeU = MBTexture->AddressModeU ;
 		Texture->AddressModeV = MBTexture->AddressModeV ;
+		Texture->ScaleU = MBTexture->ScaleU ;
+		Texture->ScaleV = MBTexture->ScaleV ;
 		Texture->FilterMode = MBTexture->FilterMode ;
 
 		Texture->ReverseFlag = MBTexture->ReverseFlag ;
@@ -15489,12 +12635,12 @@ extern int MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncTh
 	// トライアングルリストの情報をセット
 	MBTList = MBase->TriangleList ;
 	TList = Model->TriangleList ;
-	for( i = 0 ; i < MBase->TriangleListNum ; i ++, MBTList ++, TList ++ )
+	for( i = 0 ; i < MBase->TriangleListNum ; i ++, MBTList ++, TList = ( MV1_TRIANGLE_LIST * )( ( BYTE * )TList + sizeof( MV1_TRIANGLE_LIST ) + sizeof( MV1_TRIANGLE_LIST_PF ) ) )
 	{
+		TList->PF = ( MV1_TRIANGLE_LIST_PF * )( TList + 1 ) ;
 		TList->BaseData = MBTList ;
 		TList->Container = Model->Mesh + ( MBTList->Container - MBase->Mesh ) ;
 		TList->NormalPosition = NULL ;
-		TList->VertexBuffer = NULL ;
 	}
 
 	// シェイプの情報をセット
@@ -15527,7 +12673,7 @@ extern int MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncTh
 
 		if( MBMesh->TriangleListNum )
 		{
-			Mesh->TriangleList = Model->TriangleList + ( MBMesh->TriangleList - MBase->TriangleList ) ;
+			Mesh->TriangleList = ( MV1_TRIANGLE_LIST * )( ( BYTE * )Model->TriangleList + ( MBMesh->TriangleList - MBase->TriangleList ) * ( sizeof( MV1_TRIANGLE_LIST ) + sizeof( MV1_TRIANGLE_LIST_PF ) ) );
 
 			if( MBMesh->Shape )
 			{
@@ -15536,7 +12682,7 @@ extern int MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncTh
 
 				TList = Mesh->TriangleList ;
 				MBTList = MBMesh->TriangleList ;
-				for( k = 0 ; k < MBMesh->TriangleListNum ; k ++, TList ++, MBTList ++ )
+				for( k = 0 ; k < MBMesh->TriangleListNum ; k ++, MBTList ++, TList = ( MV1_TRIANGLE_LIST * )( ( BYTE * )TList + sizeof( MV1_TRIANGLE_LIST ) + sizeof( MV1_TRIANGLE_LIST_PF ) ) )
 				{
 					switch( MBTList->VertexType )
 					{
@@ -15590,7 +12736,7 @@ extern int MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncTh
 		Frame->DrawMaterialChange.Target   = Model->ChangeDrawMaterialFlag + MBFrame->ChangeDrawMaterialInfo.Target ;
 
 		Frame->DrawMaterial = InitDrawMat ;
-		Frame->DrawMaterial.Visible = ( MBFrame->Flag & MV1_FRAMEFLAG_VISIBLE ) != 0 ? 1 : 0 ;
+		Frame->DrawMaterial.Visible = ( BYTE )( ( MBFrame->Flag & MV1_FRAMEFLAG_VISIBLE ) != 0 ? 1 : 0 ) ;
 
 		if( MBFrame->MeshNum )
 		{
@@ -15636,8 +12782,8 @@ extern int MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncTh
 
 	// 各フレームの子リストを作成する
 	Model->TopFrameList = ( MV1_FRAME ** )( ( MV1_FRAME * )Model->DataBuffer + MBase->FrameNum ) ;
-	Num = Model->TopFrameNum ;
-	Frame = Model->Frame ;
+	Num     = ( DWORD )Model->TopFrameNum ;
+	Frame   = Model->Frame ;
 	MBFrame = MBase->Frame ;
 	for( i = 0 ; i < MBase->FrameNum ; i ++, Frame ++, MBFrame ++ )
 	{
@@ -15666,7 +12812,7 @@ extern int MV1MakeModel( int MV1ModelHandle, int MV1ModelBaseHandle, int ASyncTh
 	MV1GetMaxMinPosition( MV1ModelHandle, NULL, NULL, ASyncThread ) ;
 
 	// 頂点バッファのセットアップを行う
-	MV1SetupVertexBuffer( MV1ModelHandle, ASyncThread ) ;
+	MV1_SetupVertexBuffer_PF( MV1ModelHandle, ASyncThread ) ;
 
 #ifndef DX_NON_BULLET_PHYSICS
 	// 物理演算のセットアップ
@@ -15687,7 +12833,7 @@ extern int MV1GetMaxMinPosition( int MHandle, VECTOR *MaxPosition, VECTOR *MinPo
 	MV1_FRAME_BASE *MBFrame ;
 	MV1_MESH_BASE *Mesh ;
 	MV1_TRIANGLE_LIST_BASE *TList ;
-	MATRIX_4X4CT BlendMat, *pBlendMat[ DX_VS_CONSTF_WORLD_MAT_NUM ], *Mat ;
+	MATRIX_4X4CT BlendMat, *pBlendMat[ MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM ] ;
 	int i, k, l, m, n ;
 	float Weight ;
 	VECTOR DestVector ;
@@ -15796,7 +12942,9 @@ extern int MV1GetMaxMinPosition( int MHandle, VECTOR *MaxPosition, VECTOR *MinPo
 
 						// 行列のポインタを準備
 						for( m = 0 ; m < TList->UseBoneNum ; m ++ )
+						{
 							pBlendMat[ m ] = Frame->UseSkinBoneMatrix[ TList->UseBone[ m ] ] ;
+						}
 
 						// データのセット
 						Skin4B = ( MV1_TLIST_SKIN_POS_4B * )ADDR16( TList->SkinPosition4B ) ;
@@ -15809,21 +12957,7 @@ extern int MV1GetMaxMinPosition( int MHandle, VECTOR *MaxPosition, VECTOR *MinPo
 								Weight = Skin4B->MatrixWeight[ n ] ;
 
 								if( Weight == 0.0f ) continue ;
-								Mat = pBlendMat[ Skin4B->MatrixIndex[ n ] ] ;
-								BlendMat.m[ 0 ][ 0 ] += Mat->m[ 0 ][ 0 ] * Weight ;
-								BlendMat.m[ 0 ][ 1 ] += Mat->m[ 0 ][ 1 ] * Weight ;
-								BlendMat.m[ 0 ][ 2 ] += Mat->m[ 0 ][ 2 ] * Weight ;
-								BlendMat.m[ 0 ][ 3 ] += Mat->m[ 0 ][ 3 ] * Weight ;
-
-								BlendMat.m[ 1 ][ 0 ] += Mat->m[ 1 ][ 0 ] * Weight ;
-								BlendMat.m[ 1 ][ 1 ] += Mat->m[ 1 ][ 1 ] * Weight ;
-								BlendMat.m[ 1 ][ 2 ] += Mat->m[ 1 ][ 2 ] * Weight ;
-								BlendMat.m[ 1 ][ 3 ] += Mat->m[ 1 ][ 3 ] * Weight ;
-
-								BlendMat.m[ 2 ][ 0 ] += Mat->m[ 2 ][ 0 ] * Weight ;
-								BlendMat.m[ 2 ][ 1 ] += Mat->m[ 2 ][ 1 ] * Weight ;
-								BlendMat.m[ 2 ][ 2 ] += Mat->m[ 2 ][ 2 ] * Weight ;
-								BlendMat.m[ 2 ][ 3 ] += Mat->m[ 2 ][ 3 ] * Weight ;
+								UnSafeMatrix4X4CT_C_EqPlus_C_Mul_S( &BlendMat, pBlendMat[ Skin4B->MatrixIndex[ n ] ], Weight ) ;
 							}
 
 							VectorTransform4X4CT( &DestVector, ( VECTOR * )&Skin4B->Position, &BlendMat ) ;
@@ -15861,21 +12995,7 @@ extern int MV1GetMaxMinPosition( int MHandle, VECTOR *MaxPosition, VECTOR *MinPo
 								Weight = Skin8B->MatrixWeight[ n ] ;
 
 								if( Weight == 0.0f ) continue ;
-								Mat = pBlendMat[ n < 4 ? Skin8B->MatrixIndex1[ n ] : Skin8B->MatrixIndex2[ n - 4 ] ] ;
-								BlendMat.m[ 0 ][ 0 ] += Mat->m[ 0 ][ 0 ] * Weight ;
-								BlendMat.m[ 0 ][ 1 ] += Mat->m[ 0 ][ 1 ] * Weight ;
-								BlendMat.m[ 0 ][ 2 ] += Mat->m[ 0 ][ 2 ] * Weight ;
-								BlendMat.m[ 0 ][ 3 ] += Mat->m[ 0 ][ 3 ] * Weight ;
-
-								BlendMat.m[ 1 ][ 0 ] += Mat->m[ 1 ][ 0 ] * Weight ;
-								BlendMat.m[ 1 ][ 1 ] += Mat->m[ 1 ][ 1 ] * Weight ;
-								BlendMat.m[ 1 ][ 2 ] += Mat->m[ 1 ][ 2 ] * Weight ;
-								BlendMat.m[ 1 ][ 3 ] += Mat->m[ 1 ][ 3 ] * Weight ;
-
-								BlendMat.m[ 2 ][ 0 ] += Mat->m[ 2 ][ 0 ] * Weight ;
-								BlendMat.m[ 2 ][ 1 ] += Mat->m[ 2 ][ 1 ] * Weight ;
-								BlendMat.m[ 2 ][ 2 ] += Mat->m[ 2 ][ 2 ] * Weight ;
-								BlendMat.m[ 2 ][ 3 ] += Mat->m[ 2 ][ 3 ] * Weight ;
+								UnSafeMatrix4X4CT_C_EqPlus_C_Mul_S( &BlendMat, pBlendMat[ n < 4 ? Skin8B->MatrixIndex1[ n ] : Skin8B->MatrixIndex2[ n - 4 ] ], Weight ) ;
 							}
 
 							VectorTransform4X4CT( &DestVector, &Skin8B->Position, &BlendMat ) ;
@@ -15917,22 +13037,7 @@ extern int MV1GetMaxMinPosition( int MHandle, VECTOR *MaxPosition, VECTOR *MinPo
 									Weight = VBlend->W ;
 
 									if( Weight == 0.0f ) continue ;
-
-									Mat = Frame->UseSkinBoneMatrix[ VBlend->Index ] ;
-									BlendMat.m[ 0 ][ 0 ] += Mat->m[ 0 ][ 0 ] * Weight ;
-									BlendMat.m[ 0 ][ 1 ] += Mat->m[ 0 ][ 1 ] * Weight ;
-									BlendMat.m[ 0 ][ 2 ] += Mat->m[ 0 ][ 2 ] * Weight ;
-									BlendMat.m[ 0 ][ 3 ] += Mat->m[ 0 ][ 3 ] * Weight ;
-
-									BlendMat.m[ 1 ][ 0 ] += Mat->m[ 1 ][ 0 ] * Weight ;
-									BlendMat.m[ 1 ][ 1 ] += Mat->m[ 1 ][ 1 ] * Weight ;
-									BlendMat.m[ 1 ][ 2 ] += Mat->m[ 1 ][ 2 ] * Weight ;
-									BlendMat.m[ 1 ][ 3 ] += Mat->m[ 1 ][ 3 ] * Weight ;
-
-									BlendMat.m[ 2 ][ 0 ] += Mat->m[ 2 ][ 0 ] * Weight ;
-									BlendMat.m[ 2 ][ 1 ] += Mat->m[ 2 ][ 1 ] * Weight ;
-									BlendMat.m[ 2 ][ 2 ] += Mat->m[ 2 ][ 2 ] * Weight ;
-									BlendMat.m[ 2 ][ 3 ] += Mat->m[ 2 ][ 3 ] * Weight ;
+									UnSafeMatrix4X4CT_C_EqPlus_C_Mul_S( &BlendMat, Frame->UseSkinBoneMatrix[ VBlend->Index ], Weight ) ;
 								}
 							}
 
@@ -15981,6 +13086,9 @@ extern int MV1GetMaxMinPosition( int MHandle, VECTOR *MaxPosition, VECTOR *MinPo
 // モデルデータを削除する
 extern int MV1SubModel( int MV1ModelHandle )
 {
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	return SubHandle( MV1ModelHandle ) ;
 }
 
@@ -16005,16 +13113,22 @@ static int MV1LoadModelFromMem_Static(
 	// 初期化されていなかったらエラー
 	if( MV1Man.Initialize == false ) return -1 ;
 
+	// ３Ｄモデル用シェーダーの初期化チェック
+	if( Graphics_Hardware_Shader_ModelCode_Init_PF() < 0 )
+	{
+		return -1 ;
+	}
+
 	// ファイルを格納するメモリを確保
-	DataBuffer = DXALLOC( FileSize + 1 ) ;
+	DataBuffer = DXALLOC( ( size_t )( FileSize + 1 ) ) ;
 	if( DataBuffer == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "モデルファイルイメージのデータを格納するメモリ領域の確保に失敗しました" ) )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xe2\x30\xc7\x30\xeb\x30\xd5\x30\xa1\x30\xa4\x30\xeb\x30\xa4\x30\xe1\x30\xfc\x30\xb8\x30\x6e\x30\xc7\x30\xfc\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"モデルファイルイメージのデータを格納するメモリ領域の確保に失敗しました" @*/ )) ;
 		goto ERRORLABEL ;
 	}
 
 	// データをコピー
-	_MEMCPY( DataBuffer, FileImage,  FileSize ) ;
+	_MEMCPY( DataBuffer, FileImage,  ( size_t )FileSize ) ;
 
 	// テキスト形式の場合用に終端文字をセット
 	( ( BYTE * )DataBuffer )[  FileSize ] = '\0' ;
@@ -16027,8 +13141,8 @@ static int MV1LoadModelFromMem_Static(
 	LoadParam.GParam			= *GParam ;
 	LoadParam.DataBuffer		= DataBuffer ;
 	LoadParam.DataSize			= FileSize ;
-	LoadParam.FilePath			= _T( "" ) ;
-	LoadParam.Name				= _T( "" ) ;
+	LoadParam.FilePath			= L"" ;
+	LoadParam.Name				= L"" ;
 	LoadParam.CurrentDir		= NULL ;
 	LoadParam.FileReadFunc		= &FileReadFuncParam ;
 
@@ -16076,7 +13190,7 @@ static int MV1LoadModelFromMem_Static(
 
 LOADCOMPLABEL :
 	// 頂点バッファのセットアップを行う
-	MV1SetupVertexBufferBase( NewBaseHandle, 1, ASyncThread ) ;
+	MV1_SetupVertexBufferBase_PF( NewBaseHandle, 1, ASyncThread ) ;
 
 	// ファイルから読み込んだデータを解放する
 	if( DataBuffer )
@@ -16084,19 +13198,11 @@ LOADCOMPLABEL :
 		DXFREE( DataBuffer ) ;
 		DataBuffer = NULL ;
 	}
-/*
-	// モデルデータを作成する
-	NewHandle = MV1AddModel() ;
-	if( NewHandle == -1 )
-	{
-		DXST_ERRORLOGFMT_ADD(( _T( "モデルファイルイメージからのモデルハンドルの作成に失敗しました" ) )) ;
-		goto ERRORLABEL ;
-	}
-*/
+
 	// 構築
 	if( MV1MakeModel( MHandle, NewBaseHandle, ASyncThread ) < 0 )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "モデルファイルイメージからのモデル基本データからモデルデータへの変換に失敗しました" ) )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xe2\x30\xc7\x30\xeb\x30\xd5\x30\xa1\x30\xa4\x30\xeb\x30\xa4\x30\xe1\x30\xfc\x30\xb8\x30\x4b\x30\x89\x30\x6e\x30\xe2\x30\xc7\x30\xeb\x30\xfa\x57\x2c\x67\xc7\x30\xfc\x30\xbf\x30\x4b\x30\x89\x30\xe2\x30\xc7\x30\xeb\x30\xc7\x30\xfc\x30\xbf\x30\x78\x30\x6e\x30\x09\x59\xdb\x63\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"モデルファイルイメージからのモデル基本データからモデルデータへの変換に失敗しました" @*/ )) ;
 		goto ERRORLABEL ;
 	}
 
@@ -16142,14 +13248,14 @@ static void MV1LoadModelFromMem_ASync( ASYNCLOADDATA_COMMON *AParam )
 	int Addr ;
 	int Result ;
 
-	Addr = 0 ;
-	GParam = ( MV1LOADMODEL_GPARAM * )GetASyncLoadParamStruct( AParam->Data, &Addr ) ;
-	MHandle = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
-	FileImage = GetASyncLoadParamVoidP( AParam->Data, &Addr ) ;
-	FileSize = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
-	FileReadFunc = ( int (*)( const TCHAR *FilePath, void **FileImageAddr, int *FileSize, void *FileReadFuncData ) )GetASyncLoadParamVoidP( AParam->Data, &Addr ) ;
-	FileReleaseFunc = ( int (*)( void *MemoryAddr, void *FileReadFuncData ) )GetASyncLoadParamVoidP( AParam->Data, &Addr ) ;
-	FileReadFuncData = GetASyncLoadParamVoidP( AParam->Data, &Addr ) ;
+	Addr				= 0 ;
+	GParam				= ( MV1LOADMODEL_GPARAM * )GetASyncLoadParamStruct( AParam->Data, &Addr ) ;
+	MHandle				= GetASyncLoadParamInt( AParam->Data, &Addr ) ;
+	FileImage			= GetASyncLoadParamVoidP( AParam->Data, &Addr ) ;
+	FileSize			= GetASyncLoadParamInt( AParam->Data, &Addr ) ;
+	FileReadFunc		= ( int (*)( const TCHAR *FilePath, void **FileImageAddr, int *FileSize, void *FileReadFuncData ) )GetASyncLoadParamVoidP( AParam->Data, &Addr ) ;
+	FileReleaseFunc		= ( int (*)( void *MemoryAddr, void *FileReadFuncData ) )GetASyncLoadParamVoidP( AParam->Data, &Addr ) ;
+	FileReadFuncData	= GetASyncLoadParamVoidP( AParam->Data, &Addr ) ;
 
 	Result = MV1LoadModelFromMem_Static( GParam, MHandle, FileImage, FileSize, FileReadFunc, FileReleaseFunc, FileReadFuncData, TRUE ) ;
 	DecASyncLoadCount( MHandle ) ;
@@ -16176,9 +13282,11 @@ extern int MV1LoadModelFromMem_UseGParam(
 	if( WinData.ActiveFlag == FALSE )
 		DxActiveWait() ;
 
-	MHandle = MV1AddModel() ;
+	MHandle = MV1AddModel( FALSE ) ;
 	if( MHandle < 0 )
+	{
 		return -1 ;
+	}
 
 #ifndef DX_NON_ASYNCLOAD
 	if( ASyncLoadFlag )
@@ -16230,7 +13338,7 @@ extern int MV1LoadModelFromMem_UseGParam(
 			goto ERR ;
 	}
 
-	// 返回句柄
+	// ハンドルを返す
 	return MHandle ;
 
 ERR :
@@ -16260,9 +13368,9 @@ extern int NS_MV1LoadModelFromMem(
 static int MV1LoadModel_Static(
 	MV1LOADMODEL_GPARAM *GParam,
 	int MHandle,
-	const TCHAR *FileName,
-	const TCHAR *Directory,
-	const TCHAR *Name,
+	const wchar_t *FileName,
+	const wchar_t *Directory,
+	const wchar_t *Name,
 	int ASyncThread
 )
 {
@@ -16271,18 +13379,24 @@ static int MV1LoadModel_Static(
 	int NewBaseHandle = -1 ;
 	DWORD_PTR FileHandle = 0 ;
 	MV1_MODEL_LOAD_PARAM LoadParam ;
-	TCHAR FullPath[ 1024 ] ;
+	wchar_t FullPath[ 1024 ] ;
 
-	ConvertFullPathT_( FileName, FullPath, NULL ) ;
+	ConvertFullPathW_( FileName, FullPath, NULL ) ;
 
 	// 初期化されていなかったらエラー
 	if( MV1Man.Initialize == false ) return -1 ;
+
+	// ３Ｄモデル用シェーダーの初期化チェック
+	if( Graphics_Hardware_Shader_ModelCode_Init_PF() < 0 )
+	{
+		return -1 ;
+	}
 
 	// ファイルを丸ごと読み込む
 	FileHandle = FOPEN( FileName ) ;
 	if( FileHandle == 0 )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "モデルファイル %s が読み込めませんでした" ), FullPath )) ;
+		DXST_ERRORLOGFMT_ADDW(( L"Model File Open Error : %s", FullPath )) ;
 		goto ERRORLABEL ;
 	}
 
@@ -16295,7 +13409,7 @@ static int MV1LoadModel_Static(
 	DataBuffer = DXALLOC( DataSize + 1 ) ;
 	if( DataBuffer == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "モデルファイル %s のデータを格納するメモリ領域の確保に失敗しました" ), FullPath )) ;
+		DXST_ERRORLOGFMT_ADDW(( L"Model File Memory Alloc Error : %s", FullPath )) ;
 		goto ERRORLABEL ;
 	}
 
@@ -16355,7 +13469,7 @@ static int MV1LoadModel_Static(
 
 LOADCOMPLABEL :
 	// 頂点バッファのセットアップを行う
-	MV1SetupVertexBufferBase( NewBaseHandle, 1, ASyncThread ) ;
+	MV1_SetupVertexBufferBase_PF( NewBaseHandle, 1, ASyncThread ) ;
 
 	// ファイルから読み込んだデータを解放する
 	if( DataBuffer )
@@ -16370,19 +13484,11 @@ LOADCOMPLABEL :
 		FCLOSE( FileHandle ) ;
 		FileHandle = 0 ;
 	}
-/*
-	// モデルデータを作成する
-	NewHandle = MV1AddModel() ;
-	if( NewHandle == -1 )
-	{
-		DXST_ERRORLOGFMT_ADD(( _T( "モデルファイル %s のモデルハンドルの作成に失敗しました" ), FullPath )) ;
-		goto ERRORLABEL ;
-	}
-*/
+
 	// 構築
 	if( MV1MakeModel( MHandle, NewBaseHandle, ASyncThread ) < 0 )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "モデルファイル %s のモデル基本データからモデルデータへの変換に失敗しました" ), FullPath )) ;
+		DXST_ERRORLOGFMT_ADDW(( L"MV1MakeModel Error : %s", FullPath )) ;
 		goto ERRORLABEL ;
 	}
 
@@ -16427,9 +13533,9 @@ static void MV1LoadModel_ASync( ASYNCLOADDATA_COMMON *AParam )
 {
 	MV1LOADMODEL_GPARAM *GParam ;
 	int MHandle ;
-	const TCHAR *FileName ;
-	const TCHAR *Directory ;
-	const TCHAR *Name ;
+	const wchar_t *FileName ;
+	const wchar_t *Directory ;
+	const wchar_t *Name ;
 	int Addr ;
 	int Result ;
 
@@ -16450,9 +13556,9 @@ static void MV1LoadModel_ASync( ASYNCLOADDATA_COMMON *AParam )
 #endif // DX_NON_ASYNCLOAD
 
 // MV1LoadModel のグローバル変数にアクセスしないバージョン
-extern int MV1LoadModel_UseGParam( MV1LOADMODEL_GPARAM *GParam, const TCHAR *FileName, int ASyncLoadFlag )
+extern int MV1LoadModel_UseGParam( MV1LOADMODEL_GPARAM *GParam, const wchar_t *FileName, int ASyncLoadFlag )
 {
-	TCHAR Directory[ 1024 ], Name[ MAX_PATH ] ;
+	wchar_t Directory[ 1024 ], Name[ FILEPATH_MAX ] ;
 	int MHandle ;
 
 	// モデルファイルのあるディレクトリパスとファイル名を取得する
@@ -16461,9 +13567,11 @@ extern int MV1LoadModel_UseGParam( MV1LOADMODEL_GPARAM *GParam, const TCHAR *Fil
 	if( WinData.ActiveFlag == FALSE )
 		DxActiveWait() ;
 
-	MHandle = MV1AddModel() ;
+	MHandle = MV1AddModel( FALSE ) ;
 	if( MHandle < 0 )
+	{
 		return -1 ;
+	}
 
 #ifndef DX_NON_ASYNCLOAD
 	if( ASyncLoadFlag )
@@ -16511,7 +13619,7 @@ extern int MV1LoadModel_UseGParam( MV1LOADMODEL_GPARAM *GParam, const TCHAR *Fil
 			goto ERR ;
 	}
 
-	// 返回句柄
+	// ハンドルを返す
 	return MHandle ;
 
 ERR :
@@ -16524,26 +13632,51 @@ ERR :
 // MV1LOADMODEL_GPARAM のデータをセットする
 extern void InitMV1LoadModelGParam( MV1LOADMODEL_GPARAM *GParam )
 {
-	InitLoadGraphGParam( &GParam->LoadGraphGParam ) ;
+	Graphics_Image_InitLoadGraphGParam( &GParam->LoadGraphGParam ) ;
 
-	GParam->LoadModelToReMakeNormal = MV1Man.LoadModelToReMakeNormal ;
+	GParam->LoadModelToReMakeNormal               = MV1Man.LoadModelToReMakeNormal ;
 	GParam->LoadModelToReMakeNormalSmoothingAngle = MV1Man.LoadModelToReMakeNormalSmoothingAngle ;
-	GParam->LoadModelToPositionOptimize = MV1Man.LoadModelToPositionOptimize ;
-	GParam->LoadModelToUsePhysicsMode = MV1Man.LoadModelToUsePhysicsMode ;
-	GParam->LoadModelToWorldGravityInitialize = MV1Man.LoadModelToWorldGravityInitialize ;
-	GParam->LoadModelToWorldGravity = MV1Man.LoadModelToWorldGravity ;
+	GParam->LoadModelToIgnoreScaling              = MV1Man.LoadModelToIgnoreScaling ;
+	GParam->LoadModelToPositionOptimize           = MV1Man.LoadModelToPositionOptimize ;
+	GParam->LoadModelToUsePhysicsMode             = MV1Man.LoadModelToUsePhysicsMode ;
+	GParam->LoadModelToWorldGravityInitialize     = MV1Man.LoadModelToWorldGravityInitialize ;
+	GParam->LoadModelToWorldGravity               = MV1Man.LoadModelToWorldGravity ;
+	GParam->LoadModelToPhysicsCalcPrecision       = MV1Man.LoadModelToPhysicsCalcPrecision ;
+	GParam->LoadModelToUsePackDraw                = MV1Man.LoadModelToUsePackDraw ;
 	_MEMCPY( GParam->LoadCalcPhysicsWorldGravity, MV1Man.LoadCalcPhysicsWorldGravity, sizeof( MV1Man.LoadCalcPhysicsWorldGravity ) ) ;
 
 	GParam->AnimFilePathValid = MV1Man.AnimFilePathValid ;
 	if( GParam->AnimFilePathValid )
 	{
-		lstrcpy( GParam->AnimFileName, MV1Man.AnimFileName ) ;
-		lstrcpy( GParam->AnimFileDirPath, MV1Man.AnimFileDirPath ) ;
+		_WCSCPY( GParam->AnimFileName,    MV1Man.AnimFileName ) ;
+		_WCSCPY( GParam->AnimFileDirPath, MV1Man.AnimFileDirPath ) ;
 	}
 }
 
-// 模型读入( -1:错误  0以上:模型句柄 )
+// モデルの読み込み( -1:エラー  0以上:モデルハンドル )
 extern int NS_MV1LoadModel( const TCHAR *FileName )
+{
+#ifdef UNICODE
+	return MV1LoadModel_WCHAR_T(
+		FileName
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FileName, return -1 )
+
+	Result = MV1LoadModel_WCHAR_T(
+		UseFileNameBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FileName )
+
+	return Result ;
+#endif
+}
+
+// モデルの読み込み( -1:エラー  0以上:モデルハンドル )
+extern int MV1LoadModel_WCHAR_T( const wchar_t *FileName )
 {
 	MV1LOADMODEL_GPARAM GParam ;
 
@@ -16565,6 +13698,38 @@ extern int NS_MV1InitModel( void )
 	return AllHandleSub( DX_HANDLETYPE_MODEL ) ;
 }
 
+// MV1LoadModelToMV1 での文字列取得処理
+__inline void MV1LoadModelToMV1_GetString(
+	MV1MODEL_FILEHEADER_F1 *	FHeader,
+	MV1_MODEL_BASE *			MBase,
+	BYTE *						FileStringBuffer,
+	DWORD						FileStringAddr,
+#ifndef UNICODE
+	char **						StringA,
+#endif
+	wchar_t **					StringW
+)
+{
+	if( FHeader->IsStringUTF8 )
+	{
+		*StringW = ( wchar_t * )( ( BYTE * )MBase->StringBufferW + MBase->StringSizeW ) ;
+		MBase->StringSizeW += ConvString( ( const char * )( FileStringBuffer + FileStringAddr ), DX_CODEPAGE_UTF8, ( char * )*StringW, WCHAR_T_CODEPAGE ) ;
+
+#ifndef UNICODE
+		*StringA = ( char    * )( ( BYTE * )MBase->StringBufferA + MBase->StringSizeA ) ;
+		MBase->StringSizeA += ConvString( ( const char * )*StringW, WCHAR_T_CODEPAGE, *StringA, CHAR_CODEPAGE ) ;
+#endif
+	}
+	else
+	{
+		*StringW   = ( wchar_t * )( ( BYTE * )MBase->StringBufferW + MBase->StringSizeW ) ;
+		MBase->StringSizeW += ConvString( ( const char * )( FileStringBuffer + FileStringAddr ), DX_CODEPAGE_SHIFTJIS, ( char * )*StringW, WCHAR_T_CODEPAGE ) ;
+
+#ifndef UNICODE
+		*StringA   = MBase->StringBufferA + FileStringAddr ;
+#endif
+	}
+}
 
 // ＭＶ１ファイルを読み込む( -1:エラー  0以上:モデルハンドル )
 extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncThread )
@@ -16608,14 +13773,16 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	MV1_PHYSICS_RIGIDBODY_F1	*F1PhysicsRigidBody ;
 	MV1_PHYSICS_JOINT_BASE		*PhysicsJoint ;
 	MV1_PHYSICS_JOINT_F1		*F1PhysicsJoint ;
+	BYTE *FileStringBuffer ;
 	int i, j, k, NewHandle = 0, dirlen ;
 	DWORD_PTR AllocSize ;
 	int MeshVertexNum ;
+	int AutoNormalCreateFlag ;
 
-	TCHAR DirectoryPath[ MAX_PATH + 2 ] ;
-	char DirectoryPathA[ MAX_PATH + 2 ] ;
-	wchar_t DirectoryPathW[ MAX_PATH + 2 ] ;
+	wchar_t DirectoryPath[ FILEPATH_MAX + 2 ] ;
 	BYTE *Src ;
+
+	AutoNormalCreateFlag = FALSE ;
 
 	F1FileHeadShape = NULL ;
 	F1FileHeadPhysics = NULL ;
@@ -16625,19 +13792,12 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	dirlen = 0 ;
 	if( LoadParam->CurrentDir != NULL )
 	{
-#ifdef UNICODE
-		lstrcpy( DirectoryPathW, LoadParam->CurrentDir ) ;
-		WCharToMBChar( CP_ACP, ( DXWCHAR * )LoadParam->CurrentDir, DirectoryPathA, MAX_PATH ) ;
-#else
-		lstrcpy( DirectoryPathA, LoadParam->CurrentDir ) ;
-		MBCharToWChar( CP_ACP, LoadParam->CurrentDir, ( DXWCHAR * )DirectoryPathW, MAX_PATH ) ;
-#endif
-		lstrcpy( DirectoryPath, LoadParam->CurrentDir ) ;
-		dirlen = lstrlen( DirectoryPath ) ;
-		if( DirectoryPath[ dirlen - 1 ] != _T( '\\' ) && DirectoryPathA[ dirlen - 1 ] != _T( '/' ) )
+		_WCSCPY( DirectoryPath, LoadParam->CurrentDir ) ;
+		dirlen = _WCSLEN( DirectoryPath ) ;
+		if( DirectoryPath[ dirlen - 1 ] != L'\\' && DirectoryPath[ dirlen - 1 ] != L'/' )
 		{
-			DirectoryPath[ dirlen ] = _T( '/' ) ;
-			DirectoryPath[ dirlen + 1 ] = _T( '\0' ) ;
+			DirectoryPath[ dirlen     ] = L'/' ;
+			DirectoryPath[ dirlen + 1 ] = L'\0' ;
 			dirlen ++ ;
 		}
 	}
@@ -16648,10 +13808,10 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		return -1 ;
 
 	// 圧縮データを解凍するメモリ領域の確保
-	FHeader = ( MV1MODEL_FILEHEADER_F1 * )DXALLOC( DXA_Decode( ( BYTE * )LoadParam->DataBuffer + 4, NULL ) + 4 ) ;
+	FHeader = ( MV1MODEL_FILEHEADER_F1 * )DXALLOC( ( size_t )( DXA_Decode( ( BYTE * )LoadParam->DataBuffer + 4, NULL ) + 4 ) ) ;
 	if( FHeader == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "MV1 LoadModel Error : 圧縮データを解凍するためのメモリ領域の確保に失敗しました" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x56\x00\x31\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x27\x57\x2e\x7e\xc7\x30\xfc\x30\xbf\x30\x92\x30\xe3\x89\xcd\x51\x59\x30\x8b\x30\x5f\x30\x81\x30\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"MV1 LoadModel Error : 圧縮データを解凍するためのメモリ領域の確保に失敗しました" @*/ )) ;
 		return -1 ;
 	}
 	DXA_Decode( ( BYTE * )LoadParam->DataBuffer + 4, ( BYTE * )FHeader + 4 ) ;
@@ -16661,14 +13821,14 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		_MEMSET( &MTBase, 0, sizeof( MTBase ) ) ;
 		AllocSize = 0 ;
 
-		MTBase.Name = ( TCHAR * )AllocSize ;
-		AllocSize += ( ( lstrlen( LoadParam->Name ) + 1 ) * sizeof( TCHAR ) + 3 ) / 4 * 4 ;
+		MTBase.Name = ( wchar_t * )AllocSize ;
+		AllocSize += ( ( _WCSLEN( LoadParam->Name ) + 1 ) * sizeof( wchar_t ) + 3 ) / 4 * 4 ;
 
-		MTBase.FilePath = ( TCHAR * )AllocSize ;
-		AllocSize += ( ( lstrlen( LoadParam->FilePath ) + 1 ) * sizeof( TCHAR ) + 3 ) / 4 * 4 ;
+		MTBase.FilePath = ( wchar_t * )AllocSize ;
+		AllocSize += ( ( _WCSLEN( LoadParam->FilePath ) + 1 ) * sizeof( wchar_t ) + 3 ) / 4 * 4 ;
 
-		MTBase.DirectoryPath = ( TCHAR * )AllocSize ;
-		AllocSize += ( ( dirlen + 1 ) * sizeof( TCHAR ) + 3 ) / 4 * 4 ;
+		MTBase.DirectoryPath = ( wchar_t * )AllocSize ;
+		AllocSize += ( ( dirlen + 1 ) * sizeof( wchar_t ) + 3 ) / 4 * 4 ;
 
 		MTBase.Frame = ( MV1_FRAME_BASE * )AllocSize ;
 		AllocSize += FHeader->FrameNum * sizeof( MV1_FRAME_BASE ) ;
@@ -16699,8 +13859,13 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		MTBase.TriangleListIndex = ( WORD * )AllocSize ;
 		AllocSize += sizeof( WORD ) * FHeader->TriangleListIndexNum * 2 ;
 
-		MTBase.StringBuffer = ( char * )AllocSize ;
-		AllocSize += FHeader->StringSize ;
+#ifndef UNICODE
+		MTBase.StringBufferA = ( char * )AllocSize ;
+		AllocSize += FHeader->StringSize * sizeof( char ) ;
+#endif
+
+		MTBase.StringBufferW = ( wchar_t * )AllocSize ;
+		AllocSize += FHeader->StringSize * sizeof( wchar_t ) ;
 
 		MTBase.ChangeDrawMaterialTable = ( DWORD * )AllocSize ;
 		AllocSize += FHeader->ChangeDrawMaterialTableSize ;
@@ -16747,20 +13912,26 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	}
 
 	// モデル基データハンドルの作成
-	NewHandle = MV1AddModelBase() ;
-	if( NewHandle < 0 ) goto ERRORLABEL ;
+	NewHandle = MV1AddModelBase( ASyncThread ) ;
+	if( NewHandle < 0 )
+	{
+		goto ERRORLABEL ;
+	}
 
 	// メモリの確保
-	MV1BMDLCHK( NewHandle, MBase ) ;
+	MV1BMDLCHK_ASYNC( NewHandle, MBase ) ;
 	MBase->DataBuffer = MDALLOCMEM( AllocSize ) ;
-	if( MBase->DataBuffer == NULL ) goto ERRORLABEL ;
+	if( MBase->DataBuffer == NULL )
+	{
+		goto ERRORLABEL ;
+	}
 	_MEMSET( MBase->DataBuffer, 0, AllocSize ) ;
 	MBase->AllocMemorySize = AllocSize ;
 
 	// メモリアドレスのセット
-	MBase->Name                   = ( TCHAR * )                     ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Name                 ) ;
-	MBase->FilePath               = ( TCHAR * )                     ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.FilePath             ) ;
-	MBase->DirectoryPath          = ( TCHAR * )                     ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.DirectoryPath        ) ;
+	MBase->Name                   = ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Name                 ) ;
+	MBase->FilePath               = ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.FilePath             ) ;
+	MBase->DirectoryPath          = ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.DirectoryPath        ) ;
 	MBase->ChangeMatrixTable      = ( DWORD * )                     ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.ChangeMatrixTable    ) ;
 	MBase->ChangeDrawMaterialTable = ( DWORD * )                    ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.ChangeDrawMaterialTable ) ;
 	MBase->Frame                  = ( MV1_FRAME_BASE * )            ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Frame                ) ;
@@ -16773,7 +13944,10 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	MBase->Mesh                   = ( MV1_MESH_BASE * )             ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Mesh                 ) ;
 	MBase->TriangleList           = ( MV1_TRIANGLE_LIST_BASE * )    ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.TriangleList         ) ;
 	MBase->TriangleListIndex      = ( WORD * )                      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.TriangleListIndex    ) ;
-	MBase->StringBuffer           = ( char * )                      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.StringBuffer         ) ;
+#ifndef UNICODE
+	MBase->StringBufferA          = ( char * )                      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.StringBufferA        ) ;
+#endif
+	MBase->StringBufferW          = ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.StringBufferW        ) ;
 	MBase->AnimSet                = ( MV1_ANIMSET_BASE * )          ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.AnimSet              ) ;
 	MBase->Anim                   = ( MV1_ANIM_BASE * )             ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Anim                 ) ;
 	MBase->AnimKeySet             = ( MV1_ANIM_KEYSET_BASE * )      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.AnimKeySet           ) ;
@@ -16791,9 +13965,12 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	}
 
 	// モデル名とファイルパスとフォルダパスを保存
-	lstrcpy( MBase->Name, LoadParam->Name ) ;
-	lstrcpy( MBase->FilePath, LoadParam->FilePath ) ;
-	lstrcpy( MBase->DirectoryPath, LoadParam->CurrentDir == NULL ? _T( "" ) : DirectoryPath ) ;
+	_WCSCPY( MBase->Name,          LoadParam->Name ) ;
+	_WCSCPY( MBase->FilePath,      LoadParam->FilePath ) ;
+	_WCSCPY( MBase->DirectoryPath, LoadParam->CurrentDir == NULL ? L"" : DirectoryPath ) ;
+
+	// 同時複数描画に対応するかどうかを保存
+	MBase->UsePackDraw = LoadParam->GParam.LoadModelToUsePackDraw ;
 
 	// 座標系情報を保存
 	MBase->RightHandType = FHeader->RightHandType ;
@@ -16804,8 +13981,8 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	// 変更チェック用テーブルに必要なデータのサイズの保存とコピー
 	MBase->ChangeDrawMaterialTableSize  = FHeader->ChangeDrawMaterialTableSize ;
 	MBase->ChangeMatrixTableSize        = FHeader->ChangeMatrixTableSize ;
-	_MEMCPY( MBase->ChangeDrawMaterialTable, ( BYTE * )FHeader + ( DWORD_PTR )FHeader->ChangeDrawMaterialTable, FHeader->ChangeDrawMaterialTableSize ) ;
-	_MEMCPY( MBase->ChangeMatrixTable,       ( BYTE * )FHeader + ( DWORD_PTR )FHeader->ChangeMatrixTable,       FHeader->ChangeMatrixTableSize ) ;
+	_MEMCPY( MBase->ChangeDrawMaterialTable, ( BYTE * )FHeader + ( DWORD_PTR )FHeader->ChangeDrawMaterialTable, ( size_t )FHeader->ChangeDrawMaterialTableSize ) ;
+	_MEMCPY( MBase->ChangeMatrixTable,       ( BYTE * )FHeader + ( DWORD_PTR )FHeader->ChangeMatrixTable,       ( size_t )FHeader->ChangeMatrixTableSize ) ;
 
 	// ポリゴン数を保存
 	MBase->TriangleNum = FHeader->TriangleNum ;
@@ -16824,8 +14001,22 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	_MEMCPY( MBase->SkinBoneUseFrame, ( BYTE * )FHeader + ( DWORD_PTR )FHeader->SkinBoneUseFrame, FHeader->SkinBoneUseFrameNum * sizeof( MV1_SKIN_BONE_USE_FRAME_F1 ) ) ;
 
 	// 文字列データをコピー
-	_MEMCPY( MBase->StringBuffer, ( BYTE * )FHeader + ( DWORD_PTR )FHeader->StringBuffer, FHeader->StringSize ) ;
-	MBase->StringSize = FHeader->StringSize ;
+	FileStringBuffer = ( BYTE * )FHeader + FHeader->StringBuffer ;
+	if( FHeader->IsStringUTF8 )
+	{
+#ifndef UNICODE
+		MBase->StringSizeA = 0 ;
+#endif
+		MBase->StringSizeW = 0 ;
+	}
+	else
+	{
+#ifndef UNICODE
+		_MEMCPY( MBase->StringBufferA, FileStringBuffer, ( size_t )FHeader->StringSize ) ;
+		MBase->StringSizeA = FHeader->StringSize ;
+#endif
+		MBase->StringSizeW = 0 ;
+	}
 
 	// 各オブジェクトの数の情報を保存
 	MBase->FrameNum              = FHeader->FrameNum ;
@@ -16873,12 +14064,12 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			Mesh->UVSetUnitNum = F1Mesh->UVSetUnitNum ;
 			Mesh->UVUnitNum = F1Mesh->UVUnitNum ;
 			Mesh->VertexNum = F1Mesh->VertexNum ;
-			Mesh->VertUnitSize = sizeof( MV1_MESH_VERTEX ) + Mesh->UVSetUnitNum * Mesh->UVUnitNum * sizeof( float ) - sizeof( float ) * 2 ;
+			Mesh->VertUnitSize = ( int )( sizeof( MV1_MESH_VERTEX ) + Mesh->UVSetUnitNum * Mesh->UVUnitNum * sizeof( float ) - sizeof( float ) * 2 ) ;
 
 			MeshVertexSize += Mesh->VertexNum * Mesh->VertUnitSize ;
 		}
 
-		FHeader->MeshVertexSize = MeshVertexSize ;
+		FHeader->MeshVertexSize = ( int )MeshVertexSize ;
 	}
 
 
@@ -16948,7 +14139,13 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	{
 		Frame->Container = MBase ;
 
-		Frame->Name = MBase->StringBuffer + ( DWORD_PTR )F1Frame->Name ;
+		MV1LoadModelToMV1_GetString( FHeader, MBase, FileStringBuffer, F1Frame->Name,
+#ifndef UNICODE
+			&Frame->NameA,
+#endif
+			&Frame->NameW
+		) ;
+
 		Frame->AutoCreateNormal = F1Frame->AutoCreateNormal ;
 
 		Frame->Index = F1Frame->Index ;
@@ -16972,7 +14169,14 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		Frame->Next       = F1Frame->Next       ? MBase->Frame + ( ( MV1_FRAME_F1 * )( ( BYTE * )FHeader + ( DWORD_PTR )F1Frame->Next       ) )->Index : NULL ;
 
 		Frame->Translate = F1Frame->Translate ;
-		Frame->Scale = F1Frame->Scale ;
+		if( LoadParam->GParam.LoadModelToIgnoreScaling )
+		{
+			Frame->Scale = VGet( 1.0f, 1.0f, 1.0f ); ;
+		}
+		else
+		{
+			Frame->Scale = F1Frame->Scale ;
+		}
 		Frame->Rotate = F1Frame->Rotate ;
 		Frame->RotateOrder = F1Frame->RotateOrder ;
 		Frame->Quaternion = F1Frame->Quaternion ;
@@ -17041,7 +14245,7 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			MV1_MESH_NORMAL *Nrm ;
 			MV1_POSITION_16BIT_SUBINFO_F1 xs, ys, zs ;
 
-			Frame->PosUnitSize = sizeof( MV1_MESH_POSITION ) + ( Frame->MaxBoneBlendNum - 4 ) * sizeof( MV1_SKINBONE_BLEND ) ;
+			Frame->PosUnitSize = ( int )( sizeof( MV1_MESH_POSITION ) + ( Frame->MaxBoneBlendNum - 4 ) * sizeof( MV1_SKINBONE_BLEND ) ) ;
 
 			Frame->Position = ( MV1_MESH_POSITION * )( ( BYTE * )MBase->MeshPosition + MBase->MeshPositionSize ) ;
 			Frame->Normal   = MBase->MeshNormal + MBase->MeshNormalNum ;
@@ -17084,8 +14288,8 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 				float TotalWeight ;
 				int LastIndex ;
 
-				IndexType  = ( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_MATRIX_INDEX_MASK  ) >> 4 ;
-				WeightType = ( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_MATRIX_WEIGHT_MASK ) >> 5 ;
+				IndexType  = ( DWORD )( ( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_MATRIX_INDEX_MASK  ) >> 4 ) ;
+				WeightType = ( DWORD )( ( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_MATRIX_WEIGHT_MASK ) >> 5 ) ;
 
 				Pos = Frame->Position ;
 				for( j = 0 ; j < Frame->PositionNum ; j ++, Pos = ( MV1_MESH_POSITION * )( ( BYTE * )Pos + Frame->PosUnitSize ) )
@@ -17134,35 +14338,99 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			switch( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_NORMAL_TYPE_MASK )
 			{
 			case MV1_FRAME_NORMAL_TYPE_NONE :
+				AutoNormalCreateFlag = TRUE ;
 				break ;
 
 			case MV1_FRAME_NORMAL_TYPE_S8 :
-				for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+				if( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_NOMRAL_TANGENT_BINORMAL )
 				{
-					Nrm->Normal.x = ( ( char * )Src )[ 0 ] / 127.0f ;
-					Nrm->Normal.y = ( ( char * )Src )[ 1 ] / 127.0f ;
-					Nrm->Normal.z = ( ( char * )Src )[ 2 ] / 127.0f ;
-					Src += 3 ;
+					for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+					{
+						Nrm->Normal.x   = ( ( char * )Src )[ 0 ] / 127.0f ;
+						Nrm->Normal.y   = ( ( char * )Src )[ 1 ] / 127.0f ;
+						Nrm->Normal.z   = ( ( char * )Src )[ 2 ] / 127.0f ;
+
+						Nrm->Tangent.x  = ( ( char * )Src )[ 3 ] / 127.0f ;
+						Nrm->Tangent.y  = ( ( char * )Src )[ 4 ] / 127.0f ;
+						Nrm->Tangent.z  = ( ( char * )Src )[ 5 ] / 127.0f ;
+
+						Nrm->Binormal.x = ( ( char * )Src )[ 6 ] / 127.0f ;
+						Nrm->Binormal.y = ( ( char * )Src )[ 7 ] / 127.0f ;
+						Nrm->Binormal.z = ( ( char * )Src )[ 8 ] / 127.0f ;
+						Src += 9 ;
+					}
+				}
+				else
+				{
+					for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+					{
+						Nrm->Normal.x = ( ( char * )Src )[ 0 ] / 127.0f ;
+						Nrm->Normal.y = ( ( char * )Src )[ 1 ] / 127.0f ;
+						Nrm->Normal.z = ( ( char * )Src )[ 2 ] / 127.0f ;
+						Src += 3 ;
+					}
 				}
 				break ;
 
 			case MV1_FRAME_NORMAL_TYPE_S16 :
-				for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+				if( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_NOMRAL_TANGENT_BINORMAL )
 				{
-					Nrm->Normal.x = ( ( short * )Src )[ 0 ] / 32767.0f ;
-					Nrm->Normal.y = ( ( short * )Src )[ 1 ] / 32767.0f ;
-					Nrm->Normal.z = ( ( short * )Src )[ 2 ] / 32767.0f ;
-					Src += 6 ;
+					for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+					{
+						Nrm->Normal.x   = ( ( short * )Src )[ 0 ] / 32767.0f ;
+						Nrm->Normal.y   = ( ( short * )Src )[ 1 ] / 32767.0f ;
+						Nrm->Normal.z   = ( ( short * )Src )[ 2 ] / 32767.0f ;
+
+						Nrm->Tangent.x  = ( ( short * )Src )[ 3 ] / 32767.0f ;
+						Nrm->Tangent.y  = ( ( short * )Src )[ 4 ] / 32767.0f ;
+						Nrm->Tangent.z  = ( ( short * )Src )[ 5 ] / 32767.0f ;
+
+						Nrm->Binormal.x = ( ( short * )Src )[ 6 ] / 32767.0f ;
+						Nrm->Binormal.y = ( ( short * )Src )[ 7 ] / 32767.0f ;
+						Nrm->Binormal.z = ( ( short * )Src )[ 8 ] / 32767.0f ;
+						Src += 18 ;
+					}
+				}
+				else
+				{
+					for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+					{
+						Nrm->Normal.x = ( ( short * )Src )[ 0 ] / 32767.0f ;
+						Nrm->Normal.y = ( ( short * )Src )[ 1 ] / 32767.0f ;
+						Nrm->Normal.z = ( ( short * )Src )[ 2 ] / 32767.0f ;
+						Src += 6 ;
+					}
 				}
 				break ;
 
 			case MV1_FRAME_NORMAL_TYPE_F32 :
-				for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+				if( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_NOMRAL_TANGENT_BINORMAL )
 				{
-					Nrm->Normal.x = ( ( float * )Src )[ 0 ] ;
-					Nrm->Normal.y = ( ( float * )Src )[ 1 ] ;
-					Nrm->Normal.z = ( ( float * )Src )[ 2 ] ;
-					Src += 12 ;
+					for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+					{
+						Nrm->Normal.x   = ( ( float * )Src )[ 0 ] ;
+						Nrm->Normal.y   = ( ( float * )Src )[ 1 ] ;
+						Nrm->Normal.z   = ( ( float * )Src )[ 2 ] ;
+
+						Nrm->Tangent.x  = ( ( float * )Src )[ 3 ] ;
+						Nrm->Tangent.y  = ( ( float * )Src )[ 4 ] ;
+						Nrm->Tangent.z  = ( ( float * )Src )[ 5 ] ;
+
+						Nrm->Binormal.x = ( ( float * )Src )[ 6 ] ;
+						Nrm->Binormal.y = ( ( float * )Src )[ 7 ] ;
+						Nrm->Binormal.z = ( ( float * )Src )[ 8 ] ;
+						Src += 36 ;
+					}
+				}
+				else
+				{
+					for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+					{
+						Nrm->Normal.x = ( ( float * )Src )[ 0 ] ;
+						Nrm->Normal.y = ( ( float * )Src )[ 1 ] ;
+						Nrm->Normal.z = ( ( float * )Src )[ 2 ] ;
+						Src += 12 ;
+					}
 				}
 				break ;
 			}
@@ -17183,7 +14451,12 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 
 		// 名前を保存
 		Texture->NameAllocMem = FALSE ;
-		Texture->Name = MBase->StringBuffer + ( DWORD_PTR )F1Texture->Name ;
+		MV1LoadModelToMV1_GetString( FHeader, MBase, FileStringBuffer, F1Texture->Name,
+#ifndef UNICODE
+			&Texture->NameA,
+#endif
+			&Texture->NameW
+		) ;
 
 		// 反転フラグをセットする
 		Texture->ReverseFlag = ( F1Texture->Flag & MV1_TEXTURE_FLAG_REVERSE ) != 0 ? 1 : 0 ;
@@ -17193,31 +14466,44 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 
 		// テクスチャの読み込み
 		{
-			wchar_t ColorPathW[ MAX_PATH ], AlphaPathW[ MAX_PATH ], TempPathW[ MAX_PATH ] ;
+			wchar_t ColorPathW[ FILEPATH_MAX ] ;
+			wchar_t AlphaPathW[ FILEPATH_MAX ] ;
 
 			if( F1Texture->ColorFilePath )
 			{
+				MV1LoadModelToMV1_GetString( FHeader, MBase, FileStringBuffer, F1Texture->ColorFilePath,
+#ifndef UNICODE
+					&Texture->ColorFilePathA,
+#endif
+					&Texture->ColorFilePathW
+				) ;
+
 				if( LoadParam->CurrentDir == NULL )
 				{
-					MBCharToWChar( 932/*_GET_CODEPAGE()*/, MBase->StringBuffer + ( DWORD_PTR )F1Texture->ColorFilePath, ( DXWCHAR * )ColorPathW, MAX_PATH ) ;
+					_WCSCPY( ColorPathW, Texture->ColorFilePathW ) ;
 				}
 				else
 				{
-					MBCharToWChar( 932/*_GET_CODEPAGE()*/, MBase->StringBuffer + ( DWORD_PTR )F1Texture->ColorFilePath, ( DXWCHAR * )TempPathW, MAX_PATH ) ;
-					ConvertFullPathW_( TempPathW, ColorPathW, DirectoryPathW ) ;
+					ConvertFullPathW_( Texture->ColorFilePathW, ColorPathW, DirectoryPath ) ;
 				}
 			}
 
 			if( F1Texture->AlphaFilePath )
 			{
+				MV1LoadModelToMV1_GetString( FHeader, MBase, FileStringBuffer, F1Texture->AlphaFilePath,
+#ifndef UNICODE
+					&Texture->AlphaFilePathA,
+#endif
+					&Texture->AlphaFilePathW
+				) ;
+
 				if( LoadParam->CurrentDir == NULL )
 				{
-					MBCharToWChar( 932/*_GET_CODEPAGE()*/, MBase->StringBuffer + ( DWORD_PTR )F1Texture->AlphaFilePath, ( DXWCHAR * )AlphaPathW, MAX_PATH ) ;
+					_WCSCPY( AlphaPathW, Texture->AlphaFilePathW ) ;
 				}
 				else
 				{
-					MBCharToWChar( 932/*_GET_CODEPAGE()*/, MBase->StringBuffer + ( DWORD_PTR )F1Texture->AlphaFilePath, ( DXWCHAR * )TempPathW, MAX_PATH ) ;
-					ConvertFullPathW_( TempPathW, AlphaPathW, DirectoryPathW ) ;
+					ConvertFullPathW_( Texture->AlphaFilePathW, AlphaPathW, DirectoryPath ) ;
 				}
 			}
 
@@ -17227,10 +14513,13 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					&Texture->GraphHandle,
 					&Texture->SemiTransFlag,
 					&Texture->IsDefaultTexture,
+#ifndef UNICODE
+					NULL, NULL,
+#endif
 					NULL, NULL,
 					F1Texture->ColorFilePath ? ColorPathW : NULL,
 					F1Texture->AlphaFilePath ? AlphaPathW : NULL,
-					LoadParam->CurrentDir == NULL ? NULL : DirectoryPathW,
+					LoadParam->CurrentDir == NULL ? NULL : DirectoryPath,
 					F1Texture->BumpImageFlag, F1Texture->BumpImageNextPixelLength,
 					Texture->ReverseFlag,
 					Texture->Bmp32AllZeroAlphaToXRGB8Flag,
@@ -17238,28 +14527,46 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 					false,
 					ASyncThread ) == -1 )
 			{
-				DXST_ERRORLOGFMT_ADDA( ( "MV1 LoadModel Error : テクスチャ %s の読み込みに失敗しました\n", Texture->Name ) ) ;
+				DXST_ERRORLOGFMT_ADDW(( L"MV1 LoadModel Error : Txture Load Error : %s\n", Texture->NameW ) ) ;
 				goto ERRORLABEL ;
 			}
-		}
 
-		// ファイルパス用にメモリを確保したフラグを倒す
-		Texture->ColorImageFilePathAllocMem = FALSE ;
-		Texture->AlphaImageFilePathAllocMem = FALSE ;
+			// ファイルパス用にメモリを確保したフラグを倒す
+			Texture->ColorImageFilePathAllocMem = FALSE ;
+			Texture->AlphaImageFilePathAllocMem = FALSE ;
 
-		// ファイルパスを保存
-		if( Texture->ColorImage && F1Texture->ColorFilePath )
-		{
-			Texture->ColorFilePath = MBase->StringBuffer + ( DWORD_PTR )F1Texture->ColorFilePath ;
-		}
-		if( Texture->AlphaImage && F1Texture->AlphaFilePath )
-		{
-			Texture->AlphaFilePath = MBase->StringBuffer + ( DWORD_PTR )F1Texture->AlphaFilePath ;
+			// ファイルパスを保存
+			if( Texture->ColorImage == NULL || F1Texture->ColorFilePath == 0 )
+			{
+#ifndef UNICODE
+				Texture->ColorFilePathA = NULL ;
+#endif
+				Texture->ColorFilePathW = NULL ;
+			}
+			if( Texture->AlphaImage == NULL || F1Texture->AlphaFilePath == 0 )
+			{
+#ifndef UNICODE
+				Texture->AlphaFilePathA = NULL ;
+#endif
+				Texture->AlphaFilePathW = NULL ;
+			}
 		}
 
 		// アドレッシングモードのセット
 		Texture->AddressModeU = F1Texture->AddressModeU ;
 		Texture->AddressModeV = F1Texture->AddressModeV ;
+
+		// スケーリングのセット
+		if( ( F1Texture->Flag & MV1_TEXTURE_FLAG_VALID_SCALE_UV ) != 0 )
+		{
+			Texture->ScaleU = F1Texture->ScaleU ;
+			Texture->ScaleV = F1Texture->ScaleV ;
+		}
+		else
+		{
+			Texture->ScaleU = 1.0f ;
+			Texture->ScaleV = 1.0f ;
+		}
 
 		// フィルタリングモードのセット
 		Texture->FilterMode = F1Texture->FilterMode ;
@@ -17277,7 +14584,12 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	F1Material = ( MV1_MATERIAL_F1 * )( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->Material ) ;
 	for( i = 0 ; i < MBase->MaterialNum ; i ++, Material ++, F1Material = ( MV1_MATERIAL_F1 * )( ( DWORD_PTR )FHeader + ( DWORD_PTR )F1Material->DimNext ) )
 	{
-		Material->Name = MBase->StringBuffer + ( DWORD_PTR )F1Material->Name ;
+		MV1LoadModelToMV1_GetString( FHeader, MBase, FileStringBuffer, F1Material->Name,
+#ifndef UNICODE
+			&Material->NameA,
+#endif
+			&Material->NameW
+		) ;
 
 		Material->Diffuse  = F1Material->Diffuse ;
 		Material->Ambient  = F1Material->Ambient ;
@@ -17363,7 +14675,12 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	F1Light = ( MV1_LIGHT_F1 * )( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->Light ) ;
 	for( i = 0 ; i < MBase->LightNum ; i ++, Light ++, F1Light = ( MV1_LIGHT_F1 * )( ( DWORD_PTR )FHeader + ( DWORD_PTR )F1Light->DimNext ) )
 	{
-		Light->Name = MBase->StringBuffer + ( DWORD_PTR )F1Light->Name ;
+		MV1LoadModelToMV1_GetString( FHeader, MBase, FileStringBuffer, F1Light->Name,
+#ifndef UNICODE
+			&Light->NameA,
+#endif
+			&Light->NameW
+		) ;
 
 		Light->Index = F1Light->Index ;
 		Light->FrameIndex = F1Light->FrameIndex ;
@@ -17593,7 +14910,13 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 				Shape->Container = MBase->Frame + ( ( MV1_FRAME_F1 * )( ( DWORD_PTR )FHeader + ( DWORD_PTR )F1Shape->Container ) )->Index ;
 			}
 
-			Shape->Name = MBase->StringBuffer + ( DWORD_PTR )F1Shape->Name ;
+			MV1LoadModelToMV1_GetString( FHeader, MBase, FileStringBuffer, F1Shape->Name,
+#ifndef UNICODE
+				&Shape->NameA,
+#endif
+				&Shape->NameW
+			) ;
+
 			Shape->MeshNum = F1Shape->MeshNum ;
 
 			if( F1Shape->Mesh )
@@ -17638,7 +14961,13 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		for( i = 0 ; i < MBase->PhysicsRigidBodyNum ; i ++, PhysicsRigidBody ++, F1PhysicsRigidBody = ( MV1_PHYSICS_RIGIDBODY_F1 * )( ( DWORD_PTR )FHeader + ( DWORD_PTR )F1PhysicsRigidBody->DimNext ) )
 		{
 			PhysicsRigidBody->Index = F1PhysicsRigidBody->Index ;
-			PhysicsRigidBody->Name = MBase->StringBuffer + ( DWORD_PTR )F1PhysicsRigidBody->Name ;
+			
+			MV1LoadModelToMV1_GetString( FHeader, MBase, FileStringBuffer, F1PhysicsRigidBody->Name,
+#ifndef UNICODE
+				&PhysicsRigidBody->NameA,
+#endif
+				&PhysicsRigidBody->NameW
+			) ;
 
 			if( F1PhysicsRigidBody->TargetFrame )
 			{
@@ -17668,7 +14997,13 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		for( i = 0 ; i < MBase->PhysicsJointNum ; i ++, PhysicsJoint ++, F1PhysicsJoint = ( MV1_PHYSICS_JOINT_F1 * )( ( DWORD_PTR )FHeader + ( DWORD_PTR )F1PhysicsJoint->DimNext ) )
 		{
 			PhysicsJoint->Index = F1PhysicsJoint->Index ;
-			PhysicsJoint->Name = MBase->StringBuffer + ( DWORD_PTR )F1PhysicsJoint->Name ;
+			
+			MV1LoadModelToMV1_GetString( FHeader, MBase, FileStringBuffer, F1PhysicsJoint->Name,
+#ifndef UNICODE
+				&PhysicsJoint->NameA,
+#endif
+				&PhysicsJoint->NameW
+			) ;
 
 			if( F1PhysicsJoint->RigidBodyA )
 			{
@@ -17810,7 +15145,7 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 				TriangleList->SkinPositionFREEB = ( MV1_TLIST_SKIN_POS_FREEB * )( ( BYTE * )MBase->TriangleListSkinPositionFREEB + MBase->TriangleListSkinPositionFREEBSize ) ;
 				TriangleList->SkinPositionFREEB = ( MV1_TLIST_SKIN_POS_FREEB * )( ( ( DWORD_PTR )TriangleList->SkinPositionFREEB + 15 ) / 16 * 16 ) ;
 				TriangleList->PosUnitSize = ( unsigned short )( sizeof( MV1_TLIST_SKIN_POS_FREEB ) + sizeof( MV1_SKINBONE_BLEND ) * ( TriangleList->MaxBoneNum - 4 ) ) ;
-				TriangleList->PosUnitSize = ( TriangleList->PosUnitSize + 15 ) / 16 * 16 ;
+				TriangleList->PosUnitSize = ( unsigned short )( ( TriangleList->PosUnitSize + 15 ) / 16 * 16 ) ;
 				MBase->TriangleListSkinPositionFREEBSize += TriangleList->PosUnitSize * TriangleList->VertexNum ;
 				break ;
 			}
@@ -17864,65 +15199,69 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		}
 	}
 
-	// 法線の自動生成
+	// 法線の再生成の指定がある場合は生成を行う
+	if( MV1Man.LoadModelToReMakeNormal || AutoNormalCreateFlag )
 	{
-		VECTOR Nrm ;
-		MV1_MESH_NORMAL *MNrm ;
-		MV1_MESH_VERTEX *Vertex[ 3 ] ;
-		DWORD VertUnitSize, PosUnitSize ;
-
-		// 全てのフレームを処理
-		Frame = MBase->Frame ;
-		for( i = 0 ; i < MBase->FrameNum ; i ++, Frame ++ )
+		// 法線の自動生成
 		{
-			if( Frame->AutoCreateNormal == 0 ) continue ;
+			VECTOR Nrm ;
+			MV1_MESH_NORMAL *MNrm ;
+			MV1_MESH_VERTEX *Vertex[ 3 ] ;
+			DWORD VertUnitSize, PosUnitSize ;
 
-			PosUnitSize = Frame->PosUnitSize ;
-
-			// 面の法線を算出しながら足していく
-			Mesh = Frame->Mesh ;
-			for( j = 0 ; j < Frame->MeshNum ; j ++, Mesh ++ )
+			// 全てのフレームを処理
+			Frame = MBase->Frame ;
+			for( i = 0 ; i < MBase->FrameNum ; i ++, Frame ++ )
 			{
-				VertUnitSize = Mesh->VertUnitSize ;
+				if( Frame->AutoCreateNormal == 0 ) continue ;
 
-				Face = Mesh->Face ;
-				for( k = 0 ; k < Mesh->FaceNum ; k ++, Face ++ )
+				PosUnitSize = ( DWORD )Frame->PosUnitSize ;
+
+				// 面の法線を算出しながら足していく
+				Mesh = Frame->Mesh ;
+				for( j = 0 ; j < Frame->MeshNum ; j ++, Mesh ++ )
 				{
-					Vertex[ 0 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 0 ] ) ;
-					Vertex[ 1 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 1 ] ) ;
-					Vertex[ 2 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 2 ] ) ;
+					VertUnitSize = ( DWORD )Mesh->VertUnitSize ;
 
-					Nrm = VNorm( VCross( 
-						VSub( ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 1 ]->PositionIndex ) )->Position, 
-						      ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 0 ]->PositionIndex ) )->Position ),
-						VSub( ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 2 ]->PositionIndex ) )->Position, 
-						      ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 0 ]->PositionIndex ) )->Position ) ) ) ;
+					Face = Mesh->Face ;
+					for( k = 0 ; k < Mesh->FaceNum ; k ++, Face ++ )
+					{
+						Vertex[ 0 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 0 ] ) ;
+						Vertex[ 1 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 1 ] ) ;
+						Vertex[ 2 ] = ( MV1_MESH_VERTEX * )( ( BYTE * )Mesh->Vertex + VertUnitSize * Face->VertexIndex[ 2 ] ) ;
 
-					MNrm = &Frame->Normal[ Vertex[ 0 ]->NormalIndex ] ;
-					MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
+						Nrm = VNorm( VCross( 
+							VSub( ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 1 ]->PositionIndex ) )->Position, 
+								  ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 0 ]->PositionIndex ) )->Position ),
+							VSub( ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 2 ]->PositionIndex ) )->Position, 
+								  ( ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + PosUnitSize * Vertex[ 0 ]->PositionIndex ) )->Position ) ) ) ;
 
-					MNrm = &Frame->Normal[ Vertex[ 1 ]->NormalIndex ] ;
-					MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
+						MNrm = &Frame->Normal[ Vertex[ 0 ]->NormalIndex ] ;
+						MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
 
-					MNrm = &Frame->Normal[ Vertex[ 2 ]->NormalIndex ] ;
-					MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
+						MNrm = &Frame->Normal[ Vertex[ 1 ]->NormalIndex ] ;
+						MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
+
+						MNrm = &Frame->Normal[ Vertex[ 2 ]->NormalIndex ] ;
+						MNrm->Normal = VAdd( MNrm->Normal, Nrm ) ;
+					}
+				}
+
+				// 法線を正規化する
+				MNrm = Frame->Normal ;
+				for( j = 0 ; j < Frame->NormalNum ; j ++, MNrm ++ )
+				{
+					MNrm->Normal = VNorm( MNrm->Normal ) ;
 				}
 			}
-
-			// 法線を正規化する
-			MNrm = Frame->Normal ;
-			for( j = 0 ; j < Frame->NormalNum ; j ++, MNrm ++ )
-			{
-				MNrm->Normal = VNorm( MNrm->Normal ) ;
-			}
 		}
-	}
 
-	// 接線と従法線の構築
-	Mesh = MBase->Mesh ;
-	for( i = 0 ; i < MBase->MeshNum ; i ++, Mesh ++ )
-	{
-		MV1MakeMeshBinormalsAndTangents( Mesh ) ;
+		// 接線と従法線の構築
+		Mesh = MBase->Mesh ;
+		for( i = 0 ; i < MBase->MeshNum ; i ++, Mesh ++ )
+		{
+			MV1MakeMeshBinormalsAndTangents( Mesh ) ;
+		}
 	}
 
 	// アニメーションキーセットの情報をセット
@@ -18054,6 +15393,12 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 				Src += AnimKeySet->Num * sizeof( FLOAT4 ) ;
 				MBase->AnimKeyDataSize += sizeof( FLOAT4 ) * AnimKeySet->Num ;
 				break ;
+
+			case MV1_ANIMKEY_TYPE_MATRIX4X4C :
+				_MEMCPY( AnimKeySet->KeyMatrix4x4C, Src, AnimKeySet->Num * sizeof( MATRIX_4X4CT_F ) ) ;
+				Src += AnimKeySet->Num * sizeof( MATRIX_4X4CT_F ) ;
+				MBase->AnimKeyDataSize += sizeof( MATRIX_4X4CT_F ) * AnimKeySet->Num ;
+				break ;
 			}
 		}
 		else
@@ -18158,6 +15503,15 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 				break ;
 			}
 		}
+
+		if( LoadParam->GParam.LoadModelToIgnoreScaling &&
+			( AnimKeySet->DataType == MV1_ANIMKEY_DATATYPE_SCALE ||
+			  AnimKeySet->DataType == MV1_ANIMKEY_DATATYPE_SCALE_X ||
+			  AnimKeySet->DataType == MV1_ANIMKEY_DATATYPE_SCALE_Y ||
+			  AnimKeySet->DataType == MV1_ANIMKEY_DATATYPE_SCALE_Z  ) )
+		{
+			AnimKeySet->Num = 0 ;
+		}
 	}
 
 	// アニメーションセットの情報をセット
@@ -18165,7 +15519,12 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	F1AnimSet = ( MV1_ANIMSET_F1 * )( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->AnimSet ) ;
 	for( i = 0 ; i < MBase->AnimSetNum ; i ++, AnimSet ++, F1AnimSet = ( MV1_ANIMSET_F1 * )( ( DWORD_PTR )FHeader + ( DWORD_PTR )F1AnimSet->DimNext ) )
 	{
-		AnimSet->Name = MBase->StringBuffer + ( DWORD_PTR )F1AnimSet->Name ;
+		MV1LoadModelToMV1_GetString( FHeader, MBase, FileStringBuffer, F1AnimSet->Name,
+#ifndef UNICODE
+			&AnimSet->NameA,
+#endif
+			&AnimSet->NameW
+		) ;
 
 		AnimSet->Index = F1AnimSet->Index ;
 		AnimSet->MaxTime = F1AnimSet->MaxTime ;
@@ -18188,7 +15547,6 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			Anim->Container = MBase->AnimSet + ( ( MV1_ANIMSET_F1 * )( ( DWORD_PTR )FHeader + ( DWORD_PTR )F1Anim->Container ) )->Index ;
 		}
 
-//		Anim->TargetFrameName = MBase->StringBuffer + ( DWORD_PTR )F1Anim->TargetFrameName ;
 		Anim->TargetFrame = MBase->Frame + F1Anim->TargetFrameIndex ;
 		Anim->TargetFrameIndex = F1Anim->TargetFrameIndex ;
 		Anim->MaxTime = F1Anim->MaxTime ;
@@ -18201,6 +15559,15 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 
 	// 行列のセットアップ
 	MV1SetupInitializeMatrixBase( MBase ) ;
+
+	// メッシュの半透明かどうかの情報をセットアップする
+	MV1SetupMeshSemiTransStateBase( MBase ) ;
+
+	// 同時複数描画関係の情報をセットアップする
+	if( MBase->UsePackDraw )
+	{
+		MV1SetupPackDrawInfo( MBase ) ;
+	}
 
 	// メモリの解放
 	DXFREE( FHeader ) ;
@@ -18225,6 +15592,13 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		MV1SetupToonOutLineTriangleList( TriangleList ) ;
 	}
 
+#ifndef DX_NON_ASYNCLOAD
+	if( ASyncThread )
+	{
+		DecASyncLoadCount( NewHandle ) ;
+	}
+#endif // DX_NON_ASYNCLOAD
+
 	// 正常終了
 	return NewHandle ;
 
@@ -18232,6 +15606,13 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 ERRORLABEL :
 	if( NewHandle )
 	{
+#ifndef DX_NON_ASYNCLOAD
+		if( ASyncThread )
+		{
+			DecASyncLoadCount( NewHandle ) ;
+		}
+#endif // DX_NON_ASYNCLOAD
+
 		MV1SubModelBase( NewHandle ) ;
 		NewHandle = 0 ;
 	}
@@ -18240,869 +15621,6 @@ ERRORLABEL :
 	DXFREE( FHeader ) ;
 
 	// エラー終了
-	return -1 ;
-}
-
-// モデルデータの頂点バッファのセットアップをする( -1:エラー )
-extern int MV1SetupVertexBuffer( int MHandle, int ASyncThread )
-{
-	MV1_MODEL *Model ;
-	MV1_MODEL_BASE *MBase ;
-	MV1_MESH *Mesh ;
-	MV1_MESH_BASE *MBMesh ;
-	MV1_FRAME_BASE *MBFrame ;
-	MV1_FRAME *Frame ;
-	MV1_TRIANGLE_LIST *TList ;
-	MV1_TRIANGLE_LIST_BASE *MBTList ;
-	int i, l, m ;
-	bool ValidVertexBuffer ;
-
-	// 初期化されていなかったらエラー
-	if( MV1Man.Initialize == false ) return -1 ;
-
-	// アドレス取得
-	if( ASyncThread )
-	{
-		if( MV1MDLCHK_ASYNC( MHandle, Model ) )
-			return -1 ;
-	}
-	else
-	{
-		if( MV1MDLCHK( MHandle, Model ) )
-			return -1 ;
-	}
-	MBase = Model->BaseData ;
-
-	// 頂点バッファを使用するかどうかのフラグをセットアップしておく
-	ValidVertexBuffer = true ;
-	if( GRA2.ValidHardWare == FALSE || ( GRH.VertexHardwareProcess == FALSE && GRH.ValidVertexShader == FALSE ) )
-		ValidVertexBuffer = false ;
-
-	// 頂点バッファを使用する可能性が無い場合は何もせずに終了
-	if( ValidVertexBuffer == false && GRH.UseShader == FALSE )
-		return 0 ;
-
-	// シェイプが使用されているフレームのみ処理する
-	MBFrame = MBase->Frame ;
-	Frame = Model->Frame ;
-	for( i = 0 ; i < MBase->FrameNum ; i ++, Frame ++, MBFrame ++ )
-	{
-		if( MBFrame->ShapeNum == 0 ) continue ;
-
-		MBMesh = MBFrame->Mesh ;
-		Mesh = Frame->Mesh ;
-		for( l = 0 ; l < MBFrame->MeshNum ; l ++, MBMesh ++, Mesh ++ )
-		{
-			if( MBMesh->Shape == 0 ) continue ;
-
-			MBTList = MBMesh->TriangleList ;
-			TList = Mesh->TriangleList ;
-			for( m = 0 ; m < MBMesh->TriangleListNum ; m ++, MBTList ++, TList ++ )
-			{
-				// 頂点バッファを使用するかどうかで処理を分岐
-				if( ( MBTList->VertexType == MV1_VERTEX_TYPE_NORMAL && ValidVertexBuffer == true ) ||
-					( MBTList->VertexType != MV1_VERTEX_TYPE_NORMAL && GRH.UseShader )
-					)
-				{
-					// 頂点バッファがセットアップされていなかったらする
-					if( TList->VertexBuffer == NULL && MBTList->VertexBuffer != NULL )
-					{
-						GraphicsDevice_CreateVertexBuffer_ASync(
-							MBTList->VertexBuffer->UnitSize * MBTList->VertexNum,
-							D_D3DUSAGE_WRITEONLY | D_D3DUSAGE_DYNAMIC,
-							MBTList->VertexBuffer->FVF,
-							D_D3DPOOL_DEFAULT,
-							&TList->VertexBuffer,
-							ASyncThread
-						) ;
-
-						// シェイプのセットアップが行われていない状態にする
-						Model->ShapeChangeFlag = true ;
-						TList->Container->Container->ShapeChangeFlag = true ;
-					}
-				}
-			}
-		}
-	}
-
-	// 終了
-	return 0 ;
-}
-
-// 頂点バッファのセットアップをする( -1:エラー )
-extern int MV1SetupVertexBufferBase( int MV1ModelBaseHandle, int DuplicateNum, int ASyncThread )
-{
-	int i, j, k, l, Type, UVType, Bump, VertexNum, UVNum, MeshVertSize ;
-	MV1_MODEL_BASE *MBase ;
-	MV1_MESH_NORMAL *MeshNorm, *MNorm ;
-	MV1_MESH_VERTEX *MeshVert, *MVert ;
-	MV1_TRIANGLE_LIST_BASE *MBTList ;
-	MV1_VERTEXBUFFER *VBuf[ 3 ][ 2 ][ 9 ], *TVBuf, *TVBuf2 ;
-	DWORD *MVInd ;
-	DWORD TexOrParam ;
-
-	// ハードウエアＴ＆Ｌが使用できない場合は何もしない
-	if( GRA2.ValidHardWare == FALSE || ( GRH.VertexHardwareProcess == FALSE && GRH.ValidVertexShader == FALSE ) )
-		return 0 ;
-
-	// ハンドルチェック
-	if( MV1BMDLCHK( MV1ModelBaseHandle, MBase ) )
-		return -1 ;
-
-	// 既にセットアップされている場合は何もせず終了
-	if( MBase->SetupVertexBuffer )
-		return 0 ;
-
-	// 希望するオブジェクトコピーの数を保存する
-	MBase->ObjectDuplicateNum = DuplicateNum ;
-
-	// 頂点バッファの数を調べる
-	_MEMSET( MBase->VertexBufferFirst, 0, sizeof( MBase->VertexBufferFirst ) ) ;
-	_MEMSET( MBase->VertexBufferLast, 0, sizeof( MBase->VertexBufferLast ) ) ;
-	_MEMSET( MBase->VertexBufferNum, 0, sizeof( MBase->VertexBufferNum ) ) ;
-	MBase->TotalVertexBufferNum = 0 ;
-	_MEMSET( VBuf, 0, sizeof( VBuf ) ) ;
-	MBTList = MBase->TriangleList ;
-	for( i = 0 ; i < MBase->TriangleListNum ; i ++, MBTList ++ )
-	{
-		// 頂点タイプをセット
-		UVType = MBTList->Container->UVSetUnitNum ;
-		switch( MBTList->VertexType )
-		{
-		case MV1_VERTEX_TYPE_NORMAL :     Type = 0 ; break ;
-		case MV1_VERTEX_TYPE_SKIN_4BONE : Type = 1 ; break ;
-		case MV1_VERTEX_TYPE_SKIN_8BONE : Type = 2 ; break ;
-		default :
-			continue ;
-		}
-
-		// バンプマップの有無をセット
-		Bump = MBTList->Container->Material->NormalLayerNum ? 1 : 0 ;
-
-		// 複製の数を保存する
-//		MBTList->VertexDuplicateNum = ObjectDuplicateNum ;
-
-		// タイプのバッファが確保されていなかったら確保
-		if( VBuf[ Type ][ Bump ][ UVType ] == NULL )
-		{
-			MBase->TotalVertexBufferNum ++ ;
-			MBase->VertexBufferNum[ Type ][ Bump ][ UVType ] ++ ;
-			VBuf[ Type ][ Bump ][ UVType ] = ( MV1_VERTEXBUFFER * )DXALLOC( sizeof( MV1_VERTEXBUFFER ) ) ;
-			_MEMSET( VBuf[ Type ][ Bump ][ UVType ], 0, sizeof( MV1_VERTEXBUFFER ) ) ;
-			MBase->VertexBufferFirst[ Type ][ Bump ][ UVType ] = VBuf[ Type ][ Bump ][ UVType ] ;
-			MBase->VertexBufferLast[ Type ][ Bump ][ UVType ]  = VBuf[ Type ][ Bump ][ UVType ] ;
-		}
-		TVBuf = VBuf[ Type ][ Bump ][ UVType ] ;
-
-		// 使用するバッファを保存
-		MBTList->VertexBuffer = TVBuf ;
-
-		// 開始アドレスを保存
-		MBTList->VBStartIndex  = TVBuf->IndexCount ;
-		MBTList->VBStartVertex = TVBuf->VertexCount ;
-
-		// 数を足す
-		TVBuf->VertexCount += MBTList->VertexNum ;
-		TVBuf->IndexCount  += MBTList->IndexNum + MBTList->ToonOutLineIndexNum ;
-
-		// 規定数を超えていたら次のバッファを作成
-		if( TVBuf->IndexCount  >= MV1_INDEXBUFFER_MAX_IDXNUM ||
-			TVBuf->VertexCount >= MV1_VERTEXBUFFER_MAX_VERTNUM )
-		{
-			TVBuf->VertexCount -= MBTList->VertexNum ;
-			TVBuf->IndexCount  -= MBTList->IndexNum + MBTList->ToonOutLineIndexNum ;
-
-			MBase->TotalVertexBufferNum ++ ;
-			MBase->VertexBufferNum[ Type ][ Bump ][ UVType ] ++ ;
-			TVBuf->DataNext = ( MV1_VERTEXBUFFER * )DXALLOC( sizeof( MV1_VERTEXBUFFER ) ) ;
-			_MEMSET( TVBuf->DataNext, 0, sizeof( MV1_VERTEXBUFFER ) ) ;
-			TVBuf->DataNext->DataPrev = TVBuf ;
-			MBase->VertexBufferLast[ Type ][ Bump ][ UVType ] = TVBuf->DataNext ;
-			VBuf[ Type ][ Bump ][ UVType ] = TVBuf->DataNext ;
-
-
-			TVBuf = VBuf[ Type ][ Bump ][ UVType ] ;
-
-			// 使用するバッファを保存
-			MBTList->VertexBuffer = TVBuf ;
-
-			// 開始アドレスを保存
-			MBTList->VBStartIndex  = TVBuf->IndexCount ;
-			MBTList->VBStartVertex = TVBuf->VertexCount ;
-
-			// 数を足す
-			TVBuf->VertexCount += MBTList->VertexNum ;
-			TVBuf->IndexCount  += MBTList->IndexNum + MBTList->ToonOutLineIndexNum ;
-		}
-	}
-
-	// 何も頂点がないバッファは削除する
-	for( i = 0 ; i < 3 ; i ++ )
-	{
-		for( j = 0 ; j < 2 ; j ++ )
-		{
-			for( k = 0 ; k < 9 ; k ++ )
-			{
-				TVBuf = MBase->VertexBufferLast[ i ][ j ][ k ] ;
-				if( TVBuf == NULL || TVBuf->IndexCount != 0 ) continue ;
-
-				MBase->VertexBufferLast[ i ][ j ][ k ] = TVBuf->DataPrev ;
-				if( TVBuf->DataPrev ) TVBuf->DataPrev->DataNext = NULL ;
-				DXFREE( TVBuf ) ;
-
-				MBase->TotalVertexBufferNum -- ;
-				MBase->VertexBufferNum[ i ][ j ][ k ] -- ;
-			}
-		}
-	}
-
-	// 頂点バッファを作成する
-	for( i = 0 ; i < 3 ; i ++ )
-	{
-		for( j = 0 ; j < 2 ; j ++ )
-		{
-			for( k = 0 ; k < 9 ; k ++ )
-			{
-				TexOrParam = 0 ;
-				switch( k )
-				{
-				case 1 : TexOrParam = D_D3DFVF_TEX1 | D_D3DFVF_TEXCOORDSIZE4( 0 ) ; break ;
-				case 2 : TexOrParam = D_D3DFVF_TEX2 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) ; break ;
-				case 3 : TexOrParam = D_D3DFVF_TEX3 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ) ; break ;
-				case 4 : TexOrParam = D_D3DFVF_TEX4 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ) | D_D3DFVF_TEXCOORDSIZE4( 3 ) ; break ;
-				case 5 : TexOrParam = D_D3DFVF_TEX5 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ) | D_D3DFVF_TEXCOORDSIZE4( 3 ) | D_D3DFVF_TEXCOORDSIZE4( 4 ) ; break ;
-				case 6 : TexOrParam = D_D3DFVF_TEX6 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ) | D_D3DFVF_TEXCOORDSIZE4( 3 ) | D_D3DFVF_TEXCOORDSIZE4( 4 ) | D_D3DFVF_TEXCOORDSIZE4( 5 ) ; break ;
-				case 7 : TexOrParam = D_D3DFVF_TEX7 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ) | D_D3DFVF_TEXCOORDSIZE4( 3 ) | D_D3DFVF_TEXCOORDSIZE4( 4 ) | D_D3DFVF_TEXCOORDSIZE4( 5 ) | D_D3DFVF_TEXCOORDSIZE4( 6 ) ; break ;
-				case 8 : TexOrParam = D_D3DFVF_TEX8 | D_D3DFVF_TEXCOORDSIZE4( 0 ) | D_D3DFVF_TEXCOORDSIZE4( 1 ) | D_D3DFVF_TEXCOORDSIZE4( 2 ) | D_D3DFVF_TEXCOORDSIZE4( 3 ) | D_D3DFVF_TEXCOORDSIZE4( 4 ) | D_D3DFVF_TEXCOORDSIZE4( 5 ) | D_D3DFVF_TEXCOORDSIZE4( 6 ) | D_D3DFVF_TEXCOORDSIZE4( 7 ) ; break ;
-				}
-
-				VBuf[ i ][ j ][ k ] = MBase->VertexBufferFirst[ i ][ j ][ k ] ;
-				for( TVBuf = VBuf[ i ][ j ][ k ] ; TVBuf ; TVBuf = TVBuf->DataNext )
-				{
-					// 頂点タイプによって処理を分岐
-					switch( i )
-					{
-					case 0 :
-						// 剛体メッシュの場合
-						if( j == 0 )
-						{
-							// バンプマップ無し
-
-							// 頂点バッファを作成
-							TVBuf->UnitSize = sizeof( MV1_VERTEX_SIMPLE ) + ( k - 1 ) * sizeof( float ) * 4 ;
-							TVBuf->FVF = D_D3DFVF_XYZ | D_D3DFVF_NORMAL | D_D3DFVF_DIFFUSE | D_D3DFVF_SPECULAR | TexOrParam ;
-							if( GraphicsDevice_CreateVertexBuffer_ASync(
-									TVBuf->UnitSize * TVBuf->VertexCount,
-									D_D3DUSAGE_WRITEONLY,
-									TVBuf->FVF,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->VertexBuffer,
-									ASyncThread
-								) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsVertexBuffer_Lock_ASync( TVBuf->VertexBuffer, 0, 0, &TVBuf->VertexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-
-							// インデックスバッファを作成
-							if( GraphicsDevice_CreateIndexBuffer_ASync(
-									sizeof( WORD ) * TVBuf->IndexCount,
-									D_D3DUSAGE_WRITEONLY,
-									D_D3DFMT_INDEX16,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->IndexBuffer,
-									ASyncThread ) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsIndexBuffer_Lock_ASync( TVBuf->IndexBuffer, 0, 0, &TVBuf->IndexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-						}
-						else
-						{
-							// バンプマップ付き剛体メッシュの場合
-
-							// 頂点シェーダーが使用できない場合は作成しない
-							if( GRH.UseShader == FALSE ) break ; 
-
-							// 頂点バッファを作成
-							TVBuf->UnitSize = sizeof( MV1_VERTEX_SIMPLE_BUMP ) + ( k - 1 ) * sizeof( float ) * 4 ;
-							TVBuf->FVF = 0 ;
-							if( GraphicsDevice_CreateVertexBuffer_ASync(
-									TVBuf->UnitSize * TVBuf->VertexCount,
-									D_D3DUSAGE_WRITEONLY,
-									0,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->VertexBuffer,
-									ASyncThread
-								) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsVertexBuffer_Lock_ASync( TVBuf->VertexBuffer, 0, 0, &TVBuf->VertexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-
-							// インデックスバッファを作成
-							if( GraphicsDevice_CreateIndexBuffer_ASync(
-									sizeof( WORD ) * TVBuf->IndexCount,
-									D_D3DUSAGE_WRITEONLY,
-									D_D3DFMT_INDEX16,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->IndexBuffer,
-									ASyncThread ) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsIndexBuffer_Lock_ASync( TVBuf->IndexBuffer, 0, 0, &TVBuf->IndexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-						}
-						break ;
-
-					case 1 :
-						// ４ボーン以内のスキニングメッシュの場合
-
-						if( j == 0 )
-						{
-							// 頂点シェーダーが使用できない場合は作成しない
-							if( GRH.UseShader == FALSE ) break ; 
-
-							// 頂点バッファを作成
-							TVBuf->UnitSize = sizeof( MV1_VERTEX_SKIN_B4 ) + ( k - 1 ) * sizeof( float ) * 4 ;
-							TVBuf->FVF = 0 ;
-							if( GraphicsDevice_CreateVertexBuffer_ASync(
-									TVBuf->UnitSize * TVBuf->VertexCount,
-									D_D3DUSAGE_WRITEONLY,
-									0,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->VertexBuffer,
-									ASyncThread
-								) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsVertexBuffer_Lock_ASync( TVBuf->VertexBuffer, 0, 0, &TVBuf->VertexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-
-							// インデックスバッファを作成
-							if( GraphicsDevice_CreateIndexBuffer_ASync(
-									sizeof( WORD ) * TVBuf->IndexCount,
-									D_D3DUSAGE_WRITEONLY,
-									D_D3DFMT_INDEX16,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->IndexBuffer,
-									ASyncThread ) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsIndexBuffer_Lock_ASync( TVBuf->IndexBuffer, 0, 0, &TVBuf->IndexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-						}
-						else
-						{
-							// バンプマップ付き４ボーン以内のスキニングメッシュの場合
-
-							// 頂点シェーダーが使用できない場合は作成しない
-							if( GRH.UseShader == FALSE ) break ; 
-
-							// 頂点バッファを作成
-							TVBuf->UnitSize = sizeof( MV1_VERTEX_SKIN_B4_BUMP ) + ( k - 1 ) * sizeof( float ) * 4 ;
-							TVBuf->FVF = 0 ;
-							if( GraphicsDevice_CreateVertexBuffer_ASync(
-									TVBuf->UnitSize * TVBuf->VertexCount,
-									D_D3DUSAGE_WRITEONLY,
-									0,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->VertexBuffer,
-									ASyncThread
-								) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsVertexBuffer_Lock_ASync( TVBuf->VertexBuffer, 0, 0, &TVBuf->VertexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-
-							// インデックスバッファを作成
-							if( GraphicsDevice_CreateIndexBuffer_ASync(
-									sizeof( WORD ) * TVBuf->IndexCount,
-									D_D3DUSAGE_WRITEONLY,
-									D_D3DFMT_INDEX16,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->IndexBuffer,
-									ASyncThread ) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsIndexBuffer_Lock_ASync( TVBuf->IndexBuffer, 0, 0, &TVBuf->IndexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-						}
-						break ;
-
-
-					case 2 :
-						// ８ボーン以内のスキニングメッシュの場合
-
-						if( j == 0 )
-						{
-							// 頂点シェーダーが使用できない場合は作成しない
-							if( GRH.UseShader == FALSE ) break ; 
-
-							// 頂点バッファを作成
-							TVBuf->UnitSize = sizeof( MV1_VERTEX_SKIN_B8 ) + ( k - 1 ) * sizeof( float ) * 4 ;
-							TVBuf->FVF = 0 ;
-							if( GraphicsDevice_CreateVertexBuffer_ASync(
-									TVBuf->UnitSize * TVBuf->VertexCount,
-									D_D3DUSAGE_WRITEONLY,
-									0,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->VertexBuffer,
-									ASyncThread
-								) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsVertexBuffer_Lock_ASync( TVBuf->VertexBuffer, 0, 0, &TVBuf->VertexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-
-							// インデックスバッファを作成
-							if( GraphicsDevice_CreateIndexBuffer_ASync(
-									sizeof( WORD ) * TVBuf->IndexCount,
-									D_D3DUSAGE_WRITEONLY,
-									D_D3DFMT_INDEX16,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->IndexBuffer,
-									ASyncThread ) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsIndexBuffer_Lock_ASync( TVBuf->IndexBuffer, 0, 0, &TVBuf->IndexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-						}
-						else
-						{
-							// バンプマップ付き４ボーン以内のスキニングメッシュの場合
-
-							// 頂点シェーダーが使用できない場合は作成しない
-							if( GRH.UseShader == FALSE ) break ; 
-
-							// 頂点バッファを作成
-							TVBuf->UnitSize = sizeof( MV1_VERTEX_SKIN_B8_BUMP ) + ( k - 1 ) * sizeof( float ) * 4 ;
-							TVBuf->FVF = 0 ;
-							if( GraphicsDevice_CreateVertexBuffer_ASync(
-									TVBuf->UnitSize * TVBuf->VertexCount,
-									D_D3DUSAGE_WRITEONLY,
-									0,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->VertexBuffer,
-									ASyncThread
-								) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsVertexBuffer_Lock_ASync( TVBuf->VertexBuffer, 0, 0, &TVBuf->VertexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-
-							// インデックスバッファを作成
-							if( GraphicsDevice_CreateIndexBuffer_ASync(
-									sizeof( WORD ) * TVBuf->IndexCount,
-									D_D3DUSAGE_WRITEONLY,
-									D_D3DFMT_INDEX16,
-									D_D3DPOOL_DEFAULT,
-									&TVBuf->IndexBuffer,
-									ASyncThread ) < 0 )
-								goto ERR ;
-
-							// ロック
-							if( GraphicsIndexBuffer_Lock_ASync( TVBuf->IndexBuffer, 0, 0, &TVBuf->IndexBufferL, 0, ASyncThread ) != D_D3D_OK )
-								goto ERR ;
-						}
-						break ;
-					}
-				}
-			}
-		}
-	}
-
-	// 頂点バッファにデータを格納する
-	MBTList = MBase->TriangleList ;
-	for( i = 0 ; i < MBase->TriangleListNum ; i ++, MBTList ++ )
-	{
-		if( MBTList->VertexBuffer == NULL ||
-			MBTList->VertexBuffer->VertexBuffer == NULL ||
-			MBTList->VertexBuffer->IndexBuffer == NULL
-			) continue ;
-
-		// バンプマップの有無をセット
-		Bump = MBTList->Container->Material->NormalLayerNum ? 1 : 0 ;
-
-		// 使用する頂点バッファをセット
-		TVBuf = MBTList->VertexBuffer ;
-
-		// 頂点タイプによって処理を分岐
-		MVInd = MBTList->MeshVertexIndex ;
-		VertexNum = MBTList->VertexNum ;
-		UVNum = MBTList->Container->UVSetUnitNum ;
-		MeshNorm = MBTList->Container->Container->Normal ;
-		MeshVertSize = MBTList->Container->VertUnitSize ;
-		MeshVert = MBTList->Container->Vertex ;
-		switch( MBTList->VertexType )
-		{
-		case MV1_VERTEX_TYPE_NORMAL :
-			if( Bump )
-			{
-				MV1_VERTEX_SIMPLE_BUMP *Dest ;
-				MV1_TLIST_NORMAL_POS *Src ;
-
-				Src = ( MV1_TLIST_NORMAL_POS * )ADDR16( MBTList->NormalPosition ) ;
-				Dest = ( MV1_VERTEX_SIMPLE_BUMP * )( ( BYTE * )TVBuf->VertexBufferL + MBTList->VBStartVertex * MBTList->VertexBuffer->UnitSize ) ;
-				for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SIMPLE_BUMP * )( ( BYTE * )Dest + MBTList->VertexBuffer->UnitSize ), Src ++, MVInd ++ )
-				{
-					MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-					MNorm = MeshNorm + MVert->NormalIndex ;
-
-					Dest->Position      = *( ( VECTOR * )&Src->Position ) ;
-					Dest->Normal        = MNorm->Normal ;
-					Dest->Binormal      = MNorm->Binormal ;
-					Dest->Tangent       = MNorm->Tangent ;
-					Dest->DiffuseColor  = MVert->DiffuseColor ;
-					Dest->SpecularColor = MVert->SpecularColor ;
-
-					for( k = 0 ; k < UVNum ; k ++ )
-					{
-						Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-						Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-						Dest->UVs[ k ][ 2 ] = 1.0f ;
-						Dest->UVs[ k ][ 3 ] = 1.0f ;
-					}
-				}
-			}
-			else
-			{
-				MV1_VERTEX_SIMPLE *Dest ;
-				MV1_TLIST_NORMAL_POS *Src ;
-
-				Src = ( MV1_TLIST_NORMAL_POS * )ADDR16( MBTList->NormalPosition ) ;
-				Dest = ( MV1_VERTEX_SIMPLE * )( ( BYTE * )TVBuf->VertexBufferL + MBTList->VBStartVertex * MBTList->VertexBuffer->UnitSize ) ;
-				for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SIMPLE * )( ( BYTE * )Dest + MBTList->VertexBuffer->UnitSize ), Src ++, MVInd ++ )
-				{
-					MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-					MNorm = MeshNorm + MVert->NormalIndex ;
-
-					Dest->Position      = *( ( VECTOR * )&Src->Position ) ;
-					Dest->Normal        = MNorm->Normal ;
-					Dest->DiffuseColor  = MVert->DiffuseColor ;
-					Dest->SpecularColor = MVert->SpecularColor ;
-
-					for( k = 0 ; k < UVNum ; k ++ )
-					{
-						Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-						Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-						Dest->UVs[ k ][ 2 ] = 1.0f ;
-						Dest->UVs[ k ][ 3 ] = 1.0f ;
-					}
-				}
-			}
-			break ;
-
-		case MV1_VERTEX_TYPE_SKIN_4BONE :
-			if( Bump )
-			{
-				MV1_VERTEX_SKIN_B4_BUMP *Dest ;
-				MV1_TLIST_SKIN_POS_4B *Src ;
-
-				Src = ( MV1_TLIST_SKIN_POS_4B * )ADDR16( MBTList->SkinPosition4B ) ;
-				Dest = ( MV1_VERTEX_SKIN_B4_BUMP * )( ( BYTE * )TVBuf->VertexBufferL + MBTList->VBStartVertex * MBTList->VertexBuffer->UnitSize ) ;
-				for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SKIN_B4_BUMP * )( ( BYTE * )Dest + MBTList->VertexBuffer->UnitSize ), Src ++, MVInd ++ )
-				{
-					MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-					MNorm = MeshNorm + MVert->NormalIndex ;
-
-					Dest->Position          = *( ( VECTOR * )&Src->Position ) ;
-					Dest->MatrixIndex[ 0 ]  = Src->MatrixIndex[ 0 ] * 3 ;
-					Dest->MatrixIndex[ 1 ]  = Src->MatrixIndex[ 1 ] * 3 ;
-					Dest->MatrixIndex[ 2 ]  = Src->MatrixIndex[ 2 ] * 3 ;
-					Dest->MatrixIndex[ 3 ]  = Src->MatrixIndex[ 3 ] * 3 ;
-					Dest->MatrixWeight[ 0 ] = Src->MatrixWeight [ 0 ] ;
-					Dest->MatrixWeight[ 1 ] = Src->MatrixWeight [ 1 ] ;
-					Dest->MatrixWeight[ 2 ] = Src->MatrixWeight [ 2 ] ;
-					Dest->MatrixWeight[ 3 ] = Src->MatrixWeight [ 3 ] ;
-					Dest->Normal        = MNorm->Normal ;
-					Dest->Binormal      = MNorm->Binormal ;
-					Dest->Tangent       = MNorm->Tangent ;
-					Dest->DiffuseColor  = MVert->DiffuseColor ;
-					Dest->SpecularColor = MVert->SpecularColor ;
-
-					for( k = 0 ; k < UVNum ; k ++ )
-					{
-						Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-						Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-						Dest->UVs[ k ][ 2 ] = 1.0f ;
-						Dest->UVs[ k ][ 3 ] = 1.0f ;
-					}
-				}
-			}
-			else
-			{
-				MV1_VERTEX_SKIN_B4 *Dest ;
-				MV1_TLIST_SKIN_POS_4B *Src ;
-
-				Src = ( MV1_TLIST_SKIN_POS_4B * )ADDR16( MBTList->SkinPosition4B ) ;
-				Dest = ( MV1_VERTEX_SKIN_B4 * )( ( BYTE * )TVBuf->VertexBufferL + MBTList->VBStartVertex * MBTList->VertexBuffer->UnitSize ) ;
-				for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SKIN_B4 * )( ( BYTE * )Dest + MBTList->VertexBuffer->UnitSize ), Src ++, MVInd ++ )
-				{
-					MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-					MNorm = MeshNorm + MVert->NormalIndex ;
-
-					Dest->Position          = *( ( VECTOR * )&Src->Position ) ;
-					Dest->MatrixIndex[ 0 ]  = Src->MatrixIndex[ 0 ] * 3 ;
-					Dest->MatrixIndex[ 1 ]  = Src->MatrixIndex[ 1 ] * 3 ;
-					Dest->MatrixIndex[ 2 ]  = Src->MatrixIndex[ 2 ] * 3 ;
-					Dest->MatrixIndex[ 3 ]  = Src->MatrixIndex[ 3 ] * 3 ;
-					Dest->MatrixWeight[ 0 ] = Src->MatrixWeight [ 0 ] ;
-					Dest->MatrixWeight[ 1 ] = Src->MatrixWeight [ 1 ] ;
-					Dest->MatrixWeight[ 2 ] = Src->MatrixWeight [ 2 ] ;
-					Dest->MatrixWeight[ 3 ] = Src->MatrixWeight [ 3 ] ;
-					Dest->Normal        = MNorm->Normal ;
-					Dest->DiffuseColor  = MVert->DiffuseColor ;
-					Dest->SpecularColor = MVert->SpecularColor ;
-
-					for( k = 0 ; k < UVNum ; k ++ )
-					{
-						Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-						Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-						Dest->UVs[ k ][ 2 ] = 1.0f ;
-						Dest->UVs[ k ][ 3 ] = 1.0f ;
-					}
-				}
-			}
-			break ;
-
-		case MV1_VERTEX_TYPE_SKIN_8BONE :
-			if( Bump )
-			{
-				MV1_VERTEX_SKIN_B8_BUMP *Dest ;
-				MV1_TLIST_SKIN_POS_8B *Src ;
-
-				Src = ( MV1_TLIST_SKIN_POS_8B * )ADDR16( MBTList->SkinPosition8B ) ;
-				Dest = ( MV1_VERTEX_SKIN_B8_BUMP * )( ( BYTE * )TVBuf->VertexBufferL + MBTList->VBStartVertex * MBTList->VertexBuffer->UnitSize ) ;
-				for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SKIN_B8_BUMP * )( ( BYTE * )Dest + MBTList->VertexBuffer->UnitSize ), Src ++, MVInd ++ )
-				{
-					MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-					MNorm = MeshNorm + MVert->NormalIndex ;
-
-					Dest->Position          = *( ( VECTOR * )&Src->Position ) ;
-					Dest->MatrixIndex[ 0 ]  = Src->MatrixIndex1[ 0 ] * 3 ;
-					Dest->MatrixIndex[ 1 ]  = Src->MatrixIndex1[ 1 ] * 3 ;
-					Dest->MatrixIndex[ 2 ]  = Src->MatrixIndex1[ 2 ] * 3 ;
-					Dest->MatrixIndex[ 3 ]  = Src->MatrixIndex1[ 3 ] * 3 ;
-					Dest->MatrixIndex[ 4 ]  = Src->MatrixIndex2[ 0 ] * 3 ;
-					Dest->MatrixIndex[ 5 ]  = Src->MatrixIndex2[ 1 ] * 3 ;
-					Dest->MatrixIndex[ 6 ]  = Src->MatrixIndex2[ 2 ] * 3 ;
-					Dest->MatrixIndex[ 7 ]  = Src->MatrixIndex2[ 3 ] * 3 ;
-					Dest->MatrixWeight[ 0 ] = Src->MatrixWeight [ 0 ] ;
-					Dest->MatrixWeight[ 1 ] = Src->MatrixWeight [ 1 ] ;
-					Dest->MatrixWeight[ 2 ] = Src->MatrixWeight [ 2 ] ;
-					Dest->MatrixWeight[ 3 ] = Src->MatrixWeight [ 3 ] ;
-					Dest->MatrixWeight[ 4 ] = Src->MatrixWeight [ 4 ] ;
-					Dest->MatrixWeight[ 5 ] = Src->MatrixWeight [ 5 ] ;
-					Dest->MatrixWeight[ 6 ] = Src->MatrixWeight [ 6 ] ;
-					Dest->MatrixWeight[ 7 ] = Src->MatrixWeight [ 7 ] ;
-					Dest->Normal        = MNorm->Normal ;
-					Dest->Binormal      = MNorm->Binormal ;
-					Dest->Tangent       = MNorm->Tangent ;
-					Dest->DiffuseColor  = MVert->DiffuseColor ;
-					Dest->SpecularColor = MVert->SpecularColor ;
-
-					for( k = 0 ; k < UVNum ; k ++ )
-					{
-						Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-						Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-						Dest->UVs[ k ][ 2 ] = 1.0f ;
-						Dest->UVs[ k ][ 3 ] = 1.0f ;
-					}
-				}
-			}
-			else
-			{
-				MV1_VERTEX_SKIN_B8 *Dest ;
-				MV1_TLIST_SKIN_POS_8B *Src ;
-
-				Src = ( MV1_TLIST_SKIN_POS_8B * )ADDR16( MBTList->SkinPosition8B ) ;
-				Dest = ( MV1_VERTEX_SKIN_B8 * )( ( BYTE * )TVBuf->VertexBufferL + MBTList->VBStartVertex * MBTList->VertexBuffer->UnitSize ) ;
-				for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SKIN_B8 * )( ( BYTE * )Dest + MBTList->VertexBuffer->UnitSize ), Src ++, MVInd ++ )
-				{
-					MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-					MNorm = MeshNorm + MVert->NormalIndex ;
-
-					Dest->Position          = *( ( VECTOR * )&Src->Position ) ;
-					Dest->MatrixIndex[ 0 ]  = Src->MatrixIndex1[ 0 ] * 3 ;
-					Dest->MatrixIndex[ 1 ]  = Src->MatrixIndex1[ 1 ] * 3 ;
-					Dest->MatrixIndex[ 2 ]  = Src->MatrixIndex1[ 2 ] * 3 ;
-					Dest->MatrixIndex[ 3 ]  = Src->MatrixIndex1[ 3 ] * 3 ;
-					Dest->MatrixIndex[ 4 ]  = Src->MatrixIndex2[ 0 ] * 3 ;
-					Dest->MatrixIndex[ 5 ]  = Src->MatrixIndex2[ 1 ] * 3 ;
-					Dest->MatrixIndex[ 6 ]  = Src->MatrixIndex2[ 2 ] * 3 ;
-					Dest->MatrixIndex[ 7 ]  = Src->MatrixIndex2[ 3 ] * 3 ;
-					Dest->MatrixWeight[ 0 ] = Src->MatrixWeight [ 0 ] ;
-					Dest->MatrixWeight[ 1 ] = Src->MatrixWeight [ 1 ] ;
-					Dest->MatrixWeight[ 2 ] = Src->MatrixWeight [ 2 ] ;
-					Dest->MatrixWeight[ 3 ] = Src->MatrixWeight [ 3 ] ;
-					Dest->MatrixWeight[ 4 ] = Src->MatrixWeight [ 4 ] ;
-					Dest->MatrixWeight[ 5 ] = Src->MatrixWeight [ 5 ] ;
-					Dest->MatrixWeight[ 6 ] = Src->MatrixWeight [ 6 ] ;
-					Dest->MatrixWeight[ 7 ] = Src->MatrixWeight [ 7 ] ;
-					Dest->Normal        = MNorm->Normal ;
-					Dest->DiffuseColor  = MVert->DiffuseColor ;
-					Dest->SpecularColor = MVert->SpecularColor ;
-
-					for( k = 0 ; k < UVNum ; k ++ )
-					{
-						Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-						Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-						Dest->UVs[ k ][ 2 ] = 1.0f ;
-						Dest->UVs[ k ][ 3 ] = 1.0f ;
-					}
-				}
-			}
-			break ;
-		}
-
-		// インデックスデータの書き込み
-		_MEMCPY( ( BYTE * )TVBuf->IndexBufferL +   MBTList->VBStartIndex                       * sizeof( WORD ), MBTList->Index,            sizeof( WORD ) * MBTList->IndexNum            ) ;
-		_MEMCPY( ( BYTE * )TVBuf->IndexBufferL + ( MBTList->VBStartIndex + MBTList->IndexNum ) * sizeof( WORD ), MBTList->ToonOutLineIndex, sizeof( WORD ) * MBTList->ToonOutLineIndexNum ) ;
-	}
-
-	// ロック解除
-	for( i = 0 ; i < 3 ; i ++ )
-	{
-		for( j = 0 ; j < 2 ; j ++ )
-		{
-			for( k = 0 ; k < 9 ; k ++ )
-			{
-				for( TVBuf = MBase->VertexBufferFirst[ i ][ j ][ k ] ; TVBuf ; TVBuf = TVBuf2 )
-				{
-					TVBuf2 = TVBuf->DataNext ;
-
-					// バッファが確保できていなかったら解放する
-					if( TVBuf->VertexBuffer == NULL ||
-						TVBuf->IndexBuffer  == NULL )
-					{
-						if( TVBuf->DataPrev != NULL )
-						{
-							TVBuf->DataPrev->DataNext = TVBuf->DataNext ;
-						}
-						else
-						{
-							MBase->VertexBufferFirst[ i ][ j ][ k ] = TVBuf->DataNext ;
-						}
-
-						if( TVBuf->DataNext != NULL )
-						{
-							TVBuf->DataNext->DataPrev = TVBuf->DataPrev ;
-						}
-						else
-						{
-							MBase->VertexBufferLast[ i ][ j ][ k ] = TVBuf->DataPrev ;
-						}
-
-						if( TVBuf->VertexBuffer )
-						{
-							Graphics_ObjectRelease_ASync( TVBuf->VertexBuffer, ASyncThread ) ;
-							TVBuf->VertexBuffer = NULL ;
-						}
-
-						if( TVBuf->IndexBuffer )
-						{
-							Graphics_ObjectRelease_ASync( TVBuf->IndexBuffer, ASyncThread ) ;
-							TVBuf->IndexBuffer = NULL ;
-						}
-
-						// このバッファを使用していたトライアングルリストのポインタをクリアする
-						MBTList = MBase->TriangleList ;
-						for( l = 0 ; l < MBase->TriangleListNum ; l ++, MBTList ++ )
-						{
-							if( MBTList->VertexBuffer != TVBuf ) continue ;
-							MBTList->VertexBuffer = NULL ;
-						}
-
-						DXFREE( TVBuf ) ;
-						MBase->VertexBufferNum[ i ][ j ][ k ] -- ;
-						MBase->TotalVertexBufferNum -- ;
-					}
-					else
-					{
-						// 確保できていたらロックを解除する
-						if( TVBuf->VertexBuffer )
-							GraphicsVertexBuffer_Unlock_ASync( TVBuf->VertexBuffer, ASyncThread ) ;
-
-						if( TVBuf->IndexBuffer )
-							GraphicsIndexBuffer_Unlock_ASync( TVBuf->IndexBuffer, ASyncThread ) ;
-					}
-				}
-			}
-		}
-	}
-
-	// セットアップ完了フラグを立てる
-	MBase->SetupVertexBuffer = TRUE ;
-
-	// このハンドルを使用しているモデルの頂点バッファをセットアップする
-	{
-		MV1_MODEL *Model ;
-
-		if( HandleManageArray[ DX_HANDLETYPE_MODEL ].InitializeFlag )
-		{
-			for( i = HandleManageArray[ DX_HANDLETYPE_MODEL ].AreaMin ; i <= HandleManageArray[ DX_HANDLETYPE_MODEL ].AreaMax ; i ++ )
-			{
-				Model = ( MV1_MODEL * )HandleManageArray[ DX_HANDLETYPE_MODEL ].Handle[ i ] ;
-				if( Model == NULL ) continue ;
-#ifndef DX_NON_ASYNCLOAD
-				if( Model->HandleInfo.ASyncLoadCount != 0 ) continue ;
-#endif // DX_NON_ASYNCLOAD
-				if( Model->BaseData != MBase ) continue ;
-
-				MV1SetupVertexBuffer( Model->HandleInfo.Handle, ASyncThread ) ;
-			}
-		}
-	}
-
-	// 終了
-	return 0 ;
-
-ERR:
-	// 確保した頂点バッファなどを解放
-	for( i = 0 ; i < 3 ; i ++ )
-	{
-		for( j = 0 ; j < 2 ; j ++ )
-		{
-			for( k = 0 ; k < 9 ; k ++ )
-			{
-				for( TVBuf = MBase->VertexBufferFirst[ i ][ j ][ k ] ; TVBuf ; TVBuf = TVBuf2 )
-				{
-					if( TVBuf->VertexBuffer )
-					{
-						GraphicsVertexBuffer_Unlock_ASync( TVBuf->VertexBuffer, ASyncThread ) ;
-						Graphics_ObjectRelease_ASync( TVBuf->VertexBuffer, ASyncThread ) ;
-					}
-
-					if( TVBuf->IndexBuffer )
-					{
-						GraphicsIndexBuffer_Unlock_ASync( TVBuf->IndexBuffer, ASyncThread ) ;
-						Graphics_ObjectRelease_ASync( TVBuf->IndexBuffer, ASyncThread ) ;
-					}
-
-					TVBuf2 = TVBuf->DataNext ;
-					DXFREE( TVBuf ) ;
-				}
-				MBase->VertexBufferFirst[ i ][ j ][ k ] = NULL ;
-				MBase->VertexBufferLast[ i ][ j ][ k ] = NULL ;
-				MBase->VertexBufferNum[ i ][ j ][ k ] = 0 ;
-			}
-		}
-	}
-	MBase->TotalVertexBufferNum = 0 ;
-
-	// 終了
 	return -1 ;
 }
 
@@ -19115,122 +15633,16 @@ extern int MV1SetupVertexBufferAll( int ASyncThread )
 	if( HandleManageArray[ DX_HANDLETYPE_MODEL_BASE ].InitializeFlag == FALSE )
 		return -1 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 有効なすべてのモデル基データの頂点バッファをセットアップする
 	for( i = HandleManageArray[ DX_HANDLETYPE_MODEL_BASE ].AreaMin ; i <= HandleManageArray[ DX_HANDLETYPE_MODEL_BASE ].AreaMax ; i ++ )
 	{
 		MBase = ( MV1_MODEL_BASE * )HandleManageArray[ DX_HANDLETYPE_MODEL_BASE ].Handle[ i ] ;
 		if( MBase == NULL ) continue ;
 
-		MV1SetupVertexBufferBase( MBase->HandleInfo.Handle, 1, ASyncThread ) ;
-	}
-
-	// 終了
-	return 0 ;
-}
-
-// 頂点バッファの後始末をする( -1:エラー )
-extern int MV1TerminateVertexBufferBase( int MV1ModelBaseHandle )
-{
-	int i, j, k ;
-	MV1_MODEL_BASE *MBase ;
-	MV1_MODEL *Model ;
-	MV1_TRIANGLE_LIST_BASE *MBTList ;
-	MV1_VERTEXBUFFER *TVBuf, *TVBuf2 ;
-
-	// ハンドルチェック
-	if( MV1BMDLCHK( MV1ModelBaseHandle, MBase ) )
-		return -1 ;
-	if( MBase == NULL ) return -1 ;
-
-	// 頂点バッファがセットアップされていない場合は何もせず終了
-	if( MBase->SetupVertexBuffer == FALSE )
-		return 0 ;
-
-	// 確保した頂点バッファなどを解放
-	for( i = 0 ; i < 3 ; i ++ )
-	{
-		for( j = 0 ; j < 2 ; j ++ )
-		{
-			for( k = 0 ; k < 9 ; k ++ )
-			{
-				for( TVBuf = MBase->VertexBufferFirst[ i ][ j ][ k ] ; TVBuf ; )
-				{
-					if( TVBuf->VertexBuffer )
-					{
-						Graphics_ObjectRelease_ASync( TVBuf->VertexBuffer ) ;
-					}
-
-					if( TVBuf->IndexBuffer )
-					{
-						Graphics_ObjectRelease_ASync( TVBuf->IndexBuffer ) ;
-					}
-
-					TVBuf2 = TVBuf->DataNext ;
-					DXFREE( TVBuf ) ;
-					TVBuf = TVBuf2 ;
-				}
-				MBase->VertexBufferFirst[ i ][ j ][ k ] = NULL ;
-				MBase->VertexBufferLast[ i ][ j ][ k ] = NULL ;
-				MBase->VertexBufferNum[ i ][ j ][ k ] = 0 ;
-			}
-		}
-	}
-	MBase->TotalVertexBufferNum = 0 ;
-
-	// トライアングルリストの数だけ繰り返し
-	MBTList = MBase->TriangleList ;
-	for( i = 0 ; i < MBase->TriangleListNum ; i ++, MBTList ++ )
-	{
-		// 頂点バッファの情報をクリア
-		MBTList->VertexBuffer = NULL ;
-		MBTList->VBStartVertex = 0 ;
-		MBTList->VBStartIndex = 0 ;
-	}
-
-	// 頂点バッファセットアップフラグを倒す
-	MBase->SetupVertexBuffer = FALSE ;
-
-	// このハンドルを使用しているモデルの頂点バッファを解放する
-	if( HandleManageArray[ DX_HANDLETYPE_MODEL ].InitializeFlag )
-	{
-		for( i = HandleManageArray[ DX_HANDLETYPE_MODEL ].AreaMin ; i <= HandleManageArray[ DX_HANDLETYPE_MODEL ].AreaMax ; i ++ )
-		{
-			Model = ( MV1_MODEL * )HandleManageArray[ DX_HANDLETYPE_MODEL ].Handle[ i ] ;
-			if( Model == NULL ) continue ;
-#ifndef DX_NON_ASYNCLOAD
-			if( Model->HandleInfo.ASyncLoadCount != 0 ) continue ;
-#endif // DX_NON_ASYNCLOAD
-			if( Model->BaseData != MBase ) continue ;
-
-			MV1TerminateVertexBuffer( Model->HandleInfo.Handle ) ;
-		}
-	}
-
-	// 終了
-	return 0 ;
-}
-
-// 頂点バッファの後始末をする( -1:エラー )
-extern int MV1TerminateVertexBuffer( int MV1ModelHandle )
-{
-	int i ;
-	MV1_MODEL *Model ;
-	MV1_TRIANGLE_LIST *TList ;
-
-	// ハンドルチェック
-	if( MV1MDLCHK_ASYNC( MV1ModelHandle, Model ) )
-		return -1 ;
-
-	// トライアングルリストの数だけ繰り返し
-	TList = Model->TriangleList ;
-	for( i = 0 ; i < Model->BaseData->TriangleListNum ; i ++, TList ++ )
-	{
-		// 頂点バッファの情報をクリア
-		if( TList->VertexBuffer )
-		{
-			Graphics_ObjectRelease_ASync( TList->VertexBuffer ) ;
-			TList->VertexBuffer = NULL ;
-		}
+		MV1_SetupVertexBufferBase_PF( MBase->HandleInfo.Handle, 1, ASyncThread ) ;
 	}
 
 	// 終了
@@ -19244,6 +15656,9 @@ extern int MV1TerminateVertexBufferAll( void )
 	MV1_MODEL_BASE *MBase ;
 	MV1_MODEL *Model ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	if( HandleManageArray[ DX_HANDLETYPE_MODEL_BASE ].InitializeFlag )
 	{
 		// 有効なすべてのモデル基データの頂点バッファを解放する
@@ -19252,7 +15667,11 @@ extern int MV1TerminateVertexBufferAll( void )
 			MBase = ( MV1_MODEL_BASE * )HandleManageArray[ DX_HANDLETYPE_MODEL_BASE ].Handle[ i ] ;
 			if( MBase == NULL ) continue ;
 
-			MV1TerminateVertexBufferBase( MBase->HandleInfo.Handle ) ;
+#ifndef DX_NON_ASYNCLOAD
+			WaitASyncLoad( MBase->HandleInfo.Handle ) ;
+#endif
+
+			MV1_TerminateVertexBufferBase_PF( MBase->HandleInfo.Handle ) ;
 		}
 	}
 
@@ -19264,7 +15683,11 @@ extern int MV1TerminateVertexBufferAll( void )
 			Model = ( MV1_MODEL * )HandleManageArray[ DX_HANDLETYPE_MODEL ].Handle[ i ] ;
 			if( Model == NULL ) continue ;
 
-			MV1TerminateVertexBuffer( Model->HandleInfo.Handle ) ;
+#ifndef DX_NON_ASYNCLOAD
+			WaitASyncLoad( Model->HandleInfo.Handle ) ;
+#endif
+
+			MV1_TerminateVertexBuffer_PF( Model->HandleInfo.Handle ) ;
 		}
 	}
 
@@ -19273,7 +15696,7 @@ extern int MV1TerminateVertexBufferAll( void )
 }
 
 // ロードしたモデルのファイル名を取得する
-extern	const TCHAR *MV1GetModelFileName( int MHandle )
+extern	const wchar_t *MV1GetModelFileName( int MHandle )
 {
 	MV1_MODEL *Model ;
 
@@ -19289,7 +15712,7 @@ extern	const TCHAR *MV1GetModelFileName( int MHandle )
 }
 
 // ロードしたモデルが存在するディレクトリパスを取得する( 末端に / か \ が付いています )
-extern	const TCHAR *MV1GetModelDirectoryPath( int MHandle )
+extern	const wchar_t *MV1GetModelDirectoryPath( int MHandle )
 {
 	MV1_MODEL *Model ;
 
@@ -19304,473 +15727,12 @@ extern	const TCHAR *MV1GetModelDirectoryPath( int MHandle )
 	return Model->BaseData->DirectoryPath ;
 }
 
-// シェイプデータのセットアップをする
-extern int MV1SetupShapeVertex( int MHandle )
-{
-	MV1_MODEL *Model ;
-	MV1_MODEL_BASE *MBase ;
-	MV1_MESH *Mesh ;
-	MV1_MESH_BASE *MBMesh ;
-	MV1_FRAME_BASE *MBFrame ;
-	MV1_FRAME *Frame ;
-	MV1_TRIANGLE_LIST *TList ;
-	MV1_TRIANGLE_LIST_BASE *MBTList ;
-	MV1_SHAPE *Shape ;
-	MV1_SHAPE_BASE *MBShape ;
-	MV1_SHAPE_MESH_BASE *MBShapeMesh ;
-	MV1_SHAPE_VERTEX *ShapeVertex, *SVert ;
-	MV1_SHAPE_VERTEX_BASE *MBShapeVertex ;
-	MV1_MESH_VERTEX *MeshVertex ;
-	MV1_MESH_NORMAL *MeshNorm, *MNorm ;
-	MV1_MESH_VERTEX *MeshVert, *MVert ;
-	MV1_MODEL_ANIM *MAnim, *MAnim2 ;
-	MV1_MODEL_ANIMSET *MAnimSet ;
-	int i, j, k, l, m, VertexNum, UVNum, MeshVertSize ;
-	int DestUnitSize ;
-	DWORD *MVInd ;
-	float Rate ;
-	bool ValidVertexBuffer ;
-	int Bump ;
-	void *Vert ;
-
-	// 初期化されていなかったらエラー
-	if( MV1Man.Initialize == false ) return -1 ;
-
-	// アドレス取得
-	if( MV1MDLCHK( MHandle, Model ) )
-		return -1 ;
-	MBase = Model->BaseData ;
-
-	// シェイプの状態が変化していない場合は何もしない
-	if( Model->ShapeChangeFlag == false ) return 0 ;
-	Model->ShapeChangeFlag = false ;
-
-	// 頂点バッファを使用するかどうかのフラグをセットアップしておく
-	ValidVertexBuffer = true ;
-	if( GRA2.ValidHardWare == FALSE || ( GRH.VertexHardwareProcess == FALSE && GRH.ValidVertexShader == FALSE ) )
-		ValidVertexBuffer = false ;
-
-	// シェイプが使用されているメッシュのみ処理する
-	MBMesh = MBase->Mesh ;
-	Mesh = Model->Mesh ;
-	for( i = 0 ; i < MBase->MeshNum ; i ++, Mesh ++, MBMesh ++ )
-	{
-		if( MBMesh->Shape == 0 ) continue ;
-
-		// シェイプが変化していない場合は何もしない
-		if( Mesh->Container->ShapeChangeFlag == false ) continue ;
-
-		// 合成頂点データの作成
-		MBFrame = MBMesh->Container ;
-
-		// 最初は基の頂点データをセット
-		ShapeVertex = Mesh->ShapeVertex ;
-		MeshVertex = MBMesh->Vertex ;
-		for( j = 0 ; j < MBMesh->VertexNum ; j ++, ShapeVertex ++, MeshVertex = ( MV1_MESH_VERTEX * )( ( BYTE * )MeshVertex + MBMesh->VertUnitSize ) )
-		{
-			ShapeVertex->Position = ( ( MV1_MESH_POSITION * )( ( BYTE * )MBFrame->Position + MeshVertex->PositionIndex * MBFrame->PosUnitSize ) )->Position ;
-			ShapeVertex->Normal = MBFrame->Normal[ MeshVertex->NormalIndex ].Normal ;
-		}
-	}
-
-	// シェイプが使用されているフレームのみ処理する
-	MBFrame = MBase->Frame ;
-	Frame = Model->Frame ;
-	MAnim = Model->Anim ;
-	for( i = 0 ; i < MBase->FrameNum ; i ++, Frame ++, MBFrame ++, MAnim += Model->AnimSetMaxNum )
-	{
-		if( MBFrame->ShapeNum == 0 ) continue ;
-
-		// シェイプが変化していない場合は何もしない
-		if( Frame->ShapeChangeFlag == false ) continue ;
-		Frame->ShapeChangeFlag = false ;
-
-		// シェイプを使用しないフラグが立っていたら基本情報そのままを使用する
-		if( Model->ShapeDisableFlag == false )
-		{
-			Shape = Frame->Shape ;
-			for( j = 0 ; j < MBFrame->ShapeNum ; j ++, Shape ++ )
-			{
-				MBShape = Shape->BaseData ;
-
-				// ブレンド率を取得する
-				Rate = Shape->Rate ;
-				MAnim2 = MAnim ;
-				MAnimSet = Model->AnimSet ;
-				for( k = 0 ; k < Model->AnimSetMaxNum ; k ++, MAnim2 ++, MAnimSet ++ )
-				{
-					if( MAnim2->Use == false )
-						continue ;
-
-					if( MAnimSet->DisableShapeFlag )
-						continue ;
-
-					Rate += MAnim2->BlendRate * MAnim2->Anim->ShapeRate[ j ] ;
-				}
-				if( Rate < 0.0000001f ) continue ;
-
-				MBShapeMesh = MBShape->Mesh ;
-				for( k = 0 ; k < MBShape->MeshNum ; k ++, MBShapeMesh ++ )
-				{
-					Mesh = MBShapeMesh->TargetMesh - MBase->Mesh + Model->Mesh ;
-					MBMesh = Mesh->BaseData ;
-
-					MBShapeVertex = MBShapeMesh->Vertex ;
-					for( l = 0 ; ( DWORD )l < MBShapeMesh->VertexNum ; l ++, MBShapeVertex ++ )
-					{
-						ShapeVertex = &Mesh->ShapeVertex[ MBShapeVertex->TargetMeshVertex ] ;
-						ShapeVertex->Position.x += MBShapeVertex->Position.x * Rate ;
-						ShapeVertex->Position.y += MBShapeVertex->Position.y * Rate ;
-						ShapeVertex->Position.z += MBShapeVertex->Position.z * Rate ;
-						ShapeVertex->Normal.x += MBShapeVertex->Normal.x * Rate ;
-						ShapeVertex->Normal.y += MBShapeVertex->Normal.y * Rate ;
-						ShapeVertex->Normal.z += MBShapeVertex->Normal.z * Rate ;
-					}
-				}
-			}
-		}
-
-		MBMesh = MBFrame->Mesh ;
-		Mesh = Frame->Mesh ;
-		for( l = 0 ; l < MBFrame->MeshNum ; l ++, MBMesh ++, Mesh ++ )
-		{
-			if( MBMesh->Shape == 0 ) continue ;
-
-			MeshNorm = MBMesh->Container->Normal ;
-			UVNum = MBMesh->UVSetUnitNum ;
-			MeshVertSize = MBMesh->VertUnitSize ;
-			MeshVert = MBMesh->Vertex ;
-			ShapeVertex = Mesh->ShapeVertex ;
-			Bump = MBMesh->Material->NormalLayerNum ? 1 : 0 ;
-
-			MBTList = MBMesh->TriangleList ;
-			TList = Mesh->TriangleList ;
-			for( m = 0 ; m < MBMesh->TriangleListNum ; m ++, MBTList ++, TList ++ )
-			{
-				MVInd = MBTList->MeshVertexIndex ;
-				VertexNum = MBTList->VertexNum ;
-
-				// 頂点バッファを使用するかどうかで処理を分岐
-				if( ( MBTList->VertexType == MV1_VERTEX_TYPE_NORMAL && ValidVertexBuffer == true ) ||
-					( MBTList->VertexType != MV1_VERTEX_TYPE_NORMAL && GRH.UseShader )
-					)
-				{
-					if( TList->VertexBuffer == NULL ) continue ;
-
-					// 頂点データを更新する
-					if( GraphicsVertexBuffer_Lock_ASync( TList->VertexBuffer, 0, 0, &Vert, D_D3DLOCK_DISCARD ) != D_D3D_OK ) continue ;
-
-					DestUnitSize = MBTList->VertexBuffer->UnitSize ;
-					switch( MBTList->VertexType )
-					{
-					case MV1_VERTEX_TYPE_NORMAL :
-						if( Bump )
-						{
-							MV1_VERTEX_SIMPLE_BUMP *Dest ;
-							MV1_TLIST_NORMAL_POS *Src ;
-
-							Src = ( MV1_TLIST_NORMAL_POS * )ADDR16( MBTList->NormalPosition ) ;
-							Dest = ( MV1_VERTEX_SIMPLE_BUMP * )Vert ;
-							for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SIMPLE_BUMP * )( ( BYTE * )Dest + DestUnitSize ), Src ++, MVInd ++ )
-							{
-								MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-								MNorm = MeshNorm + MVert->NormalIndex ;
-								SVert = ShapeVertex + *MVInd ;
-
-								Dest->Position      = SVert->Position ;
-								Dest->Normal        = MNorm->Normal ;
-								Dest->Binormal      = MNorm->Binormal ;
-								Dest->Tangent       = MNorm->Tangent ;
-								Dest->DiffuseColor  = MVert->DiffuseColor ;
-								Dest->SpecularColor = MVert->SpecularColor ;
-
-								for( k = 0 ; k < UVNum ; k ++ )
-								{
-									Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-									Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-									Dest->UVs[ k ][ 2 ] = 1.0f ;
-									Dest->UVs[ k ][ 3 ] = 1.0f ;
-								}
-							}
-						}
-						else
-						{
-							MV1_VERTEX_SIMPLE *Dest ;
-							MV1_TLIST_NORMAL_POS *Src ;
-
-							Src = ( MV1_TLIST_NORMAL_POS * )ADDR16( MBTList->NormalPosition ) ;
-							Dest = ( MV1_VERTEX_SIMPLE * )Vert ;
-							for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SIMPLE * )( ( BYTE * )Dest + DestUnitSize ), Src ++, MVInd ++ )
-							{
-								MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-								MNorm = MeshNorm + MVert->NormalIndex ;
-								SVert = ShapeVertex + *MVInd ;
-
-								Dest->Position      = SVert->Position ;
-								Dest->Normal        = MNorm->Normal ;
-								Dest->DiffuseColor  = MVert->DiffuseColor ;
-								Dest->SpecularColor = MVert->SpecularColor ;
-
-								for( k = 0 ; k < UVNum ; k ++ )
-								{
-									Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-									Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-									Dest->UVs[ k ][ 2 ] = 1.0f ;
-									Dest->UVs[ k ][ 3 ] = 1.0f ;
-								}
-							}
-						}
-						break ;
-
-					case MV1_VERTEX_TYPE_SKIN_4BONE :
-						if( Bump )
-						{
-							MV1_VERTEX_SKIN_B4_BUMP *Dest ;
-							MV1_TLIST_SKIN_POS_4B *Src ;
-
-							Src = ( MV1_TLIST_SKIN_POS_4B * )ADDR16( MBTList->SkinPosition4B ) ;
-							Dest = ( MV1_VERTEX_SKIN_B4_BUMP * )Vert ;
-							for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SKIN_B4_BUMP * )( ( BYTE * )Dest + DestUnitSize ), Src ++, MVInd ++ )
-							{
-								MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-								MNorm = MeshNorm + MVert->NormalIndex ;
-								SVert = ShapeVertex + *MVInd ;
-
-								Dest->Position          = SVert->Position ;
-								Dest->MatrixIndex[ 0 ]  = Src->MatrixIndex[ 0 ] * 3 ;
-								Dest->MatrixIndex[ 1 ]  = Src->MatrixIndex[ 1 ] * 3 ;
-								Dest->MatrixIndex[ 2 ]  = Src->MatrixIndex[ 2 ] * 3 ;
-								Dest->MatrixIndex[ 3 ]  = Src->MatrixIndex[ 3 ] * 3 ;
-								Dest->MatrixWeight[ 0 ] = Src->MatrixWeight [ 0 ] ;
-								Dest->MatrixWeight[ 1 ] = Src->MatrixWeight [ 1 ] ;
-								Dest->MatrixWeight[ 2 ] = Src->MatrixWeight [ 2 ] ;
-								Dest->MatrixWeight[ 3 ] = Src->MatrixWeight [ 3 ] ;
-								Dest->Normal        = MNorm->Normal ;
-								Dest->Binormal      = MNorm->Binormal ;
-								Dest->Tangent       = MNorm->Tangent ;
-								Dest->DiffuseColor  = MVert->DiffuseColor ;
-								Dest->SpecularColor = MVert->SpecularColor ;
-
-								for( k = 0 ; k < UVNum ; k ++ )
-								{
-									Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-									Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-									Dest->UVs[ k ][ 2 ] = 1.0f ;
-									Dest->UVs[ k ][ 3 ] = 1.0f ;
-								}
-							}
-						}
-						else
-						{
-							MV1_VERTEX_SKIN_B4 *Dest ;
-							MV1_TLIST_SKIN_POS_4B *Src ;
-
-							Src = ( MV1_TLIST_SKIN_POS_4B * )ADDR16( MBTList->SkinPosition4B ) ;
-							Dest = ( MV1_VERTEX_SKIN_B4 * )Vert ;
-							for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SKIN_B4 * )( ( BYTE * )Dest + DestUnitSize ), Src ++, MVInd ++ )
-							{
-								MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-								MNorm = MeshNorm + MVert->NormalIndex ;
-								SVert = ShapeVertex + *MVInd ;
-
-								Dest->Position          = SVert->Position ;
-								Dest->MatrixIndex[ 0 ]  = Src->MatrixIndex[ 0 ] * 3 ;
-								Dest->MatrixIndex[ 1 ]  = Src->MatrixIndex[ 1 ] * 3 ;
-								Dest->MatrixIndex[ 2 ]  = Src->MatrixIndex[ 2 ] * 3 ;
-								Dest->MatrixIndex[ 3 ]  = Src->MatrixIndex[ 3 ] * 3 ;
-								Dest->MatrixWeight[ 0 ] = Src->MatrixWeight [ 0 ] ;
-								Dest->MatrixWeight[ 1 ] = Src->MatrixWeight [ 1 ] ;
-								Dest->MatrixWeight[ 2 ] = Src->MatrixWeight [ 2 ] ;
-								Dest->MatrixWeight[ 3 ] = Src->MatrixWeight [ 3 ] ;
-								Dest->Normal        = MNorm->Normal ;
-								Dest->DiffuseColor  = MVert->DiffuseColor ;
-								Dest->SpecularColor = MVert->SpecularColor ;
-
-								for( k = 0 ; k < UVNum ; k ++ )
-								{
-									Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-									Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-									Dest->UVs[ k ][ 2 ] = 1.0f ;
-									Dest->UVs[ k ][ 3 ] = 1.0f ;
-								}
-							}
-						}
-						break ;
-
-					case MV1_VERTEX_TYPE_SKIN_8BONE :
-						if( Bump )
-						{
-							MV1_VERTEX_SKIN_B8_BUMP *Dest ;
-							MV1_TLIST_SKIN_POS_8B *Src ;
-
-							Src = ( MV1_TLIST_SKIN_POS_8B * )ADDR16( MBTList->SkinPosition8B ) ;
-							Dest = ( MV1_VERTEX_SKIN_B8_BUMP * )Vert ;
-							for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SKIN_B8_BUMP * )( ( BYTE * )Dest + DestUnitSize ), Src ++, MVInd ++ )
-							{
-								MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-								MNorm = MeshNorm + MVert->NormalIndex ;
-								SVert = ShapeVertex + *MVInd ;
-
-								Dest->Position          = SVert->Position ;
-								Dest->MatrixIndex[ 0 ]  = Src->MatrixIndex1[ 0 ] * 3 ;
-								Dest->MatrixIndex[ 1 ]  = Src->MatrixIndex1[ 1 ] * 3 ;
-								Dest->MatrixIndex[ 2 ]  = Src->MatrixIndex1[ 2 ] * 3 ;
-								Dest->MatrixIndex[ 3 ]  = Src->MatrixIndex1[ 3 ] * 3 ;
-								Dest->MatrixIndex[ 4 ]  = Src->MatrixIndex2[ 0 ] * 3 ;
-								Dest->MatrixIndex[ 5 ]  = Src->MatrixIndex2[ 1 ] * 3 ;
-								Dest->MatrixIndex[ 6 ]  = Src->MatrixIndex2[ 2 ] * 3 ;
-								Dest->MatrixIndex[ 7 ]  = Src->MatrixIndex2[ 3 ] * 3 ;
-								Dest->MatrixWeight[ 0 ] = Src->MatrixWeight [ 0 ] ;
-								Dest->MatrixWeight[ 1 ] = Src->MatrixWeight [ 1 ] ;
-								Dest->MatrixWeight[ 2 ] = Src->MatrixWeight [ 2 ] ;
-								Dest->MatrixWeight[ 3 ] = Src->MatrixWeight [ 3 ] ;
-								Dest->MatrixWeight[ 4 ] = Src->MatrixWeight [ 4 ] ;
-								Dest->MatrixWeight[ 5 ] = Src->MatrixWeight [ 5 ] ;
-								Dest->MatrixWeight[ 6 ] = Src->MatrixWeight [ 6 ] ;
-								Dest->MatrixWeight[ 7 ] = Src->MatrixWeight [ 7 ] ;
-								Dest->Normal        = MNorm->Normal ;
-								Dest->Binormal      = MNorm->Binormal ;
-								Dest->Tangent       = MNorm->Tangent ;
-								Dest->DiffuseColor  = MVert->DiffuseColor ;
-								Dest->SpecularColor = MVert->SpecularColor ;
-
-								for( k = 0 ; k < UVNum ; k ++ )
-								{
-									Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-									Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-									Dest->UVs[ k ][ 2 ] = 1.0f ;
-									Dest->UVs[ k ][ 3 ] = 1.0f ;
-								}
-							}
-						}
-						else
-						{
-							MV1_VERTEX_SKIN_B8 *Dest ;
-							MV1_TLIST_SKIN_POS_8B *Src ;
-
-							Src = ( MV1_TLIST_SKIN_POS_8B * )ADDR16( MBTList->SkinPosition8B ) ;
-							Dest = ( MV1_VERTEX_SKIN_B8 * )Vert ;
-							for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_VERTEX_SKIN_B8 * )( ( BYTE * )Dest + DestUnitSize ), Src ++, MVInd ++ )
-							{
-								MVert = ( MV1_MESH_VERTEX   * )( ( BYTE * )MeshVert + MeshVertSize * *MVInd ) ;
-								MNorm = MeshNorm + MVert->NormalIndex ;
-								SVert = ShapeVertex + *MVInd ;
-
-								Dest->Position          = SVert->Position ;
-								Dest->MatrixIndex[ 0 ]  = Src->MatrixIndex1[ 0 ] * 3 ;
-								Dest->MatrixIndex[ 1 ]  = Src->MatrixIndex1[ 1 ] * 3 ;
-								Dest->MatrixIndex[ 2 ]  = Src->MatrixIndex1[ 2 ] * 3 ;
-								Dest->MatrixIndex[ 3 ]  = Src->MatrixIndex1[ 3 ] * 3 ;
-								Dest->MatrixIndex[ 4 ]  = Src->MatrixIndex2[ 0 ] * 3 ;
-								Dest->MatrixIndex[ 5 ]  = Src->MatrixIndex2[ 1 ] * 3 ;
-								Dest->MatrixIndex[ 6 ]  = Src->MatrixIndex2[ 2 ] * 3 ;
-								Dest->MatrixIndex[ 7 ]  = Src->MatrixIndex2[ 3 ] * 3 ;
-								Dest->MatrixWeight[ 0 ] = Src->MatrixWeight [ 0 ] ;
-								Dest->MatrixWeight[ 1 ] = Src->MatrixWeight [ 1 ] ;
-								Dest->MatrixWeight[ 2 ] = Src->MatrixWeight [ 2 ] ;
-								Dest->MatrixWeight[ 3 ] = Src->MatrixWeight [ 3 ] ;
-								Dest->MatrixWeight[ 4 ] = Src->MatrixWeight [ 4 ] ;
-								Dest->MatrixWeight[ 5 ] = Src->MatrixWeight [ 5 ] ;
-								Dest->MatrixWeight[ 6 ] = Src->MatrixWeight [ 6 ] ;
-								Dest->MatrixWeight[ 7 ] = Src->MatrixWeight [ 7 ] ;
-								Dest->Normal        = MNorm->Normal ;
-								Dest->DiffuseColor  = MVert->DiffuseColor ;
-								Dest->SpecularColor = MVert->SpecularColor ;
-
-								for( k = 0 ; k < UVNum ; k ++ )
-								{
-									Dest->UVs[ k ][ 0 ] = MVert->UVs[ k ][ 0 ] ;
-									Dest->UVs[ k ][ 1 ] = MVert->UVs[ k ][ 1 ] ;
-									Dest->UVs[ k ][ 2 ] = 1.0f ;
-									Dest->UVs[ k ][ 3 ] = 1.0f ;
-								}
-							}
-						}
-						break ;
-					}
-
-					GraphicsVertexBuffer_Unlock( TList->VertexBuffer ) ;
-				}
-
-				if( TList->VertexBuffer == NULL )
-				{
-					// 頂点バッファを使用しない場合
-
-					MVInd = MBTList->MeshVertexIndex ;
-					switch( MBTList->VertexType )
-					{
-					case MV1_VERTEX_TYPE_NORMAL :
-						{
-							MV1_TLIST_NORMAL_POS *Dest ;
-
-							Dest = ( MV1_TLIST_NORMAL_POS * )ADDR16( TList->NormalPosition ) ;
-							for( j = 0 ; j < VertexNum ; j ++, Dest ++, MVInd ++ )
-							{
-								SVert = ShapeVertex + *MVInd ;
-								Dest->Position.x = SVert->Position.x ;
-								Dest->Position.y = SVert->Position.y ;
-								Dest->Position.z = SVert->Position.z ;
-							}
-						}
-						break ;
-
-					case MV1_VERTEX_TYPE_SKIN_4BONE :
-						{
-							MV1_TLIST_SKIN_POS_4B *Dest ;
-
-							Dest = ( MV1_TLIST_SKIN_POS_4B * )ADDR16( TList->SkinPosition4B ) ;
-							for( j = 0 ; j < VertexNum ; j ++, Dest ++, MVInd ++ )
-							{
-								SVert = ShapeVertex + *MVInd ;
-								Dest->Position.x = SVert->Position.x ;
-								Dest->Position.y = SVert->Position.y ;
-								Dest->Position.z = SVert->Position.z ;
-							}
-						}
-						break ;
-
-					case MV1_VERTEX_TYPE_SKIN_8BONE :
-						{
-							MV1_TLIST_SKIN_POS_8B *Dest ;
-
-							Dest = ( MV1_TLIST_SKIN_POS_8B * )ADDR16( TList->SkinPosition8B ) ;
-							for( j = 0 ; j < VertexNum ; j ++, Dest ++, MVInd ++ )
-							{
-								SVert = ShapeVertex + *MVInd ;
-								Dest->Position = SVert->Position ;
-							}
-						}
-						break ;
-
-					case MV1_VERTEX_TYPE_SKIN_FREEBONE :
-						{
-							MV1_TLIST_SKIN_POS_FREEB *Dest ;
-
-							Dest = ( MV1_TLIST_SKIN_POS_FREEB * )ADDR16( TList->SkinPositionFREEB ) ;
-							for( j = 0 ; j < VertexNum ; j ++, Dest = ( MV1_TLIST_SKIN_POS_FREEB * )( ( BYTE * )Dest + MBTList->PosUnitSize), MVInd ++ )
-							{
-								SVert = ShapeVertex + *MVInd ;
-								Dest->Position.x = SVert->Position.x ;
-								Dest->Position.y = SVert->Position.y ;
-								Dest->Position.z = SVert->Position.z ;
-							}
-						}
-						break ;
-					}
-				}
-			}
-		}
-	}
-
-	// 終了
-	return 0 ;
-}
-
 // 指定のモデルと同じモデル基本データを使用してモデルを作成する( -1:エラー  0以上:モデルハンドル )
 extern int NS_MV1DuplicateModel( int SrcMHandle )
 {
 	MV1_MODEL *Model ;
 	int NewHandle ;
+	int Result ;
 
 	// 初期化されていなかったらエラー
 	if( MV1Man.Initialize == false ) return -1 ;
@@ -19780,14 +15742,15 @@ extern int NS_MV1DuplicateModel( int SrcMHandle )
 		return -1 ;
 
 	// モデルデータを作成する
-	NewHandle = MV1AddModel() ;
+	NewHandle = MV1AddModel( FALSE ) ;
 	if( NewHandle == -1 )
 	{
 		return -1 ;
 	}
 
 	// 構築
-	if( MV1MakeModel( NewHandle, Model->BaseDataHandle ) < 0 )
+	Result = MV1MakeModel( NewHandle, Model->BaseDataHandle ) ;
+	if( Result < 0 )
 	{
 		MV1SubModel( NewHandle ) ;
 		return -1 ;
@@ -19813,18 +15776,26 @@ extern int NS_MV1CreateCloneModel( int SrcMHandle )
 
 	// 基本データを複製する
 	NewBaseHandle = MV1CreateCloneModelBase( Model->BaseDataHandle ) ;
-	if( NewBaseHandle == -1 ) goto ERR ;
+	if( NewBaseHandle == -1 )
+	{
+		goto ERR ;
+	}
 
 	// 頂点バッファのセットアップを行う
-	MV1SetupVertexBufferBase( NewBaseHandle ) ;
+	MV1_SetupVertexBufferBase_PF( NewBaseHandle ) ;
 
 	// モデルデータを作成する
-	NewHandle = MV1AddModel() ;
-	if( NewHandle == -1 ) goto ERR;
+	NewHandle = MV1AddModel( FALSE ) ;
+	if( NewHandle == -1 )
+	{
+		goto ERR;
+	}
 
 	// 構築
 	if( MV1MakeModel( NewHandle, NewBaseHandle ) < 0 )
+	{
 		goto ERR ;
+	}
 
 	// 正常終了
 	return NewHandle ;
@@ -19866,6 +15837,15 @@ extern int NS_MV1SetLoadModelReMakeNormalSmoothingAngle( float SmoothingAngle )
 	return 0 ;
 }
 
+// モデルを読み込む際にスケーリングデータを無視するかどうかを設定する( TRUE:無視する  FALSE:無視しない( デフォルト ) )
+extern int NS_MV1SetLoadModelIgnoreScaling( int Flag )
+{
+	MV1Man.LoadModelToIgnoreScaling = Flag ;
+
+	// 正常終了
+	return 0 ;
+}
+
 // モデルを読み込む際に座標データの最適化を行うかどうかを設定する( TRUE:行う  FALSE:行わない )
 extern int NS_MV1SetLoadModelPositionOptimize( int Flag )
 {
@@ -19894,6 +15874,26 @@ extern int NS_MV1SetLoadModelPhysicsWorldGravity( float Gravity )
 	return 0 ;
 }
 
+// 読み込むモデルの物理演算モードが事前計算( DX_LOADMODEL_PHYSICS_LOADCALC )だった場合に適用される物理演算の時間進行の精度を設定する( 0:60FPS  1:120FPS  2:240FPS  3:480FPS  4:960FPS  5:1920FPS )
+extern int NS_MV1SetLoadModelPhysicsCalcPrecision( int Precision )
+{
+	if( Precision < 0 )
+	{
+		return -1 ;
+	}
+
+	// 一応 1920FPS以上は指定できないようにする( 4:960FPS  5:1920FPS )
+	if( Precision > 5 )
+	{
+		Precision = 5 ;
+	}
+
+	MV1Man.LoadModelToPhysicsCalcPrecision = Precision ;
+
+	// 正常終了
+	return 0 ;
+}
+
 // 読み込むモデルの物理演算モードが事前計算( DX_LOADMODEL_PHYSICS_LOADCALC )だった場合に適用される重力の設定をする
 extern int NS_MV1SetLoadCalcPhysicsWorldGravity( int GravityNo, VECTOR Gravity )
 {
@@ -19908,6 +15908,28 @@ extern int NS_MV1SetLoadCalcPhysicsWorldGravity( int GravityNo, VECTOR Gravity )
 
 // 読み込むモデルに適用するアニメーションファイルのパスを設定する、NULLを渡すと設定リセット( 現在は PMD,PMX のみに効果あり )
 extern int NS_MV1SetLoadModelAnimFilePath( const TCHAR *FileName )
+{
+#ifdef UNICODE
+	return MV1SetLoadModelAnimFilePath_WCHAR_T(
+		FileName
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FileName, return -1 )
+
+	Result = MV1SetLoadModelAnimFilePath_WCHAR_T(
+		UseFileNameBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FileName )
+
+	return Result ;
+#endif
+}
+
+// 読み込むモデルに適用するアニメーションファイルのパスを設定する、NULLを渡すと設定リセット( 現在は PMD,PMX のみに効果あり )
+extern int MV1SetLoadModelAnimFilePath_WCHAR_T( const wchar_t *FileName )
 {
 	if( FileName == NULL )
 	{
@@ -19925,12 +15947,69 @@ extern int NS_MV1SetLoadModelAnimFilePath( const TCHAR *FileName )
 	return 0 ;
 }
 
+// 読み込むモデルを同時複数描画に対応させるかどうかを設定する( TRUE:対応させる  FALSE:対応させない( デフォルト ) )、( 「対応させる」にすると描画が高速になる可能性がある代わりに消費VRAMが増えます )
+extern int NS_MV1SetLoadModelUsePackDraw( int Flag )
+{
+	MV1Man.LoadModelToUsePackDraw = Flag ;
+
+	// 終了
+	return 0 ;
+}
+
 
 
 // 指定のパスにモデルを保存する
-extern int MV1SaveModelToMV1File(
+extern int NS_MV1SaveModelToMV1File(
 	int MHandle,
 	const TCHAR *FileName,
+	int SaveType,
+	int AnimMHandle,
+	int AnimNameCheck,
+	int Normal8BitFlag,
+	int Position16BitFlag,
+	int Weight8BitFlag,
+	int Anim16BitFlag
+)
+{
+#ifdef UNICODE
+	return MV1SaveModelToMV1File_WCHAR_T(
+		MHandle,
+		FileName,
+		SaveType,
+		AnimMHandle,
+		AnimNameCheck,
+		Normal8BitFlag,
+		Position16BitFlag,
+		Weight8BitFlag,
+		Anim16BitFlag
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FileName, return -1 )
+
+	Result = MV1SaveModelToMV1File_WCHAR_T(
+		MHandle,
+		UseFileNameBuffer,
+		SaveType,
+		AnimMHandle,
+		AnimNameCheck,
+		Normal8BitFlag,
+		Position16BitFlag,
+		Weight8BitFlag,
+		Anim16BitFlag
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FileName )
+
+	return Result ;
+#endif
+}
+
+// 指定のパスにモデルを保存する
+extern int MV1SaveModelToMV1File_WCHAR_T(
+	int MHandle,
+	const wchar_t *FileName,
 	int SaveType,
 	int AnimMHandle,
 	int AnimNameCheck,
@@ -19981,7 +16060,8 @@ extern int MV1SaveModelToMV1File(
 	MV1_PHYSICS_JOINT_F1		*F1PhysicsJoint ;
 	HANDLE FileHandle ;
 	void *TempBuffer = NULL, *AnimBuffer = NULL, *VertexBuffer = NULL, *ChangeDrawMaterialTableBuffer = NULL ;
-	int HeaderSize, i, j, k, AttachIndex = 0 ;
+	DWORD HeaderSize, i, j, k ;
+	int AttachIndex = 0 ;
 	DWORD WriteSize ;
 	MV1MODEL_FILEHEADER_F1 *FHeader ;
 	VECTOR PosMin, PosMax, PosWidth ;
@@ -20043,7 +16123,7 @@ extern int MV1SaveModelToMV1File(
 			{
 				Frame = ModelBase->Frame ;
 				FrameNum = 0 ;
-				for( i = 0 ; i < ModelBase->FrameNum ; i ++, Frame ++ )
+				for( i = 0 ; i < ( DWORD )ModelBase->FrameNum ; i ++, Frame ++ )
 				{
 					if( Frame->ShapeNum != 0 )
 						FrameNum ++ ;
@@ -20068,10 +16148,10 @@ extern int MV1SaveModelToMV1File(
 	}
 
 	// 各バッファの初期最大サイズをセット
-	AnimBufferSize = AnimSave ? AnimModelBase->AnimKeyDataSize + sizeof( MV1_ANIM_KEYSET ) * AnimModelBase->AnimKeySetNum : 0 ;
-	VertexBufferSize = MeshSave ? ModelBase->VertexDataSize * 2 : 0 ;
-	ChangeDrawMaterialTableBufferSize = MeshSave ? 0 : 4 * 1024 * 1024 ;
-	HeaderBufferSize = HeaderSize * 2 + 4 * 1024 * 1024 ;
+	AnimBufferSize                    = AnimSave ? AnimModelBase->AnimKeyDataSize + sizeof( MV1_ANIM_KEYSET ) * AnimModelBase->AnimKeySetNum : 0 ;
+	VertexBufferSize                  = MeshSave ? ModelBase->VertexDataSize * 2 : 0 ;
+	ChangeDrawMaterialTableBufferSize = ( DWORD )( MeshSave ? 0 : 4 * 1024 * 1024 ) ;
+	HeaderBufferSize                  = HeaderSize * 2 + 4 * 1024 * 1024 ;
 
 SAVELOOP :
 	TempBufferSize = ( HeaderBufferSize + VertexBufferSize + AnimBufferSize + ChangeDrawMaterialTableBufferSize ) * 2 ;
@@ -20137,6 +16217,7 @@ SAVELOOP :
 
 	FHeader->RightHandType             = ModelBase->RightHandType ;
 	FHeader->MaterialNumberOrderDraw   = ( BYTE )ModelBase->MaterialNumberOrderDraw ;
+	FHeader->IsStringUTF8              = 1 ;
 
 	if( MeshSave )
 	{
@@ -20219,7 +16300,7 @@ SAVELOOP :
 
 			// シェイプデータの存在するフレームを数える
 			Frame = ModelBase->Frame ;
-			for( i = 0 ; i < ModelBase->FrameNum ; i ++, Frame ++ )
+			for( i = 0 ; i < ( DWORD )ModelBase->FrameNum ; i ++, Frame ++ )
 			{
 				if( Frame->ShapeNum != 0 )
 					F1FileHeadShape->FrameNum ++ ;
@@ -20308,20 +16389,20 @@ SAVELOOP :
 	FHeader->UserData[ 3 ] = ModelBase->UserData[ 3 ] ;
 
 	// 行列変更情報テーブルの保存
-	_MEMCPY( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->ChangeMatrixTable,       ModelBase->ChangeMatrixTable,       ModelBase->ChangeMatrixTableSize ) ;
+	_MEMCPY( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->ChangeMatrixTable,       ModelBase->ChangeMatrixTable,       ( size_t )ModelBase->ChangeMatrixTableSize ) ;
 
 	if( MeshSave )
 	{
 		// マテリアル変更情報テーブルの保存
-		_MEMCPY( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->ChangeDrawMaterialTable, ModelBase->ChangeDrawMaterialTable, ModelBase->ChangeDrawMaterialTableSize ) ;
+		_MEMCPY( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->ChangeDrawMaterialTable, ModelBase->ChangeDrawMaterialTable, ( size_t )ModelBase->ChangeDrawMaterialTableSize ) ;
 
 		// スキニングメッシュのボーンを使用するフレームの情報を保存
 		_MEMCPY( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->SkinBoneUseFrame, ModelBase->SkinBoneUseFrame, sizeof( MV1_SKIN_BONE_USE_FRAME_F1 ) * ModelBase->SkinBoneUseFrameNum ) ;
 
 		// フレームが使用しているボーンへのポインタの情報を保存
-		for( i = 0 ; i < ModelBase->FrameUseSkinBoneNum ; i ++ )
+		for( i = 0 ; i < ( DWORD )ModelBase->FrameUseSkinBoneNum ; i ++ )
 		{
-			*( ( DWORD * )( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->FrameUseSkinBone + sizeof( DWORD ) * i ) ) = ( DWORD )( ( MV1_SKIN_BONE_F1 * )( DWORD_PTR )FHeader->SkinBone + ( ModelBase->FrameUseSkinBone[ i ] - ModelBase->SkinBone ) ) ;
+			*( ( DWORD * )( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->FrameUseSkinBone + sizeof( DWORD ) * i ) ) = ( DWORD )( DWORD_PTR )( ( MV1_SKIN_BONE_F1 * )( DWORD_PTR )FHeader->SkinBone + ( ModelBase->FrameUseSkinBone[ i ] - ModelBase->SkinBone ) ) ;
 		}
 	}
 
@@ -20335,11 +16416,10 @@ SAVELOOP :
 	{
 		F1FileHeadShape->FrameNum = 0 ;
 	}
-	for( i = 0 ; i < ModelBase->FrameNum ; i ++, F1Frame ++, Frame ++ )
+	for( i = 0 ; i < ( DWORD )ModelBase->FrameNum ; i ++, F1Frame ++, Frame ++ )
 	{
-		F1Frame->Name = FHeader->StringSize ;
-		_STRCPY( ( char * )( DWORD_PTR )F1Frame->Name + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, Frame->Name ) ;
-		FHeader->StringSize += lstrlenA( Frame->Name ) + 1 ;
+		F1Frame->Name = ( DWORD )FHeader->StringSize ;
+		FHeader->StringSize += ConvString( ( const char * )Frame->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Frame->Name ), DX_CODEPAGE_UTF8 ) ;
 		FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 		F1Frame->Index = Frame->Index ;
@@ -20347,23 +16427,23 @@ SAVELOOP :
 		if( MeshSave == false )
 		{
 			MV1_CHANGE_BASE ChangeInfo ;
-			MV1ChangeInfoSetup( &ChangeInfo, ( BYTE * )ChangeDrawMaterialTableBuffer + FHeader->ChangeDrawMaterialTableSize, i + 1, Frame->TotalChildNum + 1 ) ;
+			MV1ChangeInfoSetup( &ChangeInfo, ( BYTE * )ChangeDrawMaterialTableBuffer + FHeader->ChangeDrawMaterialTableSize, ( int )( i + 1 ), Frame->TotalChildNum + 1 ) ;
 			FHeader->ChangeDrawMaterialTableSize += F1Frame->ChangeDrawMaterialInfo.Size * 4 ;
 			F1Frame->ChangeDrawMaterialInfo.Target   = ChangeInfo.Target ;
-			F1Frame->ChangeDrawMaterialInfo.Fill	 = FHeader->ChangeDrawMaterialTableSize ;
+			F1Frame->ChangeDrawMaterialInfo.Fill	 = ( DWORD )FHeader->ChangeDrawMaterialTableSize ;
 			F1Frame->ChangeDrawMaterialInfo.Size     = ChangeInfo.Size ;
 			F1Frame->ChangeDrawMaterialInfo.CheckBit = ChangeInfo.CheckBit ;
 		}
 		else
 		{
 			F1Frame->ChangeDrawMaterialInfo.Target   = Frame->ChangeDrawMaterialInfo.Target ;
-			F1Frame->ChangeDrawMaterialInfo.Fill     = ( DWORD )( ( DWORD * )( DWORD_PTR )FHeader->ChangeDrawMaterialTable + ( Frame->ChangeDrawMaterialInfo.Fill - ModelBase->ChangeDrawMaterialTable ) ) ;
+			F1Frame->ChangeDrawMaterialInfo.Fill     = ( DWORD )( DWORD_PTR )( ( DWORD * )( DWORD_PTR )FHeader->ChangeDrawMaterialTable + ( Frame->ChangeDrawMaterialInfo.Fill - ModelBase->ChangeDrawMaterialTable ) ) ;
 			F1Frame->ChangeDrawMaterialInfo.Size     = Frame->ChangeDrawMaterialInfo.Size ;
 			F1Frame->ChangeDrawMaterialInfo.CheckBit = Frame->ChangeDrawMaterialInfo.CheckBit ;
 		}
 
 		F1Frame->ChangeMatrixInfo.Target         = Frame->ChangeMatrixInfo.Target ;
-		F1Frame->ChangeMatrixInfo.Fill           = ( DWORD )( ( DWORD * )( DWORD_PTR )FHeader->ChangeMatrixTable       + ( Frame->ChangeMatrixInfo.Fill       - ModelBase->ChangeMatrixTable ) ) ;
+		F1Frame->ChangeMatrixInfo.Fill           = ( DWORD )( DWORD_PTR )( ( DWORD * )( DWORD_PTR )FHeader->ChangeMatrixTable       + ( Frame->ChangeMatrixInfo.Fill       - ModelBase->ChangeMatrixTable ) ) ;
 		F1Frame->ChangeMatrixInfo.Size           = Frame->ChangeMatrixInfo.Size ;
 		F1Frame->ChangeMatrixInfo.CheckBit       = Frame->ChangeMatrixInfo.CheckBit ;
 
@@ -20402,18 +16482,18 @@ SAVELOOP :
 			F1Frame->MeshNum = Frame->MeshNum ;
 			if( Frame->Mesh )
 			{
-				F1Frame->Mesh = ( DWORD )( ( MV1_MESH_F1 * )( DWORD_PTR )FHeader->Mesh + ( Frame->Mesh - ModelBase->Mesh ) ) ;
+				F1Frame->Mesh = ( DWORD )( DWORD_PTR )( ( MV1_MESH_F1 * )( DWORD_PTR )FHeader->Mesh + ( Frame->Mesh - ModelBase->Mesh ) ) ;
 			}
 
 			F1Frame->SkinBoneNum = Frame->SkinBoneNum ;
 			if( Frame->SkinBone )
 			{
-				F1Frame->SkinBone = ( DWORD )( ( MV1_SKIN_BONE_F1 * )( DWORD_PTR )FHeader->SkinBone + ( Frame->SkinBone - ModelBase->SkinBone ) ) ;
+				F1Frame->SkinBone = ( DWORD )( DWORD_PTR )( ( MV1_SKIN_BONE_F1 * )( DWORD_PTR )FHeader->SkinBone + ( Frame->SkinBone - ModelBase->SkinBone ) ) ;
 			}
 
 			if( Frame->Light )
 			{
-				F1Frame->Light = ( DWORD )( ( MV1_LIGHT_F1 * )( DWORD_PTR )FHeader->Light + ( Frame->Light - ModelBase->Light ) ) ;
+				F1Frame->Light = ( DWORD )( DWORD_PTR )( ( MV1_LIGHT_F1 * )( DWORD_PTR )FHeader->Light + ( Frame->Light - ModelBase->Light ) ) ;
 			}
 
 			F1Frame->UseSkinBoneNum = Frame->UseSkinBoneNum ;
@@ -20440,11 +16520,11 @@ SAVELOOP :
 
 				// 頂点データタイプの決定
 				F1Frame->VertFlag = 0 ;
-				if( F1Frame->AutoCreateNormal )
-				{
-					F1Frame->VertFlag |= MV1_FRAME_NORMAL_TYPE_NONE ;
-				}
-				else
+//				if( F1Frame->AutoCreateNormal )
+//				{
+//					F1Frame->VertFlag |= MV1_FRAME_NORMAL_TYPE_NONE ;
+//				}
+//				else
 				{
 					if( Normal8BitFlag )
 					{
@@ -20456,7 +16536,15 @@ SAVELOOP :
 					}
 				}
 				if( Position16BitFlag )
+				{
 					F1Frame->VertFlag |= MV1_FRAME_VERT_FLAG_POSITION_B16 ;
+				}
+
+				// 法線の他に接線と従法線があるかをセットする
+				if( Frame->Flag & MV1_FRAMEFLAG_TANGENT_BINORMAL )
+				{
+					F1Frame->VertFlag |= MV1_FRAME_VERT_FLAG_NOMRAL_TANGENT_BINORMAL ;
+				}
 
 				// 頂点のウエイト値があるかどうかをセットする
 				if( F1Frame->UseSkinBoneNum == 0 )
@@ -20486,7 +16574,7 @@ SAVELOOP :
 					PosMin.z =  1000000000000.0f ;
 
 					Pos = Frame->Position ;
-					for( j = 0 ; j < F1Frame->PositionNum ; j ++, Pos = ( MV1_MESH_POSITION * )( ( BYTE * )Pos + Frame->PosUnitSize ) )
+					for( j = 0 ; j < ( DWORD )F1Frame->PositionNum ; j ++, Pos = ( MV1_MESH_POSITION * )( ( BYTE * )Pos + Frame->PosUnitSize ) )
 					{
 						if( Pos->Position.x > PosMax.x ) PosMax.x = Pos->Position.x ;
 						if( Pos->Position.x < PosMin.x ) PosMin.x = Pos->Position.x ;
@@ -20509,7 +16597,7 @@ SAVELOOP :
 					Dest += 24 ;
 
 					Pos = Frame->Position ;
-					for( j = 0 ; j < F1Frame->PositionNum ; j ++, Pos = ( MV1_MESH_POSITION * )( ( BYTE * )Pos + Frame->PosUnitSize ) )
+					for( j = 0 ; j < ( DWORD )F1Frame->PositionNum ; j ++, Pos = ( MV1_MESH_POSITION * )( ( BYTE * )Pos + Frame->PosUnitSize ) )
 					{
 						( ( WORD * )Dest )[ 0 ] = ( WORD )_FTOL( ( Pos->Position.x - PosMin.x ) * 60000.0f / PosWidth.x ) ;
 						( ( WORD * )Dest )[ 1 ] = ( WORD )_FTOL( ( Pos->Position.y - PosMin.y ) * 60000.0f / PosWidth.y ) ;
@@ -20520,7 +16608,7 @@ SAVELOOP :
 				else
 				{
 					Pos = Frame->Position ;
-					for( j = 0 ; j < F1Frame->PositionNum ; j ++, Pos = ( MV1_MESH_POSITION * )( ( BYTE * )Pos + Frame->PosUnitSize ) )
+					for( j = 0 ; j < ( DWORD )F1Frame->PositionNum ; j ++, Pos = ( MV1_MESH_POSITION * )( ( BYTE * )Pos + Frame->PosUnitSize ) )
 					{
 						*( ( VECTOR * )Dest ) = Pos->Position ;
 						Dest += 12 ;
@@ -20531,7 +16619,7 @@ SAVELOOP :
 				if( ( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_MATRIX_WEIGHT_NONE ) == 0 )
 				{
 					Pos = Frame->Position ;
-					for( j = 0 ; j < F1Frame->PositionNum ; j ++, Pos = ( MV1_MESH_POSITION * )( ( BYTE * )Pos + Frame->PosUnitSize ) )
+					for( j = 0 ; j < ( DWORD )F1Frame->PositionNum ; j ++, Pos = ( MV1_MESH_POSITION * )( ( BYTE * )Pos + Frame->PosUnitSize ) )
 					{
 						for( k = 0 ; k < F1Frame->MaxBoneBlendNum ; k ++ )
 						{
@@ -20539,12 +16627,12 @@ SAVELOOP :
 
 							if( ( ( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_MATRIX_INDEX_MASK ) >> 4 ) == MV1_FRAME_MATRIX_INDEX_TYPE_U8 )
 							{
-								*Dest = Pos->BoneWeight[ k ].Index == -1 ? 255 : ( BYTE )Pos->BoneWeight[ k ].Index ;
+								*Dest = ( BYTE )( Pos->BoneWeight[ k ].Index == -1 ? 255 : Pos->BoneWeight[ k ].Index ) ;
 								Dest ++ ;
 							}
 							else
 							{
-								*( ( WORD * )Dest ) = Pos->BoneWeight[ k ].Index == -1 ? 65535 : ( WORD )Pos->BoneWeight[ k ].Index ;
+								*( ( WORD * )Dest ) = ( WORD )( Pos->BoneWeight[ k ].Index == -1 ? 65535 : Pos->BoneWeight[ k ].Index ) ;
 								Dest += 2 ;
 							}
 							if( Pos->BoneWeight[ k ].Index == -1 )
@@ -20598,30 +16686,82 @@ SAVELOOP :
 					break ;
 
 				case MV1_FRAME_NORMAL_TYPE_S8 :
-					for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+					if( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_NOMRAL_TANGENT_BINORMAL )
 					{
-						( ( char * )Dest )[ 0 ] = ( char )_FTOL( Nrm->Normal.x * 127.0f ) ;
-						( ( char * )Dest )[ 1 ] = ( char )_FTOL( Nrm->Normal.y * 127.0f ) ;
-						( ( char * )Dest )[ 2 ] = ( char )_FTOL( Nrm->Normal.z * 127.0f ) ;
-						Dest += 3 ;
+						for( j = 0 ; j < ( DWORD )Frame->NormalNum ; j ++, Nrm ++ )
+						{
+							( ( char * )Dest )[ 0 ] = ( char )_FTOL( Nrm->Normal.x   * 127.0f ) ;
+							( ( char * )Dest )[ 1 ] = ( char )_FTOL( Nrm->Normal.y   * 127.0f ) ;
+							( ( char * )Dest )[ 2 ] = ( char )_FTOL( Nrm->Normal.z   * 127.0f ) ;
+
+							( ( char * )Dest )[ 3 ] = ( char )_FTOL( Nrm->Tangent.x  * 127.0f ) ;
+							( ( char * )Dest )[ 4 ] = ( char )_FTOL( Nrm->Tangent.y  * 127.0f ) ;
+							( ( char * )Dest )[ 5 ] = ( char )_FTOL( Nrm->Tangent.z  * 127.0f ) ;
+
+							( ( char * )Dest )[ 6 ] = ( char )_FTOL( Nrm->Binormal.x * 127.0f ) ;
+							( ( char * )Dest )[ 7 ] = ( char )_FTOL( Nrm->Binormal.y * 127.0f ) ;
+							( ( char * )Dest )[ 8 ] = ( char )_FTOL( Nrm->Binormal.z * 127.0f ) ;
+							Dest += 9 ;
+						}
+					}
+					else
+					{
+						for( j = 0 ; j < ( DWORD )Frame->NormalNum ; j ++, Nrm ++ )
+						{
+							( ( char * )Dest )[ 0 ] = ( char )_FTOL( Nrm->Normal.x * 127.0f ) ;
+							( ( char * )Dest )[ 1 ] = ( char )_FTOL( Nrm->Normal.y * 127.0f ) ;
+							( ( char * )Dest )[ 2 ] = ( char )_FTOL( Nrm->Normal.z * 127.0f ) ;
+							Dest += 3 ;
+						}
 					}
 					break ;
 
 				case MV1_FRAME_NORMAL_TYPE_S16 :
-					for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+					if( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_NOMRAL_TANGENT_BINORMAL )
 					{
-						( ( WORD * )Dest )[ 0 ] = ( WORD )_FTOL( Nrm->Normal.x * 32767.0f ) ;
-						( ( WORD * )Dest )[ 1 ] = ( WORD )_FTOL( Nrm->Normal.y * 32767.0f ) ;
-						( ( WORD * )Dest )[ 2 ] = ( WORD )_FTOL( Nrm->Normal.z * 32767.0f ) ;
-						Dest += 6 ;
+						for( j = 0 ; j < ( DWORD )Frame->NormalNum ; j ++, Nrm ++ )
+						{
+							( ( WORD * )Dest )[ 0 ] = ( WORD )_FTOL( Nrm->Normal.x   * 32767.0f ) ;
+							( ( WORD * )Dest )[ 1 ] = ( WORD )_FTOL( Nrm->Normal.y   * 32767.0f ) ;
+							( ( WORD * )Dest )[ 2 ] = ( WORD )_FTOL( Nrm->Normal.z   * 32767.0f ) ;
+
+							( ( WORD * )Dest )[ 3 ] = ( WORD )_FTOL( Nrm->Tangent.x  * 32767.0f ) ;
+							( ( WORD * )Dest )[ 4 ] = ( WORD )_FTOL( Nrm->Tangent.y  * 32767.0f ) ;
+							( ( WORD * )Dest )[ 5 ] = ( WORD )_FTOL( Nrm->Tangent.z  * 32767.0f ) ;
+
+							( ( WORD * )Dest )[ 6 ] = ( WORD )_FTOL( Nrm->Binormal.x * 32767.0f ) ;
+							( ( WORD * )Dest )[ 7 ] = ( WORD )_FTOL( Nrm->Binormal.y * 32767.0f ) ;
+							( ( WORD * )Dest )[ 8 ] = ( WORD )_FTOL( Nrm->Binormal.z * 32767.0f ) ;
+							Dest += 18 ;
+						}
+					}
+					else
+					{
+						for( j = 0 ; j < ( DWORD )Frame->NormalNum ; j ++, Nrm ++ )
+						{
+							( ( WORD * )Dest )[ 0 ] = ( WORD )_FTOL( Nrm->Normal.x * 32767.0f ) ;
+							( ( WORD * )Dest )[ 1 ] = ( WORD )_FTOL( Nrm->Normal.y * 32767.0f ) ;
+							( ( WORD * )Dest )[ 2 ] = ( WORD )_FTOL( Nrm->Normal.z * 32767.0f ) ;
+							Dest += 6 ;
+						}
 					}
 					break ;
 
 				case MV1_FRAME_NORMAL_TYPE_F32 :
-					for( j = 0 ; j < Frame->NormalNum ; j ++, Nrm ++ )
+					if( F1Frame->VertFlag & MV1_FRAME_VERT_FLAG_NOMRAL_TANGENT_BINORMAL )
 					{
-						*( ( VECTOR * )Dest ) = Nrm->Normal ;
-						Dest += 12 ;
+							( ( VECTOR * )Dest )[ 0 ] = Nrm->Normal ;
+							( ( VECTOR * )Dest )[ 1 ] = Nrm->Tangent ;
+							( ( VECTOR * )Dest )[ 2 ] = Nrm->Binormal ;
+							Dest += 36 ;
+					}
+					else
+					{
+						for( j = 0 ; j < ( DWORD )Frame->NormalNum ; j ++, Nrm ++ )
+						{
+							*( ( VECTOR * )Dest ) = Nrm->Normal ;
+							Dest += 12 ;
+						}
 					}
 					break ;
 				}
@@ -20639,12 +16779,12 @@ SAVELOOP :
 
 				F1FrameShape = ( MV1_FRAME_SHAPE_F1 * )( ( DWORD_PTR )F1Frame->FrameShape + ( DWORD_PTR )FHeader ) ;
 				F1FrameShape->ShapeNum = Frame->ShapeNum ;
-				F1FrameShape->Shape = ( DWORD )( ( MV1_SHAPE_F1 * )( DWORD_PTR )F1FileHeadShape->Data + ( Frame->Shape - ModelBase->Shape ) ) ;
+				F1FrameShape->Shape = ( DWORD )( DWORD_PTR )( ( MV1_SHAPE_F1 * )( DWORD_PTR )F1FileHeadShape->Data + ( Frame->Shape - ModelBase->Shape ) ) ;
 			}
 		}
 
-		F1Frame->DimPrev = i == 0                       ? 0 : FHeader->Frame + sizeof( MV1_FRAME_F1 ) * ( i - 1 ) ;
-		F1Frame->DimNext = i == ModelBase->FrameNum - 1 ? 0 : FHeader->Frame + sizeof( MV1_FRAME_F1 ) * ( i + 1 ) ;
+		F1Frame->DimPrev = i == 0                                ? 0 : FHeader->Frame + sizeof( MV1_FRAME_F1 ) * ( i - 1 ) ;
+		F1Frame->DimNext = i == ( DWORD )ModelBase->FrameNum - 1 ? 0 : FHeader->Frame + sizeof( MV1_FRAME_F1 ) * ( i + 1 ) ;
 	}
 
 	if( MeshSave )
@@ -20654,37 +16794,37 @@ SAVELOOP :
 		{
 			F1Shape = ( MV1_SHAPE_F1 * )( ( DWORD_PTR )F1FileHeadShape->Data + ( DWORD_PTR )FHeader ) ;
 			Shape = ModelBase->Shape ;
-			for( i = 0 ; i < ModelBase->ShapeNum ; i ++, Shape ++, F1Shape ++ )
+			for( i = 0 ; i < ( DWORD )ModelBase->ShapeNum ; i ++, Shape ++, F1Shape ++ )
 			{
-				F1Shape->Index = i ;
-				F1Shape->Name = FHeader->StringSize ;
-				_STRCPY( ( char * )( DWORD_PTR )F1Shape->Name + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, Shape->Name ) ;
-				FHeader->StringSize += lstrlenA( Shape->Name ) + 1 ;
+				F1Shape->Index = ( int )i ;
+
+				F1Shape->Name = ( DWORD )FHeader->StringSize ;
+				FHeader->StringSize += ConvString( ( const char * )Shape->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Shape->Name ), DX_CODEPAGE_UTF8 ) ;
 				FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 				if( Shape->Container )
 				{
-					F1Shape->Container = ( DWORD )( ( MV1_FRAME_F1 * )( DWORD_PTR )FHeader->Frame + ( Shape->Container - ModelBase->Frame ) ) ;
+					F1Shape->Container = ( DWORD )( DWORD_PTR )( ( MV1_FRAME_F1 * )( DWORD_PTR )FHeader->Frame + ( Shape->Container - ModelBase->Frame ) ) ;
 				}
 
 				F1Shape->MeshNum = Shape->MeshNum ;
 				if( Shape->MeshNum )
 				{
-					F1Shape->Mesh = ( DWORD )( ( MV1_SHAPE_MESH_F1 * )( DWORD_PTR )F1FileHeadShape->Mesh + ( Shape->Mesh - ModelBase->ShapeMesh ) ) ;
+					F1Shape->Mesh = ( DWORD )( DWORD_PTR )( ( MV1_SHAPE_MESH_F1 * )( DWORD_PTR )F1FileHeadShape->Mesh + ( Shape->Mesh - ModelBase->ShapeMesh ) ) ;
 				}
 
-				F1Shape->DimPrev = i == 0                       ? 0 : F1FileHeadShape->Data + sizeof( MV1_SHAPE_F1 ) * ( i - 1 ) ;
-				F1Shape->DimNext = i == ModelBase->ShapeNum - 1 ? 0 : F1FileHeadShape->Data + sizeof( MV1_SHAPE_F1 ) * ( i + 1 ) ;
+				F1Shape->DimPrev = i == 0                                ? 0 : F1FileHeadShape->Data + sizeof( MV1_SHAPE_F1 ) * ( i - 1 ) ;
+				F1Shape->DimNext = i == ( DWORD )ModelBase->ShapeNum - 1 ? 0 : F1FileHeadShape->Data + sizeof( MV1_SHAPE_F1 ) * ( i + 1 ) ;
 			}
 
 			// シェイプメッシュの情報を埋める
 			F1ShapeMesh = ( MV1_SHAPE_MESH_F1 * )( ( DWORD_PTR )F1FileHeadShape->Mesh + ( DWORD_PTR )FHeader ) ;
 			ShapeMesh = ModelBase->ShapeMesh ;
-			for( i = 0 ; i < ModelBase->ShapeMeshNum ; i ++, ShapeMesh ++, F1ShapeMesh ++ )
+			for( i = 0 ; i < ( DWORD )ModelBase->ShapeMeshNum ; i ++, ShapeMesh ++, F1ShapeMesh ++ )
 			{
-				F1ShapeMesh->Index = i ;
+				F1ShapeMesh->Index = ( int )i ;
 
-				F1ShapeMesh->TargetMesh = ( DWORD )( ( MV1_MESH_F1 * )( DWORD_PTR )FHeader->Mesh + ( ShapeMesh->TargetMesh - ModelBase->Mesh ) ) ;
+				F1ShapeMesh->TargetMesh = ( DWORD )( DWORD_PTR )( ( MV1_MESH_F1 * )( DWORD_PTR )FHeader->Mesh + ( ShapeMesh->TargetMesh - ModelBase->Mesh ) ) ;
 				F1ShapeMesh->IsVertexPress = 0 ;
 				F1ShapeMesh->VertexPressParam = 0 ;
 				F1ShapeMesh->VertexNum = ShapeMesh->VertexNum ;
@@ -20702,8 +16842,8 @@ SAVELOOP :
 					F1FileHeadShape->VertexNum += ShapeMesh->VertexNum ;
 				}
 
-				F1ShapeMesh->DimPrev = i == 0                           ? 0 : F1FileHeadShape->Mesh + sizeof( MV1_SHAPE_MESH_F1 ) * ( i - 1 ) ;
-				F1ShapeMesh->DimNext = i == ModelBase->ShapeMeshNum - 1 ? 0 : F1FileHeadShape->Mesh + sizeof( MV1_SHAPE_MESH_F1 ) * ( i + 1 ) ;
+				F1ShapeMesh->DimPrev = i == 0                                    ? 0 : F1FileHeadShape->Mesh + sizeof( MV1_SHAPE_MESH_F1 ) * ( i - 1 ) ;
+				F1ShapeMesh->DimNext = i == ( DWORD )ModelBase->ShapeMeshNum - 1 ? 0 : F1FileHeadShape->Mesh + sizeof( MV1_SHAPE_MESH_F1 ) * ( i + 1 ) ;
 			}
 
 			// シェイプ頂点の情報を埋める
@@ -20724,17 +16864,17 @@ SAVELOOP :
 		{
 			F1PhysicsRigidBody = ( MV1_PHYSICS_RIGIDBODY_F1 * )( ( DWORD_PTR )F1FileHeadPhysics->RigidBody + ( DWORD_PTR )FHeader ) ;
 			PhysicsRigidBody = ModelBase->PhysicsRigidBody ;
-			for( i = 0 ; i < ModelBase->PhysicsRigidBodyNum ; i ++, PhysicsRigidBody ++, F1PhysicsRigidBody ++ )
+			for( i = 0 ; i < ( DWORD )ModelBase->PhysicsRigidBodyNum ; i ++, PhysicsRigidBody ++, F1PhysicsRigidBody ++ )
 			{
-				F1PhysicsRigidBody->Index = i ;
-				F1PhysicsRigidBody->Name = FHeader->StringSize ;
-				_STRCPY( ( char * )( DWORD_PTR )F1PhysicsRigidBody->Name + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, PhysicsRigidBody->Name ) ;
-				FHeader->StringSize += lstrlenA( PhysicsRigidBody->Name ) + 1 ;
+				F1PhysicsRigidBody->Index = ( int )i ;
+
+				F1PhysicsRigidBody->Name = ( DWORD )FHeader->StringSize ;
+				FHeader->StringSize += ConvString( ( const char * )PhysicsRigidBody->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1PhysicsRigidBody->Name ), DX_CODEPAGE_UTF8 ) ;
 				FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 				if( PhysicsRigidBody->TargetFrame )
 				{
-					F1PhysicsRigidBody->TargetFrame = ( DWORD )( ( MV1_FRAME_F1 * )( DWORD_PTR )FHeader->Frame + ( PhysicsRigidBody->TargetFrame - ModelBase->Frame ) ) ;
+					F1PhysicsRigidBody->TargetFrame = ( DWORD )( DWORD_PTR )( ( MV1_FRAME_F1 * )( DWORD_PTR )FHeader->Frame + ( PhysicsRigidBody->TargetFrame - ModelBase->Frame ) ) ;
 				}
 
 				F1PhysicsRigidBody->RigidBodyGroupIndex = PhysicsRigidBody->RigidBodyGroupIndex ;
@@ -20753,28 +16893,28 @@ SAVELOOP :
 				F1PhysicsRigidBody->RigidBodyType = PhysicsRigidBody->RigidBodyType ;
 				F1PhysicsRigidBody->NoCopyToBone = PhysicsRigidBody->NoCopyToBone ;
 
-				F1PhysicsRigidBody->DimPrev = i == 0                                  ? 0 : F1FileHeadPhysics->RigidBody + sizeof( MV1_PHYSICS_RIGIDBODY_F1 ) * ( i - 1 ) ;
-				F1PhysicsRigidBody->DimNext = i == ModelBase->PhysicsRigidBodyNum - 1 ? 0 : F1FileHeadPhysics->RigidBody + sizeof( MV1_PHYSICS_RIGIDBODY_F1 ) * ( i + 1 ) ;
+				F1PhysicsRigidBody->DimPrev = i == 0                                           ? 0 : F1FileHeadPhysics->RigidBody + sizeof( MV1_PHYSICS_RIGIDBODY_F1 ) * ( i - 1 ) ;
+				F1PhysicsRigidBody->DimNext = i == ( DWORD )ModelBase->PhysicsRigidBodyNum - 1 ? 0 : F1FileHeadPhysics->RigidBody + sizeof( MV1_PHYSICS_RIGIDBODY_F1 ) * ( i + 1 ) ;
 			}
 
 			F1PhysicsJoint = ( MV1_PHYSICS_JOINT_F1 * )( ( DWORD_PTR )F1FileHeadPhysics->Joint + ( DWORD_PTR )FHeader ) ;
 			PhysicsJoint = ModelBase->PhysicsJoint ;
-			for( i = 0 ; i < ModelBase->PhysicsJointNum ; i ++, PhysicsJoint ++, F1PhysicsJoint ++ )
+			for( i = 0 ; i < ( DWORD )ModelBase->PhysicsJointNum ; i ++, PhysicsJoint ++, F1PhysicsJoint ++ )
 			{
-				F1PhysicsJoint->Index = i ;
-				F1PhysicsJoint->Name = FHeader->StringSize ;
-				_STRCPY( ( char * )( DWORD_PTR )F1PhysicsJoint->Name + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, PhysicsJoint->Name ) ;
-				FHeader->StringSize += lstrlenA( PhysicsJoint->Name ) + 1 ;
+				F1PhysicsJoint->Index = ( int )i ;
+
+				F1PhysicsJoint->Name = ( DWORD )FHeader->StringSize ;
+				FHeader->StringSize += ConvString( ( const char * )PhysicsJoint->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1PhysicsJoint->Name ), DX_CODEPAGE_UTF8 ) ;
 				FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 				if( PhysicsJoint->RigidBodyA )
 				{
-					F1PhysicsJoint->RigidBodyA = ( DWORD )( ( MV1_PHYSICS_RIGIDBODY_F1 * )( DWORD_PTR )F1FileHeadPhysics->RigidBody + ( PhysicsJoint->RigidBodyA - ModelBase->PhysicsRigidBody ) ) ;
+					F1PhysicsJoint->RigidBodyA = ( DWORD )( DWORD_PTR )( ( MV1_PHYSICS_RIGIDBODY_F1 * )( DWORD_PTR )F1FileHeadPhysics->RigidBody + ( PhysicsJoint->RigidBodyA - ModelBase->PhysicsRigidBody ) ) ;
 				}
 
 				if( PhysicsJoint->RigidBodyB )
 				{
-					F1PhysicsJoint->RigidBodyB = ( DWORD )( ( MV1_PHYSICS_RIGIDBODY_F1 * )( DWORD_PTR )F1FileHeadPhysics->RigidBody + ( PhysicsJoint->RigidBodyB - ModelBase->PhysicsRigidBody ) ) ;
+					F1PhysicsJoint->RigidBodyB = ( DWORD )( DWORD_PTR )( ( MV1_PHYSICS_RIGIDBODY_F1 * )( DWORD_PTR )F1FileHeadPhysics->RigidBody + ( PhysicsJoint->RigidBodyB - ModelBase->PhysicsRigidBody ) ) ;
 				}
 
 				F1PhysicsJoint->Position = PhysicsJoint->Position ;
@@ -20786,8 +16926,8 @@ SAVELOOP :
 				F1PhysicsJoint->SpringPosition = PhysicsJoint->SpringPosition ;
 				F1PhysicsJoint->SpringRotation = PhysicsJoint->SpringRotation ;
 
-				F1PhysicsJoint->DimPrev = i == 0                              ? 0 : F1FileHeadPhysics->Joint + sizeof( MV1_PHYSICS_JOINT_F1 ) * ( i - 1 ) ;
-				F1PhysicsJoint->DimNext = i == ModelBase->PhysicsJointNum - 1 ? 0 : F1FileHeadPhysics->Joint + sizeof( MV1_PHYSICS_JOINT_F1 ) * ( i + 1 ) ;
+				F1PhysicsJoint->DimPrev = i == 0                                       ? 0 : F1FileHeadPhysics->Joint + sizeof( MV1_PHYSICS_JOINT_F1 ) * ( i - 1 ) ;
+				F1PhysicsJoint->DimNext = i == ( DWORD )ModelBase->PhysicsJointNum - 1 ? 0 : F1FileHeadPhysics->Joint + sizeof( MV1_PHYSICS_JOINT_F1 ) * ( i + 1 ) ;
 			}
 		}
 
@@ -20796,12 +16936,12 @@ SAVELOOP :
 		MaterialBase = ModelBase->Material ;
 		Material = Model->Material ;
 		F1MaterialToon = ( MV1_MATERIAL_TOON_F1 * )( ( DWORD_PTR )F1MaterialToonAddr + ( DWORD_PTR )FHeader ) ;
-		for( i = 0 ; i < ModelBase->MaterialNum ; i ++, F1Material ++, F1MaterialToon ++, MaterialBase ++, Material ++ )
+		for( i = 0 ; i < ( DWORD )ModelBase->MaterialNum ; i ++, F1Material ++, F1MaterialToon ++, MaterialBase ++, Material ++ )
 		{
-			F1Material->Index = i ;
-			F1Material->Name = FHeader->StringSize ;
-			_STRCPY( ( char * )( DWORD_PTR )F1Material->Name + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, MaterialBase->Name ) ;
-			FHeader->StringSize += lstrlenA( MaterialBase->Name ) + 1 ;
+			F1Material->Index = ( int )i ;
+
+			F1Material->Name = ( DWORD )FHeader->StringSize ;
+			FHeader->StringSize += ConvString( ( const char * )MaterialBase->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Material->Name ), DX_CODEPAGE_UTF8 ) ;
 			FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 			F1Material->Diffuse = Material->Diffuse ;
@@ -20817,7 +16957,7 @@ SAVELOOP :
 			F1Material->DiffuseLayerNum = Material->DiffuseLayerNum ;
 			F1MaterialLayer = F1Material->DiffuseLayer ;
 			MaterialLayer = Material->DiffuseLayer ;
-			for( j = 0 ; j < Material->DiffuseLayerNum ; j ++, F1MaterialLayer ++, MaterialLayer ++ )
+			for( j = 0 ; j < ( DWORD )Material->DiffuseLayerNum ; j ++, F1MaterialLayer ++, MaterialLayer ++ )
 			{
 				F1MaterialLayer->BlendType = MaterialLayer->BlendType ;
 				F1MaterialLayer->Texture = MaterialLayer->Texture ;
@@ -20826,7 +16966,7 @@ SAVELOOP :
 			F1Material->SpecularLayerNum = Material->SpecularLayerNum ;
 			F1MaterialLayer = F1Material->SpecularLayer ;
 			MaterialLayer = Material->SpecularLayer ;
-			for( j = 0 ; j < Material->SpecularLayerNum ; j ++, F1MaterialLayer ++, MaterialLayer ++ )
+			for( j = 0 ; j < ( DWORD )Material->SpecularLayerNum ; j ++, F1MaterialLayer ++, MaterialLayer ++ )
 			{
 				F1MaterialLayer->BlendType = MaterialLayer->BlendType ;
 				F1MaterialLayer->Texture = MaterialLayer->Texture ;
@@ -20835,7 +16975,7 @@ SAVELOOP :
 			F1Material->NormalLayerNum = MaterialBase->NormalLayerNum ;
 			F1MaterialLayer = F1Material->NormalLayer ;
 			MaterialLayer = MaterialBase->NormalLayer ;
-			for( j = 0 ; j < MaterialBase->NormalLayerNum ; j ++, F1MaterialLayer ++, MaterialLayer ++ )
+			for( j = 0 ; j < ( DWORD )MaterialBase->NormalLayerNum ; j ++, F1MaterialLayer ++, MaterialLayer ++ )
 			{
 				F1MaterialLayer->BlendType = MaterialLayer->BlendType ;
 				F1MaterialLayer->Texture = MaterialLayer->Texture ;
@@ -20849,8 +16989,8 @@ SAVELOOP :
 			F1Material->UserData[ 2 ] = MaterialBase->UserData[ 2 ] ;
 			F1Material->UserData[ 3 ] = MaterialBase->UserData[ 3 ] ;
 
-			F1Material->DimPrev = i == 0                          ? 0 : FHeader->Material + sizeof( MV1_MATERIAL_F1 ) * ( i - 1 ) ;
-			F1Material->DimNext = i == ModelBase->MaterialNum - 1 ? 0 : FHeader->Material + sizeof( MV1_MATERIAL_F1 ) * ( i + 1 ) ;
+			F1Material->DimPrev = i == 0                                   ? 0 : FHeader->Material + sizeof( MV1_MATERIAL_F1 ) * ( i - 1 ) ;
+			F1Material->DimNext = i == ( DWORD )ModelBase->MaterialNum - 1 ? 0 : FHeader->Material + sizeof( MV1_MATERIAL_F1 ) * ( i + 1 ) ;
 
 			F1Material->ToonInfo = ( DWORD )( ( DWORD_PTR )F1MaterialToon - ( DWORD_PTR )FHeader ) ;
 
@@ -20880,13 +17020,12 @@ SAVELOOP :
 		// ライトの情報を埋める
 		F1Light = ( MV1_LIGHT_F1 * )( ( DWORD_PTR )FHeader->Light + ( DWORD_PTR )FHeader ) ;
 		Light = ModelBase->Light ;
-		for( i = 0 ; i < ModelBase->LightNum ; i ++, F1Light ++, Light ++ )
+		for( i = 0 ; i < ( DWORD )ModelBase->LightNum ; i ++, F1Light ++, Light ++ )
 		{
-			F1Light->Index = i ;
+			F1Light->Index = ( int )i ;
 
-			F1Light->Name = FHeader->StringSize ;
-			_STRCPY( ( char * )( DWORD_PTR )F1Light->Name + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, Light->Name ) ;
-			FHeader->StringSize += lstrlenA( Light->Name ) + 1 ;
+			F1Light->Name = ( DWORD )FHeader->StringSize ;
+			FHeader->StringSize += ConvString( ( const char * )Light->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Light->Name ), DX_CODEPAGE_UTF8 ) ;
 			FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 			F1Light->FrameIndex = Light->FrameIndex ;
@@ -20905,27 +17044,29 @@ SAVELOOP :
 			F1Light->UserData[ 0 ] = Light->UserData[ 0 ] ;
 			F1Light->UserData[ 1 ] = Light->UserData[ 1 ] ;
 
-			F1Light->DimPrev = i == 0                       ? 0 : FHeader->Light + sizeof( MV1_LIGHT_F1 ) * ( i - 1 ) ;
-			F1Light->DimNext = i == ModelBase->LightNum - 1 ? 0 : FHeader->Light + sizeof( MV1_LIGHT_F1 ) * ( i + 1 ) ;
+			F1Light->DimPrev = i == 0                                ? 0 : FHeader->Light + sizeof( MV1_LIGHT_F1 ) * ( i - 1 ) ;
+			F1Light->DimNext = i == ( DWORD )ModelBase->LightNum - 1 ? 0 : FHeader->Light + sizeof( MV1_LIGHT_F1 ) * ( i + 1 ) ;
 		}
 
 		// テクスチャの情報を埋める
 		F1Texture = ( MV1_TEXTURE_F1 * )( ( DWORD_PTR )FHeader->Texture + ( DWORD_PTR )FHeader ) ;
 		TextureBase = ModelBase->Texture ;
 		Texture = Model->Texture ;
-		for( i = 0 ; i < ModelBase->TextureNum ; i ++, F1Texture ++, TextureBase ++, Texture ++ )
+		for( i = 0 ; i < ( DWORD )ModelBase->TextureNum ; i ++, F1Texture ++, TextureBase ++, Texture ++ )
 		{
-			F1Texture->Index = i ;
+			F1Texture->Index = ( int )i ;
 		
 			F1Texture->BumpImageFlag = Texture->BumpImageFlag ;
 			F1Texture->BumpImageNextPixelLength = Texture->BumpImageNextPixelLength ;
 
-			F1Texture->Name = FHeader->StringSize ;
-			_STRCPY( ( char * )( DWORD_PTR )F1Texture->Name + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, TextureBase->Name ) ;
-			FHeader->StringSize += lstrlenA( TextureBase->Name ) + 1 ;
+			F1Texture->Name = ( DWORD )FHeader->StringSize ;
+			FHeader->StringSize += ConvString( ( const char * )TextureBase->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Texture->Name ), DX_CODEPAGE_UTF8 ) ;
 			FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
+
 			F1Texture->AddressModeU = Texture->AddressModeU ;
 			F1Texture->AddressModeV = Texture->AddressModeV ;
+			F1Texture->ScaleU = Texture->ScaleU ;
+			F1Texture->ScaleV = Texture->ScaleV ;
 			F1Texture->FilterMode = Texture->FilterMode ;
 			F1Texture->Flag = 0 ;
 			if( Texture->ReverseFlag )
@@ -20936,51 +17077,50 @@ SAVELOOP :
 			{
 				F1Texture->Flag |= MV1_TEXTURE_FLAG_BMP32_ALL_ZERO_ALPHA_TO_XRGB8 ;
 			}
+			F1Texture->Flag |= MV1_TEXTURE_FLAG_VALID_SCALE_UV ;
 
-			if( Texture->ColorFilePath == NULL )
+			if( Texture->ColorFilePathW_ == NULL )
 			{
 				F1Texture->ColorFilePath = NULL ;
 			}
 			else
 			{
-				F1Texture->ColorFilePath = FHeader->StringSize ;
-				_STRCPY( ( char * )( DWORD_PTR )F1Texture->ColorFilePath + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, Texture->ColorFilePath ) ;
-				FHeader->StringSize += lstrlenA( Texture->ColorFilePath ) + 1 ;
+				F1Texture->ColorFilePath = ( DWORD )FHeader->StringSize ;
+				FHeader->StringSize += ConvString( ( const char * )Texture->ColorFilePathW_, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Texture->ColorFilePath ), DX_CODEPAGE_UTF8 ) ;
 				FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 			}
 
-			if( Texture->AlphaFilePath == NULL )
+			if( Texture->AlphaFilePathW_ == NULL )
 			{
 				F1Texture->AlphaFilePath = NULL ;
 			}
 			else
 			{
-				F1Texture->AlphaFilePath = FHeader->StringSize ;
-				_STRCPY( ( char * )( DWORD_PTR )F1Texture->AlphaFilePath + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, Texture->AlphaFilePath ) ;
-				FHeader->StringSize += lstrlenA( Texture->AlphaFilePath ) + 1 ;
+				F1Texture->AlphaFilePath = ( DWORD )FHeader->StringSize ;
+				FHeader->StringSize += ConvString( ( const char * )Texture->AlphaFilePathW_, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Texture->AlphaFilePath ), DX_CODEPAGE_UTF8 ) ;
 				FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 			}
 
 			F1Texture->UserData[ 0 ] = TextureBase->UserData[ 0 ] ;
 			F1Texture->UserData[ 1 ] = TextureBase->UserData[ 1 ] ;
 
-			F1Texture->DimPrev = i == 0                         ? 0 : FHeader->Texture + sizeof( MV1_TEXTURE_F1 ) * ( i - 1 ) ;
-			F1Texture->DimNext = i == ModelBase->TextureNum - 1 ? 0 : FHeader->Texture + sizeof( MV1_TEXTURE_F1 ) * ( i + 1 ) ;
+			F1Texture->DimPrev = i == 0                                  ? 0 : FHeader->Texture + sizeof( MV1_TEXTURE_F1 ) * ( i - 1 ) ;
+			F1Texture->DimNext = i == ( DWORD )ModelBase->TextureNum - 1 ? 0 : FHeader->Texture + sizeof( MV1_TEXTURE_F1 ) * ( i + 1 ) ;
 		}
 
 		// メッシュの情報を埋める
 		F1Mesh = ( MV1_MESH_F1 * )( ( DWORD_PTR )FHeader->Mesh + ( DWORD_PTR )FHeader ) ;
 		Mesh = ModelBase->Mesh ;
-		for( i = 0 ; i < ModelBase->MeshNum ; i ++, F1Mesh ++, Mesh ++ )
+		for( i = 0 ; i < ( DWORD )ModelBase->MeshNum ; i ++, F1Mesh ++, Mesh ++ )
 		{
-			F1Mesh->Index = i ;
+			F1Mesh->Index = ( int )i ;
 			if( Mesh->Container )
 			{
-				F1Mesh->Container = ( DWORD )( ( MV1_FRAME_F1 * )( DWORD_PTR )FHeader->Frame + ( Mesh->Container - ModelBase->Frame ) ) ;
+				F1Mesh->Container = ( DWORD )( DWORD_PTR )( ( MV1_FRAME_F1 * )( DWORD_PTR )FHeader->Frame + ( Mesh->Container - ModelBase->Frame ) ) ;
 			}
 			if( Mesh->Material )
 			{
-				F1Mesh->Material = ( DWORD )( ( MV1_MATERIAL_F1 * )( DWORD_PTR )FHeader->Material + ( Mesh->Material - ModelBase->Material ) ) ;
+				F1Mesh->Material = ( DWORD )( DWORD_PTR )( ( MV1_MATERIAL_F1 * )( DWORD_PTR )FHeader->Material + ( Mesh->Material - ModelBase->Material ) ) ;
 			}
 
 			F1Mesh->ChangeInfo.Target   = Mesh->ChangeInfo.Target ;
@@ -20995,7 +17135,7 @@ SAVELOOP :
 			F1Mesh->TriangleListNum = Mesh->TriangleListNum ;
 			if( Mesh->TriangleList )
 			{
-				F1Mesh->TriangleList = ( DWORD )( ( MV1_TRIANGLE_LIST_F1 * )( DWORD_PTR )FHeader->TriangleList + ( Mesh->TriangleList - ModelBase->TriangleList ) ) ;
+				F1Mesh->TriangleList = ( DWORD )( DWORD_PTR )( ( MV1_TRIANGLE_LIST_F1 * )( DWORD_PTR )FHeader->TriangleList + ( Mesh->TriangleList - ModelBase->TriangleList ) ) ;
 			}
 			F1Mesh->Visible = Mesh->Visible ;
 			F1Mesh->BackCulling = Mesh->BackCulling ;
@@ -21058,31 +17198,31 @@ SAVELOOP :
 
 				// UV値が 0.0～1.0 の範囲内か調べる
 				Vert = Mesh->Vertex ;
-				for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+				for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 				{
-					for( k = 0 ; k < Mesh->UVSetUnitNum ; k ++ )
+					for( k = 0 ; k < ( DWORD )Mesh->UVSetUnitNum ; k ++ )
 					{
 						if( Vert->UVs[ k ][ 0 ] < 0.0f || Vert->UVs[ k ][ 0 ] > 1.0f ||
 							Vert->UVs[ k ][ 1 ] < 0.0f || Vert->UVs[ k ][ 1 ] > 1.0f )
 							break ;
 					}
-					if( k != Mesh->UVSetUnitNum )
+					if( k != ( DWORD )Mesh->UVSetUnitNum )
 						break ;
 				}
-				if( j == F1Mesh->VertexNum )
+				if( j == ( DWORD )F1Mesh->VertexNum )
 				{
 					F1Mesh->VertFlag |= MV1_MESH_VERT_FLAG_UV_U16 ;
 				}
 
 				// 頂点色が一色かどうかを調べる
 				Vert = Mesh->Vertex ;
-				for( j = 0 ; j < Mesh->VertexNum - 1 ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+				for( j = 0 ; j < ( DWORD )Mesh->VertexNum - 1 ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 				{
 					if( *( ( DWORD * )&Vert->DiffuseColor  ) != *( ( DWORD * )&( ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )->DiffuseColor  ) ||
 						*( ( DWORD * )&Vert->SpecularColor ) != *( ( DWORD * )&( ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )->SpecularColor ) )
 						break ;
 				}
-				if( Mesh->VertexNum == 1 || j == Mesh->VertexNum - 1 )
+				if( Mesh->VertexNum == 1 || j == ( DWORD )Mesh->VertexNum - 1 )
 				{
 					F1Mesh->VertFlag |= MV1_MESH_VERT_FLAG_COMMON_COLOR ;
 
@@ -21096,7 +17236,7 @@ SAVELOOP :
 				switch( F1Mesh->VertFlag & MV1_MESH_VERT_FLAG_POS_IND_TYPE_MASK )
 				{
 				case MV1_MESH_VERT_INDEX_TYPE_U8 :
-					for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+					for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 					{
 						*Dest = ( BYTE )Vert->PositionIndex ;
 						Dest ++ ;
@@ -21104,7 +17244,7 @@ SAVELOOP :
 					break ;
 
 				case MV1_MESH_VERT_INDEX_TYPE_U16 :
-					for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+					for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 					{
 						*( ( WORD * )Dest ) = ( WORD )Vert->PositionIndex ;
 						Dest += 2 ;
@@ -21112,7 +17252,7 @@ SAVELOOP :
 					break ;
 
 				case MV1_MESH_VERT_INDEX_TYPE_U32 :
-					for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+					for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 					{
 						*( ( DWORD * )Dest ) = ( DWORD )Vert->PositionIndex ;
 						Dest += 4 ;
@@ -21128,7 +17268,7 @@ SAVELOOP :
 					break ;
 
 				case MV1_MESH_VERT_INDEX_TYPE_U8 :
-					for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+					for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 					{
 						*Dest = ( BYTE )Vert->NormalIndex ;
 						Dest ++ ;
@@ -21136,7 +17276,7 @@ SAVELOOP :
 					break ;
 
 				case MV1_MESH_VERT_INDEX_TYPE_U16 :
-					for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+					for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 					{
 						*( ( WORD * )Dest ) = ( WORD )Vert->NormalIndex ;
 						Dest += 2 ;
@@ -21144,7 +17284,7 @@ SAVELOOP :
 					break ;
 
 				case MV1_MESH_VERT_INDEX_TYPE_U32 :
-					for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+					for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 					{
 						*( ( DWORD * )Dest ) = ( DWORD )Vert->NormalIndex ;
 						Dest += 4 ;
@@ -21156,7 +17296,7 @@ SAVELOOP :
 				if( ( F1Mesh->VertFlag & MV1_MESH_VERT_FLAG_COMMON_COLOR ) == 0 )
 				{
 					Vert = Mesh->Vertex ;
-					for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+					for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 					{
 						( ( COLOR_U8 * )Dest )[ 0 ] = Vert->DiffuseColor ;
 						( ( COLOR_U8 * )Dest )[ 1 ] = Vert->SpecularColor ;
@@ -21168,9 +17308,9 @@ SAVELOOP :
 				Vert = Mesh->Vertex ;
 				if( F1Mesh->VertFlag & MV1_MESH_VERT_FLAG_UV_U16 )
 				{
-					for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+					for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 					{
-						for( k = 0 ; k < Mesh->UVSetUnitNum ; k ++ )
+						for( k = 0 ; k < ( DWORD )Mesh->UVSetUnitNum ; k ++ )
 						{
 							( ( WORD * )Dest )[ 0 ] = ( WORD )_FTOL( Vert->UVs[ k ][ 0 ] * 65535 ) ;
 							( ( WORD * )Dest )[ 1 ] = ( WORD )_FTOL( Vert->UVs[ k ][ 1 ] * 65535 ) ;
@@ -21180,9 +17320,9 @@ SAVELOOP :
 				}
 				else
 				{
-					for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+					for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 					{
-						for( k = 0 ; k < Mesh->UVSetUnitNum ; k ++ )
+						for( k = 0 ; k < ( DWORD )Mesh->UVSetUnitNum ; k ++ )
 						{
 							( ( float * )Dest )[ 0 ] = Vert->UVs[ k ][ 0 ] ;
 							( ( float * )Dest )[ 1 ] = Vert->UVs[ k ][ 1 ] ;
@@ -21200,7 +17340,7 @@ SAVELOOP :
 					Vert = Mesh->Vertex ;
 					Out = 0 ;
 					BitCount = 0 ;
-					for( j = 0 ; j < Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
+					for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 					{
 						Out |= ( Vert->ToonOutLineScale > 0.0f ? 0 : 1 ) << BitCount ;
 						BitCount ++ ;
@@ -21226,39 +17366,39 @@ SAVELOOP :
 				FHeader->VertexDataSize += Size ;
 			}
 
-			F1Mesh->DimPrev = i == 0                      ? 0 : FHeader->Mesh + sizeof( MV1_MESH_F1 ) * ( i - 1 ) ;
-			F1Mesh->DimNext = i == ModelBase->MeshNum - 1 ? 0 : FHeader->Mesh + sizeof( MV1_MESH_F1 ) * ( i + 1 ) ;
+			F1Mesh->DimPrev = i == 0                               ? 0 : FHeader->Mesh + sizeof( MV1_MESH_F1 ) * ( i - 1 ) ;
+			F1Mesh->DimNext = i == ( DWORD )ModelBase->MeshNum - 1 ? 0 : FHeader->Mesh + sizeof( MV1_MESH_F1 ) * ( i + 1 ) ;
 		}
 
 		// スキニングメッシュ用のボーン情報を埋める
 		F1SkinBone = ( MV1_SKIN_BONE_F1 * )( ( DWORD_PTR )FHeader->SkinBone + ( DWORD_PTR )FHeader ) ;
 		SkinBone = ModelBase->SkinBone ;
-		for( i = 0 ; i < ModelBase->SkinBoneNum ; i ++, F1SkinBone ++, SkinBone ++ )
+		for( i = 0 ; i < ( DWORD )ModelBase->SkinBoneNum ; i ++, F1SkinBone ++, SkinBone ++ )
 		{
-			F1SkinBone->Index = i ;
+			F1SkinBone->Index = ( int )i ;
 			F1SkinBone->BoneFrame = SkinBone->BoneFrame ;
 			F1SkinBone->ModelLocalMatrix = SkinBone->ModelLocalMatrix ;
 			F1SkinBone->ModelLocalMatrixIsTranslateOnly = SkinBone->ModelLocalMatrixIsTranslateOnly ;
 			F1SkinBone->UseFrameNum = SkinBone->UseFrameNum ;
 			if( F1SkinBone->UseFrame )
 			{
-				F1SkinBone->UseFrame = ( DWORD )( ( MV1_SKIN_BONE_USE_FRAME_F1 ** )( DWORD_PTR )FHeader->SkinBoneUseFrame + ( SkinBone->UseFrame - ModelBase->SkinBoneUseFrame ) ) ;
+				F1SkinBone->UseFrame = ( DWORD )( DWORD_PTR )( ( MV1_SKIN_BONE_USE_FRAME_F1 ** )( DWORD_PTR )FHeader->SkinBoneUseFrame + ( SkinBone->UseFrame - ModelBase->SkinBoneUseFrame ) ) ;
 			}
 
-			F1SkinBone->DimPrev = i == 0                          ? 0 : FHeader->SkinBone + sizeof( MV1_SKIN_BONE_F1 ) * ( i - 1 ) ;
-			F1SkinBone->DimNext = i == ModelBase->SkinBoneNum - 1 ? 0 : FHeader->SkinBone + sizeof( MV1_SKIN_BONE_F1 ) * ( i + 1 ) ;
+			F1SkinBone->DimPrev = i == 0                                   ? 0 : FHeader->SkinBone + sizeof( MV1_SKIN_BONE_F1 ) * ( i - 1 ) ;
+			F1SkinBone->DimNext = i == ( DWORD )ModelBase->SkinBoneNum - 1 ? 0 : FHeader->SkinBone + sizeof( MV1_SKIN_BONE_F1 ) * ( i + 1 ) ;
 		}
 
 		// トライアングルリストの情報を埋める
 		F1TriangleList = ( MV1_TRIANGLE_LIST_F1 * )( ( DWORD_PTR )FHeader->TriangleList + ( DWORD_PTR )FHeader ) ;
 		TriangleList = ModelBase->TriangleList ;
-		for( i = 0 ; i < ModelBase->TriangleListNum ; i ++, F1TriangleList ++, TriangleList ++ )
+		for( i = 0 ; i < ( DWORD )ModelBase->TriangleListNum ; i ++, F1TriangleList ++, TriangleList ++ )
 		{
-			F1TriangleList->Index = i ;
+			F1TriangleList->Index = ( int )i ;
 
 			if( TriangleList->Container )
 			{
-				F1TriangleList->Container = ( DWORD )( ( MV1_MESH_F1 * )( DWORD_PTR )FHeader->Mesh + ( TriangleList->Container - ModelBase->Mesh ) ) ;
+				F1TriangleList->Container = ( DWORD )( DWORD_PTR )( ( MV1_MESH_F1 * )( DWORD_PTR )FHeader->Mesh + ( TriangleList->Container - ModelBase->Mesh ) ) ;
 			}
 			F1TriangleList->VertexType = TriangleList->VertexType ;
 			F1TriangleList->VertexNum = ( unsigned short )TriangleList->VertexNum ;
@@ -21279,7 +17419,7 @@ SAVELOOP :
 
 				// メッシュ頂点インデックス一つ辺りのビット数を調べる
 				MVInd = TriangleList->MeshVertexIndex ;
-				for( j = 0 ; j < TriangleList->VertexNum ; j ++, MVInd ++ )
+				for( j = 0 ; j < ( DWORD )TriangleList->VertexNum ; j ++, MVInd ++ )
 				{
 					if( *MVInd > 65535 )
 					{
@@ -21311,7 +17451,7 @@ SAVELOOP :
 				case MV1_VERTEX_TYPE_SKIN_8BONE :
 					*( ( WORD * )Dest ) = ( WORD )TriangleList->UseBoneNum ;
 					Dest += 2 ;
-					for( j = 0 ; j < TriangleList->UseBoneNum ; j ++, Dest += 2 )
+					for( j = 0 ; j < ( DWORD )TriangleList->UseBoneNum ; j ++, Dest += 2 )
 						*( ( WORD * )Dest ) = ( WORD )TriangleList->UseBone[ j ] ;
 					break ;
 
@@ -21326,7 +17466,7 @@ SAVELOOP :
 				switch( F1TriangleList->Flag & MV1_TRIANGLE_LIST_FLAG_MVERT_INDEX_MASK )
 				{
 				case MV1_TRIANGLE_LIST_INDEX_TYPE_U8 :
-					for( j = 0 ; j < TriangleList->VertexNum ; j ++, MVInd ++ )
+					for( j = 0 ; j < ( DWORD )TriangleList->VertexNum ; j ++, MVInd ++ )
 					{
 						*Dest = ( BYTE )*MVInd ;
 						Dest ++ ;
@@ -21334,7 +17474,7 @@ SAVELOOP :
 					break ;
 
 				case MV1_TRIANGLE_LIST_INDEX_TYPE_U16 :
-					for( j = 0 ; j < TriangleList->VertexNum ; j ++, MVInd ++ )
+					for( j = 0 ; j < ( DWORD )TriangleList->VertexNum ; j ++, MVInd ++ )
 					{
 						*( ( WORD * )Dest ) = ( WORD )*MVInd ;
 						Dest += 2 ;
@@ -21342,7 +17482,7 @@ SAVELOOP :
 					break ;
 
 				case MV1_TRIANGLE_LIST_INDEX_TYPE_U32 :
-					for( j = 0 ; j < TriangleList->VertexNum ; j ++, MVInd ++ )
+					for( j = 0 ; j < ( DWORD )TriangleList->VertexNum ; j ++, MVInd ++ )
 					{
 						*( ( DWORD * )Dest ) = ( DWORD )*MVInd ;
 						Dest += 4 ;
@@ -21376,8 +17516,8 @@ SAVELOOP :
 				FHeader->VertexDataSize += Size ;
 			}
 
-			F1TriangleList->DimPrev = i == 0                              ? 0 : FHeader->TriangleList + sizeof( MV1_TRIANGLE_LIST_F1 ) * ( i - 1 ) ;
-			F1TriangleList->DimNext = i == ModelBase->TriangleListNum - 1 ? 0 : FHeader->TriangleList + sizeof( MV1_TRIANGLE_LIST_F1 ) * ( i + 1 ) ;
+			F1TriangleList->DimPrev = i == 0                                       ? 0 : FHeader->TriangleList + sizeof( MV1_TRIANGLE_LIST_F1 ) * ( i - 1 ) ;
+			F1TriangleList->DimNext = i == ( DWORD )ModelBase->TriangleListNum - 1 ? 0 : FHeader->TriangleList + sizeof( MV1_TRIANGLE_LIST_F1 ) * ( i + 1 ) ;
 		}
 	}
 
@@ -21386,7 +17526,7 @@ SAVELOOP :
 		// アニメーションキーセットの情報を埋める
 		F1AnimKeySet = ( MV1_ANIM_KEYSET_F1 * )( ( DWORD_PTR )FHeader->AnimKeySet + ( DWORD_PTR )FHeader ) ;
 		AnimKeySet = AnimModelBase->AnimKeySet ;
-		for( i = 0 ; i < AnimModelBase->AnimKeySetNum ; i ++, F1AnimKeySet ++, AnimKeySet ++ )
+		for( i = 0 ; i < ( DWORD )AnimModelBase->AnimKeySetNum ; i ++, F1AnimKeySet ++, AnimKeySet ++ )
 		{
 			MV1_ANIM_KEY_16BIT_F  Time16BSubF = { 0.0f } ;
 			MV1_ANIM_KEY_16BIT_F  Key16BSubF = { 0.0f } ;
@@ -21403,7 +17543,7 @@ SAVELOOP :
 			F1AnimKeySet->Type = AnimKeySet->Type ;
 			F1AnimKeySet->DataType = AnimKeySet->DataType ;
 
-			F1AnimKeySet->KeyData = FHeader->AnimKeyDataSize ;
+			F1AnimKeySet->KeyData = ( DWORD )FHeader->AnimKeyDataSize ;
 			Dest = ( BYTE * )AnimBuffer + ( DWORD_PTR )F1AnimKeySet->KeyData ;
 			Start = Dest ;
 			
@@ -21423,7 +17563,7 @@ SAVELOOP :
 					MPPP = 1 ;
 					ZTP = 1 ;
 					Vector = AnimKeySet->KeyVector ;
-					for( j = 0 ; j < AnimKeySet->Num ; j ++, Vector ++ )
+					for( j = 0 ; j < ( DWORD )AnimKeySet->Num ; j ++, Vector ++ )
 					{
 						if( Vector->x < 0.0f         || Vector->x > 2 * DX_PI      ) ZTP  = 0 ;
 						if( Vector->y < 0.0f         || Vector->y > 2 * DX_PI      ) ZTP  = 0 ;
@@ -21439,7 +17579,7 @@ SAVELOOP :
 					MPPP = 1 ;
 					ZTP = 1 ;
 					Float = AnimKeySet->KeyLinear ;
-					for( j = 0 ; j < AnimKeySet->Num ; j ++, Float ++ )
+					for( j = 0 ; j < ( DWORD )AnimKeySet->Num ; j ++, Float ++ )
 					{
 						if( *Float < 0.0f         || *Float > 2 * DX_PI      ) ZTP  = 0 ;
 						if( *Float < -( float )DX_PI || *Float > ( float )DX_PI ) MPPP = 0 ;
@@ -21476,7 +17616,7 @@ SAVELOOP :
 						Time16BSubF.Min  = Float[ 0 ] ;
 						Time16BSubF.Unit = Float[ 0 ] ;
 						Float ++ ;
-						for( k = 1 ; k < AnimKeySet->Num ; k ++, Float ++ )
+						for( k = 1 ; k < ( DWORD )AnimKeySet->Num ; k ++, Float ++ )
 						{
 							if( Time16BSubF.Min  > *Float ) Time16BSubF.Min  = *Float ;
 							if( Time16BSubF.Unit < *Float ) Time16BSubF.Unit = *Float ;
@@ -21512,7 +17652,7 @@ SAVELOOP :
 								Key16BSubF.Min  =  1000000000000.0f ;
 								Key16BSubF.Unit = -1000000000000.0f ;
 								Key = AnimKeySet->KeyLinear ;
-								for( k = 0 ; k < AnimKeySet->Num ; k ++, Key ++ )
+								for( k = 0 ; k < ( DWORD )AnimKeySet->Num ; k ++, Key ++ )
 								{
 									 if( Key16BSubF.Min  > *Key ) Key16BSubF.Min  = *Key ;
 									 if( Key16BSubF.Unit < *Key ) Key16BSubF.Unit = *Key ;
@@ -21529,7 +17669,7 @@ SAVELOOP :
 								Key16BSubF.Min  =  1000000000000.0f ;
 								Key16BSubF.Unit = -1000000000000.0f ;
 								Key = AnimKeySet->KeyVector ;
-								for( k = 0 ; k < AnimKeySet->Num ; k ++, Key ++ )
+								for( k = 0 ; k < ( DWORD )AnimKeySet->Num ; k ++, Key ++ )
 								{
 									 if( Key16BSubF.Min  > Key->x ) Key16BSubF.Min  = Key->x ;
 									 if( Key16BSubF.Unit < Key->x ) Key16BSubF.Unit = Key->x ;
@@ -21551,7 +17691,7 @@ SAVELOOP :
 								Key16BSubF.Min  =  1000000000000.0f ;
 								Key16BSubF.Unit = -1000000000000.0f ;
 								Key = AnimKeySet->KeyFloat4 ;
-								for( k = 0 ; k < AnimKeySet->Num ; k ++, Key ++ )
+								for( k = 0 ; k < ( DWORD )AnimKeySet->Num ; k ++, Key ++ )
 								{
 									if( Key16BSubF.Min  > Key->x ) Key16BSubF.Min  = Key->x ;
 									if( Key16BSubF.Unit < Key->x ) Key16BSubF.Unit = Key->x ;
@@ -21612,7 +17752,7 @@ SAVELOOP :
 				}
 				else
 				{
-					*( ( DWORD * )Dest ) = AnimKeySet->Num ;
+					*( ( DWORD * )Dest ) = ( DWORD )AnimKeySet->Num ;
 					Dest += 4 ;
 				}
 
@@ -21673,7 +17813,7 @@ SAVELOOP :
 
 					// 値を変換
 					Float = AnimKeySet->KeyTime ;
-					for( k = 0 ; k < AnimKeySet->Num ; k ++, Float ++ )
+					for( k = 0 ; k < ( DWORD )AnimKeySet->Num ; k ++, Float ++ )
 					{
 						*( ( WORD * )Dest ) = ( WORD )_FTOL( ( *Float - Time16BSubF.Min ) / Time16BSubF.Unit ) ;
 						Dest += 2 ;
@@ -21713,6 +17853,11 @@ SAVELOOP :
 					_MEMCPY( Dest, AnimKeySet->KeyFloat4, AnimKeySet->Num * sizeof( FLOAT4 ) ) ;
 					Dest += AnimKeySet->Num * sizeof( FLOAT4 ) ;
 					break ;
+
+				case MV1_ANIMKEY_TYPE_MATRIX4X4C :
+					_MEMCPY( Dest, AnimKeySet->KeyMatrix4x4C, AnimKeySet->Num * sizeof( MATRIX_4X4CT_F ) ) ;
+					Dest += AnimKeySet->Num * sizeof( MATRIX_4X4CT_F ) ;
+					break ;
 				}
 			}
 			else
@@ -21735,7 +17880,7 @@ SAVELOOP :
 					if( MPPP )
 					{
 						Float = AnimKeySet->KeyLinear ;
-						for( k = 0 ; k < AnimKeySet->Num ; k ++, Float ++ )
+						for( k = 0 ; k < ( DWORD )AnimKeySet->Num ; k ++, Float ++ )
 						{
 							*( ( WORD * )Dest ) = ( WORD )_FTOL( ( *Float + ( float )DX_PI ) * 65535.0f / ( float )( DX_PI * 2.0f ) ) ;
 							f = *Float - ( *( ( WORD * )Dest ) / 65535.0f * ( float )( DX_PI * 2.0f ) - ( float )DX_PI ) ;
@@ -21755,7 +17900,7 @@ SAVELOOP :
 					if( ZTP )
 					{
 						Float = AnimKeySet->KeyLinear ;
-						for( k = 0 ; k < AnimKeySet->Num ; k ++, Float ++ )
+						for( k = 0 ; k < ( DWORD )AnimKeySet->Num ; k ++, Float ++ )
 						{
 							*( ( WORD * )Dest ) = ( WORD )_FTOL( *Float * 65535.0f / ( float )( DX_PI * 2.0f ) ) ;
 							f = *Float - ( *( ( WORD * )Dest ) / 65535.0f * ( float )( DX_PI * 2.0f ) ) ;
@@ -21774,7 +17919,7 @@ SAVELOOP :
 					else
 					{
 						Float = AnimKeySet->KeyLinear ;
-						for( k = 0 ; k < AnimKeySet->Num ; k ++, Float ++ )
+						for( k = 0 ; k < ( DWORD )AnimKeySet->Num ; k ++, Float ++ )
 						{
 							*( ( WORD * )Dest ) = ( WORD )_FTOL( ( *Float - Key16BSubF.Min ) / Key16BSubF.Unit ) ;
 							Dest += 2 ;
@@ -21786,7 +17931,7 @@ SAVELOOP :
 					if( MPPP )
 					{
 						Vector = AnimKeySet->KeyVector ;
-						for( k = 0 ; k < AnimKeySet->Num ; k ++, Vector ++ )
+						for( k = 0 ; k < ( DWORD )AnimKeySet->Num ; k ++, Vector ++ )
 						{
 							( ( WORD * )Dest )[ 0 ] = ( WORD )_FTOL( ( Vector->x + ( float )DX_PI ) * 65535.0f / ( float )( DX_PI * 2.0f ) ) ;
 							f = Vector->x - ( ( ( WORD * )Dest )[ 0 ] / 65535.0f * ( float )( DX_PI * 2.0f ) - ( float )DX_PI ) ;
@@ -21831,7 +17976,7 @@ SAVELOOP :
 					if( ZTP )
 					{
 						Vector = AnimKeySet->KeyVector ;
-						for( k = 0 ; k < AnimKeySet->Num ; k ++, Vector ++ )
+						for( k = 0 ; k < ( DWORD )AnimKeySet->Num ; k ++, Vector ++ )
 						{
 							( ( WORD * )Dest )[ 0 ] = ( WORD )_FTOL( Vector->x * 65535.0f / ( float )( DX_PI * 2.0f ) ) ;
 							f = Vector->x - ( ( ( WORD * )Dest )[ 0 ] / 65535.0f * ( float )( DX_PI * 2.0f ) ) ;
@@ -21875,7 +18020,7 @@ SAVELOOP :
 					else
 					{
 						Vector = AnimKeySet->KeyVector ;
-						for( k = 0 ; k < AnimKeySet->Num ; k ++, Vector ++ )
+						for( k = 0 ; k < ( DWORD )AnimKeySet->Num ; k ++, Vector ++ )
 						{
 							( ( WORD * )Dest )[ 0 ] = ( WORD )_FTOL( ( Vector->x - Key16BSubF.Min ) / Key16BSubF.Unit ) ;
 							( ( WORD * )Dest )[ 1 ] = ( WORD )_FTOL( ( Vector->y - Key16BSubF.Min ) / Key16BSubF.Unit ) ;
@@ -21888,7 +18033,7 @@ SAVELOOP :
 				case MV1_ANIMKEY_TYPE_QUATERNION_X :
 				case MV1_ANIMKEY_TYPE_QUATERNION_VMD :
 					Quaternion        = AnimKeySet->KeyFloat4 ;
-					for( k = 0 ; k < AnimKeySet->Num ; k ++, Quaternion ++ )
+					for( k = 0 ; k < ( DWORD )AnimKeySet->Num ; k ++, Quaternion ++ )
 					{
 						( ( WORD * )Dest )[ 0 ] = ( WORD )_FTOL( ( Quaternion->x - Key16BSubF.Min ) / Key16BSubF.Unit ) ;
 						( ( WORD * )Dest )[ 1 ] = ( WORD )_FTOL( ( Quaternion->y - Key16BSubF.Min ) / Key16BSubF.Unit ) ;
@@ -21903,46 +18048,13 @@ SAVELOOP :
 			FHeader->AnimKeyDataSize = ( FHeader->AnimKeyDataSize + 3 ) / 4 * 4 ;
 		}
 
-		// アニメーションの情報を埋める
-/*		F1Anim = ( MV1_ANIM_F1 * )( ( DWORD_PTR )FHeader->Anim + ( DWORD_PTR )FHeader ) ;
-		Anim = AnimModelBase->Anim ;
-		for( i = 0 ; i < AnimModelBase->AnimNum ; i ++, F1Anim ++, Anim ++ )
-		{
-			F1Anim->Index = i ;
-//			F1Anim->TargetFrameName = ( char * )FHeader->StringSize ;
-//			_STRCPY( F1Anim->TargetFrameName + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, Anim->TargetFrameName ) ;
-//			FHeader->StringSize += lstrlenA( Anim->TargetFrameName ) + 1 ;
-//			FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
-
-			if( Anim->Container )
-			{
-				F1Anim->Container = FHeader->AnimSet + ( Anim->Container - ModelBase->AnimSet ) ;
-			}
-			if( AnimMHandle < 0 )
-			{
-				F1Anim->TargetFrameIndex = Anim->TargetFrameIndex ;
-			}
-			else
-			{
-
-			}
-			F1Anim->MaxTime = Anim->MaxTime ;
-			F1Anim->RotateOrder = Anim->RotateOrder ;
-			F1Anim->KeySetNum = Anim->KeySetNum ;
-			F1Anim->KeySet = FHeader->AnimKeySet + ( Anim->KeySet - ModelBase->AnimKeySet ) ;
-
-			F1Anim->UserData[ 0 ] = Anim->UserData[ 0 ] ;
-			F1Anim->UserData[ 1 ] = Anim->UserData[ 1 ] ;
-		}
-*/
 		// アニメーションセットとアニメーションの情報を埋める
 		F1AnimSet = ( MV1_ANIMSET_F1 * )( ( DWORD_PTR )FHeader->AnimSet + ( DWORD_PTR )FHeader ) ;
 		AnimSet = AnimModelBase->AnimSet ;
-		for( i = 0 ; i < AnimModelBase->AnimSetNum ; i ++, F1AnimSet ++, AnimSet ++ )
+		for( i = 0 ; i < ( DWORD )AnimModelBase->AnimSetNum ; i ++, F1AnimSet ++, AnimSet ++ )
 		{
-			F1AnimSet->Name = FHeader->StringSize ;
-			_STRCPY( ( char * )( DWORD_PTR )F1AnimSet->Name + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, AnimSet->Name ) ;
-			FHeader->StringSize += lstrlenA( AnimSet->Name ) + 1 ;
+			F1AnimSet->Name = ( DWORD )FHeader->StringSize ;
+			FHeader->StringSize += ConvString( ( const char * )AnimSet->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1AnimSet->Name ), DX_CODEPAGE_UTF8 ) ;
 			FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 			F1AnimSet->Index = AnimSet->Index ;
@@ -21950,7 +18062,7 @@ SAVELOOP :
 			F1AnimSet->AnimNum = AnimSet->AnimNum ;
 			if( AnimSet->Anim )
 			{
-				F1AnimSet->Anim = ( DWORD )( ( MV1_ANIM_F1 * )( DWORD_PTR )FHeader->Anim + ( AnimSet->Anim - AnimModelBase->Anim ) ) ;
+				F1AnimSet->Anim = ( DWORD )( DWORD_PTR )( ( MV1_ANIM_F1 * )( DWORD_PTR )FHeader->Anim + ( AnimSet->Anim - AnimModelBase->Anim ) ) ;
 			}
 
 			if( AnimSet->IsAddAnim )           F1AnimSet->Flag |= 1 ;
@@ -21961,28 +18073,24 @@ SAVELOOP :
 			F1AnimSet->UserData[ 2 ] = AnimSet->UserData[ 2 ] ;
 			F1AnimSet->UserData[ 3 ] = AnimSet->UserData[ 3 ] ;
 
-			F1AnimSet->DimPrev = i == 0                             ? 0 : FHeader->AnimSet + sizeof( MV1_ANIMSET_F1 ) * ( i - 1 ) ;
-			F1AnimSet->DimNext = i == AnimModelBase->AnimSetNum - 1 ? 0 : FHeader->AnimSet + sizeof( MV1_ANIMSET_F1 ) * ( i + 1 ) ;
+			F1AnimSet->DimPrev = i == 0                                      ? 0 : FHeader->AnimSet + sizeof( MV1_ANIMSET_F1 ) * ( i - 1 ) ;
+			F1AnimSet->DimNext = i == ( DWORD )AnimModelBase->AnimSetNum - 1 ? 0 : FHeader->AnimSet + sizeof( MV1_ANIMSET_F1 ) * ( i + 1 ) ;
 
 			if( AnimMHandle >= 0 )
 			{
-				AttachIndex = NS_MV1AttachAnim( MHandle, i, AnimMHandle, AnimNameCheck ) ;
+				AttachIndex = NS_MV1AttachAnim( MHandle, ( int )i, AnimMHandle, AnimNameCheck ) ;
 				if( AttachIndex == -1 )  goto ERRORLABEL ;
 			}
 
 			F1Anim = ( MV1_ANIM_F1 * )( ( DWORD_PTR )FHeader->Anim + ( DWORD_PTR )FHeader ) + ( AnimSet->Anim - AnimModelBase->Anim ) ;
 			Anim = AnimSet->Anim ;
-			for( j = 0 ; j < AnimSet->AnimNum ; j ++, F1Anim ++, Anim ++ )
+			for( j = 0 ; j < ( DWORD )AnimSet->AnimNum ; j ++, F1Anim ++, Anim ++ )
 			{
 				F1Anim->Index = ( int )( Anim - AnimModelBase->Anim ) ;
-	//			F1Anim->TargetFrameName = ( char * )FHeader->StringSize ;
-	//			_STRCPY( F1Anim->TargetFrameName + ( DWORD_PTR )FHeader + ( DWORD_PTR )FHeader->StringBuffer, Anim->TargetFrameName ) ;
-	//			FHeader->StringSize += lstrlenA( Anim->TargetFrameName ) + 1 ;
-	//			FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 				if( Anim->Container )
 				{
-					F1Anim->Container = ( DWORD )( ( MV1_ANIMSET_F1 * )( DWORD_PTR )FHeader->AnimSet + ( Anim->Container - AnimModelBase->AnimSet ) ) ;
+					F1Anim->Container = ( DWORD )( DWORD_PTR )( ( MV1_ANIMSET_F1 * )( DWORD_PTR )FHeader->AnimSet + ( Anim->Container - AnimModelBase->AnimSet ) ) ;
 				}
 				if( AnimMHandle < 0 )
 				{
@@ -21992,13 +18100,13 @@ SAVELOOP :
 				{
 					MV1_MODEL_ANIM *MAnim ;
 
-					for( k = 0 ; k < ModelBase->FrameNum ; k ++ )
+					for( k = 0 ; k < ( DWORD )ModelBase->FrameNum ; k ++ )
 					{
 						MAnim = &Model->Anim[ AttachIndex + Model->AnimSetMaxNum * k ] ;
 						if( MAnim->Use == false ) continue ;
 						if( MAnim->Anim->BaseData == Anim ) break ;
 					}
-					if( k == ModelBase->FrameNum )
+					if( k == ( DWORD )ModelBase->FrameNum )
 					{
 						NS_MV1DetachAnim( MHandle, AttachIndex ) ;
 						Err = -2 ;
@@ -22006,13 +18114,13 @@ SAVELOOP :
 					}
 					else
 					{
-						F1Anim->TargetFrameIndex = k ;
+						F1Anim->TargetFrameIndex = ( int )k ;
 					}
 				}
 				F1Anim->MaxTime = Anim->MaxTime ;
 				F1Anim->RotateOrder = Anim->RotateOrder ;
 				F1Anim->KeySetNum = Anim->KeySetNum ;
-				F1Anim->KeySet = ( DWORD )( ( MV1_ANIM_KEYSET_F1 * )( DWORD_PTR )FHeader->AnimKeySet + ( Anim->KeySet - AnimModelBase->AnimKeySet ) ) ;
+				F1Anim->KeySet = ( DWORD )( ( DWORD_PTR )( ( MV1_ANIM_KEYSET_F1 * )( DWORD_PTR )FHeader->AnimKeySet + ( Anim->KeySet - AnimModelBase->AnimKeySet ) ) ) ;
 
 				F1Anim->UserData[ 0 ] = Anim->UserData[ 0 ] ;
 				F1Anim->UserData[ 1 ] = Anim->UserData[ 1 ] ;
@@ -22045,17 +18153,17 @@ SAVELOOP :
 
 		// 頂点データアドレスを補正
 		F1Frame = ( MV1_FRAME_F1 * )( ( DWORD_PTR )FHeader->Frame + ( DWORD_PTR )FHeader ) ;
-		for( i = 0 ; i < ModelBase->FrameNum ; i ++, F1Frame ++ )
+		for( i = 0 ; i < ( DWORD )ModelBase->FrameNum ; i ++, F1Frame ++ )
 		{
 			F1Frame->PositionAndNormalData = ( DWORD )( ( DWORD_PTR )F1Frame->PositionAndNormalData + ( DWORD_PTR )FHeader->VertexData ) ;
 		}
 		F1Mesh = ( MV1_MESH_F1 * )( ( DWORD_PTR )FHeader->Mesh + ( DWORD_PTR )FHeader ) ;
-		for( i = 0 ; i < ModelBase->MeshNum ; i ++, F1Mesh ++ )
+		for( i = 0 ; i < ( DWORD )ModelBase->MeshNum ; i ++, F1Mesh ++ )
 		{
 			F1Mesh->VertexData = ( DWORD )( ( DWORD_PTR )F1Mesh->VertexData + ( DWORD_PTR )FHeader->VertexData ) ;
 		}
 		F1TriangleList = ( MV1_TRIANGLE_LIST_F1 * )( ( DWORD_PTR )FHeader->TriangleList + ( DWORD_PTR )FHeader ) ;
-		for( i = 0 ; i < ModelBase->TriangleListNum ; i ++, F1TriangleList ++ )
+		for( i = 0 ; i < ( DWORD )ModelBase->TriangleListNum ; i ++, F1TriangleList ++ )
 		{
 			F1TriangleList->MeshVertexIndexAndIndexData = ( DWORD )( ( DWORD_PTR )F1TriangleList->MeshVertexIndexAndIndexData + ( DWORD_PTR )FHeader->VertexData ) ;
 		}
@@ -22074,12 +18182,12 @@ SAVELOOP :
 
 		Table = ( DWORD * )ChangeDrawMaterialTableBuffer ;
 		FHeader->ChangeDrawMaterialTable = TempBufferUseSize ;
-		_MEMCPY( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->ChangeDrawMaterialTable, Table, FHeader->ChangeDrawMaterialTableSize ) ;
+		_MEMCPY( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->ChangeDrawMaterialTable, Table, ( size_t )FHeader->ChangeDrawMaterialTableSize ) ;
 		TempBufferUseSize += FHeader->ChangeDrawMaterialTableSize ;
 
 		// 検出用テーブルのアドレスを補正
 		F1Frame = ( MV1_FRAME_F1 * )( ( DWORD_PTR )FHeader->Frame + ( DWORD_PTR )FHeader ) ;
-		for( i = 0 ; i < ModelBase->FrameNum ; i ++, F1Frame ++ )
+		for( i = 0 ; i < ( DWORD )ModelBase->FrameNum ; i ++, F1Frame ++ )
 		{
 			F1Frame->ChangeDrawMaterialInfo.Fill = ( DWORD )( ( DWORD_PTR )( ( DWORD * )( ( BYTE * )ChangeDrawMaterialTableBuffer + F1Frame->ChangeDrawMaterialInfo.Fill ) - Table ) + ( DWORD_PTR )FHeader->ChangeDrawMaterialTable ) ;
 		}
@@ -22095,12 +18203,12 @@ SAVELOOP :
 		}
 
 		FHeader->AnimKeyData = TempBufferUseSize ;
-		_MEMCPY( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->AnimKeyData, AnimBuffer, FHeader->AnimKeyDataSize ) ;
+		_MEMCPY( ( BYTE * )FHeader + ( DWORD_PTR )FHeader->AnimKeyData, AnimBuffer, ( size_t )FHeader->AnimKeyDataSize ) ;
 		TempBufferUseSize += FHeader->AnimKeyDataSize ;
 
 		// アニメーションキーセットのキーデータアドレスを補正
 		F1AnimKeySet = ( MV1_ANIM_KEYSET_F1 * )( ( DWORD_PTR )FHeader->AnimKeySet + ( DWORD_PTR )FHeader ) ;
-		for( i = 0 ; i < AnimModelBase->AnimKeySetNum ; i ++, F1AnimKeySet ++ )
+		for( i = 0 ; i < ( DWORD )AnimModelBase->AnimKeySetNum ; i ++, F1AnimKeySet ++ )
 		{
 			F1AnimKeySet->KeyData = ( DWORD )( ( DWORD_PTR )F1AnimKeySet->KeyData + ( DWORD_PTR )FHeader->AnimKeyData ) ;
 		}
@@ -22119,11 +18227,11 @@ SAVELOOP :
 		( ( MV1MODEL_FILEHEADER_F1 * )PressData )->CheckID[ 1 ] = FHeader->CheckID[ 1 ] ;
 		( ( MV1MODEL_FILEHEADER_F1 * )PressData )->CheckID[ 2 ] = FHeader->CheckID[ 2 ] ;
 		( ( MV1MODEL_FILEHEADER_F1 * )PressData )->CheckID[ 3 ] = FHeader->CheckID[ 3 ] ;
-		PressDataSize = DXA_Encode( ( BYTE * )FHeader + 4, TempBufferUseSize - 4, ( BYTE * )PressData + 4 ) ;
+		PressDataSize = ( DWORD )DXA_Encode( ( BYTE * )FHeader + 4, ( DWORD )( TempBufferUseSize - 4 ), ( BYTE * )PressData + 4 ) ;
 	}
 
 	// ファイルに書き出す
-	FileHandle = CreateFile( FileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL ) ;
+	FileHandle = CreateFileW( FileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL ) ;
 	if( FileHandle )
 	{
 		WriteFile( FileHandle, PressData, PressDataSize + 4, &WriteSize, NULL ) ;
@@ -22225,7 +18333,29 @@ static	void MV1SaveModelToXFileOutputTab( FILE *fp, int TabNum )
 #ifndef DX_NON_SAVEFUNCTION
 
 // 指定のパスにモデルをＸファイル形式で保存する
-extern int MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType, int AnimMHandle, int AnimNameCheck )
+extern int NS_MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType, int AnimMHandle, int AnimNameCheck )
+{
+#ifdef UNICODE
+	return MV1SaveModelToXFile_WCHAR_T(
+		MHandle, FileName, SaveType, AnimMHandle, AnimNameCheck
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FileName, return -1 )
+
+	Result = MV1SaveModelToXFile_WCHAR_T(
+		MHandle, UseFileNameBuffer, SaveType, AnimMHandle, AnimNameCheck
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FileName )
+
+	return Result ;
+#endif
+}
+
+// 指定のパスにモデルをＸファイル形式で保存する
+extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, int SaveType, int AnimMHandle, int AnimNameCheck )
 {
 	MV1_MODEL *Model, *AnimModel ;
 	MV1_MODEL_BASE *ModelBase, *AnimModelBase ;
@@ -22247,10 +18377,11 @@ extern int MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType
 	int i, j, k, l, m, FrameStackNum, UseNum, FrameNum, VertexNum, VertexStartIndex ;
 	int AnimIndex, AnimNum, Err = -1 ;
 	int *KeyTiming = NULL, time, KeyTimingNum ;
-	MATRIX_4X4CT *KeyMatrix, *Matrix ;
+	MATRIX_4X4CT_F *KeyMatrix, *Matrix ;
 	FILE *fp = NULL ;
 	MV1_SKINBONE_BLEND *UseBoneMap = NULL ;
 	bool MeshSave, AnimSave ;
+	char String[ 1024 ] ;
 
 	MeshSave = ( SaveType & MV1_SAVETYPE_MESH ) ? true : false ;
 	AnimSave = ( SaveType & MV1_SAVETYPE_ANIM ) ? true : false ;
@@ -22275,8 +18406,8 @@ extern int MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType
 		AnimModelBase = AnimModel->BaseData ;
 	}
 
-	// 打开文件
-	fp = _tfopen( FileName, _T( "wt" ) ) ;
+	// ファイルを開く
+	fp = _wfopen( FileName, L"wt" ) ;
 	if( fp == NULL )
 		return -1 ;
 
@@ -22290,13 +18421,14 @@ extern int MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType
 		Material = Model->Material ;
 		for( i = 0 ; i < ModelBase->MaterialNum ; i ++, MaterialBase ++, Material ++ )
 		{
-			if( MaterialBase->Name[ 0 ] == '\0' )
+			if( MaterialBase->NameW[ 0 ] == L'\0' )
 			{
 				fprintf( fp, "Material Material_%03d {\n", i ) ;
 			}
 			else
 			{
-				fprintf( fp, "Material %s {\n", MV1SaveModelToXFileConvSpace( MaterialBase->Name ) ) ;
+				ConvString( ( const char * )MaterialBase->NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
+				fprintf( fp, "Material %s {\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 			}
 			fprintf( fp, "\t%f;%f;%f;%f;;\n", Material->Diffuse.r, Material->Diffuse.g, Material->Diffuse.b, Material->DrawBlendParam / 255.0f ) ;
 			fprintf( fp, "\t%f;\n", Material->Power ) ;
@@ -22307,7 +18439,9 @@ extern int MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType
 				MV1_TEXTURE *Texture ;
 
 				Texture = &Model->Texture[ Material->DiffuseLayer[ 0 ].Texture ] ;
-				fprintf( fp, "\tTextureFilename {\n\t\t\"%s\";\n\t}\n", Texture->ColorFilePath ) ;
+
+				ConvString( ( const char * )Texture->ColorFilePathW_, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
+				fprintf( fp, "\tTextureFilename {\n\t\t\"%s\";\n\t}\n", String ) ;
 			}
 			fprintf( fp, "}\n" ) ;
 		}
@@ -22332,7 +18466,9 @@ extern int MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType
 			{
 			case 0 :
 				MV1SaveModelToXFileOutputTab( fp, FrameStackNum - 1 ) ;
-				fprintf( fp, "Frame %s {\n", MV1SaveModelToXFileConvSpace( Frame->Name ) ) ;
+
+				ConvString( ( const char * )Frame->NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
+				fprintf( fp, "Frame %s {\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 
 				// 行列の出力
 				{
@@ -22507,13 +18643,14 @@ extern int MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType
 							for( j = 0 ; j < Frame->MeshNum ; j ++, Mesh ++ )
 							{
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-								if( Mesh->Material->Name[ 0 ] == '\0' )
+								if( Mesh->Material->NameW[ 0 ] == L'\0' )
 								{
 									fprintf( fp, "{Material_%03d}\n", Mesh->Material - ModelBase->Material ) ;
 								}
 								else
 								{
-									fprintf( fp, "{%s}\n", MV1SaveModelToXFileConvSpace( Mesh->Material->Name ) ) ;
+									ConvString( ( const char * )Mesh->Material->NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
+									fprintf( fp, "{%s}\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 								}
 							}
 
@@ -22549,7 +18686,9 @@ extern int MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType
 								fprintf( fp, "SkinWeights {\n" ) ;
 
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-								fprintf( fp, "\"%s\";\n", MV1SaveModelToXFileConvSpace( ModelBase->Frame[ SkinB->BoneFrame ].Name ) ) ;
+
+								ConvString( ( const char * )ModelBase->Frame[ SkinB->BoneFrame ].NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
+								fprintf( fp, "\"%s\";\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 
 								UseNum = 0 ;
 								VertexStartIndex = 0 ;
@@ -22672,15 +18811,17 @@ extern int MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType
 				j += KeySet->Num ;
 
 			FrameNum = AnimModelBase->FrameNum ;
-			KeyTiming = ( int * )DXALLOC( ( sizeof( MATRIX_4X4CT ) * AnimModelBase->FrameNum + sizeof( int ) ) * j ) ;
+			KeyTiming = ( int * )DXALLOC( ( sizeof( MATRIX_4X4CT_F ) * AnimModelBase->FrameNum + sizeof( int ) ) * j ) ;
 			if( KeyTiming == NULL ) goto ERRORLABEL ;
-			KeyMatrix = ( MATRIX_4X4CT * )( KeyTiming + j ) ;
+			KeyMatrix = ( MATRIX_4X4CT_F * )( KeyTiming + j ) ;
 
 			AnimSet = AnimModelBase->AnimSet ;
 			for( i = 0 ; i < AnimModelBase->AnimSetNum ; i ++, AnimSet ++ )
 			{
 				AnimNum = AnimSet->AnimNum ;
-				fprintf( fp, "AnimationSet %s {\n", MV1SaveModelToXFileConvSpace( AnimSet->Name ) ) ;
+
+				ConvString( ( const char * )AnimSet->NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
+				fprintf( fp, "AnimationSet %s {\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 
 				// 全てのキータイミングを列挙
 				KeyTimingNum = 0 ;
@@ -22750,7 +18891,8 @@ extern int MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType
 				{
 					if( AnimMHandle < 0 )
 					{
-						fprintf( fp, "\tAnimation {\n\t\t{%s}\n", MV1SaveModelToXFileConvSpace( Anim->TargetFrame->Name ) ) ;
+						ConvString( ( const char * )Anim->TargetFrame->NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
+						fprintf( fp, "\tAnimation {\n\t\t{%s}\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 					}
 					else
 					{
@@ -22769,7 +18911,8 @@ extern int MV1SaveModelToXFile( int MHandle, const TCHAR *FileName, int SaveType
 							goto ERRORLABEL ;
 						}
 
-						fprintf( fp, "\tAnimation {\n\t\t{%s}\n", MV1SaveModelToXFileConvSpace( ModelBase->Frame[ k ].Name ) ) ;
+						ConvString( ( const char * )ModelBase->Frame[ k ].NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
+						fprintf( fp, "\tAnimation {\n\t\t{%s}\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 					}
 
 					fprintf( fp, "\t\tAnimationKey {\n\t\t\t4;\n\t\t\t%d;\n", KeyTimingNum ) ;
@@ -22906,16 +19049,21 @@ extern int MV1GetModelDataSize( int MHandle, int DataType )
 //		return ModelBase->TotalDataSize ;
 
 	case MV1_DATASIZE_VERTEX :
-		return ModelBase->VertexDataSize ;
+		return ( int )ModelBase->VertexDataSize ;
 
 	case MV1_DATASIZE_STRING :
-		return ModelBase->StringSize ;
+		return
+#ifndef UNICODE
+			ModelBase->StringSizeA +
+#endif
+			ModelBase->StringSizeW ;
 
 	case MV1_DATASIZE_ANIM :
-		return ModelBase->AnimKeyDataSize +
-				ModelBase->AnimSetNum * sizeof( MV1_ANIMSET_BASE ) +
-				ModelBase->AnimNum * sizeof( MV1_ANIM_BASE ) +
-				ModelBase->AnimKeySetNum * sizeof( MV1_ANIM_KEYSET_BASE ) ;
+		return ( int )(
+				ModelBase->AnimKeyDataSize +
+				ModelBase->AnimSetNum      * sizeof( MV1_ANIMSET_BASE     ) +
+				ModelBase->AnimNum         * sizeof( MV1_ANIM_BASE        ) +
+				ModelBase->AnimKeySetNum   * sizeof( MV1_ANIM_KEYSET_BASE ) ) ;
 
 //	case MV1_DATASIZE_OTHER :
 //		return ModelBase->TotalDataSize -
@@ -22929,13 +19077,13 @@ extern int MV1GetModelDataSize( int MHandle, int DataType )
 }
 
 // アニメーションのデータサイズを取得する
-extern int MV1GetAnimDataSize( int MHandle, const char *AnimName, int AnimIndex )
+extern int MV1GetAnimDataSize( int MHandle, const wchar_t *AnimName, int AnimIndex )
 {
 	MV1_MODEL *Model ;
 	MV1_MODEL_BASE *ModelBase ;
 	MV1_ANIMSET_BASE *AnimSetBase ;
 	MV1_ANIM_BASE *AnimBase ;
-	int DataSize, i ;
+	DWORD DataSize, i ;
 
 	// 初期化されていなかったらエラー
 	if( MV1Man.Initialize == false ) return -1 ;
@@ -22958,13 +19106,13 @@ extern int MV1GetAnimDataSize( int MHandle, const char *AnimName, int AnimIndex 
 	
 	// アニメーションの数だけ繰り返し
 	AnimBase = AnimSetBase->Anim ;
-	for( i = 0 ; i < AnimSetBase->AnimNum ; i ++, AnimBase ++ )
+	for( i = 0 ; i < ( DWORD )AnimSetBase->AnimNum ; i ++, AnimBase ++ )
 	{
 		DataSize += AnimBase->KeySetNum * sizeof( MV1_ANIM_KEYSET_BASE  ) ;
 	}
 
 	// データサイズを返す
-	return DataSize ;
+	return ( int )DataSize ;
 }
 
 
@@ -22998,7 +19146,27 @@ extern MATRIX NS_MV1GetLocalWorldMatrix( int MHandle )
 		return MGetIdent() ;
 
 	// 行列を返す
-	ConvertMatrix4x4cToMatrix( &ResultMatrix, &Model->LocalWorldMatrix ) ;
+	MV1SETUPMATRIX( Model ) ;
+	ConvertMatrix4x4cToMatrixF( &ResultMatrix, &Model->LocalWorldMatrix ) ;
+	return ResultMatrix ;
+}
+
+// モデルのローカル座標からワールド座標に変換する行列を得る
+extern MATRIX_D NS_MV1GetLocalWorldMatrixD( int MHandle )
+{
+	MV1_MODEL *Model ;
+	MATRIX_D ResultMatrix ;
+
+	// 初期化されていなかったらエラー
+	if( MV1Man.Initialize == false ) return MGetIdentD() ;
+
+	// アドレス取得
+	if( MV1MDLCHK( MHandle, Model ) )
+		return MGetIdentD() ;
+
+	// 行列を返す
+	MV1SETUPMATRIX( Model ) ;
+	ConvertMatrix4x4cToMatrixD( &ResultMatrix, &Model->LocalWorldMatrix ) ;
 	return ResultMatrix ;
 }
 
@@ -23015,10 +19183,44 @@ extern int NS_MV1SetPosition( int MHandle, VECTOR Position )
 		return -1 ;
 
 	// 今までと同じ座標だったら何もせずに終了
-	if( *( ( DWORD * )&Model->Translation.x ) == *( ( DWORD * )&Position.x ) &&
-		*( ( DWORD * )&Model->Translation.y ) == *( ( DWORD * )&Position.y ) &&
-		*( ( DWORD * )&Model->Translation.z ) == *( ( DWORD * )&Position.z ) )
+	if( Model->Translation.x == ( double )Position.x &&
+		Model->Translation.y == ( double )Position.y &&
+		Model->Translation.z == ( double )Position.z )
+	{
 		return 0 ;
+	}
+
+	// 平行移動値のセット
+	Model->Translation = VConvFtoD( Position ) ;
+
+	// 更新フラグを立てる
+	Model->LocalWorldMatrixSetupFlag = false ;
+	if( ( Model->ChangeMatrixFlag[ 0 ] & 1 ) == 0 )
+		_MEMSET( Model->ChangeMatrixFlag, 0xff, Model->ChangeMatrixFlagSize ) ;
+
+	// 終了
+	return 0 ;
+}
+
+// モデルの座標をセット
+extern int NS_MV1SetPositionD( int MHandle, VECTOR_D Position )
+{
+	MV1_MODEL *Model ;
+
+	// 初期化されていなかったらエラー
+	if( MV1Man.Initialize == false ) return -1 ;
+
+	// アドレス取得
+	if( MV1MDLCHK( MHandle, Model ) )
+		return -1 ;
+
+	// 今までと同じ座標だったら何もせずに終了
+	if( Model->Translation.x == Position.x &&
+		Model->Translation.y == Position.y &&
+		Model->Translation.z == Position.z )
+	{
+		return 0 ;
+	}
 
 	// 平行移動値のセット
 	Model->Translation = Position ;
@@ -23033,10 +19235,27 @@ extern int NS_MV1SetPosition( int MHandle, VECTOR Position )
 }
 
 // モデルの座標を取得
-extern XYZ NS_MV1GetPosition( int MHandle )
+extern VECTOR NS_MV1GetPosition( int MHandle )
 {
 	MV1_MODEL *Model ;
-	XYZ NullPos = { 0.0f, 0.0f, 0.0f } ;
+	VECTOR NullPos = { 0.0f, 0.0f, 0.0f } ;
+
+	// 初期化されていなかったらエラー
+	if( MV1Man.Initialize == false ) return NullPos ;
+
+	// アドレス取得
+	if( MV1MDLCHK( MHandle, Model ) )
+		return NullPos ;
+
+	// 平行移動値を返す
+	return VConvDtoF( Model->Translation ) ;
+}
+
+// モデルの座標を取得
+extern VECTOR_D NS_MV1GetPositionD( int MHandle )
+{
+	MV1_MODEL *Model ;
+	VECTOR_D NullPos = { 0.0, 0.0, 0.0 } ;
 
 	// 初期化されていなかったらエラー
 	if( MV1Man.Initialize == false ) return NullPos ;
@@ -23050,7 +19269,7 @@ extern XYZ NS_MV1GetPosition( int MHandle )
 }
 
 // モデルの拡大値をセット
-extern int NS_MV1SetScale( int MHandle, XYZ Scale )
+extern int NS_MV1SetScale( int MHandle, VECTOR Scale )
 {
 	MV1_MODEL *Model ;
 
@@ -23080,10 +19299,10 @@ extern int NS_MV1SetScale( int MHandle, XYZ Scale )
 }
 
 // モデルの拡大値を取得
-extern XYZ NS_MV1GetScale( int MHandle )
+extern VECTOR NS_MV1GetScale( int MHandle )
 {
 	MV1_MODEL *Model ;
-	XYZ NullPos = { 0.0f, 0.0f, 0.0f } ;
+	VECTOR NullPos = { 0.0f, 0.0f, 0.0f } ;
 
 	// 初期化されていなかったらエラー
 	if( MV1Man.Initialize == false ) return NullPos ;
@@ -23132,7 +19351,7 @@ extern int NS_MV1SetRotationXYZ( int MHandle, VECTOR Rotate )
 extern VECTOR NS_MV1GetRotationXYZ( int MHandle )
 {
 	MV1_MODEL *Model ;
-	XYZ NullPos = { 0.0f, 0.0f, 0.0f } ;
+	VECTOR NullPos = { 0.0f, 0.0f, 0.0f } ;
 
 	// 初期化されていなかったらエラー
 	if( MV1Man.Initialize == false ) return NullPos ;
@@ -23176,7 +19395,7 @@ extern	int	NS_MV1SetRotationZYAxis( int MHandle, VECTOR ZAxisDirection, VECTOR Y
 extern	VECTOR MV1GetRotationZAxisZ( int MHandle )
 {
 	MV1_MODEL *Model ;
-	XYZ NullPos = { 0.0f, 0.0f, 0.0f } ;
+	VECTOR NullPos = { 0.0f, 0.0f, 0.0f } ;
 
 	// 初期化されていなかったらエラー
 	if( MV1Man.Initialize == false ) return NullPos ;
@@ -23193,7 +19412,7 @@ extern	VECTOR MV1GetRotationZAxisZ( int MHandle )
 extern VECTOR MV1GetRotationZAxisUp( int MHandle )
 {
 	MV1_MODEL *Model ;
-	XYZ NullPos = { 0.0f, 0.0f, 0.0f } ;
+	VECTOR NullPos = { 0.0f, 0.0f, 0.0f } ;
 
 	// 初期化されていなかったらエラー
 	if( MV1Man.Initialize == false ) return NullPos ;
@@ -23249,7 +19468,7 @@ extern	int NS_MV1SetRotationMatrix( int MHandle, MATRIX Matrix )
 
 	// 回転値のセット
 	Model->Rotation.Type = MV1_ROTATE_TYPE_MATRIX ;
-	ConvertMatrixToMatrix4x4c( &Model->Rotation.Mat, &Matrix ) ;
+	ConvertMatrixFToMatrix4x4cF( &Model->Rotation.Mat, &Matrix ) ;
 	Model->Rotation.Mat.m[ 0 ][ 3 ] = 0.0f ;
 	Model->Rotation.Mat.m[ 1 ][ 3 ] = 0.0f ;
 	Model->Rotation.Mat.m[ 2 ][ 3 ] = 0.0f ;
@@ -23278,7 +19497,7 @@ extern	MATRIX NS_MV1GetRotationMatrix( int MHandle )
 		return NullMat ;
 
 	// 回転行列を返す
-	ConvertMatrix4x4cToMatrix( &ResultMatrix, &Model->Rotation.Mat ) ;
+	ConvertMatrix4x4cFToMatrixF( &ResultMatrix, &Model->Rotation.Mat ) ;
 	return ResultMatrix ;
 }
 
@@ -23292,6 +19511,7 @@ extern int NS_MV1SetMatrix( int MHandle, MATRIX Matrix )
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f,
 	} ;
+	MATRIX_4X4CT Matrix4X4CT ;
 	bool ValidMatrix ;
 	MV1_MODEL *Model ;
 
@@ -23304,33 +19524,76 @@ extern int NS_MV1SetMatrix( int MHandle, MATRIX Matrix )
 
 	// 今までと同じ場合は何もせずに終了
 	ValidMatrix = _MEMCMP( &IdentityMatrix, &Matrix, sizeof( MATRIX ) ) != 0 ;
+	ConvertMatrixFToMatrix4x4c( &Matrix4X4CT, &Matrix ) ;
 	if( ( Model->ValidMatrix == false && ValidMatrix == false ) ||
-		( Model->ValidMatrix == true && ValidMatrix == true &&
-		*( ( DWORD * )&Model->Matrix.m[ 0 ][ 0 ] ) == *( ( DWORD * )&Matrix.m[ 0 ][ 0 ] ) &&
-		*( ( DWORD * )&Model->Matrix.m[ 0 ][ 1 ] ) == *( ( DWORD * )&Matrix.m[ 1 ][ 0 ] ) &&
-		*( ( DWORD * )&Model->Matrix.m[ 0 ][ 2 ] ) == *( ( DWORD * )&Matrix.m[ 2 ][ 0 ] ) &&
-		*( ( DWORD * )&Model->Matrix.m[ 0 ][ 3 ] ) == *( ( DWORD * )&Matrix.m[ 3 ][ 0 ] ) &&
-		*( ( DWORD * )&Model->Matrix.m[ 1 ][ 0 ] ) == *( ( DWORD * )&Matrix.m[ 0 ][ 1 ] ) &&
-		*( ( DWORD * )&Model->Matrix.m[ 1 ][ 1 ] ) == *( ( DWORD * )&Matrix.m[ 1 ][ 1 ] ) &&
-		*( ( DWORD * )&Model->Matrix.m[ 1 ][ 2 ] ) == *( ( DWORD * )&Matrix.m[ 2 ][ 1 ] ) &&
-		*( ( DWORD * )&Model->Matrix.m[ 1 ][ 3 ] ) == *( ( DWORD * )&Matrix.m[ 3 ][ 1 ] ) &&
-		*( ( DWORD * )&Model->Matrix.m[ 2 ][ 0 ] ) == *( ( DWORD * )&Matrix.m[ 0 ][ 2 ] ) &&
-		*( ( DWORD * )&Model->Matrix.m[ 2 ][ 1 ] ) == *( ( DWORD * )&Matrix.m[ 1 ][ 2 ] ) &&
-		*( ( DWORD * )&Model->Matrix.m[ 2 ][ 2 ] ) == *( ( DWORD * )&Matrix.m[ 2 ][ 2 ] ) &&
-		*( ( DWORD * )&Model->Matrix.m[ 2 ][ 3 ] ) == *( ( DWORD * )&Matrix.m[ 3 ][ 2 ] ) ) )
+		( Model->ValidMatrix == true  && ValidMatrix == true  &&
+		  _MEMCMP( &Matrix4X4CT, &Model->Matrix, sizeof( MATRIX_4X4CT ) ) == 0 ) )
+	{
 		return 0 ;
+	}
 
 	// 行列のセット
 	Model->ValidMatrix = ValidMatrix ;
 	if( Model->ValidMatrix )
 	{
-		ConvertMatrixToMatrix4x4c( &Model->Matrix, &Matrix ) ;
+		Model->Matrix = Matrix4X4CT ;
 	}
 
 	// 更新フラグを立てる
 	Model->LocalWorldMatrixSetupFlag = false ;
 	if( ( Model->ChangeMatrixFlag[ 0 ] & 1 ) == 0 )
+	{
 		_MEMSET( Model->ChangeMatrixFlag, 0xff, Model->ChangeMatrixFlagSize ) ;
+	}
+
+	// 終了
+	return 0 ;
+}
+
+// モデルの変形用行列をセットする
+extern int NS_MV1SetMatrixD( int MHandle, MATRIX_D Matrix )
+{
+	static const MATRIX_D IdentityMatrix =
+	{
+		1.0, 0.0, 0.0, 0.0,
+		0.0, 1.0, 0.0, 0.0,
+		0.0, 0.0, 1.0, 0.0,
+		0.0, 0.0, 0.0, 1.0,
+	} ;
+	MATRIX_4X4CT Matrix4X4CT ;
+	bool ValidMatrix ;
+	MV1_MODEL *Model ;
+
+	// 初期化されていなかったらエラー
+	if( MV1Man.Initialize == false ) return -1 ;
+
+	// アドレス取得
+	if( MV1MDLCHK( MHandle, Model ) )
+		return -1 ;
+
+	// 今までと同じ場合は何もせずに終了
+	ValidMatrix = _MEMCMP( &IdentityMatrix, &Matrix, sizeof( MATRIX_D ) ) != 0 ;
+	ConvertMatrixDToMatrix4x4c( &Matrix4X4CT, &Matrix ) ;
+	if( ( Model->ValidMatrix == false && ValidMatrix == false ) ||
+		( Model->ValidMatrix == true  && ValidMatrix == true  &&
+		  _MEMCMP( &Matrix4X4CT, &Model->Matrix, sizeof( MATRIX_4X4CT ) ) == 0 ) )
+	{
+		return 0 ;
+	}
+
+	// 行列のセット
+	Model->ValidMatrix = ValidMatrix ;
+	if( Model->ValidMatrix )
+	{
+		Model->Matrix = Matrix4X4CT ;
+	}
+
+	// 更新フラグを立てる
+	Model->LocalWorldMatrixSetupFlag = false ;
+	if( ( Model->ChangeMatrixFlag[ 0 ] & 1 ) == 0 )
+	{
+		_MEMSET( Model->ChangeMatrixFlag, 0xff, Model->ChangeMatrixFlagSize ) ;
+	}
 
 	// 終了
 	return 0 ;
@@ -23352,12 +19615,39 @@ extern MATRIX NS_MV1GetMatrix( int MHandle )
 	// 行列を返す
 	if( Model->ValidMatrix )
 	{
-		ConvertMatrix4x4cToMatrix( &ResultMatrix, &Model->Matrix ) ;
+		ConvertMatrix4x4cToMatrixF( &ResultMatrix, &Model->Matrix ) ;
 	}
 	else
 	{
 		MV1SETUPMATRIX( Model ) ;
-		ConvertMatrix4x4cToMatrix( &ResultMatrix, &Model->LocalWorldMatrix ) ;
+		ConvertMatrix4x4cToMatrixF( &ResultMatrix, &Model->LocalWorldMatrix ) ;
+	}
+
+	return ResultMatrix ;
+}
+
+// モデルの変形用行列を取得する
+extern MATRIX_D NS_MV1GetMatrixD( int MHandle )
+{
+	MV1_MODEL *Model ;
+	MATRIX_D ResultMatrix ;
+
+	// 初期化されていなかったらエラー
+	if( MV1Man.Initialize == false ) return MGetIdentD() ;
+
+	// アドレス取得
+	if( MV1MDLCHK( MHandle, Model ) )
+		return MGetIdentD() ;
+
+	// 行列を返す
+	if( Model->ValidMatrix )
+	{
+		ConvertMatrix4x4cToMatrixD( &ResultMatrix, &Model->Matrix ) ;
+	}
+	else
+	{
+		MV1SETUPMATRIX( Model ) ;
+		ConvertMatrix4x4cToMatrixD( &ResultMatrix, &Model->LocalWorldMatrix ) ;
 	}
 
 	return ResultMatrix ;
@@ -23371,6 +19661,9 @@ extern int NS_MV1SetVisible( int MHandle, int VisibleFlag )
 	// 値をセット
 	if( MV1SetDrawMaterialVisible( &Model->DrawMaterial, NULL, ( BYTE )VisibleFlag ) )
 	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		// 更新ビットが立っていなかったら立てる
 		if( ( Model->ChangeDrawMaterialFlag[ 0 ] & 1 ) == 0 )
 			_MEMSET( Model->ChangeDrawMaterialFlag, 0xff, Model->ChangeDrawMaterialFlagSize ) ;
@@ -23392,14 +19685,26 @@ extern int NS_MV1GetVisible( int MHandle )
 // モデルのメッシュの種類( DX_MV1_MESHCATEGORY_NORMAL など )毎の表示、非表示を設定する( TRUE:表示  FALSE:非表示 )
 extern int NS_MV1SetMeshCategoryVisible( int MHandle, int MeshCategory, int VisibleFlag )
 {
+	int HideFlag ;
+
 	MV1START( MHandle, Model, ModelBase, -1 ) ;
 
 	// 値の有効チェック
 	if( MeshCategory < 0 || MeshCategory >= DX_MV1_MESHCATEGORY_NUM )
 		return -1 ;
 
+	HideFlag = VisibleFlag == FALSE ? TRUE : FALSE ;
+
+	if( HideFlag == Model->MeshCategoryHide[ MeshCategory ] )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// フラグを保存
-	Model->MeshCategoryHide[ MeshCategory ] = VisibleFlag == FALSE ? TRUE : FALSE ;
+	Model->MeshCategoryHide[ MeshCategory ] = HideFlag ;
 
 	// 終了
 	return 0 ;
@@ -23426,6 +19731,9 @@ extern	int			NS_MV1SetDifColorScale( int MHandle, COLOR_F Scale )
 	// 値をセット
 	if( MV1SetDrawMaterialDif( &Model->DrawMaterial, NULL, Scale ) )
 	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		// 半透明要素有無情報のセットアップ完了フラグを倒す
 		Model->SemiTransStateSetupFlag = false ;
 
@@ -23446,6 +19754,9 @@ extern	int			NS_MV1SetSpcColorScale( int MHandle, COLOR_F Scale )
 	// 値をセット
 	if( MV1SetDrawMaterialSpc( &Model->DrawMaterial, NULL, Scale ) )
 	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		// 更新ビットが立っていなかったら立てる
 		if( ( Model->ChangeDrawMaterialFlag[ 0 ] & 1 ) == 0 )
 			_MEMSET( Model->ChangeDrawMaterialFlag, 0xff, Model->ChangeDrawMaterialFlagSize ) ;
@@ -23463,6 +19774,9 @@ extern	int			NS_MV1SetEmiColorScale( int MHandle, COLOR_F Scale )
 	// 値をセット
 	if( MV1SetDrawMaterialEmi( &Model->DrawMaterial, NULL, Scale ) )
 	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		// 更新ビットが立っていなかったら立てる
 		if( ( Model->ChangeDrawMaterialFlag[ 0 ] & 1 ) == 0 )
 			_MEMSET( Model->ChangeDrawMaterialFlag, 0xff, Model->ChangeDrawMaterialFlagSize ) ;
@@ -23480,6 +19794,9 @@ extern	int			NS_MV1SetAmbColorScale( int MHandle, COLOR_F Scale )
 	// 値をセット
 	if( MV1SetDrawMaterialAmb( &Model->DrawMaterial, NULL, Scale ) )
 	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		// 更新ビットが立っていなかったら立てる
 		if( ( Model->ChangeDrawMaterialFlag[ 0 ] & 1 ) == 0 )
 			_MEMSET( Model->ChangeDrawMaterialFlag, 0xff, Model->ChangeDrawMaterialFlagSize ) ;
@@ -23567,6 +19884,9 @@ extern int NS_MV1SetOpacityRate( int MHandle, float Rate )
 	// 値をセット
 	if( MV1SetDrawMaterialOpacityRate( &Model->DrawMaterial, NULL, Rate ) )
 	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		// 半透明要素有無情報のセットアップ完了フラグを倒す
 		Model->SemiTransStateSetupFlag = false ;
 
@@ -23592,10 +19912,22 @@ extern	float		NS_MV1GetOpacityRate( int MHandle )
 // ( 描画結果が乗算済みアルファ画像になります )( Flag   TRUE:RGB値に対してA値を乗算する  FALSE:乗算しない(デフォルト) )
 extern int NS_MV1SetUseDrawMulAlphaColor( int MHandle, int Flag )
 {
+	bool BoolFlag ;
+
 	MV1START( MHandle, Model, ModelBase, -1 ) ;
 
+	BoolFlag = Flag != FALSE ;
+
+	if( Model->UseDrawMulAlphaColor == BoolFlag )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 値を保存
-	Model->UseDrawMulAlphaColor = Flag != FALSE ;
+	Model->UseDrawMulAlphaColor = BoolFlag ;
 
 	// 終了
 	return 0 ;
@@ -23615,6 +19947,14 @@ extern int NS_MV1SetUseZBuffer( int MHandle, int Flag )
 {
 	MV1START( MHandle, Model, ModelBase, -1 ) ;
 
+	if( Model->EnableZBufferFlag == Flag )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	Model->EnableZBufferFlag = Flag ;
 
 	// 終了
@@ -23625,6 +19965,14 @@ extern int NS_MV1SetUseZBuffer( int MHandle, int Flag )
 extern int NS_MV1SetWriteZBuffer( int MHandle, int Flag )
 {
 	MV1START( MHandle, Model, ModelBase, -1 ) ;
+
+	if( Model->WriteZBufferFlag == Flag )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	Model->WriteZBufferFlag = Flag ;
 
@@ -23637,6 +19985,14 @@ extern int NS_MV1SetZBufferCmpType( int MHandle, int CmpType /* DX_CMP_NEVER 等
 {
 	MV1START( MHandle, Model, ModelBase, -1 ) ;
 
+	if( Model->ZBufferCmpType == CmpType )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	Model->ZBufferCmpType = CmpType ;
 
 	// 終了
@@ -23647,6 +20003,14 @@ extern int NS_MV1SetZBufferCmpType( int MHandle, int CmpType /* DX_CMP_NEVER 等
 extern int NS_MV1SetZBias( int MHandle, int Bias )
 {
 	MV1START( MHandle, Model, ModelBase, -1 ) ;
+
+	if( Model->ZBias == Bias )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	Model->ZBias = Bias ;
 
@@ -23706,6 +20070,14 @@ extern int NS_MV1SetMaxAnisotropy( int MHandle, int MaxAnisotropy )
 {
 	MV1START( MHandle, Model, ModelBase, -1 ) ;
 
+	if( Model->MaxAnisotropy == MaxAnisotropy )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	Model->MaxAnisotropy = MaxAnisotropy ;
 
 	// 終了
@@ -23715,9 +20087,21 @@ extern int NS_MV1SetMaxAnisotropy( int MHandle, int MaxAnisotropy )
 // モデルをワイヤーフレームで描画するかどうかを設定する
 extern int NS_MV1SetWireFrameDrawFlag( int MHandle, int Flag )
 {
+	bool WireFrameFlag ;
+
 	MV1START( MHandle, Model, ModelBase, -1 ) ;
 
-	Model->WireFrame = Flag != 0 ;
+	WireFrameFlag = Flag != 0 ;
+
+	if( WireFrameFlag == Model->WireFrame )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
+	Model->WireFrame = WireFrameFlag ;
 
 	// 終了
 	return 0 ;
@@ -23736,6 +20120,9 @@ extern int NS_MV1RefreshVertColorFromMaterial( int MHandle )
 	COLOR_U8 SpecularColor ;
 
 	MV1START( MHandle, Model, ModelBase, -1 ) ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	MBMesh = ModelBase->Mesh ;
 	Mesh = Model->Mesh ;
@@ -23764,16 +20151,13 @@ extern int NS_MV1RefreshVertColorFromMaterial( int MHandle )
 	MBTList = ModelBase->TriangleList ;
 	for( i = 0 ; i < ModelBase->TriangleListNum ; i ++, MBTList ++ )
 	{
-		if( MBTList->TempSimpleVertex )
-		{
-			DXFREE( MBTList->TempSimpleVertex ) ;
-			MBTList->TempSimpleVertex = NULL ;
-		}
+		// 環境依存のテンポラリバッファを開放
+		MV1_TerminateTriangleListBaseTempBuffer_PF( MBTList ) ;
 	}
 
 	// 頂点バッファの作り直し
-	MV1TerminateVertexBufferBase( ModelBase->HandleInfo.Handle ) ;
-	MV1SetupVertexBufferBase( ModelBase->HandleInfo.Handle ) ;
+	MV1_TerminateVertexBufferBase_PF( ModelBase->HandleInfo.Handle ) ;
+	MV1_SetupVertexBufferBase_PF( ModelBase->HandleInfo.Handle ) ;
 
 	// 終了
 	return 0 ;
@@ -23799,15 +20183,44 @@ extern int NS_MV1SetPhysicsWorldGravity( int MHandle, VECTOR Gravity )
 // モデルの物理演算を指定時間分経過したと仮定して計算する( MillisecondTime で指定する時間の単位はミリ秒 )
 int NS_MV1PhysicsCalculation( int MHandle, float MillisecondTime )
 {
+	return MV1PhysicsCalculationBase( MHandle, MillisecondTime, GetASyncLoadFlag() ) ;
+}
+
+// モデルの物理演算を指定時間分経過したと仮定して計算する( MillisecondTime で指定する時間の単位はミリ秒 )
+static int MV1PhysicsCalculationBase_Static( int MHandle, float MillisecondTime, int ASyncThread )
+{
 #ifndef DX_NON_BULLET_PHYSICS
 	MV1_PHYSICS_RIGIDBODY *PhysicsRigidBody ;
 	int i ;
+	MV1_MODEL *Model ;
 
-	MV1START( MHandle, Model, ModelBase, -1 ) ;
+	// 初期化されていなかったらエラー
+	if( MV1Man.Initialize == false )
+	{
+		return -1 ;
+	}
+
+	// アドレス取得
+	if( ASyncThread )
+	{
+		if( MV1MDLCHK_ASYNC( MHandle, Model ) )
+		{
+			return -1 ;
+		}
+	}
+	else
+	{
+		if( MV1MDLCHK( MHandle, Model ) )
+		{
+			return -1 ;
+		}
+	}
 
 	// 物理データが無い場合は何もしない
 	if( Model->BaseData->PhysicsRigidBodyNum == 0 )
+	{
 		return 0 ;
+	}
 
 	MV1SetupMatrix( Model ) ;
 
@@ -23825,6 +20238,78 @@ int NS_MV1PhysicsCalculation( int MHandle, float MillisecondTime )
 
 	// 終了
 	return 0 ;
+}
+
+#ifndef DX_NON_ASYNCLOAD
+
+// CreateGraph の非同期読み込みスレッドから呼ばれる関数
+static void MV1PhysicsCalculationBase_ASync( ASYNCLOADDATA_COMMON *AParam )
+{
+	int MHandle ;
+	float MillisecondTime ;
+	int Addr ;
+	int Result ;
+
+	Addr = 0 ;
+	MHandle         = GetASyncLoadParamInt(   AParam->Data, &Addr ) ;
+	MillisecondTime = GetASyncLoadParamFloat( AParam->Data, &Addr ) ;
+
+	Result = MV1PhysicsCalculationBase_Static( MHandle, MillisecondTime, TRUE ) ;
+	DecASyncLoadCount( MHandle ) ;
+}
+
+#endif // DX_NON_ASYNCLOAD
+
+// モデルの物理演算を指定時間分経過したと仮定して計算する( MillisecondTime で指定する時間の単位はミリ秒 )
+extern int MV1PhysicsCalculationBase( int MHandle, float MillisecondTime, int ASyncLoadFlag )
+{
+#ifndef DX_NON_ASYNCLOAD
+	if( ASyncLoadFlag )
+	{
+		ASYNCLOADDATA_COMMON *AParam = NULL ;
+		int Addr ;
+
+		// パラメータに必要なメモリのサイズを算出
+		Addr = 0 ;
+		AddASyncLoadParamInt(   NULL, &Addr, MHandle ) ;
+		AddASyncLoadParamFloat( NULL, &Addr, MillisecondTime ) ;
+
+		// メモリの確保
+		AParam = AllocASyncLoadDataMemory( Addr ) ;
+		if( AParam == NULL )
+			goto ERR ;
+
+		// 処理に必要な情報をセット
+		AParam->ProcessFunction = MV1PhysicsCalculationBase_ASync ;
+		Addr = 0 ;
+		AddASyncLoadParamInt(   AParam->Data, &Addr, MHandle ) ;
+		AddASyncLoadParamFloat( AParam->Data, &Addr, MillisecondTime ) ;
+
+		// データを追加
+		if( AddASyncLoadData( AParam ) < 0 )
+		{
+			DXFREE( AParam ) ;
+			AParam = NULL ;
+			goto ERR ;
+		}
+
+		// 非同期読み込みカウントをインクリメント
+		IncASyncLoadCount( MHandle, AParam->Index ) ;
+	}
+	else
+#endif // DX_NON_ASYNCLOAD
+	{
+		if( MV1PhysicsCalculationBase_Static( MHandle, MillisecondTime, FALSE ) < 0 )
+		{
+			goto ERR ;
+		}
+	}
+
+	// 正常終了
+	return 0 ;
+
+ERR :
+	return -1 ;
 }
 
 // モデルの物理演算の状態をリセットする( 位置がワープしたとき用 )
@@ -23856,6 +20341,9 @@ extern int NS_MV1SetUseShapeFlag( int MHandle, int Flag )
 	// フラグが同じ場合は何もしない
 	if( Model->ShapeDisableFlag == ( Flag == 0 ) )
 		return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// フラグを保存する
 	Model->ShapeDisableFlag = ( Flag == 0 ) ;
@@ -23923,73 +20411,6 @@ extern int MV1GetLightNum( int MHandle )
 	return ModelBase->LightNum ;
 }
 
-// 持っているライトをライブラリに反映させる
-extern int MV1LightSetup( int MHandle )
-{
-	MV1_MODEL *Model ;
-	MV1_MODEL_BASE *ModelBase ;
-	LIGHTPARAM LParam ;
-	int i ;
-	MV1_LIGHT *Light ;
-	MV1_FRAME *Frame ;
-	MATRIX_4X4CT TempMatrix ;
-
-	// 初期化されていなかったらエラー
-	if( MV1Man.Initialize == false ) return -1 ;
-
-	// アドレス取得
-	if( MV1MDLCHK( MHandle, Model ) )
-		return -1 ;
-	ModelBase = Model->BaseData ;
-
-	// 行列のセットアップ
-	MV1SETUPMATRIX( Model ) ;
-
-	// 全てのライトをセットアップする
-	Light = ModelBase->Light ;
-	for( i = 0 ; i < ModelBase->LightNum ; i ++, Light ++ )
-	{
-		Frame = Model->Frame + Light->FrameIndex ;
-
-		switch( Light->Type )
-		{
-		case MV1_LIGHT_TYPE_POINT       : LParam.LightType = DX_LIGHTTYPE_D3DLIGHT_POINT ; break ;
-		case MV1_LIGHT_TYPE_SPOT        : LParam.LightType = DX_LIGHTTYPE_D3DLIGHT_SPOT ; break ;
-		case MV1_LIGHT_TYPE_DIRECTIONAL : LParam.LightType = DX_LIGHTTYPE_D3DLIGHT_DIRECTIONAL ; break ;
-		}
-		LParam.Diffuse = Light->Diffuse ;
-		LParam.Specular = Light->Specular ;
-		LParam.Ambient = Light->Ambient ;
-		LParam.Position.x = Frame->LocalWorldMatrix.m[ 0 ][ 3 ] ;
-		LParam.Position.y = Frame->LocalWorldMatrix.m[ 1 ][ 3 ] ;
-		LParam.Position.z = Frame->LocalWorldMatrix.m[ 2 ][ 3 ] ;
-		LParam.Direction.x = 0.0f ;
-		LParam.Direction.y = 0.0f ;
-		LParam.Direction.z = 1.0f ;
-		TempMatrix = Frame->LocalWorldMatrix ;
-		TempMatrix.m[ 0 ][ 3 ] = 0.0f ;
-		TempMatrix.m[ 1 ][ 3 ] = 0.0f ;
-		TempMatrix.m[ 2 ][ 3 ] = 0.0f ;
-		VectorTransform4X4CT( &LParam.Direction, &LParam.Direction, &TempMatrix ) ;
-		LParam.Range = Light->Range ;
-		LParam.Falloff = Light->Falloff ;
-		LParam.Attenuation0 = Light->Attenuation0 ;
-		LParam.Attenuation1 = Light->Attenuation1 ;
-		LParam.Attenuation2 = Light->Attenuation2 ;
-		LParam.Theta = Light->Theta ;
-		LParam.Phi = Light->Phi ;
-
-		D_SetLightParam( i, TRUE, &LParam ) ;
-	}
-	for( ; i < 16 ; i ++ )
-	{
-		D_SetLightParam( i, FALSE, NULL ) ;
-	}
-
-	// 終了
-	return 0 ;
-}
-
 // アニメーションをアタッチする
 extern int NS_MV1AttachAnim( int MHandle, int AnimIndex, int AnimSrcMHandle, int NameCheck )
 {
@@ -23999,7 +20420,7 @@ extern int NS_MV1AttachAnim( int MHandle, int AnimIndex, int AnimSrcMHandle, int
 	MV1_ANIM_BASE **ABaseTable ;
 	MV1_MODEL_ANIM *MAnim, *Dest, *Src ;
 	MV1_MODEL_ANIMSET *MAnimSet ;
-	MV1_FRAME *Frame, *AFrame = NULL, *CFrame, *CAFrame ;
+	MV1_FRAME *Frame, *AFrame = NULL, *CFrame, *CAFrame = NULL ;
 	int i, j, k, l, UnitSize, MaxNum, NewMaxNum, AttachIndex, Count ;
 	MV1_FRAME *FrameStack[ 1024 ], *AFrameStack[ 1024 ] ;
 	int StackCount[ 1024 ] ;
@@ -24007,7 +20428,7 @@ extern int NS_MV1AttachAnim( int MHandle, int AnimIndex, int AnimSrcMHandle, int
 	MV1_ANIM_BASE *AAnimBase ;
 	MV1_ANIM_KEYSET_BASE *AKeySetBase ;
 	MV1_FRAME_BASE *AFrameBase, *FrameBase ;
-	const char *AShapeName ;
+	const wchar_t *AShapeName ;
 
 	// 初期化されていなかったらエラー
 	if( MV1Man.Initialize == false ) return -1 ;
@@ -24041,8 +20462,8 @@ extern int NS_MV1AttachAnim( int MHandle, int AnimIndex, int AnimSrcMHandle, int
 	// データポインタ配列拡張
 	if( Model->AnimSetNum >= Model->AnimSetMaxNum )
 	{
-		UnitSize = sizeof( MV1_MODEL_ANIMSET ) + sizeof( MV1_MODEL_ANIM ) * MBase->FrameNum ;
-		Model->AnimSet = ( MV1_MODEL_ANIMSET * )DXREALLOC( Model->AnimSet, UnitSize * ( Model->AnimSetMaxNum + MV1_ANIMSET_NUM_UNIT ) ) ;
+		UnitSize       = ( int )( sizeof( MV1_MODEL_ANIMSET ) + sizeof( MV1_MODEL_ANIM ) * MBase->FrameNum ) ;
+		Model->AnimSet = ( MV1_MODEL_ANIMSET * )DXREALLOC( Model->AnimSet, ( size_t )( UnitSize * ( Model->AnimSetMaxNum + MV1_ANIMSET_NUM_UNIT ) ) ) ;
 		if( Model->AnimSet == NULL ) return -1 ;
 		
 		// 新たに確保された領域に今までの情報をコピー
@@ -24202,7 +20623,7 @@ extern int NS_MV1AttachAnim( int MHandle, int AnimIndex, int AnimSrcMHandle, int
 			for( j = 0 ; j < AModel->TopFrameNum ; j ++ )
 			{
 				AFrame = AModel->TopFrameList[ j ] ;
-				if( _STRCMP( Frame->BaseData->Name, AFrame->BaseData->Name ) == 0 )
+				if( _WCSCMP( Frame->BaseData->NameW, AFrame->BaseData->NameW ) == 0 )
 					break ;
 			}
 			if( j == AModel->TopFrameNum ) continue ;
@@ -24221,8 +20642,8 @@ extern int NS_MV1AttachAnim( int MHandle, int AnimIndex, int AnimSrcMHandle, int
 					if( AKeySetBase->DataType != MV1_ANIMKEY_DATATYPE_SHAPE ) continue ;
 
 					AFrameBase = &AMBase->Frame[ AAnimBase->TargetFrameIndex ] ;
-					AShapeName = AFrameBase->Shape[ AKeySetBase->TargetShapeIndex ].Name ;
-					for( l = 0 ; l < FrameBase->ShapeNum && _STRCMP( FrameBase->Shape[ l ].Name, AShapeName ) != 0 ; l ++ ){}
+					AShapeName = AFrameBase->Shape[ AKeySetBase->TargetShapeIndex ].NameW ;
+					for( l = 0 ; l < FrameBase->ShapeNum && _WCSCMP( FrameBase->Shape[ l ].NameW, AShapeName ) != 0 ; l ++ ){}
 					if( l != FrameBase->ShapeNum )
 					{
 						MAnim->Anim->KeySet[ k ].ShapeTargetIndex = l ;
@@ -24250,7 +20671,7 @@ extern int NS_MV1AttachAnim( int MHandle, int AnimIndex, int AnimSrcMHandle, int
 					for( j = 0 ; j < AFrame->ChildNum ; j ++ )
 					{
 						CAFrame = AFrame->ChildList[ j ] ;
-						if( _STRCMP( CFrame->BaseData->Name, CAFrame->BaseData->Name ) == 0 )
+						if( _WCSCMP( CFrame->BaseData->NameW, CAFrame->BaseData->NameW ) == 0 )
 							break ;
 					}
 					if( j != AFrame->ChildNum )
@@ -24269,8 +20690,8 @@ extern int NS_MV1AttachAnim( int MHandle, int AnimIndex, int AnimSrcMHandle, int
 								if( AKeySetBase->DataType != MV1_ANIMKEY_DATATYPE_SHAPE ) continue ;
 
 								AFrameBase = &AMBase->Frame[ AAnimBase->TargetFrameIndex ] ;
-								AShapeName = AFrameBase->Shape[ AKeySetBase->TargetShapeIndex ].Name ;
-								for( l = 0 ; l < FrameBase->ShapeNum && _STRCMP( FrameBase->Shape[ l ].Name, AShapeName ) != 0 ; l ++ ){}
+								AShapeName = AFrameBase->Shape[ AKeySetBase->TargetShapeIndex ].NameW ;
+								for( l = 0 ; l < FrameBase->ShapeNum && _WCSCMP( FrameBase->Shape[ l ].NameW, AShapeName ) != 0 ; l ++ ){}
 								if( l != FrameBase->ShapeNum )
 								{
 									MAnim->Anim->KeySet[ k ].ShapeTargetIndex = l ;
@@ -24388,48 +20809,57 @@ extern int NS_MV1DetachAnim( int MHandle, int AttachIndex )
 
 
 
-
-
-// モデルを描画する
-extern int NS_MV1DrawModel( int MHandle )
+// 同時複数描画の為に描画待機しているモデルを描画する
+extern int MV1DrawPackDrawModel( void )
 {
 	MV1_MODEL *Model ;
+
+	if( MV1Man.PackDrawModel == NULL )
+	{
+		return 0 ;
+	}
+
+	Model = MV1Man.PackDrawModel ;
+	MV1Man.PackDrawModel = NULL ;
+
+	return MV1DrawModelBase( Model ) ;
+}
+
+// モデルの描画処理を行う
+static int MV1DrawModelBase( MV1_MODEL *Model )
+{
 	MV1_MODEL_BASE *ModelBase ;
 	MV1_FRAME *Frame ;
 	MV1_MESH *Mesh ;
 	int i, j, k, l ;
 	VECTOR CheckPos[ 8 ], Tmp ;
 	MV1_MESH **OpacityMeshList ;
+	MV1_MESH **SemiTransBaseOpacityMeshList ;
 	MV1_MESH **SemiTransMeshList ;
 	int OpacityMeshNum ;
+	int SemiTransBaseOpacityMeshNum ;
 	int SemiTransMeshNum ;
 
 	// 初期化されていなかったらエラー
 	if( MV1Man.Initialize == false ) return -1 ;
 
 	// アドレス取得
-	if( MV1MDLCHK( MHandle, Model ) )
-		return -1 ;
 	ModelBase = Model->BaseData ;
-
-	// 非表示設定だったら描画しない
-	if( Model->DrawMaterial.Visible == 0 )
-		return 0 ;
 
 	// 使用しているテクスチャの中にムービーが含まれていたらその更新チェックをする
 #ifndef DX_NON_MOVIE
 	{
 		int ind ;
-		IMAGEDATA2 *Image2 ;
+		IMAGEDATA *Image ;
 
 		for( ind = 0 ; ind < ModelBase->TextureNum ; ind ++ )
 		{
 			if( Model->Texture[ ind ].UseUserGraphHandle )
 			{
-				Image2 = GetGraphData2( Model->Texture[ ind ].UserGraphHandle ) ;
-				if( Image2 != NULL && Image2->MovieHandle != -1 )
+				Image = Graphics_Image_GetData( Model->Texture[ ind ].UserGraphHandle ) ;
+				if( Image != NULL && Image->MovieHandle != -1 )
 				{
-					UpdateMovie( Image2->MovieHandle, FALSE ) ;
+					UpdateMovie( Image->MovieHandle, FALSE ) ;
 				}
 			}
 		}
@@ -24438,21 +20868,22 @@ extern int NS_MV1DrawModel( int MHandle )
 
 	// 描画するメッシュのアドレス配列を格納するメモリ領域の確保
 	if( DrawMeshListResize( Model->BaseData->MeshNum ) < 0 )
+	{
 		return -1 ;
-	OpacityMeshList = MV1Man.DrawMeshList ;
-	SemiTransMeshList = OpacityMeshList + Model->BaseData->MeshNum ;
-	OpacityMeshNum = 0 ;
-	SemiTransMeshNum = 0 ;
-
-	// 行列のセットアップ
-	MV1SETUPMATRIX( Model ) ;
+	}
+	OpacityMeshList              = MV1Man.DrawMeshList ;
+	SemiTransBaseOpacityMeshList = OpacityMeshList              + Model->BaseData->MeshNum ;
+	SemiTransMeshList            = SemiTransBaseOpacityMeshList + Model->BaseData->MeshNum ;
+	OpacityMeshNum               = 0 ;
+	SemiTransBaseOpacityMeshNum  = 0 ;
+	SemiTransMeshNum             = 0 ;
 
 	// シェイプデータのセットアップ
 	if( Model->BaseData->ShapeMeshNum != 0 )
-		MV1SetupShapeVertex( MHandle ) ;
+		MV1_SetupShapeVertex_PF( Model->HandleInfo.Handle ) ;
 
 	// レンダリングの準備
-	MV1BeginRender( Model ) ;
+	MV1_BeginRender_PF( Model ) ;
 
 	// 描画するメッシュのリストを作成する
 	Frame = Model->Frame ;
@@ -24467,8 +20898,8 @@ extern int NS_MV1DrawModel( int MHandle )
 		// 非表示指定だったら何もしない
 		if( Frame->SetupDrawMaterial.Visible == FALSE ) continue ;
 
-		// スキンメッシュがない場合は可視判定
-		if( Frame->BaseData->IsSkinMesh == FALSE )
+		// 同時複数描画対応ハンドルではなく、シャドウマップへの描画中でもなくスキンメッシュでもない場合は可視判定
+		if( ModelBase->UsePackDraw == FALSE && GSYS.DrawSetting.ShadowMapDraw == FALSE && Frame->BaseData->IsSkinMesh == FALSE )
 		{
 			// 可視チェック用頂点座標を算出する
 			Tmp   = Frame->BaseData->MaxPosition   ; VectorTransform4X4CT( &CheckPos[ 0 ], &Tmp, &Frame->LocalWorldMatrix ) ;
@@ -24481,8 +20912,8 @@ extern int NS_MV1DrawModel( int MHandle )
 			Tmp.y = Frame->BaseData->MinPosition.y ; VectorTransform4X4CT( &CheckPos[ 7 ], &Tmp, &Frame->LocalWorldMatrix ) ;
 
 			// 可視チェック
-//			if( CheckCameraViewClip_Box_PosDim( CheckPos ) == TRUE )
-//				continue ;
+			if( Graphics_Camera_CheckCameraViewClip_Box_PosDim( CheckPos ) == TRUE )
+				continue ;
 		}
 
 		// MaterialNumberOrderDraw が立っているかどうかで処理を分岐
@@ -24535,11 +20966,20 @@ extern int NS_MV1DrawModel( int MHandle )
 
 				// 半透明要素があるかどうかを調べる
 				if( Mesh->SemiTransStateSetupFlag == false )
-					NS_MV1GetMeshSemiTransState( MHandle, ( int )( Mesh - Model->Mesh ) ) ;
+				{
+					NS_MV1GetMeshSemiTransState( Model->HandleInfo.Handle, ( int )( Mesh - Model->Mesh ) ) ;
+				}
+
 				if( Mesh->SemiTransState == false )
 				{
 					OpacityMeshList[ OpacityMeshNum ] = Mesh ;
 					OpacityMeshNum ++ ;
+				}
+				else
+				if( Mesh->BaseData->SemiTransState == 0 )
+				{
+					SemiTransBaseOpacityMeshList[ SemiTransBaseOpacityMeshNum ] = Mesh ;
+					SemiTransBaseOpacityMeshNum ++ ;
 				}
 				else
 				{
@@ -24556,7 +20996,7 @@ extern int NS_MV1DrawModel( int MHandle )
 	{
 		for( i = 0 ; i < OpacityMeshNum ; i ++ )
 		{
-			_MV1DrawMesh( OpacityMeshList[ i ] ) ;
+			MV1_DrawMesh_PF( OpacityMeshList[ i ] ) ;
 		}
 	}
 
@@ -24564,14 +21004,102 @@ extern int NS_MV1DrawModel( int MHandle )
 	if( MV1Man.SemiTransDrawMode == DX_SEMITRANSDRAWMODE_ALWAYS ||
 		MV1Man.SemiTransDrawMode == DX_SEMITRANSDRAWMODE_SEMITRANS_ONLY )
 	{
+		// 半透明オブジェクトながら初期状態では不透明のオブジェクトを先に描画
+		for( i = 0 ; i < SemiTransBaseOpacityMeshNum ; i ++ )
+		{
+			MV1_DrawMesh_PF( SemiTransBaseOpacityMeshList[ i ] ) ;
+		}
+
 		for( i = 0 ; i < SemiTransMeshNum ; i ++ )
 		{
-			_MV1DrawMesh( SemiTransMeshList[ i ] ) ;
+			MV1_DrawMesh_PF( SemiTransMeshList[ i ] ) ;
 		}
 	}
 
 	// レンダリングの後始末
-	MV1EndRender() ;
+	MV1_EndRender_PF() ;
+
+	// 描画ストックの初期化
+	Model->PackDrawStockNum = 0 ;
+
+	// 終了
+	return 0 ;
+}
+
+// モデルを描画する
+extern int NS_MV1DrawModel( int MHandle )
+{
+	MV1_MODEL *Model ;
+	MV1_MODEL_BASE *ModelBase ;
+	MV1_FRAME *Frame ;
+	int i ;
+
+	// 初期化されていなかったらエラー
+	if( MV1Man.Initialize == false ) return -1 ;
+
+	// アドレス取得
+	if( MV1MDLCHK( MHandle, Model ) )
+		return -1 ;
+	ModelBase = Model->BaseData ;
+
+	// 非表示設定だったら描画しない
+	if( Model->DrawMaterial.Visible == 0 )
+		return 0 ;
+
+	// 頂点データの描画を終わらせておく
+	Graphics_Hardware_RenderVertex() ;
+
+	// 行列のセットアップ
+	MV1SETUPMATRIX( Model ) ;
+
+	// 同時複数描画に対応している場合はストックに情報を追加する
+	if( ModelBase->UsePackDraw )
+	{
+		MATRIX_4X4CT_F *DestMatrix ;
+
+		// 既に描画待ちされているモデルがあったら描画する
+		if( MV1Man.PackDrawModel != NULL && MV1Man.PackDrawModel != Model )
+		{
+			MV1DrawPackDrawModel() ;
+		}
+
+		// ストックの数が限界に達していたら描画処理を行う
+		if( Model->PackDrawStockNum >= ModelBase->PackDrawMaxNum )
+		{
+			MV1DrawPackDrawModel() ;
+		}
+
+		// ストック格納先のアドレスを算出
+		DestMatrix = Model->PackDrawMatrix + Model->PackDrawStockNum * ModelBase->PackDrawMatrixUnitNum ;
+
+		// スキニングメッシュの行列をコピーする
+		if( ModelBase->SkinBoneNum > 0 )
+		{
+			for( i = 0 ; i < ModelBase->SkinBoneNum ; i ++ )
+			{
+				ConvertMatrix4x4cToMatrix4x4cF( &DestMatrix[ i ], &Model->SkinBoneMatrix[ i ] ) ;
+			}
+		}
+		DestMatrix += ModelBase->SkinBoneNum ;
+
+		// フレームの行列をコピーする
+		Frame = Model->Frame ;
+		for( i = 0 ; i < ModelBase->FrameNum ; i ++ )
+		{
+			ConvertMatrix4x4cToMatrix4x4cF( &DestMatrix[ i ], &Frame[ i ].LocalWorldMatrix ) ;
+		}
+
+		// ストックの数を増やす
+		Model->PackDrawStockNum ++ ;
+
+		// 同時複数描画の為に描画待機をしているモデルのアドレスとして保存
+		MV1Man.PackDrawModel = Model ;
+	}
+	else
+	{
+		// 同時複数描画に対応していない場合は普通に描画する
+		MV1DrawModelBase( Model ) ;
+	}
 
 	// 終了
 	return 0 ;
@@ -24587,8 +21115,10 @@ extern int NS_MV1DrawFrame( int MHandle, int FrameIndex )
 	int k ;
 	VECTOR CheckPos[ 8 ], Tmp ;
 	MV1_MESH **OpacityMeshList ;
+	MV1_MESH **SemiTransBaseOpacityMeshList ;
 	MV1_MESH **SemiTransMeshList ;
 	int OpacityMeshNum ;
+	int SemiTransBaseOpacityMeshNum ;
 	int SemiTransMeshNum ;
 
 	// 初期化されていなかったらエラー
@@ -24607,16 +21137,16 @@ extern int NS_MV1DrawFrame( int MHandle, int FrameIndex )
 #ifndef DX_NON_MOVIE
 	{
 		int ind ;
-		IMAGEDATA2 *Image2 ;
+		IMAGEDATA *Image ;
 
 		for( ind = 0 ; ind < ModelBase->TextureNum ; ind ++ )
 		{
 			if( Model->Texture[ ind ].UseUserGraphHandle )
 			{
-				Image2 = GetGraphData2( Model->Texture[ ind ].UserGraphHandle ) ;
-				if( Image2 != NULL && Image2->MovieHandle != -1 )
+				Image = Graphics_Image_GetData( Model->Texture[ ind ].UserGraphHandle ) ;
+				if( Image != NULL && Image->MovieHandle != -1 )
 				{
-					UpdateMovie( Image2->MovieHandle, FALSE ) ;
+					UpdateMovie( Image->MovieHandle, FALSE ) ;
 				}
 			}
 		}
@@ -24633,12 +21163,16 @@ extern int NS_MV1DrawFrame( int MHandle, int FrameIndex )
 		return -1 ;
 
 	// 描画するメッシュのアドレス配列を格納するメモリ領域の確保
-	if( DrawMeshListResize( Frame->BaseData->MeshNum ) < 0 )
+	if( DrawMeshListResize( Model->BaseData->MeshNum ) < 0 )
+	{
 		return -1 ;
-	OpacityMeshList = MV1Man.DrawMeshList ;
-	SemiTransMeshList = OpacityMeshList + Frame->BaseData->MeshNum ;
-	OpacityMeshNum = 0 ;
-	SemiTransMeshNum = 0 ;
+	}
+	OpacityMeshList              = MV1Man.DrawMeshList ;
+	SemiTransBaseOpacityMeshList = OpacityMeshList              + Model->BaseData->MeshNum ;
+	SemiTransMeshList            = SemiTransBaseOpacityMeshList + Model->BaseData->MeshNum ;
+	OpacityMeshNum               = 0 ;
+	SemiTransBaseOpacityMeshNum  = 0 ;
+	SemiTransMeshNum             = 0 ;
 
 	// マテリアル更新チェック
 	MV1SETUPDRAWMATERIALFRAME( Frame ) ;
@@ -24650,8 +21184,8 @@ extern int NS_MV1DrawFrame( int MHandle, int FrameIndex )
 	// 行列のセットアップ
 	MV1SETUPMATRIX( Model ) ;
 
-	// スキンメッシュがない場合は可視判定
-	if( Frame->BaseData->IsSkinMesh == FALSE )
+	// シャドウマップへの描画中ではなくスキンメッシュでもない場合は可視判定
+	if( GSYS.DrawSetting.ShadowMapDraw == FALSE && Frame->BaseData->IsSkinMesh == FALSE )
 	{
 		// 可視チェック用頂点座標を算出する
 		Tmp   = Frame->BaseData->MaxPosition   ; VectorTransform4X4CT( &CheckPos[ 0 ], &Tmp, &Frame->LocalWorldMatrix ) ;
@@ -24664,16 +21198,16 @@ extern int NS_MV1DrawFrame( int MHandle, int FrameIndex )
 		Tmp.y = Frame->BaseData->MinPosition.y ; VectorTransform4X4CT( &CheckPos[ 7 ], &Tmp, &Frame->LocalWorldMatrix ) ;
 
 		// 可視チェック
-		if( CheckCameraViewClip_Box_PosDim( CheckPos ) == TRUE )
+		if( Graphics_Camera_CheckCameraViewClip_Box_PosDim( CheckPos ) == TRUE )
 			return -1 ;
 	}
 
 	// シェイプデータのセットアップ
 	if( Model->BaseData->ShapeMeshNum != 0 )
-		MV1SetupShapeVertex( MHandle ) ;
+		MV1_SetupShapeVertex_PF( MHandle ) ;
 
 	// レンダリングの準備
-	MV1BeginRender( Model ) ;
+	MV1_BeginRender_PF( Model ) ;
 
 	// 描画するメッシュの振り分け
 	Mesh = Frame->Mesh ;
@@ -24687,11 +21221,20 @@ extern int NS_MV1DrawFrame( int MHandle, int FrameIndex )
 
 		// 半透明要素があるかどうかを調べる
 		if( Mesh->SemiTransStateSetupFlag == false )
+		{
 			NS_MV1GetMeshSemiTransState( MHandle, ( int )( Mesh - Model->Mesh ) ) ;
+		}
+
 		if( Mesh->SemiTransState == false )
 		{
 			OpacityMeshList[ OpacityMeshNum ] = Mesh ;
 			OpacityMeshNum ++ ;
+		}
+		else
+		if( Mesh->BaseData->SemiTransState == 0 )
+		{
+			SemiTransBaseOpacityMeshList[ SemiTransBaseOpacityMeshNum ] = Mesh ;
+			SemiTransBaseOpacityMeshNum ++ ;
 		}
 		else
 		{
@@ -24706,7 +21249,7 @@ extern int NS_MV1DrawFrame( int MHandle, int FrameIndex )
 	{
 		for( k = 0 ; k < OpacityMeshNum ; k ++ )
 		{
-			_MV1DrawMesh( OpacityMeshList[ k ] ) ;
+			MV1_DrawMesh_PF( OpacityMeshList[ k ] ) ;
 		}
 	}
 
@@ -24714,14 +21257,20 @@ extern int NS_MV1DrawFrame( int MHandle, int FrameIndex )
 	if( MV1Man.SemiTransDrawMode == DX_SEMITRANSDRAWMODE_ALWAYS ||
 		MV1Man.SemiTransDrawMode == DX_SEMITRANSDRAWMODE_SEMITRANS_ONLY )
 	{
+		// 半透明オブジェクトながら初期状態では不透明のオブジェクトを先に描画
+		for( k = 0 ; k < SemiTransBaseOpacityMeshNum ; k ++ )
+		{
+			MV1_DrawMesh_PF( SemiTransBaseOpacityMeshList[ k ] ) ;
+		}
+
 		for( k = 0 ; k < SemiTransMeshNum ; k ++ )
 		{
-			_MV1DrawMesh( SemiTransMeshList[ k ] ) ;
+			MV1_DrawMesh_PF( SemiTransMeshList[ k ] ) ;
 		}
 	}
 
 	// レンダリングの後始末
-	MV1EndRender() ;
+	MV1_EndRender_PF() ;
 
 	// 終了
 	return 0 ;
@@ -24751,16 +21300,16 @@ extern int NS_MV1DrawMesh( int MHandle, int MeshIndex )
 #ifndef DX_NON_MOVIE
 	{
 		int ind ;
-		IMAGEDATA2 *Image2 ;
+		IMAGEDATA *Image ;
 
 		for( ind = 0 ; ind < ModelBase->TextureNum ; ind ++ )
 		{
 			if( Model->Texture[ ind ].UseUserGraphHandle )
 			{
-				Image2 = GetGraphData2( Model->Texture[ ind ].UserGraphHandle ) ;
-				if( Image2 != NULL && Image2->MovieHandle != -1 )
+				Image = Graphics_Image_GetData( Model->Texture[ ind ].UserGraphHandle ) ;
+				if( Image != NULL && Image->MovieHandle != -1 )
 				{
-					UpdateMovie( Image2->MovieHandle, FALSE ) ;
+					UpdateMovie( Image->MovieHandle, FALSE ) ;
 				}
 			}
 		}
@@ -24785,16 +21334,16 @@ extern int NS_MV1DrawMesh( int MHandle, int MeshIndex )
 
 	// シェイプデータのセットアップ
 	if( Model->BaseData->ShapeMeshNum != 0 )
-		MV1SetupShapeVertex( MHandle ) ;
+		MV1_SetupShapeVertex_PF( MHandle ) ;
 
 	// レンダリングの準備
-	MV1BeginRender( Model ) ;
+	MV1_BeginRender_PF( Model ) ;
 
 	// メッシュの描画
-	_MV1DrawMesh( Mesh ) ;
+	MV1_DrawMesh_PF( Mesh ) ;
 
 	// レンダリングの後始末
-	MV1EndRender() ;
+	MV1_EndRender_PF() ;
 
 	// 終了
 	return 0 ;
@@ -24825,16 +21374,16 @@ extern int NS_MV1DrawTriangleList( int MHandle, int TriangleListIndex )
 #ifndef DX_NON_MOVIE
 	{
 		int ind ;
-		IMAGEDATA2 *Image2 ;
+		IMAGEDATA *Image ;
 
 		for( ind = 0 ; ind < ModelBase->TextureNum ; ind ++ )
 		{
 			if( Model->Texture[ ind ].UseUserGraphHandle )
 			{
-				Image2 = GetGraphData2( Model->Texture[ ind ].UserGraphHandle ) ;
-				if( Image2 != NULL && Image2->MovieHandle != -1 )
+				Image = Graphics_Image_GetData( Model->Texture[ ind ].UserGraphHandle ) ;
+				if( Image != NULL && Image->MovieHandle != -1 )
 				{
-					UpdateMovie( Image2->MovieHandle, FALSE ) ;
+					UpdateMovie( Image->MovieHandle, FALSE ) ;
 				}
 			}
 		}
@@ -24844,7 +21393,7 @@ extern int NS_MV1DrawTriangleList( int MHandle, int TriangleListIndex )
 	// トライアングルリストインデックスのチェック
 	if( TriangleListIndex < 0 || TriangleListIndex >= ModelBase->TriangleListNum )
 		return -1 ;
-	TList = Model->TriangleList + TriangleListIndex ;
+	TList = ( MV1_TRIANGLE_LIST * )( ( BYTE * )Model->TriangleList + TriangleListIndex * ( sizeof( MV1_TRIANGLE_LIST ) + sizeof( MV1_TRIANGLE_LIST_PF ) ) );
 	Mesh = TList->Container ;
 	Frame = Mesh->Container ;
 
@@ -24860,16 +21409,16 @@ extern int NS_MV1DrawTriangleList( int MHandle, int TriangleListIndex )
 
 	// シェイプデータのセットアップ
 	if( Model->BaseData->ShapeMeshNum != 0 )
-		MV1SetupShapeVertex( MHandle ) ;
+		MV1_SetupShapeVertex_PF( MHandle ) ;
 
 	// レンダリングの準備
-	MV1BeginRender( Model ) ;
+	MV1_BeginRender_PF( Model ) ;
 
 	// トライアングルリストの描画
-	_MV1DrawMesh( Mesh, ( int )( TList - Mesh->TriangleList ) ) ;
+	MV1_DrawMesh_PF( Mesh, ( int )( ( int )( ( ( BYTE * )TList - ( BYTE * )Mesh->TriangleList ) ) / ( sizeof( MV1_TRIANGLE_LIST ) + sizeof( MV1_TRIANGLE_LIST_PF ) ) ) ) ;
 
 	// レンダリングの後始末
-	MV1EndRender() ;
+	MV1_EndRender_PF() ;
 
 	// 終了
 	return 0 ;
@@ -24877,7 +21426,7 @@ extern int NS_MV1DrawTriangleList( int MHandle, int TriangleListIndex )
 
 // モデルのデバッグ描画
 extern int NS_MV1DrawModelDebug(
-	  int MHandle, int Color,
+	  int MHandle, unsigned int Color,
 	  int IsNormalLine, float NormalLineLength,
 	  int IsPolyLine,
 	  int IsCollisionBox )
@@ -24896,6 +21445,9 @@ extern int NS_MV1DrawModelDebug(
 	if( MV1MDLCHK( MHandle, Model ) )
 		return -1 ;
 	ModelBase = Model->BaseData ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// 元々設定されていたローカル→ワールド行列を保存して単位行列をセットする
 	NS_GetTransformToWorldMatrix( &OrigTransMat ) ;
@@ -25157,6 +21709,14 @@ extern int NS_MV1DrawModelDebug(
 // モデルの描画に SetUseVertexShader, SetUsePixelShader で指定したシェーダーを使用するかどうかを設定する( TRUE:使用する  FALSE:使用しない( デフォルト ) )
 extern int NS_MV1SetUseOrigShader( int UseFlag )
 {
+	if( MV1Man.UseOrigShaderFlag == UseFlag )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// フラグを保存する
 	MV1Man.UseOrigShaderFlag = UseFlag ;
 
@@ -25167,6 +21727,14 @@ extern int NS_MV1SetUseOrigShader( int UseFlag )
 // モデルの半透明要素がある部分についての描画モードを設定する
 extern int NS_MV1SetSemiTransDrawMode( int DrawMode /* DX_SEMITRANSDRAWMODE_ALWAYS 等 */ )
 {
+	if( MV1Man.SemiTransDrawMode == DrawMode )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 描画モードを保存する
 	MV1Man.SemiTransDrawMode = DrawMode ;
 
@@ -25620,7 +22188,7 @@ extern MATRIX NS_MV1GetAttachAnimFrameLocalMatrix(	int MHandle, int AttachIndex,
 
 	if( MAnim->Anim->ValidFlag & MV1_ANIMVALUE_MATRIX )
 	{
-		ConvertMatrix4x4cToMatrix( &ResultMatrix, &MAnim->Anim->Matrix ) ;
+		ConvertMatrix4x4cFToMatrixF( &ResultMatrix, &MAnim->Anim->Matrix ) ;
 	}
 	else
 	{
@@ -25640,7 +22208,7 @@ extern MATRIX NS_MV1GetAttachAnimFrameLocalMatrix(	int MHandle, int AttachIndex,
 			) ;
 			MAnim->Anim->ValidBlendMatrix = true ;
 		}
-		ConvertMatrix4x4cToMatrix( &ResultMatrix, &MAnim->Anim->BlendMatrix ) ;
+		ConvertMatrix4x4cFToMatrixF( &ResultMatrix, &MAnim->Anim->BlendMatrix ) ;
 	}
 
 	// ローカル行列を返す
@@ -25790,26 +22358,57 @@ extern const TCHAR *NS_MV1GetAnimName( int MHandle, int AnimIndex )
 	// インデックスがアニメーションの数を超えていたらエラー
 	if( Model->BaseData->AnimSetNum <= AnimIndex ) return NULL ;
 
+	// アニメーション名を返す
 #ifdef UNICODE
-	// ワイド文字名前作成
-	MV1_ANIMSET_BASE *MBAnimSet ;
-	MBAnimSet = &Model->BaseData->AnimSet[ AnimIndex ] ;
-	if( MBAnimSet->NameW == NULL )
-	{
-		if( _MV1CreateWideCharNameBase( Model->BaseData, MBAnimSet->Name, &MBAnimSet->NameW ) == false )
-			return NULL ;
-	}
+	return Model->BaseData->AnimSet[ AnimIndex ].NameW ;
+#else
+	return Model->BaseData->AnimSet[ AnimIndex ].NameA ;
+#endif
+}
+
+// 指定番号のアニメーション名を取得する
+extern const wchar_t *MV1GetAnimName_WCHAR_T( int MHandle, int AnimIndex )
+{
+	MV1_MODEL *Model ;
+
+	// 初期化されていなかったらエラー
+	if( MV1Man.Initialize == false ) return NULL ;
+
+	// アドレス取得
+	if( MV1MDLCHK( MHandle, Model ) )
+		return NULL ;
+
+	// インデックスがアニメーションの数を超えていたらエラー
+	if( Model->BaseData->AnimSetNum <= AnimIndex ) return NULL ;
 
 	// アニメーション名を返す
 	return Model->BaseData->AnimSet[ AnimIndex ].NameW ;
-#else
-	// アニメーション名を返す
-	return Model->BaseData->AnimSet[ AnimIndex ].Name ;
-#endif
 }
 
 // 指定番号のアニメーション名を変更する
 extern int NS_MV1SetAnimName( int MHandle, int AnimIndex, const TCHAR *AnimName )
+{
+#ifdef UNICODE
+	return MV1SetAnimName_WCHAR_T(
+		MHandle, AnimIndex, AnimName
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( AnimName, return -1 )
+
+	Result = MV1SetAnimName_WCHAR_T(
+		MHandle, AnimIndex, UseAnimNameBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( AnimName )
+
+	return Result ;
+#endif
+}
+
+// 指定番号のアニメーション名を変更する
+extern int MV1SetAnimName_WCHAR_T( int MHandle, int AnimIndex, const wchar_t *AnimName )
 {
 	MV1_MODEL *Model ;
 	MV1_MODEL_BASE *MBase ;
@@ -25829,12 +22428,13 @@ extern int NS_MV1SetAnimName( int MHandle, int AnimIndex, const TCHAR *AnimName 
 
 	if( AnimSetBase->NameAllocMem )
 	{
-		if( AnimSetBase->Name != NULL )
+#ifndef UNICODE
+		if( AnimSetBase->NameA != NULL )
 		{
-			DXFREE( AnimSetBase->Name ) ;
-			AnimSetBase->Name = NULL ;
+			DXFREE( AnimSetBase->NameA ) ;
+			AnimSetBase->NameA = NULL ;
 		}
-
+#endif
 		if( AnimSetBase->NameW != NULL )
 		{
 			DXFREE( AnimSetBase->NameW ) ;
@@ -25844,18 +22444,16 @@ extern int NS_MV1SetAnimName( int MHandle, int AnimIndex, const TCHAR *AnimName 
 
 	AnimSetBase->NameAllocMem = TRUE ;
 
-#ifdef UNICODE
 	if( _MV1AllocAndWideCharNameCopy( AnimName, &AnimSetBase->NameW ) == false )
+	{
 		return -1 ;
+	}
 
-	if( _MV1CreateMultiByteName( AnimName, &AnimSetBase->Name ) == false )
+#ifndef UNICODE
+	if( _MV1CreateMultiByteName( AnimName, &AnimSetBase->NameA ) == false )
+	{
 		return -1 ;
-#else
-	if( _MV1AllocAndMultiByteNameCopy( AnimName, &AnimSetBase->Name ) == false )
-		return -1 ;
-
-	if( _MV1CreateWideCharName( AnimName, &AnimSetBase->NameW ) == false )
-		return -1 ;
+	}
 #endif
 
 	// 正常終了
@@ -25864,6 +22462,28 @@ extern int NS_MV1SetAnimName( int MHandle, int AnimIndex, const TCHAR *AnimName 
 
 // 指定名のアニメーション番号を取得する( -1:エラー )
 extern int NS_MV1GetAnimIndex( int MHandle, const TCHAR *AnimName )
+{
+#ifdef UNICODE
+	return MV1GetAnimIndex_WCHAR_T(
+		MHandle, AnimName
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( AnimName, return -1 )
+
+	Result = MV1GetAnimIndex_WCHAR_T(
+		MHandle, UseAnimNameBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( AnimName )
+
+	return Result ;
+#endif
+}
+
+// 指定名のアニメーション番号を取得する( -1:エラー )
+extern int MV1GetAnimIndex_WCHAR_T( int MHandle, const wchar_t *AnimName )
 {
 	MV1_MODEL *Model ;
 	MV1_MODEL_BASE *MBase ;
@@ -25877,23 +22497,9 @@ extern int NS_MV1GetAnimIndex( int MHandle, const TCHAR *AnimName )
 		return -1 ;
 	MBase = Model->BaseData ;
 
-#ifdef UNICODE
 	// 同名のアニメーションを探す
-	for( i = 0 ; i < MBase->AnimSetNum ; i ++ )
-	{
-		if( MBase->AnimSet[ i ].NameW == NULL )
-		{
-			if( _MV1CreateWideCharNameBase( MBase, MBase->AnimSet[ i ].Name, &MBase->AnimSet[ i ].NameW ) == false )
-				return -1 ;
-		}
+	for( i = 0 ; i < MBase->AnimSetNum && _WCSCMP( MBase->AnimSet[ i ].NameW, AnimName ) != 0 ; i ++ ){}
 
-		if( _WCSCMP( MBase->AnimSet[ i ].NameW, AnimName ) == 0 )
-			break ;
-	}
-#else
-	// 同名のアニメーションを探す
-	for( i = 0 ; i < MBase->AnimSetNum && _STRCMP( MBase->AnimSet[ i ].Name, AnimName ) != 0 ; i ++ ){}
-#endif
 	return i == MBase->AnimSetNum ? -1 : i ;
 }
 
@@ -25972,20 +22578,42 @@ extern const TCHAR *NS_MV1GetAnimTargetFrameName( int MHandle, int AnimIndex, in
 		return NULL ;
 	AnimBase = &AnimSetBase->Anim[ AnimFrameIndex ] ;
 
+	// ターゲットとするフレームの名前を返す
 #ifdef UNICODE
-	// ワイド文字の名前を作成する
-	if( AnimBase->TargetFrame->NameW == NULL )
-	{
-		if( _MV1CreateWideCharNameBase( AnimBase->TargetFrame->Container, AnimBase->TargetFrame->Name, &AnimBase->TargetFrame->NameW ) == false )
-			return NULL ;
-	}
+	return AnimBase->TargetFrame->NameW ;
+#else
+	return AnimBase->TargetFrame->NameA ;
+#endif
+}
+
+// 指定のアニメーションがターゲットとするフレームの名前を取得する
+extern const wchar_t *MV1GetAnimTargetFrameName_WCHAR_T( int MHandle, int AnimIndex, int AnimFrameIndex )
+{
+	MV1_MODEL *Model ;
+	MV1_MODEL_BASE *ModelBase ;
+	MV1_ANIMSET_BASE *AnimSetBase ;
+	MV1_ANIM_BASE *AnimBase ;
+
+	// 初期化されていなかったらエラー
+	if( MV1Man.Initialize == false ) return NULL ;
+
+	// アドレス取得
+	if( MV1MDLCHK( MHandle, Model ) )
+		return NULL ;
+	ModelBase = Model->BaseData ;
+
+	// インデックスが不正だった場合は何もせずに終了
+	if( AnimIndex < 0 || AnimIndex >= ModelBase->AnimSetNum )
+		return NULL ;
+	AnimSetBase = &ModelBase->AnimSet[ AnimIndex ] ;
+
+	// インデックスが不正だった場合は何もせずに終了
+	if( AnimFrameIndex < 0 || AnimFrameIndex >= AnimSetBase->AnimNum )
+		return NULL ;
+	AnimBase = &AnimSetBase->Anim[ AnimFrameIndex ] ;
 
 	// ターゲットとするフレームの名前を返す
 	return AnimBase->TargetFrame->NameW ;
-#else
-	// ターゲットとするフレームの名前を返す
-	return AnimBase->TargetFrame->Name ;
-#endif
 }
 
 // 指定のアニメーションがターゲットとするフレームの番号を取得する
@@ -26229,6 +22857,35 @@ extern	float NS_MV1GetAnimKeyDataTime( int MHandle, int AnimKeySetIndex, int Ind
 	{
 		return AnimKeySetBase->StartTime + AnimKeySetBase->UnitTime * Index ;
 	}
+}
+
+// 指定のアニメーションキーセットの指定の時間でのキーの番号を取得する
+extern int NS_MV1GetAnimKeyDataIndexFromTime( int MHandle, int AnimKeySetIndex, float Time )
+{
+	MV1_MODEL *Model ;
+	MV1_MODEL_BASE *ModelBase ;
+	MV1_ANIM_KEYSET_BASE *AnimKeySetBase ;
+	int KeyIndex ;
+	float Rate ;
+
+	// 初期化されていなかったらエラー
+	if( MV1Man.Initialize == false ) return -1 ;
+
+	// アドレス取得
+	if( MV1MDLCHK( MHandle, Model ) )
+		return -1 ;
+	ModelBase = Model->BaseData ;
+
+	// インデックスが不正だったら何もせずに終了
+	if( AnimKeySetIndex < 0 || AnimKeySetIndex >= ModelBase->AnimKeySetNum )
+		return -1 ;
+	AnimKeySetBase = &ModelBase->AnimKeySet[ AnimKeySetIndex ] ;
+
+	// キーのインデックスを取得
+	KeyIndex = _MV1GetAnimKeyDataIndexFromTime( AnimKeySetBase, Time, Rate ) ;
+
+	// 補間したキーの番号を返す
+	return KeyIndex ;
 }
 
 // 指定のアニメーションキーセットのキーを取得する、キータイプが MV1_ANIMKEY_TYPE_QUATERNION_X か MV1_ANIMKEY_TYPE_QUATERNION_VMD では無かった場合は失敗する
@@ -26775,6 +23432,12 @@ extern	const TCHAR *NS_MV1GetMaterialName( int MHandle, int MaterialIndex )
 #endif
 }
 
+// 指定のマテリアルの名前を取得する
+extern	const wchar_t *MV1GetMaterialName_WCHAR_T( int MHandle, int MaterialIndex )
+{
+	return MV1GetMaterialNameBaseW( MV1GetModelBaseHandle( MHandle ), MaterialIndex ) ;
+}
+
 // 指定のマテリアルのタイプを変更する( Type : DX_MATERIAL_TYPE_NORMAL など )
 extern int NS_MV1SetMaterialType( int MHandle, int MaterialIndex, int Type )
 {
@@ -26845,6 +23508,14 @@ extern int NS_MV1SetMaterialDifMapTexture( int MHandle, int MaterialIndex, int T
 	if( TexIndex < 0 || TexIndex >= ModelBase->TextureNum )
 		return -1 ;
 
+	if( Material->DiffuseLayerNum != 0 && Material->DiffuseLayer[ 0 ].Texture == TexIndex )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// ディフューズレイヤーが無かった場合は１にする
 	if( Material->DiffuseLayerNum == 0 )
 	{
@@ -26891,10 +23562,26 @@ extern int NS_MV1SetMaterialSpcMapTexture( int MHandle, int MaterialIndex, int T
 	// テクスチャインデックスが 0 以下だった場合はスペキュラマップを解除する
 	if( TexIndex < 0 )
 	{
+		if( Material->SpecularLayerNum == 0 )
+		{
+			return 0 ;
+		}
+
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		Material->SpecularLayerNum = 0 ;
 	}
 	else
 	{
+		if( Material->SpecularLayerNum != 0 && Material->SpecularLayer[ 0 ].Texture == TexIndex )
+		{
+			return 0 ;
+		}
+
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		// スペキュラマップの数が０だったら１にする
 		if( Material->SpecularLayerNum == 0 )
 		{
@@ -26926,42 +23613,6 @@ extern int NS_MV1GetMaterialNormalMapTexture( int MHandle, int MaterialIndex )
 	return NS_MV1GetMaterialNormalMapTextureBase( MV1GetModelBaseHandle( MHandle ), MaterialIndex ) ;
 }
 
-/*
-// 指定のマテリアルのディフューズマップテクスチャのパスを取得する
-extern	const char *NS_MV1GetMaterialDifMapTexPath( int MHandle, int MaterialIndex )
-{
-	MV1MATERIALSTART( MHandle, Model, ModelBase, Material, MaterialIndex, NULL ) ;
-
-	return Material->DiffuseLayerNum == 0 ? NULL : MV1Man.Texture[ ModelBase->Texture[ Material->DiffuseLayer[ 0 ].Texture ] & MV1_HANDLEINDEX_MASK ].ColorFilePath ;
-}
-
-// 指定のマテリアルのスペキュラマップテクスチャのパスを取得する
-extern	const char *NS_MV1GetMaterialSpcMapTexPath( int MHandle, int MaterialIndex )
-{
-	MV1MATERIALSTART( MHandle, Model, ModelBase, Material, MaterialIndex, NULL ) ;
-
-	return Material->SpecularLayerNum == 0 ? NULL : MV1Man.Texture[ ModelBase->Texture[ Material->SpecularLayer[ 0 ].Texture ] & MV1_HANDLEINDEX_MASK ].ColorFilePath ;
-}
-
-// 指定のマテリアルの法線マップテクスチャのパスを取得する
-extern	const char *NS_MV1GetMaterialNormalMapTexPath( int MHandle, int MaterialIndex )
-{
-	return NS_MV1GetMaterialNormalMapTexPathBase( MV1GetModelBaseHandle( MHandle ), MaterialIndex ) ;
-}
-
-// 指定のマテリアルの凸凹マップテクスチャのパスを取得する
-extern const char *NS_MV1GetMaterialBumpMapTexPath( int MHandle, int MaterialIndex )
-{
-	return NS_MV1GetMaterialBumpMapTexPathBase( MV1GetModelBaseHandle( MHandle ), MaterialIndex ) ;
-}
-
-// 指定のマテリアルの凸凹マップテクスチャの１ピクセル辺りの距離を取得する
-extern float NS_MV1GetMaterialBumpMapNextPixelLength( int MHandle, int MaterialIndex )
-{
-	return NS_MV1GetMaterialBumpMapNextPixelLengthBase( MV1GetModelBaseHandle( MHandle ), MaterialIndex ) ;
-}
-*/
-
 // 指定のマテリアルのディフューズカラーを設定する
 extern int NS_MV1SetMaterialDifColor( int MHandle, int MaterialIndex, COLOR_F Color )
 {
@@ -26975,6 +23626,9 @@ extern int NS_MV1SetMaterialDifColor( int MHandle, int MaterialIndex, COLOR_F Co
 		*( ( DWORD * )&Material->Diffuse.b ) == *( ( DWORD * )&Color.b ) &&
 		*( ( DWORD * )&Material->Diffuse.a ) == *( ( DWORD * )&Color.a ) )
 		return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// セット
 	Material->Diffuse = Color ;
@@ -27008,6 +23662,9 @@ extern int NS_MV1SetMaterialSpcColor( int MHandle, int MaterialIndex, COLOR_F Co
 		*( ( DWORD * )&Material->Specular.a ) == *( ( DWORD * )&Color.a ) )
 		return 0 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// セット
 	Material->Specular = Color ;
 
@@ -27039,6 +23696,9 @@ extern int NS_MV1SetMaterialEmiColor( int MHandle, int MaterialIndex, COLOR_F Co
 		*( ( DWORD * )&Material->Emissive.b ) == *( ( DWORD * )&Color.b ) &&
 		*( ( DWORD * )&Material->Emissive.a ) == *( ( DWORD * )&Color.a ) )
 		return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// セット
 	Material->Emissive = Color ;
@@ -27072,6 +23732,9 @@ extern int NS_MV1SetMaterialAmbColor( int MHandle, int MaterialIndex, COLOR_F Co
 		*( ( DWORD * )&Material->Ambient.a ) == *( ( DWORD * )&Color.a ) )
 		return 0 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// セット
 	Material->Ambient = Color ;
 
@@ -27095,160 +23758,20 @@ extern int NS_MV1SetMaterialSpcPower( int MHandle, int MaterialIndex, float Powe
 {
 	MV1MATERIALSTART( MHandle, Model, ModelBase, Material, MaterialIndex, -1 ) ;
 
+	if( Material->Power == Power )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// セット
 	Material->Power = Power ;
 
 	// 終了
 	return 0 ;
 }
-
-/*
-// 指定のマテリアルのディフューズマップテクスチャのパスを設定する
-extern int NS_MV1SetMaterialDifMapTexPath( int MHandle, int MaterialIndex, const char *TexPath )
-{
-	int ColorFileSize ;
-	void *ColorFileImage ;
-	int NewHandle ;
-	int *NewBuffer ;
-	char RelativePath[ 1024 ] ;
-	MV1_MESH *Mesh ;
-	int i ;
-
-	MV1MATERIALSTART( MHandle, Model, ModelBase, Material, MaterialIndex, -1 ) ;
-
-	// テクスチャの読みこみ
-	if( MV1RLoadFile( TexPath, &ColorFileImage, &ColorFileSize ) == -1 )
-		return -1 ;
-
-	// テクスチャの追加
-	CreateRelativePath_( TexPath, ModelBase->DirectoryPath, RelativePath ) ;
-	NewHandle = MV1AddTexture( -1, _T( "NewDiffuseTex" ), ColorFileImage, ColorFileSize, RelativePath ) ;
-
-	// メモリの解放
-	DXFREE( ColorFileImage ) ;
-	ColorFileImage = NULL ;
-
-	// エラーが発生していたら終了
-	if( NewHandle == -1 )
-		return -1 ;
-
-	// 今までのテクスチャの使用カウンタをデクリメントする
-	if( Material->DiffuseLayerNum != 0 )
-	{
-		MV1SubTexture( ModelBase->Texture[ Material->DiffuseLayer[ 0 ].Texture ] ) ;
-	}
-	else
-	{
-		// ディフューズレイヤーが無かった場合は追加する
-		Material->DiffuseLayerNum = 1 ;
-	}
-
-	// 新たな配列を格納するためのメモリ領域の確保
-	NewBuffer = ( int * )ADDMEMAREA( sizeof( int ) * ( ModelBase->TextureNum + 1 ), &ModelBase->AddFirstMem ) ;
-	if( NewBuffer == NULL )
-	{
-		MV1SubTexture( NewHandle ) ;
-		return -1 ;
-	}
-
-	// マテリアルの使用テクスチャを変更
-	Material->DiffuseLayer[ 0 ].Texture = ModelBase->TextureNum ;
-
-	// コピーと既存バッファの解放と末端に新テクスチャのハンドルを格納
-	_MEMCPY( NewBuffer, ModelBase->Texture, sizeof( int ) * ModelBase->TextureNum ) ;
-	SubMemArea( &ModelBase->AddFirstMem, ModelBase->Texture ) ;
-	ModelBase->Texture = NewBuffer ;
-	ModelBase->Texture[ ModelBase->TextureNum ] = NewHandle ;
-	ModelBase->TextureNum ++ ;
-
-	// このマテリアルを使用しているメッシュの半透明要素有無情報のセットアップ完了フラグを倒す
-	Mesh = Model->Mesh ;
-	for( i = 0 ; i < ModelBase->MeshNum ; i ++, Mesh ++ )
-	{
-		if( Mesh->Material != Material ) continue ;
-
-		MV1MESH_RESET_SEMITRANSSETUP( Mesh )
-		if( MV1CCHK( Mesh->DrawMaterialChange ) == 0 )
-			MV1BitSetChange( &Mesh->DrawMaterialChange ) ;
-	}
-
-	// 終了
-	return 0 ;
-}
-
-// 指定のマテリアルのスペキュラマップテクスチャのパスを設定する
-extern int NS_MV1SetMaterialSpcMapTexPath( int MHandle, int MaterialIndex, const char *TexPath )
-{
-	int ColorFileSize ;
-	void *ColorFileImage ;
-	int NewHandle ;
-	int *NewBuffer ;
-	char RelativePath[ 1024 ] ;
-
-	MV1MATERIALSTART( MHandle, Model, ModelBase, Material, MaterialIndex, -1 ) ;
-
-	// NULLだったらスペキュラマップを解除する
-	if( TexPath == NULL )
-	{
-		// 今までのテクスチャの使用カウンタをデクリメントする
-		if( Material->SpecularLayerNum != 0 )
-		{
-			MV1SubTexture( ModelBase->Texture[ Material->SpecularLayer[ 0 ].Texture ] ) ;
-			Material->SpecularLayerNum = 0 ;
-		}
-	}
-	else
-	{
-		// テクスチャの読みこみ
-		if( MV1RLoadFile( TexPath, &ColorFileImage, &ColorFileSize ) == -1 )
-			return -1 ;
-
-		// テクスチャの追加
-		CreateRelativePath_( TexPath, ModelBase->DirectoryPath, RelativePath ) ;
-		NewHandle = MV1AddTexture( -1, _T( "NewSpecularTex" ), ColorFileImage, ColorFileSize, RelativePath ) ;
-
-		// メモリの解放
-		DXFREE( ColorFileImage ) ;
-		ColorFileImage = NULL ;
-
-		// エラーが発生していたら終了
-		if( NewHandle == -1 )
-			return -1 ;
-
-		// 今までのテクスチャの使用カウンタをデクリメントする
-		if( Material->SpecularLayerNum != 0 )
-		{
-			MV1SubTexture( ModelBase->Texture[ Material->SpecularLayer[ 0 ].Texture ] ) ;
-		}
-		else
-		{
-			// スペキュラレイヤーが無かった場合は追加する
-			Material->SpecularLayerNum = 1 ;
-		}
-
-		// 新たな配列を格納するためのメモリ領域の確保
-		NewBuffer = ( int * )ADDMEMAREA( sizeof( int ) * ( ModelBase->TextureNum + 1 ), &ModelBase->AddFirstMem ) ;
-		if( NewBuffer == NULL )
-		{
-			MV1SubTexture( NewHandle ) ;
-			return -1 ;
-		}
-
-		// マテリアルの使用テクスチャを変更
-		Material->SpecularLayer[ 0 ].Texture = ModelBase->TextureNum ;
-
-		// コピーと既存バッファの解放と末端に新テクスチャのハンドルを格納
-		_MEMCPY( NewBuffer, ModelBase->Texture, sizeof( int ) * ModelBase->TextureNum ) ;
-		SubMemArea( &ModelBase->AddFirstMem, ModelBase->Texture ) ;
-		ModelBase->Texture = NewBuffer ;
-		ModelBase->Texture[ ModelBase->TextureNum ] = NewHandle ;
-		ModelBase->TextureNum ++ ;
-	}
-
-	// 終了
-	return 0 ;
-}
-*/
 
 // 指定のマテリアルでトゥーンレンダリングのディフューズグラデーションマップとして使用するテクスチャを設定する
 extern int NS_MV1SetMaterialDifGradTexture( int MHandle, int MaterialIndex, int TexIndex )
@@ -27263,6 +23786,9 @@ extern int NS_MV1SetMaterialDifGradTexture( int MHandle, int MaterialIndex, int 
 
 	if( Material->DiffuseGradTexture == TexIndex )
 		return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// 設定
 	Material->DiffuseGradTexture = TexIndex ;
@@ -27304,6 +23830,9 @@ extern int NS_MV1SetMaterialSpcGradTexture( int MHandle, int MaterialIndex, int 
 	if( Material->SpecularGradTexture == TexIndex )
 		return 0 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 設定
 	Material->SpecularGradTexture = TexIndex ;
 
@@ -27344,6 +23873,9 @@ extern int NS_MV1SetMaterialSphereMapTexture( int MHandle, int MaterialIndex, in
 	if( Material->SphereMapTexture == TexIndex )
 		return 0 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 設定
 	Material->SphereMapTexture = TexIndex ;
 
@@ -27380,6 +23912,9 @@ extern int NS_MV1SetMaterialDifGradBlendType( int MHandle, int MaterialIndex, in
 
 	if( Material->DiffuseGradBlendType == BlendType )
 		return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// 設定
 	Material->DiffuseGradBlendType = BlendType ;
@@ -27418,6 +23953,9 @@ extern int NS_MV1SetMaterialSpcGradBlendType( int MHandle, int MaterialIndex, in
 	if( Material->SpecularGradBlendType == BlendType )
 		return 0 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 設定
 	Material->SpecularGradBlendType = BlendType ;
 
@@ -27454,6 +23992,9 @@ extern int NS_MV1SetMaterialSphereMapBlendType(	int MHandle, int MaterialIndex, 
 
 	if( Material->SphereMapBlendType == BlendType )
 		return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// 設定
 	Material->SphereMapBlendType = BlendType ;
@@ -27493,6 +24034,9 @@ extern int NS_MV1SetMaterialOutLineWidth( int MHandle, int MaterialIndex, float 
 	if( Material->OutLineWidth == Width )
 		return 0 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 設定
 	Material->OutLineWidth = Width ;
 
@@ -27530,6 +24074,9 @@ extern int NS_MV1SetMaterialOutLineDotWidth( int MHandle, int MaterialIndex, flo
 	// 同じだったら何もしない
 	if( Material->OutLineDotWidth == Width )
 		return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// 設定
 	Material->OutLineDotWidth = Width ;
@@ -27571,6 +24118,9 @@ extern int NS_MV1SetMaterialOutLineColor( int MHandle, int MaterialIndex, COLOR_
 		( ( DWORD * )&Material->OutLineColor )[ 2 ] == ( ( DWORD * )&Color )[ 2 ] &&
 		( ( DWORD * )&Material->OutLineColor )[ 3 ] == ( ( DWORD * )&Color )[ 3 ] ) return 0 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// 設定
 	Material->OutLineColor = Color ;
 
@@ -27605,6 +24155,14 @@ extern int NS_MV1SetMaterialDrawBlendMode( int MHandle, int MaterialIndex, int B
 	int i ;
 	MV1MATERIALSTART( MHandle, Model, ModelBase, Material, MaterialIndex, -1 ) ;
 
+	if( Material->DrawBlendMode == BlendMode )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// ブレンドモードのセット
 	Material->DrawBlendMode = BlendMode ;
 
@@ -27629,6 +24187,14 @@ extern int NS_MV1SetMaterialDrawBlendParam( int MHandle, int MaterialIndex, int 
 	MV1_MESH *Mesh ;
 	int i ;
 	MV1MATERIALSTART( MHandle, Model, ModelBase, Material, MaterialIndex, -1 ) ;
+
+	if( Material->DrawBlendParam == BlendParam )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// ブレンドモードのセット
 	Material->DrawBlendParam = BlendParam ;
@@ -27670,6 +24236,16 @@ extern int NS_MV1GetMaterialDrawBlendParam( int MHandle, int MaterialIndex )
 extern int NS_MV1SetMaterialDrawAlphaTest( int MHandle, int MaterialIndex,	int Enable, int Mode, int Param )
 {
 	MV1MATERIALSTART( MHandle, Model, ModelBase, Material, MaterialIndex, -1 ) ;
+
+	if( Material->UseAlphaTest == Enable &&
+		Material->AlphaFunc == Mode &&
+		Material->AlphaRef == Param )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// パラメータをセット
 	Material->UseAlphaTest = Enable ;
@@ -27904,46 +24480,46 @@ extern	const TCHAR *NS_MV1GetTextureName( int MHandle, int TexIndex )
 #endif
 }
 
+// テクスチャの名前を取得
+extern	const wchar_t *MV1GetTextureName_WCHAR_T( int MHandle, int TexIndex )
+{
+	return MV1GetTextureNameBaseW( MV1GetModelBaseHandle( MHandle ), TexIndex ) ;
+}
+
 // カラーテクスチャのファイルパスを変更する
 extern int NS_MV1SetTextureColorFilePath( int MHandle, int TexIndex, const TCHAR *FilePath )
 {
+#ifdef UNICODE
+	return MV1SetTextureColorFilePath_WCHAR_T(
+		MHandle, TexIndex, FilePath
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FilePath, return -1 )
+
+	Result = MV1SetTextureColorFilePath_WCHAR_T(
+		MHandle, TexIndex, UseFilePathBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FilePath )
+
+	return Result ;
+#endif
+}
+
+// カラーテクスチャのファイルパスを変更する
+extern int MV1SetTextureColorFilePath_WCHAR_T( int MHandle, int TexIndex, const wchar_t *FilePath )
+{
 	MV1TEXTURESTART( MHandle, Model, ModelBase, Texture, TexIndex, -1 ) ;
 
-#ifdef UNICODE
-
-	if( Texture->AlphaFilePath && Texture->AlphaFilePathW == NULL )
-	{
-		if( _MV1CreateWideCharName( Texture->AlphaFilePath, &Texture->AlphaFilePathW ) == false )
-			return -1 ;
-	}
-
 	return _MV1TextureLoad(
 				ModelBase, Texture,
-				NULL, NULL,
-				FilePath, Texture->AlphaFilePathW,
+				FilePath, Texture->AlphaFilePathW_,
 				Texture->BumpImageFlag, Texture->BumpImageNextPixelLength,
 				Texture->ReverseFlag != 0,
 				Texture->Bmp32AllZeroAlphaToXRGB8Flag != 0,
 				FALSE ) ;
-
-#else
-
-	if( Texture->AlphaFilePathW && Texture->AlphaFilePath == NULL )
-	{
-		if( _MV1CreateMultiByteName( Texture->AlphaFilePathW, &Texture->AlphaFilePath ) == false )
-			return -1 ;
-	}
-
-	return _MV1TextureLoad(
-				ModelBase, Texture,
-				FilePath, Texture->AlphaFilePath,
-				NULL, NULL,
-				Texture->BumpImageFlag, Texture->BumpImageNextPixelLength,
-				Texture->ReverseFlag != 0,
-				Texture->Bmp32AllZeroAlphaToXRGB8Flag != 0,
-				FALSE ) ;
-
-#endif
 }
 
 // カラーテクスチャのファイルパスを取得
@@ -27952,68 +24528,54 @@ extern	const TCHAR *NS_MV1GetTextureColorFilePath( int MHandle, int TexIndex )
 	MV1TEXTURESTART( MHandle, Model, ModelBase, Texture, TexIndex, NULL ) ;
 
 #ifdef UNICODE
-
-	if( Texture->ColorFilePath && Texture->ColorFilePathW == NULL )
-	{
-		if( _MV1CreateWideCharName( Texture->ColorFilePath, &Texture->ColorFilePathW ) == false )
-			return NULL ;
-	}
-
-	return Texture->ColorFilePathW ;
-
+	return Texture->ColorFilePathW_ ;
 #else
-
-	if( Texture->ColorFilePathW && Texture->ColorFilePath == NULL )
-	{
-		if( _MV1CreateMultiByteName( Texture->ColorFilePathW, &Texture->ColorFilePath ) == false )
-			return NULL ;
-	}
-
-	return Texture->ColorFilePath ;
-
+	return Texture->ColorFilePathA_ ;
 #endif
+}
+
+// カラーテクスチャのファイルパスを取得
+extern	const wchar_t *MV1GetTextureColorFilePath_WCHAR_T( int MHandle, int TexIndex )
+{
+	MV1TEXTURESTART( MHandle, Model, ModelBase, Texture, TexIndex, NULL ) ;
+
+	return Texture->ColorFilePathW_ ;
 }
 
 // アルファテクスチャのファイルパスを変更する
 extern int NS_MV1SetTextureAlphaFilePath( int MHandle, int TexIndex, const TCHAR *FilePath )
 {
+#ifdef UNICODE
+	return MV1SetTextureAlphaFilePath_WCHAR_T(
+		MHandle, TexIndex, FilePath
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FilePath, return -1 )
+
+	Result = MV1SetTextureAlphaFilePath_WCHAR_T(
+		MHandle, TexIndex, UseFilePathBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FilePath )
+
+	return Result ;
+#endif
+}
+
+// アルファテクスチャのファイルパスを変更する
+extern int MV1SetTextureAlphaFilePath_WCHAR_T( int MHandle, int TexIndex, const wchar_t *FilePath )
+{
 	MV1TEXTURESTART( MHandle, Model, ModelBase, Texture, TexIndex, -1 ) ;
 
-#ifdef UNICODE
-
-	if( Texture->ColorFilePath && Texture->ColorFilePathW == NULL )
-	{
-		if( _MV1CreateWideCharName( Texture->ColorFilePath, &Texture->ColorFilePathW ) == false )
-			return -1 ;
-	}
-
 	return _MV1TextureLoad(
 				ModelBase, Texture,
-				NULL, NULL,
-				Texture->ColorFilePathW, FilePath,
+				Texture->ColorFilePathW_, FilePath,
 				Texture->BumpImageFlag, Texture->BumpImageNextPixelLength,
 				Texture->ReverseFlag != 0,
 				Texture->Bmp32AllZeroAlphaToXRGB8Flag != 0,
 				FALSE ) ;
-
-#else
-
-	if( Texture->ColorFilePathW && Texture->ColorFilePath == NULL )
-	{
-		if( _MV1CreateMultiByteName( Texture->ColorFilePathW, &Texture->ColorFilePath ) == false )
-			return -1 ;
-	}
-
-	return _MV1TextureLoad(
-				ModelBase, Texture,
-				Texture->ColorFilePath, FilePath,
-				NULL, NULL,
-				Texture->BumpImageFlag, Texture->BumpImageNextPixelLength,
-				Texture->ReverseFlag != 0,
-				Texture->Bmp32AllZeroAlphaToXRGB8Flag != 0,
-				FALSE ) ;
-
-#endif
 }
 
 // アルファテクスチャのファイルパスを取得
@@ -28022,22 +24584,18 @@ extern	const TCHAR *NS_MV1GetTextureAlphaFilePath( int MHandle, int TexIndex )
 	MV1TEXTURESTART( MHandle, Model, ModelBase, Texture, TexIndex, NULL ) ;
 
 #ifdef UNICODE
-	if( Texture->AlphaFilePath && Texture->AlphaFilePathW == NULL )
-	{
-		if( _MV1CreateWideCharName( Texture->AlphaFilePath, &Texture->AlphaFilePathW ) == false )
-			return NULL ;
-	}
-
-	return Texture->AlphaFilePathW ;
+	return Texture->AlphaFilePathW_ ;
 #else
-	if( Texture->AlphaFilePathW && Texture->AlphaFilePath == NULL )
-	{
-		if( _MV1CreateMultiByteName( Texture->AlphaFilePathW, &Texture->AlphaFilePath ) == false )
-			return NULL ;
-	}
-
-	return Texture->AlphaFilePath ;
+	return Texture->AlphaFilePathA_ ;
 #endif
+}
+
+// アルファテクスチャのファイルパスを取得
+extern	const wchar_t *MV1GetTextureAlphaFilePath_WCHAR_T( int MHandle, int TexIndex )
+{
+	MV1TEXTURESTART( MHandle, Model, ModelBase, Texture, TexIndex, NULL ) ;
+
+	return Texture->AlphaFilePathW_ ;
 }
 
 // テクスチャで使用するグラフィックハンドルを変更する( GrHandle を -1 にすると解除 )
@@ -28048,15 +24606,39 @@ extern int NS_MV1SetTextureGraphHandle( int MHandle, int TexIndex, int GrHandle,
 	// GrHandle が -1 かどうかで処理を分岐
 	if( GrHandle == -1 )
 	{
+		if( Texture->UseUserGraphHandle == FALSE && Texture->UseGraphHandle == 0 )
+		{
+			return 0 ;
+		}
+
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		Texture->UseUserGraphHandle = FALSE ;
 		Texture->UserGraphHandle = 0 ;
 	}
 	else
 	{
+		int TexWidth, TexHeight ;
+
+		NS_GetGraphSize( GrHandle, &TexWidth, &TexHeight ) ;
+		if( Texture->UseGraphHandle == TRUE &&
+			Texture->UserGraphHandle == GrHandle &&
+			Texture->UserGraphHandleSemiTransFlag == SemiTransFlag &&
+			TexWidth == Texture->UserGraphWidth &&
+			TexHeight == Texture->UserGraphHeight )
+		{
+			return 0 ;
+		}
+
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		Texture->UseUserGraphHandle = TRUE ;
 		Texture->UserGraphHandle = GrHandle ;
 		Texture->UserGraphHandleSemiTransFlag = SemiTransFlag ;
-		NS_GetGraphSize( Texture->UserGraphHandle, &Texture->UserGraphWidth, &Texture->UserGraphHeight ) ;
+		Texture->UserGraphWidth = TexWidth ;
+		Texture->UserGraphHeight = TexHeight ;
 	}
 
 	// 終了
@@ -28087,6 +24669,15 @@ extern int NS_MV1GetTextureGraphHandle( int MHandle, int TexIndex )
 extern int NS_MV1SetTextureAddressMode( int MHandle, int TexIndex, int AddrUMode, int AddrVMode )
 {
 	MV1TEXTURESTART( MHandle, Model, ModelBase, Texture, TexIndex, -1 ) ;
+
+	if( Texture->AddressModeU == AddrUMode &&
+		Texture->AddressModeV == AddrVMode )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	Texture->AddressModeU = AddrUMode ;
 	Texture->AddressModeV = AddrVMode ;
@@ -28178,8 +24769,7 @@ extern int NS_MV1SetTextureBumpImageFlag( int MHandle, int TexIndex, int Flag )
 
 	return _MV1TextureLoad(
 				ModelBase, Texture,
-				Texture->ColorFilePath, Texture->AlphaFilePath,
-				NULL, NULL,
+				Texture->ColorFilePathW_, Texture->AlphaFilePathW_,
 				Flag, Texture->BumpImageNextPixelLength,
 				Texture->ReverseFlag != 0,
 				Texture->Bmp32AllZeroAlphaToXRGB8Flag != 0, FALSE ) ;
@@ -28198,12 +24788,19 @@ extern int NS_MV1SetTextureBumpImageNextPixelLength( int MHandle, int TexIndex, 
 {
 	MV1TEXTURESTART( MHandle, Model, ModelBase, Texture, TexIndex, -1 ) ;
 
+	if( Texture->BumpImageNextPixelLength == Length )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	Texture->BumpImageNextPixelLength = Length ;
 
 	return _MV1TextureLoad(
 				ModelBase, Texture,
-				Texture->ColorFilePath, Texture->AlphaFilePath,
-				NULL, NULL,
+				Texture->ColorFilePathW_, Texture->AlphaFilePathW_,
 				Texture->BumpImageFlag, Length,
 				Texture->ReverseFlag != 0,
 				Texture->Bmp32AllZeroAlphaToXRGB8Flag != 0, FALSE ) ;
@@ -28222,6 +24819,14 @@ extern int NS_MV1SetTextureSampleFilterMode( int MHandle, int TexIndex, int Filt
 {
 	MV1TEXTURESTART( MHandle, Model, ModelBase, Texture, TexIndex, -1 ) ;
 
+	if( Texture->FilterMode == FilterMode )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	Texture->FilterMode = FilterMode ;
 
 	// 終了
@@ -28239,26 +24844,44 @@ extern int NS_MV1GetTextureSampleFilterMode( int MHandle, int TexIndex )
 // ３Ｄモデルに貼り付けるのに向いた画像の読み込み方式で画像を読み込む( 戻り値  -1:エラー  0以上:グラフィックハンドル )
 extern int NS_MV1LoadTexture( const TCHAR *FilePath )
 {
+#ifdef UNICODE
+	return MV1LoadTexture_WCHAR_T(
+		FilePath
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FilePath, return -1 )
+
+	Result = MV1LoadTexture_WCHAR_T(
+		UseFilePathBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FilePath )
+
+	return Result ;
+#endif
+}
+
+// ３Ｄモデルに貼り付けるのに向いた画像の読み込み方式で画像を読み込む( 戻り値  -1:エラー  0以上:グラフィックハンドル )
+extern int MV1LoadTexture_WCHAR_T( const wchar_t *FilePath )
+{
 	int NewGraphHandle ;
 	void *ColorImage, *AlphaImage ;
 	int ColorImageSize, AlphaImageSize ;
 	int SemiTransFlag, DefaultTextureFlag ;
 	const wchar_t *ColorFilePath ;
 
-#ifdef UNICODE
 	ColorFilePath = FilePath ;
-#else
-	wchar_t ColorFilePathW[ 512 ] ;
-	MBCharToWChar( CP_ACP, FilePath, ( DXWCHAR * )ColorFilePathW, 512 ) ;
-	ColorFilePath = ColorFilePathW ;
-#endif
-
 	if( __MV1LoadTexture(
 			&ColorImage, &ColorImageSize,
 			&AlphaImage, &AlphaImageSize,
 			&NewGraphHandle,
 			&SemiTransFlag,
 			&DefaultTextureFlag,
+#ifndef UNICODE
+			NULL, NULL,
+#endif
 			NULL, NULL,
 			ColorFilePath, NULL, NULL,
 			FALSE, 0.1f,
@@ -28281,7 +24904,7 @@ extern int NS_MV1LoadTexture( const TCHAR *FilePath )
 		AlphaImage = NULL ;
 	}
 
-	// 返回句柄
+	// ハンドルを返す
 	return NewGraphHandle ;
 }
 
@@ -28320,6 +24943,28 @@ extern int NS_MV1GetFrameNum( int MHandle )
 // フレームの名前からモデル中のフレームのインデックスを取得する( 無かった場合は戻り値が-1 )
 extern int NS_MV1SearchFrame( int MHandle, const TCHAR *FrameName )
 {
+#ifdef UNICODE
+	return MV1SearchFrame_WCHAR_T(
+		MHandle, FrameName
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FrameName, return -1 )
+
+	Result = MV1SearchFrame_WCHAR_T(
+		MHandle, UseFrameNameBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FrameName )
+
+	return Result ;
+#endif
+}
+
+// フレームの名前からモデル中のフレームのインデックスを取得する( 無かった場合は戻り値が-1 )
+extern int MV1SearchFrame_WCHAR_T( int MHandle, const wchar_t *FrameName )
+{
 	MV1_MODEL *Model ;
 	MV1_MODEL_BASE *ModelBase ;
 	MV1_FRAME_BASE *MBFrame ;
@@ -28333,29 +24978,9 @@ extern int NS_MV1SearchFrame( int MHandle, const TCHAR *FrameName )
 		return -1 ;
 	ModelBase = Model->BaseData ;
 
-#ifdef UNICODE
-
 	// 同名のフレームを探す
 	MBFrame = ModelBase->Frame ;
-	for( i = 0 ; i < ModelBase->FrameNum ; i ++, MBFrame ++ )
-	{
-		if( MBFrame->NameW == NULL )
-		{
-			if( _MV1CreateWideCharNameBase( ModelBase, MBFrame->Name, &MBFrame->NameW ) == false )
-				return -1 ;
-		}
-
-		if( _WCSCMP( MBFrame->NameW, FrameName ) == 0 )
-			break ;
-	}
-
-#else
-
-	// 同名のフレームを探す
-	MBFrame = ModelBase->Frame ;
-	for( i = 0 ; i < ModelBase->FrameNum && _STRCMP( MBFrame->Name, FrameName ) != 0 ; i ++, MBFrame ++ ){}
-
-#endif
+	for( i = 0 ; i < ModelBase->FrameNum && _WCSCMP( MBFrame->NameW, FrameName ) != 0 ; i ++, MBFrame ++ ){}
 
 	// フレームのインデックスを返す
 	return i == ModelBase->FrameNum ? -2 : i ;
@@ -28363,6 +24988,28 @@ extern int NS_MV1SearchFrame( int MHandle, const TCHAR *FrameName )
 
 // フレームの名前から指定のフレームの子フレームのフレームインデックスを取得する( 名前指定版 )( FrameIndex を -1 にすると親を持たないフレームを ChildIndex で指定する )( 無かった場合は戻り値が-1 )
 extern int NS_MV1SearchFrameChild( int MHandle, int FrameIndex, const TCHAR *ChildName )
+{
+#ifdef UNICODE
+	return MV1SearchFrameChild_WCHAR_T(
+		MHandle, FrameIndex, ChildName
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( ChildName, return -1 )
+
+	Result = MV1SearchFrameChild_WCHAR_T(
+		MHandle, FrameIndex, UseChildNameBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( ChildName )
+
+	return Result ;
+#endif
+}
+
+// フレームの名前から指定のフレームの子フレームのフレームインデックスを取得する( 名前指定版 )( FrameIndex を -1 にすると親を持たないフレームを ChildIndex で指定する )( 無かった場合は戻り値が-1 )
+extern int MV1SearchFrameChild_WCHAR_T( int MHandle, int FrameIndex, const wchar_t *ChildName )
 {
 	MV1_MODEL *Model ;
 	MV1_MODEL_BASE *ModelBase ;
@@ -28384,23 +25031,11 @@ extern int NS_MV1SearchFrameChild( int MHandle, int FrameIndex, const TCHAR *Chi
 	if( FrameIndex < -1 || FrameIndex >= ModelBase->FrameNum )
 		return -1 ;
 
-#ifdef UNICODE
-
 	// フレームインデックスが -1 かどうかで処理を分岐
 	if( FrameIndex == -1 )
 	{
 		// トップフレームの中から指定の名前のフレームを探す
-		for( i = 0 ; i < Model->TopFrameNum ; i ++ )
-		{
-			if( Model->TopFrameList[ i ]->BaseData->NameW == NULL )
-			{
-				if( _MV1CreateWideCharNameBase( ModelBase, Model->TopFrameList[ i ]->BaseData->Name, &Model->TopFrameList[ i ]->BaseData->NameW ) == false )
-					return -1 ;
-			}
-
-			if( _WCSCMP( Model->TopFrameList[ i ]->BaseData->NameW, ChildName ) == 0 )
-				break ;
-		}
+		for( i = 0 ; i < Model->TopFrameNum && _WCSCMP( Model->TopFrameList[ i ]->BaseData->NameW, ChildName ) != 0 ; i ++ ){}
 		return i == Model->TopFrameNum ? -2 : ( int )( Model->TopFrameList[ i ] - Model->Frame ) ;
 	}
 	else
@@ -28409,40 +25044,9 @@ extern int NS_MV1SearchFrameChild( int MHandle, int FrameIndex, const TCHAR *Chi
 		Frame = &Model->Frame[ FrameIndex ] ;
 
 		// 子フレームの中から指定の名前のフレームを探す
-		for( i = 0 ; i < Frame->BaseData->TotalChildNum ; i ++ )
-		{
-			if( Frame->Child[ i ].BaseData->NameW == NULL )
-			{
-				if( _MV1CreateWideCharNameBase( ModelBase, Frame->Child[ i ].BaseData->Name, &Frame->Child[ i ].BaseData->NameW ) == false )
-					return -1 ;
-			}
-
-			if( _WCSCMP( Frame->Child[ i ].BaseData->NameW, ChildName ) == 0 )
-				break ;
-		}
+		for( i = 0 ; i < Frame->BaseData->TotalChildNum && _WCSCMP( Frame->Child[ i ].BaseData->NameW, ChildName ) != 0 ; i ++ ){}
 		return i == Frame->BaseData->TotalChildNum ? -2 : ( int )( &Frame->Child[ i ] - Model->Frame ) ;
 	}
-
-#else
-
-	// フレームインデックスが -1 かどうかで処理を分岐
-	if( FrameIndex == -1 )
-	{
-		// トップフレームの中から指定の名前のフレームを探す
-		for( i = 0 ; i < Model->TopFrameNum && _STRCMP( Model->TopFrameList[ i ]->BaseData->Name, ChildName ) != 0 ; i ++ ){}
-		return i == Model->TopFrameNum ? -2 : ( int )( Model->TopFrameList[ i ] - Model->Frame ) ;
-	}
-	else
-	{
-		// 子インデックスが不正だったら -1 を返す
-		Frame = &Model->Frame[ FrameIndex ] ;
-
-		// 子フレームの中から指定の名前のフレームを探す
-		for( i = 0 ; i < Frame->BaseData->TotalChildNum && _STRCMP( Frame->Child[ i ].BaseData->Name, ChildName ) != 0 ; i ++ ){}
-		return i == Frame->BaseData->TotalChildNum ? -2 : ( int )( &Frame->Child[ i ] - Model->Frame ) ;
-	}
-
-#endif
 }
 
 // 指定のフレームの名前を取得する( エラーの場合は戻り値が NULL )
@@ -28450,38 +25054,48 @@ extern const TCHAR *NS_MV1GetFrameName( int MHandle, int FrameIndex )
 {
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, NULL ) ;
 
+	// フレームの名前を返す
 #ifdef UNICODE
+	return Frame->BaseData->NameW ;
+#else
+	return Frame->BaseData->NameA ;
+#endif
+}
 
-	if( Frame->BaseData->NameW == NULL )
-	{
-		if( _MV1CreateWideCharNameBase( ModelBase, Frame->BaseData->Name, &Frame->BaseData->NameW ) == false )
-			return NULL ;
-	}
+// 指定のフレームの名前を取得する( エラーの場合は戻り値が NULL )
+extern const wchar_t *MV1GetFrameName_WCHAR_T( int MHandle, int FrameIndex )
+{
+	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, NULL ) ;
 
 	// フレームの名前を返す
 	return Frame->BaseData->NameW ;
-
-#else
-
-	// フレームの名前を返す
-	return Frame->BaseData->Name ;
-
-#endif
 }
 
 // 指定のフレームの名前を取得する( 戻り値   -1:エラー  -1以外:文字列のサイズ )
 extern int NS_MV1GetFrameName2( int MHandle, int FrameIndex, TCHAR *StrBuffer )
 {
+#ifdef UNICODE
+	return MV1GetFrameName2_WCHAR_T( MHandle, FrameIndex, StrBuffer ) ;
+#else
 	int Length = 0 ;
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, NULL ) ;
 
-#ifdef UNICODE
-
-	if( Frame->BaseData->NameW == NULL )
+	if( StrBuffer != NULL )
 	{
-		if( _MV1CreateWideCharNameBase( ModelBase, Frame->BaseData->Name, &Frame->BaseData->NameW ) == false )
-			return NULL ;
+		_STRCPY( StrBuffer, Frame->BaseData->NameA ) ;
 	}
+
+	Length = _STRLEN( Frame->BaseData->NameA ) ;
+
+	return Length ;
+#endif
+}
+
+// 指定のフレームの名前を取得する( 戻り値   -1:エラー  -1以外:文字列のサイズ )
+extern int MV1GetFrameName2_WCHAR_T( int MHandle, int FrameIndex, wchar_t *StrBuffer )
+{
+	int Length = 0 ;
+	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, NULL ) ;
 
 	if( StrBuffer != NULL )
 	{
@@ -28489,17 +25103,6 @@ extern int NS_MV1GetFrameName2( int MHandle, int FrameIndex, TCHAR *StrBuffer )
 	}
 
 	Length = _WCSLEN( Frame->BaseData->NameW ) ;
-
-#else
-
-	if( StrBuffer != NULL )
-	{
-		_STRCPY( StrBuffer, Frame->BaseData->Name ) ;
-	}
-
-	Length = _STRLEN( Frame->BaseData->Name ) ;
-
-#endif
 
 	return Length ;
 }
@@ -28577,9 +25180,9 @@ extern int NS_MV1GetFrameChild( int MHandle, int FrameIndex, int ChildIndex )
 }
 
 // 指定のフレームの座標を取得する
-extern XYZ NS_MV1GetFramePosition( int MHandle, int FrameIndex )
+extern VECTOR NS_MV1GetFramePosition( int MHandle, int FrameIndex )
 {
-	XYZ Pos ;
+	VECTOR Pos ;
 	VECTOR ErrorRet = { 0.0f, 0.0f, 0.0f } ;
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, ErrorRet ) ;
 
@@ -28587,9 +25190,46 @@ extern XYZ NS_MV1GetFramePosition( int MHandle, int FrameIndex )
 	MV1SETUPMATRIX( Model ) ;
 
 	// フレームの座標を返す
-	Pos.x = Frame->LocalWorldMatrix.m[ 0 ][ 3 ] ;
-	Pos.y = Frame->LocalWorldMatrix.m[ 1 ][ 3 ] ;
-	Pos.z = Frame->LocalWorldMatrix.m[ 2 ][ 3 ] ;
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		Pos.x = ( float )Frame->LocalWorldMatrix.md.m[ 0 ][ 3 ] ;
+		Pos.y = ( float )Frame->LocalWorldMatrix.md.m[ 1 ][ 3 ] ;
+		Pos.z = ( float )Frame->LocalWorldMatrix.md.m[ 2 ][ 3 ] ;
+	}
+	else
+	{
+		Pos.x = Frame->LocalWorldMatrix.mf.m[ 0 ][ 3 ] ;
+		Pos.y = Frame->LocalWorldMatrix.mf.m[ 1 ][ 3 ] ;
+		Pos.z = Frame->LocalWorldMatrix.mf.m[ 2 ][ 3 ] ;
+	}
+
+	return Pos ;
+}
+
+// 指定のフレームの座標を取得する
+extern VECTOR_D NS_MV1GetFramePositionD( int MHandle, int FrameIndex )
+{
+	VECTOR_D Pos ;
+	VECTOR_D ErrorRet = { 0.0f, 0.0f, 0.0f } ;
+	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, ErrorRet ) ;
+
+	// 行列のセットアップ
+	MV1SETUPMATRIX( Model ) ;
+
+	// フレームの座標を返す
+	if( GSYS.DrawSetting.Large3DPositionSupport )
+	{
+		Pos.x = Frame->LocalWorldMatrix.md.m[ 0 ][ 3 ] ;
+		Pos.y = Frame->LocalWorldMatrix.md.m[ 1 ][ 3 ] ;
+		Pos.z = Frame->LocalWorldMatrix.md.m[ 2 ][ 3 ] ;
+	}
+	else
+	{
+		Pos.x = Frame->LocalWorldMatrix.mf.m[ 0 ][ 3 ] ;
+		Pos.y = Frame->LocalWorldMatrix.mf.m[ 1 ][ 3 ] ;
+		Pos.z = Frame->LocalWorldMatrix.mf.m[ 2 ][ 3 ] ;
+	}
+
 	return Pos ;
 }
 
@@ -28604,13 +25244,28 @@ extern MATRIX NS_MV1GetFrameBaseLocalMatrix( int MHandle, int FrameIndex )
 	MV1SETUPMATRIX( Model ) ;
 
 	// 行列を返す
-	ConvertMatrix4x4cToMatrix( &ResultMatrix, &Frame->BaseData->LocalTransformMatrix ) ;
+	ConvertMatrix4x4cFToMatrixF( &ResultMatrix, &Frame->BaseData->LocalTransformMatrix ) ;
+	return ResultMatrix ;
+}
+
+// 指定のフレームの初期状態での座標変換行列を取得する
+extern MATRIX_D NS_MV1GetFrameBaseLocalMatrixD( int MHandle, int FrameIndex )
+{
+	MATRIX_D ResultMatrix ;
+
+	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, MGetIdentD() ) ;
+
+	// 行列のセットアップ
+	MV1SETUPMATRIX( Model ) ;
+
+	// 行列を返す
+	ConvertMatrix4x4cFToMatrixD( &ResultMatrix, &Frame->BaseData->LocalTransformMatrix ) ;
 	return ResultMatrix ;
 }
 
 // 指定のフレームのローカル座標変換行列を取得する
 #ifdef __BCC
-static DummyFunc_MV1GetFrameLocalMatrix(){}
+static DummyFunc_MV1GetFrameLocalMatrixF(){}
 #endif
 extern MATRIX NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex )
 {
@@ -28619,7 +25274,7 @@ extern MATRIX NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex )
 
 // BorlandC++ の最適化バグ抑制用
 #ifdef __BCC
-	DummyFunc_MV1GetFrameLocalMatrix();
+	DummyFunc_MV1GetFrameLocalMatrixF();
 #endif
 
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, MGetIdent() ) ;
@@ -28631,19 +25286,19 @@ extern MATRIX NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex )
 	// ユーザー指定の行列がある場合はそれを返す
 	if( Frame->ValidUserLocalTransformMatrix )
 	{
-		ConvertMatrix4x4cToMatrix( &ResultMatrix, &Frame->UserLocalTransformMatrix ) ;
+		ConvertMatrix4x4cToMatrixF( &ResultMatrix, &Frame->UserLocalTransformMatrix ) ;
 	}
 	else
 	// アニメーションがある場合と無い場合で処理を分岐
 	if( Model->AnimSetNum == 0 )
 	{
 		// アニメーションがない場合はデフォルト行列を返す
-		ConvertMatrix4x4cToMatrix( &ResultMatrix, &FrameBase->LocalTransformMatrix ) ;
+		ConvertMatrix4x4cFToMatrixF( &ResultMatrix, &FrameBase->LocalTransformMatrix ) ;
 	}
 	else
 	{
 		// アニメーションがある場合
-		MATRIX_4X4CT BlendMat ;
+		MATRIX_4X4CT_F BlendMat ;
 		float BlendRate ;
 		VECTOR Translate, Scale, Rotate ;
 		FLOAT4 Quaternion ;
@@ -28679,7 +25334,7 @@ extern MATRIX NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex )
 			}
 			else
 			{
-				ConvertMatrix4x4cToMatrix( &ResultMatrix, &FrameBase->LocalTransformMatrix ) ;
+				ConvertMatrix4x4cFToMatrixF( &ResultMatrix, &FrameBase->LocalTransformMatrix ) ;
 			}
 		}
 		else
@@ -28688,7 +25343,7 @@ extern MATRIX NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex )
 		{
 			if( MAnim3->Anim->ValidFlag & MV1_ANIMVALUE_MATRIX )
 			{
-				ConvertMatrix4x4cToMatrix( &ResultMatrix, &MAnim3->Anim->Matrix ) ;
+				ConvertMatrix4x4cFToMatrixF( &ResultMatrix, &MAnim3->Anim->Matrix ) ;
 			}
 			else
 			{
@@ -28708,7 +25363,7 @@ extern MATRIX NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex )
 					) ;
 					MAnim3->Anim->ValidBlendMatrix = true ;
 				}
-				ConvertMatrix4x4cToMatrix( &ResultMatrix, &MAnim3->Anim->BlendMatrix ) ;
+				ConvertMatrix4x4cFToMatrixF( &ResultMatrix, &MAnim3->Anim->BlendMatrix ) ;
 			}
 		}
 		else
@@ -28723,6 +25378,10 @@ extern MATRIX NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex )
 //				( BlendFlag & ( MV1_ANIMVALUE_ROTATE | MV1_ANIMVALUE_QUATERNION_VMD ) ) == ( MV1_ANIMVALUE_ROTATE | MV1_ANIMVALUE_QUATERNION_VMD ) )
 			if( 1 )
 			{
+				int Normalize ;
+
+				Normalize = TRUE ;
+
 				_MEMSET( &BlendMat, 0, sizeof( BlendMat ) ) ;
 				MAnim2 = MAnim ;
 				for( i = 0 ; i < Model->AnimSetMaxNum ; i ++, MAnim2 ++ )
@@ -28768,6 +25427,8 @@ extern MATRIX NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex )
 							BlendMat.m[ 2 ][ 2 ] += ( Anim->Matrix.m[ 2 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ) * BlendRate ;
 							BlendMat.m[ 2 ][ 3 ] += ( Anim->Matrix.m[ 2 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ) * BlendRate ;
 						}
+
+						Normalize = FALSE ;
 					}
 					else
 					{
@@ -28785,6 +25446,19 @@ extern MATRIX NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex )
 								( FrameBase->Flag & MV1_FRAMEFLAG_POSTROTATE ) != 0 ? &FrameBase->PostRotate : NULL,
 								&Anim->Quaternion ) ;
 							Anim->ValidBlendMatrix = true ;
+
+							if( ( Anim->ValidFlag & MV1_ANIMVALUE_SCALE ) &&
+								( Anim->Scale.x < 0.9999999f || Anim->Scale.x > 1.0000001f ||
+								  Anim->Scale.y < 0.9999999f || Anim->Scale.y > 1.0000001f ||
+								  Anim->Scale.z < 0.9999999f || Anim->Scale.z > 1.0000001f ) )
+							{
+								Anim->BlendMatrixUseScaling = true ;
+							}
+						}
+
+						if( Anim->BlendMatrixUseScaling )
+						{
+							Normalize = FALSE ;
 						}
 
 						if( BlendRate == 1.0f )
@@ -28839,21 +25513,29 @@ extern MATRIX NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex )
 				BlendMat.m[ 2 ][ 2 ] += FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ;
 				BlendMat.m[ 2 ][ 3 ] += FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ;
 
-				DivSize.x = 1.0f / _SQRT( BlendMat.m[ 0 ][ 0 ] * BlendMat.m[ 0 ][ 0 ] + BlendMat.m[ 0 ][ 1 ] * BlendMat.m[ 0 ][ 1 ] + BlendMat.m[ 0 ][ 2 ] * BlendMat.m[ 0 ][ 2 ] ) ;
-				DivSize.y = 1.0f / _SQRT( BlendMat.m[ 1 ][ 0 ] * BlendMat.m[ 1 ][ 0 ] + BlendMat.m[ 1 ][ 1 ] * BlendMat.m[ 1 ][ 1 ] + BlendMat.m[ 1 ][ 2 ] * BlendMat.m[ 1 ][ 2 ] ) ;
-				DivSize.z = 1.0f / _SQRT( BlendMat.m[ 2 ][ 0 ] * BlendMat.m[ 2 ][ 0 ] + BlendMat.m[ 2 ][ 1 ] * BlendMat.m[ 2 ][ 1 ] + BlendMat.m[ 2 ][ 2 ] * BlendMat.m[ 2 ][ 2 ] ) ;
+				if( FrameBase->LocalTransformMatrixUseScaling )
+				{
+					Normalize = FALSE ;
+				}
 
-				BlendMat.m[ 0 ][ 0 ] *= DivSize.x ;
-				BlendMat.m[ 0 ][ 1 ] *= DivSize.x ;
-				BlendMat.m[ 0 ][ 2 ] *= DivSize.x ;
+				if( Normalize )
+				{
+					DivSize.x = 1.0f / _SQRT( BlendMat.m[ 0 ][ 0 ] * BlendMat.m[ 0 ][ 0 ] + BlendMat.m[ 0 ][ 1 ] * BlendMat.m[ 0 ][ 1 ] + BlendMat.m[ 0 ][ 2 ] * BlendMat.m[ 0 ][ 2 ] ) ;
+					DivSize.y = 1.0f / _SQRT( BlendMat.m[ 1 ][ 0 ] * BlendMat.m[ 1 ][ 0 ] + BlendMat.m[ 1 ][ 1 ] * BlendMat.m[ 1 ][ 1 ] + BlendMat.m[ 1 ][ 2 ] * BlendMat.m[ 1 ][ 2 ] ) ;
+					DivSize.z = 1.0f / _SQRT( BlendMat.m[ 2 ][ 0 ] * BlendMat.m[ 2 ][ 0 ] + BlendMat.m[ 2 ][ 1 ] * BlendMat.m[ 2 ][ 1 ] + BlendMat.m[ 2 ][ 2 ] * BlendMat.m[ 2 ][ 2 ] ) ;
 
-				BlendMat.m[ 1 ][ 0 ] *= DivSize.y ;
-				BlendMat.m[ 1 ][ 1 ] *= DivSize.y ;
-				BlendMat.m[ 1 ][ 2 ] *= DivSize.y ;
+					BlendMat.m[ 0 ][ 0 ] *= DivSize.x ;
+					BlendMat.m[ 0 ][ 1 ] *= DivSize.x ;
+					BlendMat.m[ 0 ][ 2 ] *= DivSize.x ;
 
-				BlendMat.m[ 2 ][ 0 ] *= DivSize.z ;
-				BlendMat.m[ 2 ][ 1 ] *= DivSize.z ;
-				BlendMat.m[ 2 ][ 2 ] *= DivSize.z ;
+					BlendMat.m[ 1 ][ 0 ] *= DivSize.y ;
+					BlendMat.m[ 1 ][ 1 ] *= DivSize.y ;
+					BlendMat.m[ 1 ][ 2 ] *= DivSize.y ;
+
+					BlendMat.m[ 2 ][ 0 ] *= DivSize.z ;
+					BlendMat.m[ 2 ][ 1 ] *= DivSize.z ;
+					BlendMat.m[ 2 ][ 2 ] *= DivSize.z ;
+				}
 			}
 			else
 			{
@@ -28976,7 +25658,410 @@ extern MATRIX NS_MV1GetFrameLocalMatrix( int MHandle, int FrameIndex )
 			}
 
 			// 戻り値用の行列に置き換える
-			ConvertMatrix4x4cToMatrix( &ResultMatrix, &BlendMat ) ;
+			ConvertMatrix4x4cFToMatrixF( &ResultMatrix, &BlendMat ) ;
+		}
+	}
+
+	// 戻り値として返す
+	return ResultMatrix ;
+}
+
+// 指定のフレームのローカル座標変換行列を取得する
+#ifdef __BCC
+static DummyFunc_MV1GetFrameLocalMatrixD(){}
+#endif
+extern MATRIX_D NS_MV1GetFrameLocalMatrixD( int MHandle, int FrameIndex )
+{
+	MATRIX_D ResultMatrix ;
+	MV1_FRAME_BASE *FrameBase ;
+
+// BorlandC++ の最適化バグ抑制用
+#ifdef __BCC
+	DummyFunc_MV1GetFrameLocalMatrixD();
+#endif
+
+	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, MGetIdentD() ) ;
+	FrameBase = Frame->BaseData ;
+
+	// 行列のセットアップを行う
+	MV1SETUPMATRIX( Model ) ;
+
+	// ユーザー指定の行列がある場合はそれを返す
+	if( Frame->ValidUserLocalTransformMatrix )
+	{
+		ConvertMatrix4x4cToMatrixD( &ResultMatrix, &Frame->UserLocalTransformMatrix ) ;
+	}
+	else
+	// アニメーションがある場合と無い場合で処理を分岐
+	if( Model->AnimSetNum == 0 )
+	{
+		// アニメーションがない場合はデフォルト行列を返す
+		ConvertMatrix4x4cFToMatrixD( &ResultMatrix, &FrameBase->LocalTransformMatrix ) ;
+	}
+	else
+	{
+		// アニメーションがある場合
+		MATRIX_4X4CT_F BlendMat ;
+		float BlendRate ;
+		VECTOR Translate, Scale, Rotate ;
+		FLOAT4 Quaternion ;
+		int BlendFlag, mcon, i ;
+		MV1_MODEL_ANIM *MAnim, *MAnim2, *MAnim3 = NULL ;
+
+		// パラメータレベルのブレンドが行えるかを調べる
+		MAnim = Model->Anim + Model->AnimSetMaxNum * Frame->BaseData->Index ;
+		MAnim2 = MAnim ;
+		BlendFlag = 0 ;
+		mcon = 0 ;
+		for( i = 0 ; i < Model->AnimSetMaxNum ; i ++, MAnim2 ++ )
+		{
+			if( MAnim2->Use == false || MAnim2->BlendRate == 0.0f )
+				continue ;
+			mcon ++ ;
+			MAnim3 = MAnim2 ;
+
+			BlendFlag |= MAnim2->Anim->ValidFlag ;
+		}
+
+		// アニメーションが再生されていない場合はデフォルトの行列を適応する
+		if( mcon == 0 )
+		{
+			if( FrameBase->LocalTransformMatrixType == 0 )
+			{
+				CreateIdentityMatrixD( &ResultMatrix ) ;
+			}
+			else
+			if( FrameBase->LocalTransformMatrixType == 1 )
+			{
+				CreateTranslationMatrixD( &ResultMatrix, FrameBase->LocalTransformMatrix.m[ 0 ][ 3 ], FrameBase->LocalTransformMatrix.m[ 1 ][ 3 ], FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ) ;
+			}
+			else
+			{
+				ConvertMatrix4x4cFToMatrixD( &ResultMatrix, &FrameBase->LocalTransformMatrix ) ;
+			}
+		}
+		else
+		// アニメーションが一つだけ再生されている場合は別処理
+		if( mcon == 1 )
+		{
+			if( MAnim3->Anim->ValidFlag & MV1_ANIMVALUE_MATRIX )
+			{
+				ConvertMatrix4x4cFToMatrixD( &ResultMatrix, &MAnim3->Anim->Matrix ) ;
+			}
+			else
+			{
+				// 行列のセットアップ
+				if( MAnim3->Anim->ValidBlendMatrix == false )
+				{
+					MV1SetupTransformMatrix(
+						&MAnim3->Anim->BlendMatrix,
+						MAnim3->Anim->ValidFlag,
+						&MAnim3->Anim->Translate,
+						&MAnim3->Anim->Scale,
+						MAnim3->Anim->RotateOrder,
+						( FrameBase->Flag & MV1_FRAMEFLAG_PREROTATE ) != 0 ? &FrameBase->PreRotate : NULL,
+						&MAnim3->Anim->Rotate,
+						( FrameBase->Flag & MV1_FRAMEFLAG_POSTROTATE ) != 0 ? &FrameBase->PostRotate : NULL,
+						&MAnim3->Anim->Quaternion
+					) ;
+					MAnim3->Anim->ValidBlendMatrix = true ;
+				}
+				ConvertMatrix4x4cFToMatrixD( &ResultMatrix, &MAnim3->Anim->BlendMatrix ) ;
+			}
+		}
+		else
+		{
+			MV1_ANIM * RST Anim ;
+			VECTOR DivSize ;
+
+			// 行列があるか、クォータニオンとＸＹＺ軸回転が混同しているか
+			// デフォルトパラメータが無効な上に当ててあるアニメーションの種類が違う場合は行列ブレンド
+//			if( ( BlendFlag & MV1_ANIMVALUE_MATRIX ) ||
+//				( BlendFlag & ( MV1_ANIMVALUE_ROTATE | MV1_ANIMVALUE_QUATERNION_X   ) ) == ( MV1_ANIMVALUE_ROTATE | MV1_ANIMVALUE_QUATERNION_X ) ||
+//				( BlendFlag & ( MV1_ANIMVALUE_ROTATE | MV1_ANIMVALUE_QUATERNION_VMD ) ) == ( MV1_ANIMVALUE_ROTATE | MV1_ANIMVALUE_QUATERNION_VMD ) )
+			if( 1 )
+			{
+				int Normalize ;
+
+				Normalize = TRUE ;
+
+				_MEMSET( &BlendMat, 0, sizeof( BlendMat ) ) ;
+				MAnim2 = MAnim ;
+				for( i = 0 ; i < Model->AnimSetMaxNum ; i ++, MAnim2 ++ )
+				{
+					if( MAnim2->Use == false || MAnim2->BlendRate == 0.0f ) continue ;
+
+					BlendRate = MAnim2->BlendRate ;
+					Anim = MAnim2->Anim ;
+
+					if( Anim->ValidFlag & MV1_ANIMVALUE_MATRIX )
+					{
+						if( BlendRate == 1.0f )
+						{
+							BlendMat.m[ 0 ][ 0 ] += Anim->Matrix.m[ 0 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 0 ] ;
+							BlendMat.m[ 0 ][ 1 ] += Anim->Matrix.m[ 0 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 1 ] ;
+							BlendMat.m[ 0 ][ 2 ] += Anim->Matrix.m[ 0 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 2 ] ;
+							BlendMat.m[ 0 ][ 3 ] += Anim->Matrix.m[ 0 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 3 ] ;
+
+							BlendMat.m[ 1 ][ 0 ] += Anim->Matrix.m[ 1 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 0 ] ;
+							BlendMat.m[ 1 ][ 1 ] += Anim->Matrix.m[ 1 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 1 ] ;
+							BlendMat.m[ 1 ][ 2 ] += Anim->Matrix.m[ 1 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 2 ] ;
+							BlendMat.m[ 1 ][ 3 ] += Anim->Matrix.m[ 1 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 3 ] ;
+
+							BlendMat.m[ 2 ][ 0 ] += Anim->Matrix.m[ 2 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 0 ] ;
+							BlendMat.m[ 2 ][ 1 ] += Anim->Matrix.m[ 2 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 1 ] ;
+							BlendMat.m[ 2 ][ 2 ] += Anim->Matrix.m[ 2 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ;
+							BlendMat.m[ 2 ][ 3 ] += Anim->Matrix.m[ 2 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ;
+						}
+						else
+						{
+							BlendMat.m[ 0 ][ 0 ] += ( Anim->Matrix.m[ 0 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 0 ] ) * BlendRate ;
+							BlendMat.m[ 0 ][ 1 ] += ( Anim->Matrix.m[ 0 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 1 ] ) * BlendRate ;
+							BlendMat.m[ 0 ][ 2 ] += ( Anim->Matrix.m[ 0 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 2 ] ) * BlendRate ;
+							BlendMat.m[ 0 ][ 3 ] += ( Anim->Matrix.m[ 0 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 3 ] ) * BlendRate ;
+
+							BlendMat.m[ 1 ][ 0 ] += ( Anim->Matrix.m[ 1 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 0 ] ) * BlendRate ;
+							BlendMat.m[ 1 ][ 1 ] += ( Anim->Matrix.m[ 1 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 1 ] ) * BlendRate ;
+							BlendMat.m[ 1 ][ 2 ] += ( Anim->Matrix.m[ 1 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 2 ] ) * BlendRate ;
+							BlendMat.m[ 1 ][ 3 ] += ( Anim->Matrix.m[ 1 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 3 ] ) * BlendRate ;
+
+							BlendMat.m[ 2 ][ 0 ] += ( Anim->Matrix.m[ 2 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 0 ] ) * BlendRate ;
+							BlendMat.m[ 2 ][ 1 ] += ( Anim->Matrix.m[ 2 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 1 ] ) * BlendRate ;
+							BlendMat.m[ 2 ][ 2 ] += ( Anim->Matrix.m[ 2 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ) * BlendRate ;
+							BlendMat.m[ 2 ][ 3 ] += ( Anim->Matrix.m[ 2 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ) * BlendRate ;
+						}
+
+						Normalize = FALSE ;
+					}
+					else
+					{
+						// 行列のセットアップ
+						if( Anim->ValidBlendMatrix == false )
+						{
+							MV1SetupTransformMatrix(
+								&Anim->BlendMatrix,
+								Anim->ValidFlag,
+								&Anim->Translate,
+								&Anim->Scale,
+								Anim->RotateOrder,
+								( FrameBase->Flag & MV1_FRAMEFLAG_PREROTATE ) != 0 ? &FrameBase->PreRotate : NULL,
+								&Anim->Rotate,
+								( FrameBase->Flag & MV1_FRAMEFLAG_POSTROTATE ) != 0 ? &FrameBase->PostRotate : NULL,
+								&Anim->Quaternion ) ;
+							Anim->ValidBlendMatrix = true ;
+
+							if( ( Anim->ValidFlag & MV1_ANIMVALUE_SCALE ) &&
+								( Anim->Scale.x < 0.9999999f || Anim->Scale.x > 1.0000001f ||
+								  Anim->Scale.y < 0.9999999f || Anim->Scale.y > 1.0000001f ||
+								  Anim->Scale.z < 0.9999999f || Anim->Scale.z > 1.0000001f ) )
+							{
+								Anim->BlendMatrixUseScaling = true ;
+							}
+						}
+
+						if( Anim->BlendMatrixUseScaling )
+						{
+							Normalize = FALSE ;
+						}
+
+						if( BlendRate == 1.0f )
+						{
+							BlendMat.m[ 0 ][ 0 ] += Anim->BlendMatrix.m[ 0 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 0 ] ;
+							BlendMat.m[ 0 ][ 1 ] += Anim->BlendMatrix.m[ 0 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 1 ] ;
+							BlendMat.m[ 0 ][ 2 ] += Anim->BlendMatrix.m[ 0 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 2 ] ;
+							BlendMat.m[ 0 ][ 3 ] += Anim->BlendMatrix.m[ 0 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 3 ] ;
+
+							BlendMat.m[ 1 ][ 0 ] += Anim->BlendMatrix.m[ 1 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 0 ] ;
+							BlendMat.m[ 1 ][ 1 ] += Anim->BlendMatrix.m[ 1 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 1 ] ;
+							BlendMat.m[ 1 ][ 2 ] += Anim->BlendMatrix.m[ 1 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 2 ] ;
+							BlendMat.m[ 1 ][ 3 ] += Anim->BlendMatrix.m[ 1 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 3 ] ;
+
+							BlendMat.m[ 2 ][ 0 ] += Anim->BlendMatrix.m[ 2 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 0 ] ;
+							BlendMat.m[ 2 ][ 1 ] += Anim->BlendMatrix.m[ 2 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 1 ] ;
+							BlendMat.m[ 2 ][ 2 ] += Anim->BlendMatrix.m[ 2 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ;
+							BlendMat.m[ 2 ][ 3 ] += Anim->BlendMatrix.m[ 2 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ;
+						}
+						else
+						{
+							BlendMat.m[ 0 ][ 0 ] += ( Anim->BlendMatrix.m[ 0 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 0 ] ) * BlendRate ;
+							BlendMat.m[ 0 ][ 1 ] += ( Anim->BlendMatrix.m[ 0 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 1 ] ) * BlendRate ;
+							BlendMat.m[ 0 ][ 2 ] += ( Anim->BlendMatrix.m[ 0 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 2 ] ) * BlendRate ;
+							BlendMat.m[ 0 ][ 3 ] += ( Anim->BlendMatrix.m[ 0 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 0 ][ 3 ] ) * BlendRate ;
+
+							BlendMat.m[ 1 ][ 0 ] += ( Anim->BlendMatrix.m[ 1 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 0 ] ) * BlendRate ;
+							BlendMat.m[ 1 ][ 1 ] += ( Anim->BlendMatrix.m[ 1 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 1 ] ) * BlendRate ;
+							BlendMat.m[ 1 ][ 2 ] += ( Anim->BlendMatrix.m[ 1 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 2 ] ) * BlendRate ;
+							BlendMat.m[ 1 ][ 3 ] += ( Anim->BlendMatrix.m[ 1 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 1 ][ 3 ] ) * BlendRate ;
+
+							BlendMat.m[ 2 ][ 0 ] += ( Anim->BlendMatrix.m[ 2 ][ 0 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 0 ] ) * BlendRate ;
+							BlendMat.m[ 2 ][ 1 ] += ( Anim->BlendMatrix.m[ 2 ][ 1 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 1 ] ) * BlendRate ;
+							BlendMat.m[ 2 ][ 2 ] += ( Anim->BlendMatrix.m[ 2 ][ 2 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ) * BlendRate ;
+							BlendMat.m[ 2 ][ 3 ] += ( Anim->BlendMatrix.m[ 2 ][ 3 ] - FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ) * BlendRate ;
+						}
+					}
+				}
+
+				BlendMat.m[ 0 ][ 0 ] += FrameBase->LocalTransformMatrix.m[ 0 ][ 0 ] ;
+				BlendMat.m[ 0 ][ 1 ] += FrameBase->LocalTransformMatrix.m[ 0 ][ 1 ] ;
+				BlendMat.m[ 0 ][ 2 ] += FrameBase->LocalTransformMatrix.m[ 0 ][ 2 ] ;
+				BlendMat.m[ 0 ][ 3 ] += FrameBase->LocalTransformMatrix.m[ 0 ][ 3 ] ;
+
+				BlendMat.m[ 1 ][ 0 ] += FrameBase->LocalTransformMatrix.m[ 1 ][ 0 ] ;
+				BlendMat.m[ 1 ][ 1 ] += FrameBase->LocalTransformMatrix.m[ 1 ][ 1 ] ;
+				BlendMat.m[ 1 ][ 2 ] += FrameBase->LocalTransformMatrix.m[ 1 ][ 2 ] ;
+				BlendMat.m[ 1 ][ 3 ] += FrameBase->LocalTransformMatrix.m[ 1 ][ 3 ] ;
+
+				BlendMat.m[ 2 ][ 0 ] += FrameBase->LocalTransformMatrix.m[ 2 ][ 0 ] ;
+				BlendMat.m[ 2 ][ 1 ] += FrameBase->LocalTransformMatrix.m[ 2 ][ 1 ] ;
+				BlendMat.m[ 2 ][ 2 ] += FrameBase->LocalTransformMatrix.m[ 2 ][ 2 ] ;
+				BlendMat.m[ 2 ][ 3 ] += FrameBase->LocalTransformMatrix.m[ 2 ][ 3 ] ;
+
+				if( FrameBase->LocalTransformMatrixUseScaling )
+				{
+					Normalize = FALSE ;
+				}
+
+				if( Normalize )
+				{
+					DivSize.x = 1.0f / _SQRT( BlendMat.m[ 0 ][ 0 ] * BlendMat.m[ 0 ][ 0 ] + BlendMat.m[ 0 ][ 1 ] * BlendMat.m[ 0 ][ 1 ] + BlendMat.m[ 0 ][ 2 ] * BlendMat.m[ 0 ][ 2 ] ) ;
+					DivSize.y = 1.0f / _SQRT( BlendMat.m[ 1 ][ 0 ] * BlendMat.m[ 1 ][ 0 ] + BlendMat.m[ 1 ][ 1 ] * BlendMat.m[ 1 ][ 1 ] + BlendMat.m[ 1 ][ 2 ] * BlendMat.m[ 1 ][ 2 ] ) ;
+					DivSize.z = 1.0f / _SQRT( BlendMat.m[ 2 ][ 0 ] * BlendMat.m[ 2 ][ 0 ] + BlendMat.m[ 2 ][ 1 ] * BlendMat.m[ 2 ][ 1 ] + BlendMat.m[ 2 ][ 2 ] * BlendMat.m[ 2 ][ 2 ] ) ;
+
+					BlendMat.m[ 0 ][ 0 ] *= DivSize.x ;
+					BlendMat.m[ 0 ][ 1 ] *= DivSize.x ;
+					BlendMat.m[ 0 ][ 2 ] *= DivSize.x ;
+
+					BlendMat.m[ 1 ][ 0 ] *= DivSize.y ;
+					BlendMat.m[ 1 ][ 1 ] *= DivSize.y ;
+					BlendMat.m[ 1 ][ 2 ] *= DivSize.y ;
+
+					BlendMat.m[ 2 ][ 0 ] *= DivSize.z ;
+					BlendMat.m[ 2 ][ 1 ] *= DivSize.z ;
+					BlendMat.m[ 2 ][ 2 ] *= DivSize.z ;
+				}
+			}
+			else
+			{
+				// それ以外の場合はパラメータレベルのブレンド処理
+				Translate.x = 0.0f ;
+				Translate.y = 0.0f ;
+				Translate.z = 0.0f ;
+				Scale.x = 0.0f ;
+				Scale.y = 0.0f ;
+				Scale.z = 0.0f ;
+				Rotate.x = 0.0f ;
+				Rotate.y = 0.0f ;
+				Rotate.z = 0.0f ;
+				Quaternion.x = 0.0f ;
+				Quaternion.y = 0.0f ;
+				Quaternion.z = 0.0f ;
+				Quaternion.w = 1.0f ;
+
+				MAnim2 = MAnim ;
+				for( i = 0 ; i < Model->AnimSetMaxNum ; i ++, MAnim2 ++ )
+				{
+					if( MAnim2->Use == false || MAnim2->BlendRate == 0.0f ) continue ;
+
+					BlendRate = MAnim2->BlendRate ;
+					Anim = MAnim2->Anim ;
+
+					if( BlendRate == 1.0f )
+					{
+						if( Anim->ValidFlag & MV1_ANIMVALUE_TRANSLATE )
+						{
+							Translate.x += Anim->Translate.x - FrameBase->Translate.x ;
+							Translate.y += Anim->Translate.y - FrameBase->Translate.y ;
+							Translate.z += Anim->Translate.z - FrameBase->Translate.z ;
+						}
+
+						if( Anim->ValidFlag & MV1_ANIMVALUE_SCALE )
+						{
+							Scale.x += Anim->Scale.x - FrameBase->Scale.x ;
+							Scale.y += Anim->Scale.y - FrameBase->Scale.y ;
+							Scale.z += Anim->Scale.z - FrameBase->Scale.z ;
+						}
+
+						if( Anim->ValidFlag & MV1_ANIMVALUE_ROTATE )
+						{
+							Rotate.x += Anim->Rotate.x - FrameBase->Rotate.x ;
+							Rotate.y += Anim->Rotate.y - FrameBase->Rotate.y ;
+							Rotate.z += Anim->Rotate.z - FrameBase->Rotate.z ;
+						}
+
+						if( Anim->ValidFlag & ( MV1_ANIMVALUE_QUATERNION_X | MV1_ANIMVALUE_QUATERNION_VMD ) )
+						{
+							Quaternion.x = Anim->Quaternion.x - FrameBase->Quaternion.x ;
+							Quaternion.y = Anim->Quaternion.y - FrameBase->Quaternion.y ;
+							Quaternion.z = Anim->Quaternion.z - FrameBase->Quaternion.z ;
+							Quaternion.w = Anim->Quaternion.w - FrameBase->Quaternion.w ;
+						}
+					}
+					else
+					{
+						if( Anim->ValidFlag & MV1_ANIMVALUE_TRANSLATE )
+						{
+							Translate.x += ( Anim->Translate.x - FrameBase->Translate.x ) * BlendRate ;
+							Translate.y += ( Anim->Translate.y - FrameBase->Translate.y ) * BlendRate ;
+							Translate.z += ( Anim->Translate.z - FrameBase->Translate.z ) * BlendRate ;
+						}
+
+						if( Anim->ValidFlag & MV1_ANIMVALUE_SCALE )
+						{
+							Scale.x += ( Anim->Scale.x - FrameBase->Scale.x ) * BlendRate ;
+							Scale.y += ( Anim->Scale.y - FrameBase->Scale.y ) * BlendRate ;
+							Scale.z += ( Anim->Scale.z - FrameBase->Scale.z ) * BlendRate ;
+						}
+
+						if( Anim->ValidFlag & MV1_ANIMVALUE_ROTATE )
+						{
+							Rotate.x += ( Anim->Rotate.x - FrameBase->Rotate.x ) * BlendRate ;
+							Rotate.y += ( Anim->Rotate.y - FrameBase->Rotate.y ) * BlendRate ;
+							Rotate.z += ( Anim->Rotate.z - FrameBase->Rotate.z ) * BlendRate ;
+						}
+
+						if( Anim->ValidFlag & ( MV1_ANIMVALUE_QUATERNION_X | MV1_ANIMVALUE_QUATERNION_VMD ) )
+						{
+							Quaternion.x = ( Anim->Quaternion.x - FrameBase->Quaternion.x ) * BlendRate ;
+							Quaternion.y = ( Anim->Quaternion.y - FrameBase->Quaternion.y ) * BlendRate ;
+							Quaternion.z = ( Anim->Quaternion.z - FrameBase->Quaternion.z ) * BlendRate ;
+							Quaternion.w = ( Anim->Quaternion.w - FrameBase->Quaternion.w ) * BlendRate ;
+						}
+					}
+				}
+
+				Translate.x += FrameBase->Translate.x ;
+				Translate.y += FrameBase->Translate.y ;
+				Translate.z += FrameBase->Translate.z ;
+
+				Scale.x += FrameBase->Scale.x ;
+				Scale.y += FrameBase->Scale.y ;
+				Scale.z += FrameBase->Scale.z ;
+
+				Rotate.x += FrameBase->Rotate.x ;
+				Rotate.y += FrameBase->Rotate.y ;
+				Rotate.z += FrameBase->Rotate.z ;
+
+				Quaternion.x += FrameBase->Quaternion.x ;
+				Quaternion.y += FrameBase->Quaternion.y ;
+				Quaternion.z += FrameBase->Quaternion.z ;
+				Quaternion.w += FrameBase->Quaternion.w ;
+
+				// 行列のセットアップ
+				MV1SetupTransformMatrix(
+					&BlendMat,
+					BlendFlag,
+					&Translate,
+					&Scale,
+					FrameBase->RotateOrder,
+					( FrameBase->Flag & MV1_FRAMEFLAG_PREROTATE ) != 0 ? &FrameBase->PreRotate : NULL,
+					&Rotate,
+					( FrameBase->Flag & MV1_FRAMEFLAG_POSTROTATE ) != 0 ? &FrameBase->PostRotate : NULL,
+					&Quaternion
+				) ;
+			}
+
+			// 戻り値用の行列に置き換える
+			ConvertMatrix4x4cFToMatrixD( &ResultMatrix, &BlendMat ) ;
 		}
 	}
 
@@ -28995,7 +26080,22 @@ extern MATRIX NS_MV1GetFrameLocalWorldMatrix( int MHandle, int FrameIndex )
 	MV1SETUPMATRIX( Model ) ;
 
 	// 行列を返す
-	ConvertMatrix4x4cToMatrix( &ResultMatrix, &Frame->LocalWorldMatrix ) ;
+	ConvertMatrix4x4cToMatrixF( &ResultMatrix, &Frame->LocalWorldMatrix ) ;
+	return ResultMatrix ;
+}
+
+// 指定のフレームのローカル座標からワールド座標に変換する行列を得る
+extern MATRIX_D NS_MV1GetFrameLocalWorldMatrixD( int MHandle, int FrameIndex )
+{
+	MATRIX_D ResultMatrix ;
+
+	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, MGetIdentD() ) ;
+
+	// 行列のセットアップ
+	MV1SETUPMATRIX( Model ) ;
+
+	// 行列を返す
+	ConvertMatrix4x4cToMatrixD( &ResultMatrix, &Frame->LocalWorldMatrix ) ;
 	return ResultMatrix ;
 }
 
@@ -29005,7 +26105,26 @@ extern int NS_MV1SetFrameUserLocalMatrix( int MHandle, int FrameIndex, MATRIX Ma
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, -1 ) ;
 
 	// 行列をセット
-	ConvertMatrixToMatrix4x4c( &Frame->UserLocalTransformMatrix, &Matrix ) ;
+	ConvertMatrixFToMatrix4x4c( &Frame->UserLocalTransformMatrix, &Matrix ) ;
+
+	// 独自行列を使用するフラグを立てる
+	Frame->ValidUserLocalTransformMatrix = true ;
+
+	// 行列がセットアップされていない状態にする
+	Model->LocalWorldMatrixSetupFlag = false ;
+	MV1BitSetChange( &Frame->LocalWorldMatrixChange ) ;
+
+	// 終了
+	return 0 ;
+}
+
+// 指定のフレームのローカル座標変換行列を設定する
+extern int NS_MV1SetFrameUserLocalMatrixD( int MHandle, int FrameIndex, MATRIX_D Matrix )
+{
+	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, -1 ) ;
+
+	// 行列をセット
+	ConvertMatrixDToMatrix4x4c( &Frame->UserLocalTransformMatrix, &Matrix ) ;
 
 	// 独自行列を使用するフラグを立てる
 	Frame->ValidUserLocalTransformMatrix = true ;
@@ -29047,6 +26166,16 @@ extern VECTOR NS_MV1GetFrameMaxVertexLocalPosition( int MHandle, int FrameIndex 
 	return Frame->BaseData->MaxPosition ;
 }
 
+// 指定のフレームが持つメッシュ頂点のローカル座標での最大値を得る
+extern VECTOR_D NS_MV1GetFrameMaxVertexLocalPositionD( int MHandle, int FrameIndex )
+{
+	VECTOR_D ErrorRet = { 0.0, 0.0, 0.0 } ;
+	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, ErrorRet ) ;
+
+	// 最大座標値を返す
+	return VConvFtoD( Frame->BaseData->MaxPosition ) ;
+}
+
 // 指定のフレームが持つメッシュ頂点のローカル座標での最小値を得る
 extern VECTOR NS_MV1GetFrameMinVertexLocalPosition( int MHandle, int FrameIndex )
 {
@@ -29057,6 +26186,16 @@ extern VECTOR NS_MV1GetFrameMinVertexLocalPosition( int MHandle, int FrameIndex 
 	return Frame->BaseData->MinPosition ;
 }
 
+// 指定のフレームが持つメッシュ頂点のローカル座標での最小値を得る
+extern VECTOR_D NS_MV1GetFrameMinVertexLocalPositionD( int MHandle, int FrameIndex )
+{
+	VECTOR_D ErrorRet = { 0.0, 0.0, 0.0 } ;
+	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, ErrorRet ) ;
+
+	// 最小座標値を返す
+	return VConvFtoD( Frame->BaseData->MinPosition ) ;
+}
+
 // 指定のフレームが持つメッシュ頂点のローカル座標での平均値を得る
 extern VECTOR NS_MV1GetFrameAvgVertexLocalPosition( int MHandle, int FrameIndex )
 {
@@ -29065,6 +26204,16 @@ extern VECTOR NS_MV1GetFrameAvgVertexLocalPosition( int MHandle, int FrameIndex 
 
 	// 平均座標値を返す
 	return VScale( VAdd( Frame->BaseData->MaxPosition, Frame->BaseData->MinPosition ), 0.5f ) ;
+}
+
+// 指定のフレームが持つメッシュ頂点のローカル座標での平均値を得る
+extern VECTOR_D NS_MV1GetFrameAvgVertexLocalPositionD( int MHandle, int FrameIndex )
+{
+	VECTOR_D ErrorRet = { 0.0, 0.0, 0.0 } ;
+	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, ErrorRet ) ;
+
+	// 平均座標値を返す
+	return VConvFtoD( VScale( VAdd( Frame->BaseData->MaxPosition, Frame->BaseData->MinPosition ), 0.5f ) ) ;
 }
 
 // 指定のフレームに含まれるポリゴンの数を取得する
@@ -29106,7 +26255,11 @@ extern int NS_MV1SetFrameVisible( int MHandle, int FrameIndex, int VisibleFlag )
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, -1 ) ;
 
 	// 値をセット
-	MV1SetDrawMaterialVisible( &Frame->DrawMaterial, &Frame->DrawMaterialChange, ( BYTE )VisibleFlag ) ;
+	if( MV1SetDrawMaterialVisible( &Frame->DrawMaterial, &Frame->DrawMaterialChange, ( BYTE )VisibleFlag ) )
+	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+	}
 
 	// 終了
 	return 0 ;
@@ -29130,6 +26283,9 @@ extern	int			NS_MV1SetFrameDifColorScale( int MHandle, int FrameIndex, COLOR_F S
 	// 値をセット
 	if( MV1SetDrawMaterialDif( &Frame->DrawMaterial, &Frame->DrawMaterialChange, Scale ) )
 	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		// 半透明要素有無情報のセットアップ完了フラグを倒す
 		MV1FRAME_RESET_SEMITRANSSETUP( Frame ) ;
 	}
@@ -29144,7 +26300,11 @@ extern	int			NS_MV1SetFrameSpcColorScale( int MHandle, int FrameIndex, COLOR_F S
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, -1 ) ;
 
 	// 値をセット
-	MV1SetDrawMaterialSpc( &Frame->DrawMaterial, &Frame->DrawMaterialChange, Scale ) ;
+	if( MV1SetDrawMaterialSpc( &Frame->DrawMaterial, &Frame->DrawMaterialChange, Scale ) )
+	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+	}
 
 	// 終了
 	return 0 ;
@@ -29156,7 +26316,11 @@ extern	int			NS_MV1SetFrameEmiColorScale( int MHandle, int FrameIndex, COLOR_F S
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, -1 ) ;
 
 	// 値をセット
-	MV1SetDrawMaterialEmi( &Frame->DrawMaterial, &Frame->DrawMaterialChange, Scale ) ;
+	if( MV1SetDrawMaterialEmi( &Frame->DrawMaterial, &Frame->DrawMaterialChange, Scale ) )
+	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+	}
 
 	// 終了
 	return 0 ;
@@ -29168,7 +26332,11 @@ extern	int			NS_MV1SetFrameAmbColorScale( int MHandle, int FrameIndex, COLOR_F S
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, -1 ) ;
 
 	// 値をセット
-	MV1SetDrawMaterialAmb( &Frame->DrawMaterial, &Frame->DrawMaterialChange, Scale ) ;
+	if( MV1SetDrawMaterialAmb( &Frame->DrawMaterial, &Frame->DrawMaterialChange, Scale ) )
+	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+	}
 
 	// 終了
 	return 0 ;
@@ -29235,7 +26403,9 @@ extern int NS_MV1GetFrameSemiTransState( int MHandle, int FrameIndex )
 		for( i = 0 ; i < Frame->BaseData->MeshNum ; i ++, MeshIndex ++ )
 		{
 			if( NS_MV1GetMeshSemiTransState( MHandle, MeshIndex ) )
+			{
 				Frame->SemiTransState = true ;
+			}
 		}
 
 		// 次に子フレーム
@@ -29262,6 +26432,9 @@ extern	int			NS_MV1SetFrameOpacityRate( int MHandle, int FrameIndex, float Rate 
 	// 値をセット
 	if( MV1SetDrawMaterialOpacityRate( &Frame->DrawMaterial, &Frame->DrawMaterialChange, Rate ) )
 	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		// 半透明要素有無情報のセットアップ完了フラグを倒す
 		MV1FRAME_RESET_SEMITRANSSETUP( Frame ) ;
 	}
@@ -29287,10 +26460,26 @@ extern int NS_MV1SetFrameBaseVisible( int MHandle, int FrameIndex, int VisibleFl
 	// 初期表示状態を設定する
 	if( VisibleFlag )
 	{
+		if( Frame->BaseData->Flag & MV1_FRAMEFLAG_VISIBLE )
+		{
+			return 0 ;
+		}
+
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		Frame->BaseData->Flag |= MV1_FRAMEFLAG_VISIBLE ;
 	}
 	else
 	{
+		if( ( Frame->BaseData->Flag & MV1_FRAMEFLAG_VISIBLE ) == 0 )
+		{
+			return 0 ;
+		}
+
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		Frame->BaseData->Flag &= ~MV1_FRAMEFLAG_VISIBLE ;
 	}
 
@@ -29354,6 +26543,12 @@ extern int NS_MV1SetFrameTextureAddressTransform( int MHandle, int FrameIndex, f
 		UseFlag = TRUE ;
 	}
 
+	if( UseFlag || Frame->TextureAddressTransformUse )
+	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+	}
+
 	Frame->TextureAddressTransformUse = UseFlag ;
 	Frame->TextureAddressTransformMatrix = Transform ;
 
@@ -29366,6 +26561,9 @@ extern int NS_MV1SetFrameTextureAddressTransformMatrix( int MHandle, int FrameIn
 {
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, -1 ) ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	Frame->TextureAddressTransformUse = TRUE ;
 	Frame->TextureAddressTransformMatrix = Matrix ;
 
@@ -29377,6 +26575,12 @@ extern int NS_MV1SetFrameTextureAddressTransformMatrix( int MHandle, int FrameIn
 extern int NS_MV1ResetFrameTextureAddressTransform( int MHandle, int FrameIndex )
 {
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, -1 ) ;
+
+	if( Frame->TextureAddressTransformUse )
+	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+	}
 
 	Frame->TextureAddressTransformUse = FALSE ;
 	CreateIdentityMatrix( &Frame->TextureAddressTransformMatrix ) ;
@@ -29437,7 +26641,11 @@ extern int NS_MV1SetMeshVisible( int MHandle, int MeshIndex, int VisibleFlag )
 	MV1MESHSTART( MHandle, Model, ModelBase, Mesh, MeshIndex, -1 ) ;
 
 	// 値をセット
-	MV1SetDrawMaterialVisible( &Mesh->DrawMaterial, &Mesh->DrawMaterialChange, ( BYTE )VisibleFlag ) ;
+	if( MV1SetDrawMaterialVisible( &Mesh->DrawMaterial, &Mesh->DrawMaterialChange, ( BYTE )VisibleFlag ) )
+	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+	}
 
 	// 終了
 	return 0 ;
@@ -29460,6 +26668,9 @@ extern	int			NS_MV1SetMeshDifColorScale( int MHandle, int MeshIndex, COLOR_F Sca
 	// 値をセット
 	if( MV1SetDrawMaterialDif( &Mesh->DrawMaterial, &Mesh->DrawMaterialChange, Scale ) )
 	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		// 半透明ステータスセットアップ完了フラグが足っていたら倒す
 		MV1MESH_RESET_SEMITRANSSETUP( Mesh )
 	}
@@ -29474,7 +26685,11 @@ extern	int			NS_MV1SetMeshSpcColorScale( int MHandle, int MeshIndex, COLOR_F Sca
 	MV1MESHSTART( MHandle, Model, ModelBase, Mesh, MeshIndex, -1 ) ;
 
 	// 値をセット
-	MV1SetDrawMaterialSpc( &Mesh->DrawMaterial, &Mesh->DrawMaterialChange, Scale ) ;
+	if( MV1SetDrawMaterialSpc( &Mesh->DrawMaterial, &Mesh->DrawMaterialChange, Scale ) )
+	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+	}
 
 	// 終了
 	return 0 ;
@@ -29486,7 +26701,11 @@ extern	int			NS_MV1SetMeshEmiColorScale( int MHandle, int MeshIndex, COLOR_F Sca
 	MV1MESHSTART( MHandle, Model, ModelBase, Mesh, MeshIndex, -1 ) ;
 
 	// 値をセット
-	MV1SetDrawMaterialEmi( &Mesh->DrawMaterial, &Mesh->DrawMaterialChange, Scale ) ;
+	if( MV1SetDrawMaterialEmi( &Mesh->DrawMaterial, &Mesh->DrawMaterialChange, Scale ) )
+	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+	}
 
 	// 終了
 	return 0 ;
@@ -29498,7 +26717,11 @@ extern	int			NS_MV1SetMeshAmbColorScale( int MHandle, int MeshIndex, COLOR_F Sca
 	MV1MESHSTART( MHandle, Model, ModelBase, Mesh, MeshIndex, -1 ) ;
 
 	// 値をセット
-	MV1SetDrawMaterialAmb( &Mesh->DrawMaterial, &Mesh->DrawMaterialChange, Scale ) ;
+	if( MV1SetDrawMaterialAmb( &Mesh->DrawMaterial, &Mesh->DrawMaterialChange, Scale ) )
+	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+	}
 
 	// 終了
 	return 0 ;
@@ -29552,6 +26775,9 @@ extern	int			NS_MV1SetMeshOpacityRate( int MHandle, int MeshIndex, float Rate )
 	// 値をセット
 	if( MV1SetDrawMaterialOpacityRate( &Mesh->DrawMaterial, &Mesh->DrawMaterialChange, Rate ) )
 	{
+		// 描画待機している描画物を描画
+		DRAWSTOCKINFO
+
 		// 半透明ステータスセットアップ完了フラグが足っていたら倒す
 		MV1MESH_RESET_SEMITRANSSETUP( Mesh )
 	}
@@ -29579,6 +26805,9 @@ extern	int			NS_MV1SetMeshDrawBlendMode( int MHandle, int MeshIndex, int BlendMo
 	if( Mesh->DrawBlendMode == BlendMode )
 		return 0 ;
 
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// ブレンドモードを設定する
 	Mesh->DrawBlendMode = BlendMode ;
 
@@ -29601,6 +26830,9 @@ extern int NS_MV1SetMeshDrawBlendParam( int MHandle, int MeshIndex, int BlendPar
 	// 今までとパラメータが同じ場合は何もせずに終了
 	if( Mesh->DrawBlendParam == BlendParam )
 		return 0 ;
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// ブレンドパラメータを設定する
 	Mesh->DrawBlendParam = BlendParam ;
@@ -29639,8 +26871,18 @@ extern int NS_MV1SetMeshBaseVisible( int MHandle, int MeshIndex, int VisibleFlag
 {
 	MV1MESHSTART( MHandle, Model, ModelBase, Mesh, MeshIndex, -1 ) ;
 
+	VisibleFlag = VisibleFlag != 0 ? 1 : 0 ;
+
+	if( VisibleFlag == Mesh->BaseData->Visible )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
+
 	// パラメータを設定する
-	Mesh->BaseData->Visible = VisibleFlag != 0 ? 1 : 0 ;
+	Mesh->BaseData->Visible = ( BYTE )VisibleFlag ;
 
 	// 終了
 	return 0 ;
@@ -29659,6 +26901,14 @@ extern int NS_MV1GetMeshBaseVisible( int MHandle, int MeshIndex )
 extern int NS_MV1SetMeshBackCulling( int MHandle, int MeshIndex, int CullingFlag )
 {
 	MV1MESHSTART( MHandle, Model, ModelBase, Mesh, MeshIndex, -1 ) ;
+
+	if( Mesh->BaseData->BackCulling == CullingFlag )
+	{
+		return 0 ;
+	}
+
+	// 描画待機している描画物を描画
+	DRAWSTOCKINFO
 
 	// パラメータを設定する
 	Mesh->BaseData->BackCulling = ( BYTE )CullingFlag ;
@@ -29885,13 +27135,45 @@ extern int NS_MV1GetShapeNum( int MHandle )
 // シェイプの名前からモデル中のシェイプのシェイプインデックスを取得する( 無かった場合は戻り値が-1 )
 extern int NS_MV1SearchShape( int MHandle, const TCHAR *ShapeName )
 {
+#ifdef UNICODE
+	return MV1SearchShape_WCHAR_T(
+		MHandle, ShapeName
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( ShapeName, return -1 )
+
+	Result = MV1SearchShape_WCHAR_T(
+		MHandle, UseShapeNameBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( ShapeName )
+
+	return Result ;
+#endif
+}
+
+// シェイプの名前からモデル中のシェイプのシェイプインデックスを取得する( 無かった場合は戻り値が-1 )
+extern int MV1SearchShape_WCHAR_T( int MHandle, const wchar_t *ShapeName )
+{
 	return MV1SearchShapeBase( MV1GetModelBaseHandle( MHandle ), ShapeName ) ;
 }
 
 // 指定シェイプの名前を取得する
 extern const TCHAR *NS_MV1GetShapeName( int MHandle, int ShapeIndex )
 {
-	return MV1GetShapeNameBase( MV1GetModelBaseHandle( MHandle ), ShapeIndex ) ;
+#ifdef UNICODE
+	return MV1GetShapeNameBaseW( MV1GetModelBaseHandle( MHandle ), ShapeIndex ) ;
+#else
+	return MV1GetShapeNameBaseA( MV1GetModelBaseHandle( MHandle ), ShapeIndex ) ;
+#endif
+}
+
+// 指定シェイプの名前を取得する
+extern const wchar_t *MV1GetShapeName_WCHAR_T( int MHandle, int ShapeIndex )
+{
+	return MV1GetShapeNameBaseW( MV1GetModelBaseHandle( MHandle ), ShapeIndex ) ;
 }
 
 // 指定シェイプが対象としているメッシュの数を取得する
@@ -30034,7 +27316,7 @@ extern int MV1GetTriangleListUseBoneFrame( int MHandle, int TListIndex, int Inde
 
 	// 指定のボーンとして使用しているフレームを返す
 	con = 0 ;
-	for( i = 0 ; i < DX_VS_CONSTF_WORLD_MAT_NUM ; i ++ )
+	for( i = 0 ; i < MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM ; i ++ )
 	{
 		if( TList->UseBone[ i ] == -1 ) continue ;
 
@@ -30080,7 +27362,7 @@ extern int NS_MV1SetupCollInfo( int MHandle, int FrameIndex, int XDivNum, int YD
 			Model->Collision = ( MV1_COLLISION * )DXALLOC( sizeof( MV1_COLLISION ) + sizeof( MV1_COLL_POLYGON * ) * XDivNum * YDivNum * ZDivNum + sizeof( MV1_COLL_POLY_BUFFER ) + sizeof( MV1_COLL_POLYGON ) * ( Model->RefPolygon[ 1 ][ 1 ]->PolygonNum * 2 ) ) ;
 			if( Model->Collision == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "コリジョン情報を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\xb3\x30\xea\x30\xb8\x30\xe7\x30\xf3\x30\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"コリジョン情報を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 			Model->Collision->Polygon = ( MV1_COLL_POLYGON ** )( Model->Collision + 1 ) ;
@@ -30113,7 +27395,7 @@ extern int NS_MV1SetupCollInfo( int MHandle, int FrameIndex, int XDivNum, int YD
 			Frame->Collision = ( MV1_COLLISION * )DXALLOC( sizeof( MV1_COLLISION ) + sizeof( MV1_COLL_POLYGON * ) * XDivNum * YDivNum * ZDivNum + sizeof( MV1_COLL_POLY_BUFFER ) + sizeof( MV1_COLL_POLYGON ) * ( Frame->RefPolygon[ 1 ][ 1 ]->PolygonNum * 2 ) ) ;
 			if( Frame->Collision == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "コリジョン情報を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\xb3\x30\xea\x30\xb8\x30\xe7\x30\xf3\x30\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"コリジョン情報を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 			Frame->Collision->Polygon = ( MV1_COLL_POLYGON ** )( Frame->Collision + 1 ) ;
@@ -30323,7 +27605,7 @@ extern int NS_MV1RefreshCollInfo( int MHandle, int FrameIndex )
 							ColBuffer->Next = ( MV1_COLL_POLY_BUFFER * )DXALLOC( sizeof( MV1_COLL_POLY_BUFFER ) + sizeof( MV1_COLL_POLYGON ) * PolyList->PolygonNum ) ;
 							if( ColBuffer->Next == NULL )
 							{
-								DXST_ERRORLOGFMT_ADD( ( _T( "コリジョン追加情報を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\xb3\x30\xea\x30\xb8\x30\xe7\x30\xf3\x30\xfd\x8f\xa0\x52\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"コリジョン追加情報を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 								return -1 ;
 							}
 							ColBuffer->Next->BufferSize = PolyList->PolygonNum ;
@@ -30352,7 +27634,7 @@ extern int NS_MV1RefreshCollInfo( int MHandle, int FrameIndex )
 }
 
 // 線とモデルの当たり判定
-extern MV1_COLL_RESULT_POLY NS_MV1CollCheck_Line( int MHandle, int FrameIndex, XYZ PosStart, XYZ PosEnd )
+extern MV1_COLL_RESULT_POLY NS_MV1CollCheck_Line( int MHandle, int FrameIndex, VECTOR PosStart, VECTOR PosEnd )
 {
 	MV1_MODEL *Model ;
 	MV1_MODEL_BASE *ModelBase ;
@@ -30457,7 +27739,7 @@ extern MV1_COLL_RESULT_POLY NS_MV1CollCheck_Line( int MHandle, int FrameIndex, X
 	BitBuffer = ( BYTE * )DXALLOC( sizeof( BYTE ) * ( ( PolyList->PolygonNum + 7 ) / 8 ) ) ;
 	if( BitBuffer == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "当たり判定処理用テンポラリバッファの確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x53\x5f\x5f\x30\x8a\x30\x24\x52\x9a\x5b\xe6\x51\x06\x74\x28\x75\xc6\x30\xf3\x30\xdd\x30\xe9\x30\xea\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"当たり判定処理用テンポラリバッファの確保に失敗しました\n" @*/ )) ;
 		return Result ;
 	}
 	_MEMSET( BitBuffer, 0, sizeof( BYTE ) * ( ( PolyList->PolygonNum + 7 ) / 8 ) ) ;
@@ -30679,7 +27961,7 @@ extern	MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_LineDim( int MHandle, int FrameI
 	BitBuffer = ( BYTE * )DXALLOC( sizeof( BYTE ) * ( ( PolyList->PolygonNum + 7 ) / 8 ) ) ;
 	if( BitBuffer == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "当たり判定処理用テンポラリバッファの確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x53\x5f\x5f\x30\x8a\x30\x24\x52\x9a\x5b\xe6\x51\x06\x74\x28\x75\xc6\x30\xf3\x30\xdd\x30\xe9\x30\xea\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"当たり判定処理用テンポラリバッファの確保に失敗しました\n" @*/ )) ;
 		return Result ;
 	}
 	_MEMSET( BitBuffer, 0, sizeof( BYTE ) * ( ( PolyList->PolygonNum + 7 ) / 8 ) ) ;
@@ -30747,7 +28029,7 @@ extern	MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_LineDim( int MHandle, int FrameI
 								NewBuffer = ( MV1_COLL_RESULT_POLY * )DXREALLOC( Result.Dim, sizeof( MV1_COLL_RESULT_POLY ) * NewMaxNum ) ;
 								if( NewBuffer == NULL )
 								{
-									DXST_ERRORLOGFMT_ADD( ( _T( "メモリ不足の為当たったポリゴンすべてを保存することができませんでした\n" ) ) ) ;
+									DXST_ERRORLOGFMT_ADDUTF16LE(( "\xe1\x30\xe2\x30\xea\x30\x0d\x4e\xb3\x8d\x6e\x30\xba\x70\x53\x5f\x5f\x30\x63\x30\x5f\x30\xdd\x30\xea\x30\xb4\x30\xf3\x30\x59\x30\x79\x30\x66\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\x53\x30\x68\x30\x4c\x30\x67\x30\x4d\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"メモリ不足の為当たったポリゴンすべてを保存することができませんでした\n" @*/ )) ;
 									goto END ;
 								}
 
@@ -30777,6 +28059,16 @@ extern	MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_LineDim( int MHandle, int FrameI
 					BitBuffer[ PolyIndex >> 3 ] |= 1 << ( PolyIndex & 7 ) ;
 				}
 			}
+		}
+	}
+
+	// 一つも当たっていなかったら当たっているポリゴンリスト用に確保したメモリを解放
+	if( Result.HitNum == 0 )
+	{
+		if( Result.Dim != NULL )
+		{
+			DXFREE( Result.Dim ) ;
+			Result.Dim = NULL ;
 		}
 	}
 
@@ -30878,7 +28170,7 @@ extern	MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_Sphere( int MHandle, int FrameIn
 	BitBuffer = ( BYTE * )DXALLOC( sizeof( BYTE ) * ( ( PolyList->PolygonNum + 7 ) / 8 ) ) ;
 	if( BitBuffer == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "当たり判定処理用テンポラリバッファの確保に失敗しました2\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x53\x5f\x5f\x30\x8a\x30\x24\x52\x9a\x5b\xe6\x51\x06\x74\x28\x75\xc6\x30\xf3\x30\xdd\x30\xe9\x30\xea\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x32\x00\x0a\x00\x00"/*@ L"当たり判定処理用テンポラリバッファの確保に失敗しました2\n" @*/ )) ;
 		DXFREE( Result.Dim ) ;
 		return Result ;
 	}
@@ -30949,7 +28241,7 @@ extern	MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_Sphere( int MHandle, int FrameIn
 								NewBuffer = ( MV1_COLL_RESULT_POLY * )DXREALLOC( Result.Dim, sizeof( MV1_COLL_RESULT_POLY ) * NewMaxNum ) ;
 								if( NewBuffer == NULL )
 								{
-									DXST_ERRORLOGFMT_ADD( ( _T( "メモリ不足の為当たったポリゴンすべてを保存することができませんでした\n" ) ) ) ;
+									DXST_ERRORLOGFMT_ADDUTF16LE(( "\xe1\x30\xe2\x30\xea\x30\x0d\x4e\xb3\x8d\x6e\x30\xba\x70\x53\x5f\x5f\x30\x63\x30\x5f\x30\xdd\x30\xea\x30\xb4\x30\xf3\x30\x59\x30\x79\x30\x66\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\x53\x30\x68\x30\x4c\x30\x67\x30\x4d\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"メモリ不足の為当たったポリゴンすべてを保存することができませんでした\n" @*/ )) ;
 									goto END ;
 								}
 
@@ -30982,6 +28274,16 @@ extern	MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_Sphere( int MHandle, int FrameIn
 		}
 	}
 
+	// 一つも当たっていなかったら当たっているポリゴンリスト用に確保したメモリを解放
+	if( Result.HitNum == 0 )
+	{
+		if( Result.Dim != NULL )
+		{
+			DXFREE( Result.Dim ) ;
+			Result.Dim = NULL ;
+		}
+	}
+
 END :
 
 	// メモリの解放
@@ -31008,7 +28310,7 @@ extern MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_Capsule( int MHandle, int FrameI
 	MV1_COLLISION *Collision ;
 	MV1_COLL_POLYGON *ColPoly ;
 	BYTE *BitBuffer = NULL ;
-	VECTOR UnitDiv, MinPos, MaxPos/*, Sa/*, ResultPos */ ;
+	VECTOR UnitDiv, MinPos, MaxPos/*, Sa, ResultPos */ ;
 	int xc, yc, zc, ZStep, YStep, PolyIndex ;
 	int MinX, MinY, MinZ, MaxX, MaxY, MaxZ, PostIndexZ, PostIndexY, PostIndexX ;
 
@@ -31104,7 +28406,7 @@ extern MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_Capsule( int MHandle, int FrameI
 	BitBuffer = ( BYTE * )DXALLOC( sizeof( BYTE ) * ( ( PolyList->PolygonNum + 7 ) / 8 ) ) ;
 	if( BitBuffer == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "当たり判定処理用テンポラリバッファの確保に失敗しました2\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x53\x5f\x5f\x30\x8a\x30\x24\x52\x9a\x5b\xe6\x51\x06\x74\x28\x75\xc6\x30\xf3\x30\xdd\x30\xe9\x30\xea\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x32\x00\x0a\x00\x00"/*@ L"当たり判定処理用テンポラリバッファの確保に失敗しました2\n" @*/ )) ;
 		DXFREE( Result.Dim ) ;
 		return Result ;
 	}
@@ -31180,7 +28482,7 @@ extern MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_Capsule( int MHandle, int FrameI
 								NewBuffer = ( MV1_COLL_RESULT_POLY * )DXREALLOC( Result.Dim, sizeof( MV1_COLL_RESULT_POLY ) * NewMaxNum ) ;
 								if( NewBuffer == NULL )
 								{
-									DXST_ERRORLOGFMT_ADD( ( _T( "メモリ不足の為当たったポリゴンすべてを保存することができませんでした\n" ) ) ) ;
+									DXST_ERRORLOGFMT_ADDUTF16LE(( "\xe1\x30\xe2\x30\xea\x30\x0d\x4e\xb3\x8d\x6e\x30\xba\x70\x53\x5f\x5f\x30\x63\x30\x5f\x30\xdd\x30\xea\x30\xb4\x30\xf3\x30\x59\x30\x79\x30\x66\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\x53\x30\x68\x30\x4c\x30\x67\x30\x4d\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"メモリ不足の為当たったポリゴンすべてを保存することができませんでした\n" @*/ )) ;
 									goto END ;
 								}
 
@@ -31216,6 +28518,16 @@ extern MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_Capsule( int MHandle, int FrameI
 		}
 	}
 
+	// 一つも当たっていなかったら当たっているポリゴンリスト用に確保したメモリを解放
+	if( Result.HitNum == 0 )
+	{
+		if( Result.Dim != NULL )
+		{
+			DXFREE( Result.Dim ) ;
+			Result.Dim = NULL ;
+		}
+	}
+
 END :
 
 	// メモリの解放
@@ -31242,7 +28554,7 @@ extern MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_Triangle( int MHandle, int Frame
 	MV1_COLLISION *Collision ;
 	MV1_COLL_POLYGON *ColPoly ;
 	BYTE *BitBuffer = NULL ;
-	VECTOR UnitDiv, MinPos, MaxPos/*, Sa/*, ResultPos */ ;
+	VECTOR UnitDiv, MinPos, MaxPos/*, Sa, ResultPos */ ;
 	int xc, yc, zc, ZStep, YStep, PolyIndex ;
 	int MinX, MinY, MinZ, MaxX, MaxY, MaxZ, PostIndexZ, PostIndexY, PostIndexX ;
 
@@ -31430,7 +28742,7 @@ extern MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_Triangle( int MHandle, int Frame
 	BitBuffer = ( BYTE * )DXALLOC( sizeof( BYTE ) * ( ( PolyList->PolygonNum + 7 ) / 8 ) ) ;
 	if( BitBuffer == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "当たり判定処理用テンポラリバッファの確保に失敗しました2\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x53\x5f\x5f\x30\x8a\x30\x24\x52\x9a\x5b\xe6\x51\x06\x74\x28\x75\xc6\x30\xf3\x30\xdd\x30\xe9\x30\xea\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x32\x00\x0a\x00\x00"/*@ L"当たり判定処理用テンポラリバッファの確保に失敗しました2\n" @*/ )) ;
 		DXFREE( Result.Dim ) ;
 		return Result ;
 	}
@@ -31496,7 +28808,7 @@ extern MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_Triangle( int MHandle, int Frame
 								NewBuffer = ( MV1_COLL_RESULT_POLY * )DXREALLOC( Result.Dim, sizeof( MV1_COLL_RESULT_POLY ) * NewMaxNum ) ;
 								if( NewBuffer == NULL )
 								{
-									DXST_ERRORLOGFMT_ADD( ( _T( "メモリ不足の為当たったポリゴンすべてを保存することができませんでした\n" ) ) ) ;
+									DXST_ERRORLOGFMT_ADDUTF16LE(( "\xe1\x30\xe2\x30\xea\x30\x0d\x4e\xb3\x8d\x6e\x30\xba\x70\x53\x5f\x5f\x30\x63\x30\x5f\x30\xdd\x30\xea\x30\xb4\x30\xf3\x30\x59\x30\x79\x30\x66\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\x53\x30\x68\x30\x4c\x30\x67\x30\x4d\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"メモリ不足の為当たったポリゴンすべてを保存することができませんでした\n" @*/ )) ;
 									goto END ;
 								}
 
@@ -31532,6 +28844,16 @@ extern MV1_COLL_RESULT_POLY_DIM NS_MV1CollCheck_Triangle( int MHandle, int Frame
 	}
 
 END :
+
+	// 一つも当たっていなかったら当たっているポリゴンリスト用に確保したメモリを解放
+	if( Result.HitNum == 0 )
+	{
+		if( Result.Dim != NULL )
+		{
+			DXFREE( Result.Dim ) ;
+			Result.Dim = NULL ;
+		}
+	}
 
 	// メモリの解放
 	if( BitBuffer )
@@ -31615,7 +28937,7 @@ extern int NS_MV1SetupReferenceMesh( int MHandle, int FrameIndex, int IsTransfor
 			Model->RefPolygon[ IsTransform ][ IsPositionOnly ] = ( MV1_REF_POLYGONLIST * )DXALLOC( sizeof( MV1_REF_POLYGONLIST ) + sizeof( MV1_REF_POLYGON ) * ModelBase->TriangleNum + sizeof( MV1_REF_VERTEX ) * VertexNum ) ;
 			if( Model->RefPolygon[ IsTransform ][ IsPositionOnly ] == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\xc2\x53\x67\x71\x28\x75\xdd\x30\xea\x30\xb4\x30\xf3\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 			Model->RefPolygon[ IsTransform ][ IsPositionOnly ]->Polygons = ( MV1_REF_POLYGON * )( Model->RefPolygon[ IsTransform ][ IsPositionOnly ] + 1 ) ;
@@ -31645,7 +28967,7 @@ extern int NS_MV1SetupReferenceMesh( int MHandle, int FrameIndex, int IsTransfor
 				Model->TransformPolygon = ( MV1_REF_POLYGONLIST * )DXALLOC( sizeof( MV1_REF_POLYGONLIST ) + sizeof( MV1_REF_POLYGON ) * ModelBase->TriangleNum + sizeof( MV1_REF_VERTEX ) * ModelBase->TriangleListVertexNum ) ;
 				if( Model->TransformPolygon == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDW(( L"参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" )) ;
 					return -1 ;
 				}
 				Model->TransformPolygon->Polygons = ( MV1_REF_POLYGON * )( Model->TransformPolygon + 1 ) ;
@@ -31668,7 +28990,7 @@ extern int NS_MV1SetupReferenceMesh( int MHandle, int FrameIndex, int IsTransfor
 				Model->NonTransformPolygon = ( MV1_REF_POLYGONLIST * )DXALLOC( sizeof( MV1_REF_POLYGONLIST ) + sizeof( MV1_REF_POLYGON ) * ModelBase->TriangleNum + sizeof( MV1_REF_VERTEX ) * ModelBase->TriangleListVertexNum ) ;
 				if( Model->NonTransformPolygon == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDW(( L"参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" )) ;
 					return -1 ;
 				}
 				Model->NonTransformPolygon->Polygons = ( MV1_REF_POLYGON * )( Model->NonTransformPolygon + 1 ) ;
@@ -31710,7 +29032,7 @@ extern int NS_MV1SetupReferenceMesh( int MHandle, int FrameIndex, int IsTransfor
 			Frame->RefPolygon[ IsTransform ][ IsPositionOnly ] = ( MV1_REF_POLYGONLIST * )DXALLOC( sizeof( MV1_REF_POLYGONLIST ) + sizeof( MV1_REF_POLYGON ) * Frame->BaseData->TriangleNum + sizeof( MV1_REF_VERTEX ) * VertexNum ) ;
 			if( Frame->RefPolygon[ IsTransform ][ IsPositionOnly ] == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\xc2\x53\x67\x71\x28\x75\xdd\x30\xea\x30\xb4\x30\xf3\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 			Frame->RefPolygon[ IsTransform ][ IsPositionOnly ]->Polygons = ( MV1_REF_POLYGON * )( Frame->RefPolygon[ IsTransform ][ IsPositionOnly ] + 1 ) ;
@@ -31737,7 +29059,7 @@ extern int NS_MV1SetupReferenceMesh( int MHandle, int FrameIndex, int IsTransfor
 				Frame->TransformPolygon = ( MV1_REF_POLYGONLIST * )DXALLOC( sizeof( MV1_REF_POLYGONLIST ) + sizeof( MV1_REF_POLYGON ) * Frame->BaseData->TriangleNum + sizeof( MV1_REF_VERTEX ) * Frame->BaseData->VertexNum ) ;
 				if( Frame->TransformPolygon == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDW(( L"参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" )) ;
 					return -1 ;
 				}
 				Frame->TransformPolygon->Polygons = ( MV1_REF_POLYGON * )( Frame->TransformPolygon + 1 ) ;
@@ -31757,7 +29079,7 @@ extern int NS_MV1SetupReferenceMesh( int MHandle, int FrameIndex, int IsTransfor
 				Frame->NonTransformPolygon = ( MV1_REF_POLYGONLIST * )DXALLOC( sizeof( MV1_REF_POLYGONLIST ) + sizeof( MV1_REF_POLYGON ) * Frame->BaseData->TriangleNum + sizeof( MV1_REF_VERTEX ) * Frame->BaseData->VertexNum ) ;
 				if( Frame->NonTransformPolygon == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDW(( L"参照用ポリゴンを格納するメモリ領域の確保に失敗しました\n" )) ;
 					return -1 ;
 				}
 				Frame->NonTransformPolygon->Polygons = ( MV1_REF_POLYGON * )( Frame->NonTransformPolygon + 1 ) ;
@@ -31916,9 +29238,9 @@ static int MV1SetupReferenceMeshFrame(
 				Poly->FrameIndex = ( unsigned short )Frame->BaseData->Index ;
 				Poly->MaterialIndex = ( unsigned short )( Mesh->Material - ModelBase->Material ) ;
 				Poly->VIndexTarget = VIndexTarget ;
-				Poly->VIndex[ 0 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )MeshVert + MVertUnitSize * Face->VertexIndex[ 0 ] ) )->PositionIndex + StartIndex ;
-				Poly->VIndex[ 1 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )MeshVert + MVertUnitSize * Face->VertexIndex[ 1 ] ) )->PositionIndex + StartIndex ;
-				Poly->VIndex[ 2 ] = ( ( MV1_MESH_VERTEX * )( ( BYTE * )MeshVert + MVertUnitSize * Face->VertexIndex[ 2 ] ) )->PositionIndex + StartIndex ;
+				Poly->VIndex[ 0 ] = ( int )( ( ( MV1_MESH_VERTEX * )( ( BYTE * )MeshVert + MVertUnitSize * Face->VertexIndex[ 0 ] ) )->PositionIndex + StartIndex ) ;
+				Poly->VIndex[ 1 ] = ( int )( ( ( MV1_MESH_VERTEX * )( ( BYTE * )MeshVert + MVertUnitSize * Face->VertexIndex[ 1 ] ) )->PositionIndex + StartIndex ) ;
+				Poly->VIndex[ 2 ] = ( int )( ( ( MV1_MESH_VERTEX * )( ( BYTE * )MeshVert + MVertUnitSize * Face->VertexIndex[ 2 ] ) )->PositionIndex + StartIndex ) ;
 			}
 
 			// ポリゴンの数を増やす
@@ -32065,16 +29387,14 @@ static int MV1RefreshReferenceMeshFrame(
 		int PosUnitSize ;
 		int MaxWeightNum ;
 
-		Position = Frame->BaseData->Position ;
-		PosUnitSize = Frame->BaseData->PosUnitSize ;
-		MaxWeightNum = ( PosUnitSize - sizeof( VECTOR ) ) / sizeof( MV1_SKINBONE_BLEND ) ;
+		Position     = Frame->BaseData->Position ;
+		PosUnitSize  = Frame->BaseData->PosUnitSize ;
+		MaxWeightNum = ( int )( ( PosUnitSize - sizeof( VECTOR ) ) / sizeof( MV1_SKINBONE_BLEND ) ) ;
 		for( i = 0 ; i < Frame->BaseData->PositionNum ; i ++, Vert ++, Position = ( MV1_MESH_POSITION * )( ( BYTE * )Position + PosUnitSize ) )
 		{
 			if( MaxWeightNum == 0 || Position->BoneWeight[ 0 ].Index == -1 )
 			{
-				Vert->Position.x = Position->Position.x * Frame->LocalWorldMatrix.m[ 0 ][ 0 ] + Position->Position.y * Frame->LocalWorldMatrix.m[ 0 ][ 1 ] + Position->Position.z * Frame->LocalWorldMatrix.m[ 0 ][ 2 ] + Frame->LocalWorldMatrix.m[ 0 ][ 3 ] ;
-				Vert->Position.y = Position->Position.x * Frame->LocalWorldMatrix.m[ 1 ][ 0 ] + Position->Position.y * Frame->LocalWorldMatrix.m[ 1 ][ 1 ] + Position->Position.z * Frame->LocalWorldMatrix.m[ 1 ][ 2 ] + Frame->LocalWorldMatrix.m[ 1 ][ 3 ] ;
-				Vert->Position.z = Position->Position.x * Frame->LocalWorldMatrix.m[ 2 ][ 0 ] + Position->Position.y * Frame->LocalWorldMatrix.m[ 2 ][ 1 ] + Position->Position.z * Frame->LocalWorldMatrix.m[ 2 ][ 2 ] + Frame->LocalWorldMatrix.m[ 2 ][ 3 ] ;
+				VectorTransform4X4CT( &Vert->Position, &Position->Position, &Frame->LocalWorldMatrix ) ;
 			}
 			else
 			{
@@ -32082,18 +29402,14 @@ static int MV1RefreshReferenceMeshFrame(
 				if( Position->BoneWeight[ 0 ].W == 1.0f )
 				{
 					BMat = Frame->UseSkinBoneMatrix[ Position->BoneWeight[ 0 ].Index ] ;
-					Vert->Position.x = Position->Position.x * BMat->m[ 0 ][ 0 ] + Position->Position.y * BMat->m[ 0 ][ 1 ] + Position->Position.z * BMat->m[ 0 ][ 2 ] + BMat->m[ 0 ][ 3 ] ;
-					Vert->Position.y = Position->Position.x * BMat->m[ 1 ][ 0 ] + Position->Position.y * BMat->m[ 1 ][ 1 ] + Position->Position.z * BMat->m[ 1 ][ 2 ] + BMat->m[ 1 ][ 3 ] ;
-					Vert->Position.z = Position->Position.x * BMat->m[ 2 ][ 0 ] + Position->Position.y * BMat->m[ 2 ][ 1 ] + Position->Position.z * BMat->m[ 2 ][ 2 ] + BMat->m[ 2 ][ 3 ] ;
+					VectorTransform4X4CT( &Vert->Position, &Position->Position, BMat ) ;
 				}
 				else
 				{
 					Blend = Position->BoneWeight ;
 					Weight = Blend->W ;
 					BMat = Frame->UseSkinBoneMatrix[ Blend->Index ] ;
-					BlendMat.m[ 0 ][ 0 ] = BMat->m[ 0 ][ 0 ] * Weight ; BlendMat.m[ 0 ][ 1 ] = BMat->m[ 0 ][ 1 ] * Weight ; BlendMat.m[ 0 ][ 2 ] = BMat->m[ 0 ][ 2 ] * Weight ; BlendMat.m[ 0 ][ 3 ] = BMat->m[ 0 ][ 3 ] * Weight ;
-					BlendMat.m[ 1 ][ 0 ] = BMat->m[ 1 ][ 0 ] * Weight ; BlendMat.m[ 1 ][ 1 ] = BMat->m[ 1 ][ 1 ] * Weight ; BlendMat.m[ 1 ][ 2 ] = BMat->m[ 1 ][ 2 ] * Weight ; BlendMat.m[ 1 ][ 3 ] = BMat->m[ 1 ][ 3 ] * Weight ;
-					BlendMat.m[ 2 ][ 0 ] = BMat->m[ 2 ][ 0 ] * Weight ; BlendMat.m[ 2 ][ 1 ] = BMat->m[ 2 ][ 1 ] * Weight ; BlendMat.m[ 2 ][ 2 ] = BMat->m[ 2 ][ 2 ] * Weight ; BlendMat.m[ 2 ][ 3 ] = BMat->m[ 2 ][ 3 ] * Weight ;
+					UnSafeMatrix4X4CT_C_Eq_C_Mul_S( &BlendMat, BMat, Weight ) ;
 
 					Blend ++ ;
 					for( m = 1 ; m < MaxWeightNum && Blend->Index != -1 ; m ++, Blend ++ )
@@ -32102,15 +29418,11 @@ static int MV1RefreshReferenceMeshFrame(
 						if( Weight == 0.0f ) continue ;
 
 						BMat = Frame->UseSkinBoneMatrix[ Blend->Index ] ;
-						BlendMat.m[ 0 ][ 0 ] += BMat->m[ 0 ][ 0 ] * Weight ; BlendMat.m[ 0 ][ 1 ] += BMat->m[ 0 ][ 1 ] * Weight ; BlendMat.m[ 0 ][ 2 ] += BMat->m[ 0 ][ 2 ] * Weight ; BlendMat.m[ 0 ][ 3 ] += BMat->m[ 0 ][ 3 ] * Weight ;
-						BlendMat.m[ 1 ][ 0 ] += BMat->m[ 1 ][ 0 ] * Weight ; BlendMat.m[ 1 ][ 1 ] += BMat->m[ 1 ][ 1 ] * Weight ; BlendMat.m[ 1 ][ 2 ] += BMat->m[ 1 ][ 2 ] * Weight ; BlendMat.m[ 1 ][ 3 ] += BMat->m[ 1 ][ 3 ] * Weight ;
-						BlendMat.m[ 2 ][ 0 ] += BMat->m[ 2 ][ 0 ] * Weight ; BlendMat.m[ 2 ][ 1 ] += BMat->m[ 2 ][ 1 ] * Weight ; BlendMat.m[ 2 ][ 2 ] += BMat->m[ 2 ][ 2 ] * Weight ; BlendMat.m[ 2 ][ 3 ] += BMat->m[ 2 ][ 3 ] * Weight ;
+						UnSafeMatrix4X4CT_C_EqPlus_C_Mul_S( &BlendMat, BMat, Weight ) ;
 					}
 
 					// 変換座標の作成
-					Vert->Position.x = Position->Position.x * BlendMat.m[ 0 ][ 0 ] + Position->Position.y * BlendMat.m[ 0 ][ 1 ] + Position->Position.z * BlendMat.m[ 0 ][ 2 ] + BlendMat.m[ 0 ][ 3 ] ;
-					Vert->Position.y = Position->Position.x * BlendMat.m[ 1 ][ 0 ] + Position->Position.y * BlendMat.m[ 1 ][ 1 ] + Position->Position.z * BlendMat.m[ 1 ][ 2 ] + BlendMat.m[ 1 ][ 3 ] ;
-					Vert->Position.z = Position->Position.x * BlendMat.m[ 2 ][ 0 ] + Position->Position.y * BlendMat.m[ 2 ][ 1 ] + Position->Position.z * BlendMat.m[ 2 ][ 2 ] + BlendMat.m[ 2 ][ 3 ] ;
+					VectorTransform4X4CT( &Vert->Position, &Position->Position, &BlendMat ) ;
 				}
 			}
 		}
@@ -32134,12 +29446,8 @@ static int MV1RefreshReferenceMeshFrame(
 					Norm = ( MV1_TLIST_NORMAL_POS * )ADDR16( TList->NormalPosition ) ;
 					for( l = 0 ; l < VertNum ; l ++, Vert ++, Norm ++ )
 					{
-						Vert->Position.x = Norm->Position.x * Frame->LocalWorldMatrix.m[ 0 ][ 0 ] + Norm->Position.y * Frame->LocalWorldMatrix.m[ 0 ][ 1 ] + Norm->Position.z * Frame->LocalWorldMatrix.m[ 0 ][ 2 ] + Frame->LocalWorldMatrix.m[ 0 ][ 3 ] ;
-						Vert->Position.y = Norm->Position.x * Frame->LocalWorldMatrix.m[ 1 ][ 0 ] + Norm->Position.y * Frame->LocalWorldMatrix.m[ 1 ][ 1 ] + Norm->Position.z * Frame->LocalWorldMatrix.m[ 1 ][ 2 ] + Frame->LocalWorldMatrix.m[ 1 ][ 3 ] ;
-						Vert->Position.z = Norm->Position.x * Frame->LocalWorldMatrix.m[ 2 ][ 0 ] + Norm->Position.y * Frame->LocalWorldMatrix.m[ 2 ][ 1 ] + Norm->Position.z * Frame->LocalWorldMatrix.m[ 2 ][ 2 ] + Frame->LocalWorldMatrix.m[ 2 ][ 3 ] ;
-						Vert->Normal.x   = Norm->Normal.x   * Frame->LocalWorldMatrix.m[ 0 ][ 0 ] + Norm->Normal.y   * Frame->LocalWorldMatrix.m[ 0 ][ 1 ] + Norm->Normal.z   * Frame->LocalWorldMatrix.m[ 0 ][ 2 ] ;
-						Vert->Normal.y   = Norm->Normal.x   * Frame->LocalWorldMatrix.m[ 1 ][ 0 ] + Norm->Normal.y   * Frame->LocalWorldMatrix.m[ 1 ][ 1 ] + Norm->Normal.z   * Frame->LocalWorldMatrix.m[ 1 ][ 2 ] ;
-						Vert->Normal.z   = Norm->Normal.x   * Frame->LocalWorldMatrix.m[ 2 ][ 0 ] + Norm->Normal.y   * Frame->LocalWorldMatrix.m[ 2 ][ 1 ] + Norm->Normal.z   * Frame->LocalWorldMatrix.m[ 2 ][ 2 ] ;
+						VectorTransform4X4CT(   &Vert->Position, ( VECTOR * )&Norm->Position, &Frame->LocalWorldMatrix ) ;
+						VectorTransformSR4X4CT( &Vert->Normal,   ( VECTOR * )&Norm->Normal,   &Frame->LocalWorldMatrix ) ;
 					}
 					break ;
 
@@ -32153,37 +29461,24 @@ static int MV1RefreshReferenceMeshFrame(
 						if( Weight == 1.0f )
 						{
 							// 変換座標の作成
-							Vert->Position.x = SkinB4->Position.x * BMat->m[ 0 ][ 0 ] + SkinB4->Position.y * BMat->m[ 0 ][ 1 ] + SkinB4->Position.z * BMat->m[ 0 ][ 2 ] + BMat->m[ 0 ][ 3 ] ;
-							Vert->Position.y = SkinB4->Position.x * BMat->m[ 1 ][ 0 ] + SkinB4->Position.y * BMat->m[ 1 ][ 1 ] + SkinB4->Position.z * BMat->m[ 1 ][ 2 ] + BMat->m[ 1 ][ 3 ] ;
-							Vert->Position.z = SkinB4->Position.x * BMat->m[ 2 ][ 0 ] + SkinB4->Position.y * BMat->m[ 2 ][ 1 ] + SkinB4->Position.z * BMat->m[ 2 ][ 2 ] + BMat->m[ 2 ][ 3 ] ;
-							Vert->Normal.x   = SkinB4->Normal.x   * BMat->m[ 0 ][ 0 ] + SkinB4->Normal.y   * BMat->m[ 0 ][ 1 ] + SkinB4->Normal.z   * BMat->m[ 0 ][ 2 ] ;
-							Vert->Normal.y   = SkinB4->Normal.x   * BMat->m[ 1 ][ 0 ] + SkinB4->Normal.y   * BMat->m[ 1 ][ 1 ] + SkinB4->Normal.z   * BMat->m[ 1 ][ 2 ] ;
-							Vert->Normal.z   = SkinB4->Normal.x   * BMat->m[ 2 ][ 0 ] + SkinB4->Normal.y   * BMat->m[ 2 ][ 1 ] + SkinB4->Normal.z   * BMat->m[ 2 ][ 2 ] ;
+							VectorTransform4X4CT(   &Vert->Position, ( VECTOR * )&SkinB4->Position, BMat ) ;
+							VectorTransformSR4X4CT( &Vert->Normal,   ( VECTOR * )&SkinB4->Normal,   BMat ) ;
 						}
 						else
 						{
-							BlendMat.m[ 0 ][ 0 ] = BMat->m[ 0 ][ 0 ] * Weight ; BlendMat.m[ 0 ][ 1 ] = BMat->m[ 0 ][ 1 ] * Weight ; BlendMat.m[ 0 ][ 2 ] = BMat->m[ 0 ][ 2 ] * Weight ; BlendMat.m[ 0 ][ 3 ] = BMat->m[ 0 ][ 3 ] * Weight ;
-							BlendMat.m[ 1 ][ 0 ] = BMat->m[ 1 ][ 0 ] * Weight ; BlendMat.m[ 1 ][ 1 ] = BMat->m[ 1 ][ 1 ] * Weight ; BlendMat.m[ 1 ][ 2 ] = BMat->m[ 1 ][ 2 ] * Weight ; BlendMat.m[ 1 ][ 3 ] = BMat->m[ 1 ][ 3 ] * Weight ;
-							BlendMat.m[ 2 ][ 0 ] = BMat->m[ 2 ][ 0 ] * Weight ; BlendMat.m[ 2 ][ 1 ] = BMat->m[ 2 ][ 1 ] * Weight ; BlendMat.m[ 2 ][ 2 ] = BMat->m[ 2 ][ 2 ] * Weight ; BlendMat.m[ 2 ][ 3 ] = BMat->m[ 2 ][ 3 ] * Weight ;
-
+							UnSafeMatrix4X4CT_C_Eq_C_Mul_S( &BlendMat, BMat, Weight ) ;
 							for( m = 1 ; m < 4 ; m ++ )
 							{
 								Weight = SkinB4->MatrixWeight[ m ] ;
 								if( Weight == 0.0f ) continue ;
 
 								BMat = Frame->UseSkinBoneMatrix[ TList->UseBone[ SkinB4->MatrixIndex[ m ] ] ] ;
-								BlendMat.m[ 0 ][ 0 ] += BMat->m[ 0 ][ 0 ] * Weight ; BlendMat.m[ 0 ][ 1 ] += BMat->m[ 0 ][ 1 ] * Weight ; BlendMat.m[ 0 ][ 2 ] += BMat->m[ 0 ][ 2 ] * Weight ; BlendMat.m[ 0 ][ 3 ] += BMat->m[ 0 ][ 3 ] * Weight ;
-								BlendMat.m[ 1 ][ 0 ] += BMat->m[ 1 ][ 0 ] * Weight ; BlendMat.m[ 1 ][ 1 ] += BMat->m[ 1 ][ 1 ] * Weight ; BlendMat.m[ 1 ][ 2 ] += BMat->m[ 1 ][ 2 ] * Weight ; BlendMat.m[ 1 ][ 3 ] += BMat->m[ 1 ][ 3 ] * Weight ;
-								BlendMat.m[ 2 ][ 0 ] += BMat->m[ 2 ][ 0 ] * Weight ; BlendMat.m[ 2 ][ 1 ] += BMat->m[ 2 ][ 1 ] * Weight ; BlendMat.m[ 2 ][ 2 ] += BMat->m[ 2 ][ 2 ] * Weight ; BlendMat.m[ 2 ][ 3 ] += BMat->m[ 2 ][ 3 ] * Weight ;
+								UnSafeMatrix4X4CT_C_EqPlus_C_Mul_S( &BlendMat, BMat, Weight ) ;
 							}
 
 							// 変換座標の作成
-							Vert->Position.x = SkinB4->Position.x * BlendMat.m[ 0 ][ 0 ] + SkinB4->Position.y * BlendMat.m[ 0 ][ 1 ] + SkinB4->Position.z * BlendMat.m[ 0 ][ 2 ] + BlendMat.m[ 0 ][ 3 ] ;
-							Vert->Position.y = SkinB4->Position.x * BlendMat.m[ 1 ][ 0 ] + SkinB4->Position.y * BlendMat.m[ 1 ][ 1 ] + SkinB4->Position.z * BlendMat.m[ 1 ][ 2 ] + BlendMat.m[ 1 ][ 3 ] ;
-							Vert->Position.z = SkinB4->Position.x * BlendMat.m[ 2 ][ 0 ] + SkinB4->Position.y * BlendMat.m[ 2 ][ 1 ] + SkinB4->Position.z * BlendMat.m[ 2 ][ 2 ] + BlendMat.m[ 2 ][ 3 ] ;
-							Vert->Normal.x   = SkinB4->Normal.x   * BlendMat.m[ 0 ][ 0 ] + SkinB4->Normal.y   * BlendMat.m[ 0 ][ 1 ] + SkinB4->Normal.z   * BlendMat.m[ 0 ][ 2 ] ;
-							Vert->Normal.y   = SkinB4->Normal.x   * BlendMat.m[ 1 ][ 0 ] + SkinB4->Normal.y   * BlendMat.m[ 1 ][ 1 ] + SkinB4->Normal.z   * BlendMat.m[ 1 ][ 2 ] ;
-							Vert->Normal.z   = SkinB4->Normal.x   * BlendMat.m[ 2 ][ 0 ] + SkinB4->Normal.y   * BlendMat.m[ 2 ][ 1 ] + SkinB4->Normal.z   * BlendMat.m[ 2 ][ 2 ] ;
+							VectorTransform4X4CT(   &Vert->Position, ( VECTOR * )&SkinB4->Position, &BlendMat ) ;
+							VectorTransformSR4X4CT( &Vert->Normal,   ( VECTOR * )&SkinB4->Normal,   &BlendMat ) ;
 						}
 					}
 					break ;
@@ -32198,37 +29493,24 @@ static int MV1RefreshReferenceMeshFrame(
 						if( Weight == 1.0f )
 						{
 							// 変換座標の作成
-							Vert->Position.x = SkinB8->Position.x * BMat->m[ 0 ][ 0 ] + SkinB8->Position.y * BMat->m[ 0 ][ 1 ] + SkinB8->Position.z * BMat->m[ 0 ][ 2 ] + BMat->m[ 0 ][ 3 ] ;
-							Vert->Position.y = SkinB8->Position.x * BMat->m[ 1 ][ 0 ] + SkinB8->Position.y * BMat->m[ 1 ][ 1 ] + SkinB8->Position.z * BMat->m[ 1 ][ 2 ] + BMat->m[ 1 ][ 3 ] ;
-							Vert->Position.z = SkinB8->Position.x * BMat->m[ 2 ][ 0 ] + SkinB8->Position.y * BMat->m[ 2 ][ 1 ] + SkinB8->Position.z * BMat->m[ 2 ][ 2 ] + BMat->m[ 2 ][ 3 ] ;
-							Vert->Normal.x   = SkinB8->Normal.x   * BMat->m[ 0 ][ 0 ] + SkinB8->Normal.y   * BMat->m[ 0 ][ 1 ] + SkinB8->Normal.z   * BMat->m[ 0 ][ 2 ] ;
-							Vert->Normal.y   = SkinB8->Normal.x   * BMat->m[ 1 ][ 0 ] + SkinB8->Normal.y   * BMat->m[ 1 ][ 1 ] + SkinB8->Normal.z   * BMat->m[ 1 ][ 2 ] ;
-							Vert->Normal.z   = SkinB8->Normal.x   * BMat->m[ 2 ][ 0 ] + SkinB8->Normal.y   * BMat->m[ 2 ][ 1 ] + SkinB8->Normal.z   * BMat->m[ 2 ][ 2 ] ;
+							VectorTransform4X4CT(   &Vert->Position, &SkinB8->Position, BMat ) ;
+							VectorTransformSR4X4CT( &Vert->Normal,   &SkinB8->Normal,   BMat ) ;
 						}
 						else
 						{
-							BlendMat.m[ 0 ][ 0 ] = BMat->m[ 0 ][ 0 ] * Weight ; BlendMat.m[ 0 ][ 1 ] = BMat->m[ 0 ][ 1 ] * Weight ; BlendMat.m[ 0 ][ 2 ] = BMat->m[ 0 ][ 2 ] * Weight ; BlendMat.m[ 0 ][ 3 ] = BMat->m[ 0 ][ 3 ] * Weight ;
-							BlendMat.m[ 1 ][ 0 ] = BMat->m[ 1 ][ 0 ] * Weight ; BlendMat.m[ 1 ][ 1 ] = BMat->m[ 1 ][ 1 ] * Weight ; BlendMat.m[ 1 ][ 2 ] = BMat->m[ 1 ][ 2 ] * Weight ; BlendMat.m[ 1 ][ 3 ] = BMat->m[ 1 ][ 3 ] * Weight ;
-							BlendMat.m[ 2 ][ 0 ] = BMat->m[ 2 ][ 0 ] * Weight ; BlendMat.m[ 2 ][ 1 ] = BMat->m[ 2 ][ 1 ] * Weight ; BlendMat.m[ 2 ][ 2 ] = BMat->m[ 2 ][ 2 ] * Weight ; BlendMat.m[ 2 ][ 3 ] = BMat->m[ 2 ][ 3 ] * Weight ;
-
+							UnSafeMatrix4X4CT_C_Eq_C_Mul_S( &BlendMat, BMat, Weight ) ;
 							for( m = 1 ; m < 8 ; m ++ )
 							{
 								Weight = SkinB8->MatrixWeight[ m ] ;
 								if( Weight == 0.0f ) continue ;
 
 								BMat = Frame->UseSkinBoneMatrix[ TList->UseBone[ m < 4 ? SkinB8->MatrixIndex1[ m ] : SkinB8->MatrixIndex2[ m - 4 ] ] ] ;
-								BlendMat.m[ 0 ][ 0 ] += BMat->m[ 0 ][ 0 ] * Weight ; BlendMat.m[ 0 ][ 1 ] += BMat->m[ 0 ][ 1 ] * Weight ; BlendMat.m[ 0 ][ 2 ] += BMat->m[ 0 ][ 2 ] * Weight ; BlendMat.m[ 0 ][ 3 ] += BMat->m[ 0 ][ 3 ] * Weight ;
-								BlendMat.m[ 1 ][ 0 ] += BMat->m[ 1 ][ 0 ] * Weight ; BlendMat.m[ 1 ][ 1 ] += BMat->m[ 1 ][ 1 ] * Weight ; BlendMat.m[ 1 ][ 2 ] += BMat->m[ 1 ][ 2 ] * Weight ; BlendMat.m[ 1 ][ 3 ] += BMat->m[ 1 ][ 3 ] * Weight ;
-								BlendMat.m[ 2 ][ 0 ] += BMat->m[ 2 ][ 0 ] * Weight ; BlendMat.m[ 2 ][ 1 ] += BMat->m[ 2 ][ 1 ] * Weight ; BlendMat.m[ 2 ][ 2 ] += BMat->m[ 2 ][ 2 ] * Weight ; BlendMat.m[ 2 ][ 3 ] += BMat->m[ 2 ][ 3 ] * Weight ;
+								UnSafeMatrix4X4CT_C_EqPlus_C_Mul_S( &BlendMat, BMat, Weight ) ;
 							}
 
 							// 変換座標の作成
-							Vert->Position.x = SkinB8->Position.x * BlendMat.m[ 0 ][ 0 ] + SkinB8->Position.y * BlendMat.m[ 0 ][ 1 ] + SkinB8->Position.z * BlendMat.m[ 0 ][ 2 ] + BlendMat.m[ 0 ][ 3 ] ;
-							Vert->Position.y = SkinB8->Position.x * BlendMat.m[ 1 ][ 0 ] + SkinB8->Position.y * BlendMat.m[ 1 ][ 1 ] + SkinB8->Position.z * BlendMat.m[ 1 ][ 2 ] + BlendMat.m[ 1 ][ 3 ] ;
-							Vert->Position.z = SkinB8->Position.x * BlendMat.m[ 2 ][ 0 ] + SkinB8->Position.y * BlendMat.m[ 2 ][ 1 ] + SkinB8->Position.z * BlendMat.m[ 2 ][ 2 ] + BlendMat.m[ 2 ][ 3 ] ;
-							Vert->Normal.x   = SkinB8->Normal.x   * BlendMat.m[ 0 ][ 0 ] + SkinB8->Normal.y   * BlendMat.m[ 0 ][ 1 ] + SkinB8->Normal.z   * BlendMat.m[ 0 ][ 2 ] ;
-							Vert->Normal.y   = SkinB8->Normal.x   * BlendMat.m[ 1 ][ 0 ] + SkinB8->Normal.y   * BlendMat.m[ 1 ][ 1 ] + SkinB8->Normal.z   * BlendMat.m[ 1 ][ 2 ] ;
-							Vert->Normal.z   = SkinB8->Normal.x   * BlendMat.m[ 2 ][ 0 ] + SkinB8->Normal.y   * BlendMat.m[ 2 ][ 1 ] + SkinB8->Normal.z   * BlendMat.m[ 2 ][ 2 ] ;
+							VectorTransform4X4CT(   &Vert->Position, &SkinB8->Position, &BlendMat ) ;
+							VectorTransformSR4X4CT( &Vert->Normal,   &SkinB8->Normal,   &BlendMat ) ;
 						}
 					}
 					break ;
@@ -32242,21 +29524,15 @@ static int MV1RefreshReferenceMeshFrame(
 						if( SkinBF->MatrixWeight[ 0 ].W == 1.0f )
 						{
 							BMat = Frame->UseSkinBoneMatrix[ SkinBF->MatrixWeight[ 0 ].Index ] ;
-							Vert->Position.x = SkinBF->Position.x * BMat->m[ 0 ][ 0 ] + SkinBF->Position.y * BMat->m[ 0 ][ 1 ] + SkinBF->Position.z * BMat->m[ 0 ][ 2 ] + BMat->m[ 0 ][ 3 ] ;
-							Vert->Position.y = SkinBF->Position.x * BMat->m[ 1 ][ 0 ] + SkinBF->Position.y * BMat->m[ 1 ][ 1 ] + SkinBF->Position.z * BMat->m[ 1 ][ 2 ] + BMat->m[ 1 ][ 3 ] ;
-							Vert->Position.z = SkinBF->Position.x * BMat->m[ 2 ][ 0 ] + SkinBF->Position.y * BMat->m[ 2 ][ 1 ] + SkinBF->Position.z * BMat->m[ 2 ][ 2 ] + BMat->m[ 2 ][ 3 ] ;
-							Vert->Normal.x   = SkinBF->Normal.x   * BMat->m[ 0 ][ 0 ] + SkinBF->Normal.y   * BMat->m[ 0 ][ 1 ] + SkinBF->Normal.z   * BMat->m[ 0 ][ 2 ] ;
-							Vert->Normal.y   = SkinBF->Normal.x   * BMat->m[ 1 ][ 0 ] + SkinBF->Normal.y   * BMat->m[ 1 ][ 1 ] + SkinBF->Normal.z   * BMat->m[ 1 ][ 2 ] ;
-							Vert->Normal.z   = SkinBF->Normal.x   * BMat->m[ 2 ][ 0 ] + SkinBF->Normal.y   * BMat->m[ 2 ][ 1 ] + SkinBF->Normal.z   * BMat->m[ 2 ][ 2 ] ;
+							VectorTransform4X4CT(   &Vert->Position, ( VECTOR * )&SkinBF->Position, BMat ) ;
+							VectorTransformSR4X4CT( &Vert->Normal,   ( VECTOR * )&SkinBF->Normal,   BMat ) ;
 						}
 						else
 						{
 							Blend = SkinBF->MatrixWeight ;
 							Weight = Blend->W ;
 							BMat = Frame->UseSkinBoneMatrix[ Blend->Index ] ;
-							BlendMat.m[ 0 ][ 0 ] = BMat->m[ 0 ][ 0 ] * Weight ; BlendMat.m[ 0 ][ 1 ] = BMat->m[ 0 ][ 1 ] * Weight ; BlendMat.m[ 0 ][ 2 ] = BMat->m[ 0 ][ 2 ] * Weight ; BlendMat.m[ 0 ][ 3 ] = BMat->m[ 0 ][ 3 ] * Weight ;
-							BlendMat.m[ 1 ][ 0 ] = BMat->m[ 1 ][ 0 ] * Weight ; BlendMat.m[ 1 ][ 1 ] = BMat->m[ 1 ][ 1 ] * Weight ; BlendMat.m[ 1 ][ 2 ] = BMat->m[ 1 ][ 2 ] * Weight ; BlendMat.m[ 1 ][ 3 ] = BMat->m[ 1 ][ 3 ] * Weight ;
-							BlendMat.m[ 2 ][ 0 ] = BMat->m[ 2 ][ 0 ] * Weight ; BlendMat.m[ 2 ][ 1 ] = BMat->m[ 2 ][ 1 ] * Weight ; BlendMat.m[ 2 ][ 2 ] = BMat->m[ 2 ][ 2 ] * Weight ; BlendMat.m[ 2 ][ 3 ] = BMat->m[ 2 ][ 3 ] * Weight ;
+							UnSafeMatrix4X4CT_C_Eq_C_Mul_S( &BlendMat, BMat, Weight ) ;
 
 							Blend ++ ;
 							for( m = 1 ; m < TList->MaxBoneNum && Blend->Index != -1 ; m ++, Blend ++ )
@@ -32265,18 +29541,12 @@ static int MV1RefreshReferenceMeshFrame(
 								if( Weight == 0.0f ) continue ;
 
 								BMat = Frame->UseSkinBoneMatrix[ Blend->Index ] ;
-								BlendMat.m[ 0 ][ 0 ] += BMat->m[ 0 ][ 0 ] * Weight ; BlendMat.m[ 0 ][ 1 ] += BMat->m[ 0 ][ 1 ] * Weight ; BlendMat.m[ 0 ][ 2 ] += BMat->m[ 0 ][ 2 ] * Weight ; BlendMat.m[ 0 ][ 3 ] += BMat->m[ 0 ][ 3 ] * Weight ;
-								BlendMat.m[ 1 ][ 0 ] += BMat->m[ 1 ][ 0 ] * Weight ; BlendMat.m[ 1 ][ 1 ] += BMat->m[ 1 ][ 1 ] * Weight ; BlendMat.m[ 1 ][ 2 ] += BMat->m[ 1 ][ 2 ] * Weight ; BlendMat.m[ 1 ][ 3 ] += BMat->m[ 1 ][ 3 ] * Weight ;
-								BlendMat.m[ 2 ][ 0 ] += BMat->m[ 2 ][ 0 ] * Weight ; BlendMat.m[ 2 ][ 1 ] += BMat->m[ 2 ][ 1 ] * Weight ; BlendMat.m[ 2 ][ 2 ] += BMat->m[ 2 ][ 2 ] * Weight ; BlendMat.m[ 2 ][ 3 ] += BMat->m[ 2 ][ 3 ] * Weight ;
+								UnSafeMatrix4X4CT_C_EqPlus_C_Mul_S( &BlendMat, BMat, Weight ) ;
 							}
 
 							// 変換座標の作成
-							Vert->Position.x = SkinBF->Position.x * BlendMat.m[ 0 ][ 0 ] + SkinBF->Position.y * BlendMat.m[ 0 ][ 1 ] + SkinBF->Position.z * BlendMat.m[ 0 ][ 2 ] + BlendMat.m[ 0 ][ 3 ] ;
-							Vert->Position.y = SkinBF->Position.x * BlendMat.m[ 1 ][ 0 ] + SkinBF->Position.y * BlendMat.m[ 1 ][ 1 ] + SkinBF->Position.z * BlendMat.m[ 1 ][ 2 ] + BlendMat.m[ 1 ][ 3 ] ;
-							Vert->Position.z = SkinBF->Position.x * BlendMat.m[ 2 ][ 0 ] + SkinBF->Position.y * BlendMat.m[ 2 ][ 1 ] + SkinBF->Position.z * BlendMat.m[ 2 ][ 2 ] + BlendMat.m[ 2 ][ 3 ] ;
-							Vert->Normal.x   = SkinBF->Normal.x   * BlendMat.m[ 0 ][ 0 ] + SkinBF->Normal.y   * BlendMat.m[ 0 ][ 1 ] + SkinBF->Normal.z   * BlendMat.m[ 0 ][ 2 ] ;
-							Vert->Normal.y   = SkinBF->Normal.x   * BlendMat.m[ 1 ][ 0 ] + SkinBF->Normal.y   * BlendMat.m[ 1 ][ 1 ] + SkinBF->Normal.z   * BlendMat.m[ 1 ][ 2 ] ;
-							Vert->Normal.z   = SkinBF->Normal.x   * BlendMat.m[ 2 ][ 0 ] + SkinBF->Normal.y   * BlendMat.m[ 2 ][ 1 ] + SkinBF->Normal.z   * BlendMat.m[ 2 ][ 2 ] ;
+							VectorTransform4X4CT(   &Vert->Position, ( VECTOR * )&SkinBF->Position, &BlendMat ) ;
+							VectorTransformSR4X4CT( &Vert->Normal,   ( VECTOR * )&SkinBF->Normal,   &BlendMat ) ;
 						}
 					}
 					break ;
@@ -32488,8 +29758,12 @@ ERR :
 }
 
 
+#ifdef DX_USE_NAMESPACE
+
 }
 
-#endif
+#endif // DX_USE_NAMESPACE
+
+#endif  // DX_NON_MODEL
 
 

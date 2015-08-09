@@ -1,4 +1,4 @@
-float BlendRatio     : register( c0 ) ;
+﻿float BlendRatio     : register( c0 ) ;
 float4 One           : register( c1 ) ;
 sampler SrcTexture   : register( s0 ) ;
 sampler BlendTexture : register( s1 ) ;

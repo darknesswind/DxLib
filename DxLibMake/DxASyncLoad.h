@@ -2,14 +2,14 @@
 // 
 // 		ＤＸライブラリ		非同期読み込み処理プログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 #ifndef __DXASYNCLOAD_H__
 #define __DXASYNCLOAD_H__
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxCompileConfig.h"
 
 #ifndef DX_NON_ASYNCLOAD
@@ -17,10 +17,14 @@
 #include "DxLib.h"
 #include "DxThread.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
+
+// マクロ定義 --------------------------------------------------------------------
 
 // 非同期読み込み処理のジョブタイプ
 #define ASYNCLOAD_JOBTYPE_ADD_DATA					(0)		// データ追加
@@ -34,7 +38,7 @@ namespace DxLib
 // 非同期読み込みスレッドの最大数
 #define ASYNCLOADTHREAD_MAXNUM				(32)
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // 非同期読み込み処理用共通データ構造体
 struct ASYNCLOADDATA_COMMON
@@ -104,34 +108,38 @@ extern	int		TerminateASyncLoad( void ) ;														// 非同期読み込み�
 
 // 非同期読み込み関係
 extern	ASYNCLOADDATA_COMMON *AllocASyncLoadDataMemory( int AddAllocSize ) ;						// 非同期読み込みデータを格納するメモリ領域を確保する
-extern	void	AddASyncLoadParamStruct( BYTE *Data, int *Addr, const void *Param, int Size ) ;		// 非同期読み込みデータのパラメータに構造体パラメータを追加
-extern	void	AddASyncLoadParamConstVoidP( BYTE *Data, int *Addr, const void *Param ) ;			// 非同期読み込みデータのパラメータに void 型ポインタのパラメータを追加
-extern	void	AddASyncLoadParamDWORD_PTR( BYTE *Data, int *Addr, DWORD_PTR Param ) ;				// 非同期読み込みデータのパラメータに DWORD_PTR 型のパラメータを追加
-extern	void	AddASyncLoadParamLONGLONG( BYTE *Data, int *Addr, LONGLONG Param ) ;				// 非同期読み込みデータのパラメータに LONGLONG 型のパラメータを追加
-extern	void	AddASyncLoadParamInt( BYTE *Data, int *Addr, int Param ) ;							// 非同期読み込みデータのパラメータに int 型のパラメータを追加
-extern	void	AddASyncLoadParamByte( BYTE *Data, int *Addr, BYTE Param ) ;						// 非同期読み込みデータのパラメータに BYTE 型のパラメータを追加
-extern	void	AddASyncLoadParamFloat( BYTE *Data, int *Addr, float Param ) ;						// 非同期読み込みデータのパラメータに float 型のパラメータを追加
-extern	void	AddASyncLoadParamString( BYTE *Data, int *Addr, const TCHAR *Param ) ;				// 非同期読み込みデータのパラメータに文字列パラメータを追加
-extern	void *	GetASyncLoadParamStruct( BYTE *Data, int *Addr ) ;									// 非同期読み込みデータのパラメータから構造体パラメータを取得
-extern	void *	GetASyncLoadParamVoidP( BYTE *Data, int *Addr ) ;									// 非同期読み込みデータのパラメータから void 型ポインタのパラメータを取得
-extern	DWORD_PTR GetASyncLoadParamDWORD_PTR( BYTE *Data, int *Addr ) ;								// 非同期読み込みデータのパラメータから DWORD_PTR 型のパラメータを取得
-extern	LONGLONG GetASyncLoadParamLONGLONG( BYTE *Data, int *Addr ) ;								// 非同期読み込みデータのパラメータから LONGLONG 型のパラメータを取得
-extern	int		GetASyncLoadParamInt( BYTE *Data, int *Addr ) ;										// 非同期読み込みデータのパラメータから int 型のパラメータを取得
-extern	BYTE	GetASyncLoadParamByte( BYTE *Data, int *Addr ) ;									// 非同期読み込みデータのパラメータから BYTE 型のパラメータを取得
-extern	float	GetASyncLoadParamFloat( BYTE *Data, int *Addr ) ;									// 非同期読み込みデータのパラメータから float 型のパラメータを取得
-extern	TCHAR *	GetASyncLoadParamString( BYTE *Data, int *Addr ) ;									// 非同期読み込みデータのパラメータから文字列パラメータを取得
-extern	int		AddASyncLoadData( ASYNCLOADDATA_COMMON *ASyncData ) ;								// 非同期読み込みデータを追加する
-extern	int		DeleteASyncLoadData( int DeleteIndex, int MainThread = FALSE ) ;					// 指定の非同期読み込みデータを削除する
-extern	int		ProcessASyncLoad( int ThreadNumber ) ;												// 非同期読み込みの処理を行う
-extern	int		CheckMainThread( void ) ;															// 現在のスレッドがメインスレッドかどうかを取得する( TRUE:メインスレッド  FALSE:それ以外のスレッド )
+extern	void		AddASyncLoadParamStruct( BYTE *Data, int *Addr, const void *Param, int Size ) ;	// 非同期読み込みデータのパラメータに構造体パラメータを追加
+extern	void		AddASyncLoadParamConstVoidP( BYTE *Data, int *Addr, const void *Param ) ;		// 非同期読み込みデータのパラメータに void 型ポインタのパラメータを追加
+extern	void		AddASyncLoadParamDWORD_PTR( BYTE *Data, int *Addr, DWORD_PTR Param ) ;			// 非同期読み込みデータのパラメータに DWORD_PTR 型のパラメータを追加
+extern	void		AddASyncLoadParamLONGLONG( BYTE *Data, int *Addr, LONGLONG Param ) ;			// 非同期読み込みデータのパラメータに LONGLONG 型のパラメータを追加
+extern	void		AddASyncLoadParamInt( BYTE *Data, int *Addr, int Param ) ;						// 非同期読み込みデータのパラメータに int 型のパラメータを追加
+extern	void		AddASyncLoadParamByte( BYTE *Data, int *Addr, BYTE Param ) ;					// 非同期読み込みデータのパラメータに BYTE 型のパラメータを追加
+extern	void		AddASyncLoadParamFloat( BYTE *Data, int *Addr, float Param ) ;					// 非同期読み込みデータのパラメータに float 型のパラメータを追加
+extern	void		AddASyncLoadParamString( BYTE *Data, int *Addr, const wchar_t *Param ) ;		// 非同期読み込みデータのパラメータに文字列パラメータを追加
+extern	void *		GetASyncLoadParamStruct( BYTE *Data, int *Addr ) ;								// 非同期読み込みデータのパラメータから構造体パラメータを取得
+extern	void *		GetASyncLoadParamVoidP( BYTE *Data, int *Addr ) ;								// 非同期読み込みデータのパラメータから void 型ポインタのパラメータを取得
+extern	DWORD_PTR	GetASyncLoadParamDWORD_PTR( BYTE *Data, int *Addr ) ;							// 非同期読み込みデータのパラメータから DWORD_PTR 型のパラメータを取得
+extern	LONGLONG	GetASyncLoadParamLONGLONG( BYTE *Data, int *Addr ) ;							// 非同期読み込みデータのパラメータから LONGLONG 型のパラメータを取得
+extern	int			GetASyncLoadParamInt( BYTE *Data, int *Addr ) ;									// 非同期読み込みデータのパラメータから int 型のパラメータを取得
+extern	BYTE		GetASyncLoadParamByte( BYTE *Data, int *Addr ) ;								// 非同期読み込みデータのパラメータから BYTE 型のパラメータを取得
+extern	float		GetASyncLoadParamFloat( BYTE *Data, int *Addr ) ;								// 非同期読み込みデータのパラメータから float 型のパラメータを取得
+extern	wchar_t *	GetASyncLoadParamString( BYTE *Data, int *Addr ) ;								// 非同期読み込みデータのパラメータから文字列パラメータを取得
+extern	int			AddASyncLoadData( ASYNCLOADDATA_COMMON *ASyncData ) ;							// 非同期読み込みデータを追加する
+extern	int			DeleteASyncLoadData( int DeleteIndex, int MainThread = FALSE ) ;				// 指定の非同期読み込みデータを削除する
+extern	int			ProcessASyncLoad( int ThreadNumber ) ;											// 非同期読み込みの処理を行う
+extern	int			CheckMainThread( void ) ;														// 現在のスレッドがメインスレッドかどうかを取得する( TRUE:メインスレッド  FALSE:それ以外のスレッド )
 
-extern	int		ResumeASyncLoadThread( int AddMaxThreadNum = 0 ) ;									// 寝ているスレッドを一つ起こす
+extern	int			ResumeASyncLoadThread( int AddMaxThreadNum = 0 ) ;								// 寝ているスレッドを一つ起こす
 
-extern	int		ProcessASyncLoadRequestMainThread( void ) ;											// 非同期読み込みスレッドからメインスレッドへの処理依頼を処理する
+extern	int			ProcessASyncLoadRequestMainThread( void ) ;										// 非同期読み込みスレッドからメインスレッドへの処理依頼を処理する
 
-extern	int		AddASyncLoadRequestMainThreadInfo( ASYNCLOAD_MAINTHREAD_REQUESTINFO *Info ) ;		// メインスレッドで処理してほしいデータの情報を追加する
+extern	int			AddASyncLoadRequestMainThreadInfo( ASYNCLOAD_MAINTHREAD_REQUESTINFO *Info ) ;	// メインスレッドで処理してほしいデータの情報を追加する
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // DX_NON_ASYNCLOAD
 

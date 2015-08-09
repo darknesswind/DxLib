@@ -2,22 +2,26 @@
 // 
 // 		ＤＸライブラリ		Windows用ファイル関係プログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 #ifndef __DXFILEWIN_H__
 #define __DXFILEWIN_H__
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "../DxCompileConfig.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
+
+// 構造体定義 --------------------------------------------------------------------
 
 // ファイルアクセス専用スレッド用構造体
 struct FILEACCESSTHREAD
@@ -32,7 +36,7 @@ struct FILEACCESSTHREAD
 	int						EndFlag ;							// 終了したか、フラグ
 	int						ErrorFlag ;							// エラー発生フラグ
 
-	TCHAR					FilePath[MAX_PATH] ;				// ファイルパス
+	wchar_t					FilePath[FILEPATH_MAX] ;			// ファイルパス
 	void					*ReadBuffer ;						// 読み込むデータを格納するバッファー
 	ULONGLONG				ReadPosition ;						// 読み込むデータの位置
 	DWORD					ReadSize ;							// 読み込むデータのサイズ(読み込めたデータのサイズ)
@@ -43,18 +47,20 @@ struct FILEACCESSTHREAD
 	ULONGLONG				CacheSize ;							// キャッシュバッファの有効データサイズ
 } ;
 
-// ファイルアクセス処理用構造体
-struct WINFILEACCESS
+// ウインドウズ用ファイルアクセス処理用構造体
+struct FILEACCESS_PF
 {
 	HANDLE					Handle ;							// ファイルアクセス用ハンドル
 	int						UseThread ;							// スレッドを使用するかどうか
 	int						UseCacheFlag ;						// キャッシュを使用するかどうか
-	int						UseASyncReadFlag ;					// 非同期読み込みを行うかどうか
-	int						EofFlag ;							// 終端チェックフラグ
-	ULONGLONG				Position ;							// アクセス位置
-	ULONGLONG				Size ;								// サイズ
 
 	FILEACCESSTHREAD		ThreadData ;						// 読み込み専用スレッドのデータ
+} ;
+
+// ウインドウズ用ファイル検索処理用構造体
+struct FINDINFO_PF
+{
+	HANDLE					FindHandle ;						// ファイル検索用ハンドル
 } ;
 
 // テーブル-----------------------------------------------------------------------
@@ -63,8 +69,12 @@ struct WINFILEACCESS
 
 // 関数プロトタイプ宣言-----------------------------------------------------------
 
-extern	HANDLE		CreateTemporaryFile( TCHAR *TempFileNameBuffer ) ;								// 生成临时文件
+extern	HANDLE		CreateTemporaryFile( wchar_t *TempFileNameBuffer ) ;								// テンポラリファイルを作成する
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // __DXFILEWIN_H__

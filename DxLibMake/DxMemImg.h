@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		メモリイメージ制御用ヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -15,8 +15,12 @@
 #include "DxLib.h"
 
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義------------------------------------------------------------------
 
@@ -352,7 +356,7 @@ namespace DxLib
 		// αチャンネルあり
 		#define CODE_UBI_C16_NBR_UAC_BNO( SRC, SRCA, DEST, DESTP, BLEND )	\
 		{\
-			Src2 = (DEST) << 16 ;\
+			Src2 = ( DWORD )( (DEST) << 16 ) ;\
 			*(DESTP) = (WORD)( RMSK16( ( ( RMSK16(SRC) - RMSK16(DEST) ) * BIMG(BLEND) * SRCA + ( Src2 & ( RM16 << 16 ) ) ) >> 16 ) |\
 							   GMSK16( ( ( GMSK16(SRC) - GMSK16(DEST) ) * BIMG(BLEND) * SRCA + ( Src2 & ( GM16 << 16 ) ) ) >> 16 ) |\
 							         ( ( ( BMSK16(SRC) - BMSK16(DEST) ) * BIMG(BLEND) * SRCA + ( Src2 & ( BM16 << 16 ) ) ) >> 16 ) ) ;\
@@ -369,7 +373,7 @@ namespace DxLib
 		// αチャンネルなし
 		#define CODE_UBI_C16_NBR_NAC_BNO( SRC, DEST, DESTP, BLEND )	\
 		{\
-			Src2 = (DEST) << 8 ;\
+			Src2 = ( DWORD )( (DEST) << 8 ) ;\
 			*(DESTP) = (WORD)( RMSK16( ( ( RMSK16(SRC) - RMSK16(DEST) ) * BIMG(BLEND) + ( Src2 & ( RM16 << 8 ) ) ) >> 8 ) |\
 							   GMSK16( ( ( GMSK16(SRC) - GMSK16(DEST) ) * BIMG(BLEND) + ( Src2 & ( GM16 << 8 ) ) ) >> 8 ) |\
 							         ( ( ( BMSK16(SRC) - BMSK16(DEST) ) * BIMG(BLEND) + ( Src2 & ( BM16 << 8 ) ) ) >> 8 ) ) ;\
@@ -527,7 +531,7 @@ namespace DxLib
 		#define CODE_NBI_C16_UBR_NAC_BNO_TCK_NTBL( SRC, DEST, DESTP, RBRIGHT, GBRIGHT, BBRIGHT )	\
 			if( SRC != TransColor ) CODE_NBI_C16_UBR_NAC_BNO_NTBL( SRC, DEST, DESTP, RBRIGHT, GBRIGHT, BBRIGHT )
 
-  // α混合
+  // αブレンド
 
     // ブレンド画像あり
  
@@ -767,7 +771,7 @@ namespace DxLib
 		#define CODE_NBI_C16_UBR_NAC_BAL_TCK_NTBL( SRC, DEST, DESTP, ABRIGHT, RBRIGHT, GBRIGHT, BBRIGHT )	\
 			if( SRC != TransColor ) CODE_NBI_C16_UBR_NAC_BAL_NTBL( SRC, DEST, DESTP, ABRIGHT, RBRIGHT, GBRIGHT, BBRIGHT )
 
-  // 加法混合
+  // 加算ブレンド
 
 	// ブレンド画像あり
 
@@ -1053,7 +1057,7 @@ namespace DxLib
 		#define CODE_NBI_C16_UBR_NAC_BAD_TCK_NTBL( SRC, DEST, DESTP, ABRIGHT, RBRIGHT, GBRIGHT, BBRIGHT  )	\
 			if( SRC != TransColor ) CODE_NBI_C16_UBR_NAC_BAD_NTBL( SRC, DEST, DESTP, ABRIGHT, RBRIGHT, GBRIGHT, BBRIGHT )
 
-  // 减法混合
+  // 減算ブレンド
 
     // ブレンド画像あり
  
@@ -1340,7 +1344,7 @@ namespace DxLib
 			if( SRC != TransColor ) CODE_NBI_C16_UBR_NAC_BSB_NTBL( SRC, DEST, DESTP, ABRIGHT, RBRIGHT, GBRIGHT, BBRIGHT )
 
 
-  // 乘法混合
+  // 乗算ブレンド
 
     // ブレンド画像あり
  
@@ -2094,7 +2098,7 @@ namespace DxLib
 		#define CODE_NBI_C32_UBR_NAC_BNO_TCK_NTBL( SRCP, DESTP, RBRIGHT, GBRIGHT, BBRIGHT )	\
 			if( *((DWORD *)(SRCP)) != TransColor ) CODE_NBI_C32_UBR_NAC_BNO_NTBL( SRCP, DESTP, RBRIGHT, GBRIGHT, BBRIGHT )
 
-  // α混合
+  // αブレンド
 
     // ブレンド画像あり
  
@@ -2334,7 +2338,7 @@ namespace DxLib
 		#define CODE_NBI_C32_UBR_NAC_BAL_TCK_NTBL( SRCP, DESTP, ABRIGHT, RBRIGHT, GBRIGHT, BBRIGHT )	\
 			if( *((DWORD *)(SRCP)) != TransColor ) CODE_NBI_C32_UBR_NAC_BAL_NTBL( SRCP, DESTP, ABRIGHT, RBRIGHT, GBRIGHT, BBRIGHT )
 
-  // 加法混合
+  // 加算ブレンド
 
 	// ブレンド画像あり
 
@@ -2620,7 +2624,7 @@ namespace DxLib
 		#define CODE_NBI_C32_UBR_NAC_BAD_TCK_NTBL( SRCP, DESTP, ABRIGHT, RBRIGHT, GBRIGHT, BBRIGHT )	\
 			if( *((DWORD *)(SRCP)) != TransColor ) CODE_NBI_C32_UBR_NAC_BAD_NTBL( SRCP, DESTP, ABRIGHT, RBRIGHT, GBRIGHT, BBRIGHT )
 
-  // 减法混合
+  // 減算ブレンド
 
     // ブレンド画像あり
  
@@ -2906,7 +2910,7 @@ namespace DxLib
 			if( *((DWORD *)(SRCP)) != TransColor ) CODE_NBI_C32_UBR_NAC_BSB_NTBL( SRCP, DESTP, ABRIGHT, RBRIGHT, GBRIGHT, BBRIGHT )
 
 
-  // 乘法混合
+  // 乗算ブレンド
 
     // ブレンド画像あり
  
@@ -3410,7 +3414,7 @@ namespace DxLib
 
 
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // 自由変形描画補助用ポリゴン描画関数
 struct DX_POINTDATA
@@ -3497,49 +3501,54 @@ extern MEMIMGMANAGE MemImgManage ;
 extern	int		InitializeMemImgManage( void ) ;																													// MEMIMG 管理データの初期化
 
 extern	int		SetMemImgDefaultColorType( int ColorType ) ;																										// デフォルトのカラータイプをセットする
-extern	int		SetMemImgDrawArea( const RECT *DrawArea ) ;																												// MEMIMG用の描画範囲を設定する
+extern	int		SetMemImgDrawArea( const RECT *DrawArea ) ;																											// MEMIMG用の描画範囲を設定する
 extern	int		SetMemImgDrawBlendMode( int BlendMode, int BlendParam ) ;																							// MEMIMG用のブレンドモードとブレンドパラメータの設定を行う
 extern	int		SetMemImgDrawBright( DWORD Bright ) ;																												// MEMIMG用の描画輝度
 
-extern	int		LoadImageToMemImg( const TCHAR *FilePath, MEMIMG *MemImg, int TransColor, int ColorType = -1/*-1=画面に合ったフォーマット*/, int UsePaletteFormat = 0 ) ;			// (補助関数)MEMIMG 構造体に画像を読み込む( これを呼んだ場合 InitializeMemImg は必要なし、あとMemImgは０クリアしておく必要は無い )( 戻り値: -1=失敗  0=成功 )
-extern	int		MakeMemImgScreen( MEMIMG *Img, int Width, int Height, int ColorType = -1/*-1=画面に合ったフォーマット*/  ) ;											// (補助関数)描画対象用のメモリ画像を作成する( InitializeMemImg を簡略化しただけのもの、MemImgは０クリアしておく必要は無い )
+extern	int		LoadImageToMemImg( const wchar_t *FilePath, MEMIMG *MemImg, DWORD TransColor, int ColorType = -1/*-1=画面に合ったフォーマット*/, int UsePaletteFormat = 0 ) ;			// (補助関数)MEMIMG 構造体に画像を読み込む( これを呼んだ場合 InitializeMemImg は必要なし、あとMemImgは０クリアしておく必要は無い )( 戻り値: -1=失敗  0=成功 )
+extern	int		MakeMemImgScreen( MEMIMG *Img, int Width, int Height, int ColorType = -1/*-1=画面に合ったフォーマット*/  ) ;										// (補助関数)描画対象用のメモリ画像を作成する( InitializeMemImg を簡略化しただけのもの、MemImgは０クリアしておく必要は無い )
 extern	int		MakeMemImgZBuffer( MEMIMG *Img, int Width, int Height ) ;																							// (補助関数)Ｚバッファのメモリイメージを作成する( InitializeMemImg を簡略化しただけのもの、MemImgは０クリアしておく必要は無い )
-extern	void	BltMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT *SrcRect/* NULL:全体 */, int DestX, int DestY ) ;																	// (補助関数)MEMIMG 間でデータの転送を行う
-extern	void	DerivationMemImg( MEMIMG *DestImg, MEMIMG *SrcImg, int SrcX, int SrcY, int Width, int Height ) ;                                                     // ある MEMIMG の一部を使用する MEMIMG の情報を準備する(派生元が無効になったら派生 MEMIMG も使用不可になる、というか、一瞬だけ他の画像を間借りしたいとき位にしか使えない)
+extern	void	BltMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT *SrcRect/* NULL:全体 */, int DestX, int DestY ) ;										// (補助関数)MEMIMG 間でデータの転送を行う
+extern	void	DerivationMemImg( MEMIMG *DestImg, MEMIMG *SrcImg, int SrcX, int SrcY, int Width, int Height ) ;													// ある MEMIMG の一部を使用する MEMIMG の情報を準備する(派生元が無効になったら派生 MEMIMG も使用不可になる、というか、一瞬だけ他の画像を間借りしたいとき位にしか使えない)
 
-extern	int		InitializeMemImg( MEMIMG *Img, int Width, int Height, int Pitch/*規定値:-1*/, int TransColor, int ColorType, int UsePalette, int UseAlpha, int AnalysisFlag = TRUE, const void *UserImage = NULL ) ;		// メモリ画像を初期化する、構造体はゼロ初期化されている必要がある( 戻り値: -1=失敗  0=成功 )
-extern	int		CheckValidMemImg( const MEMIMG *Img ) ;																													// MEMIMG が有効かどうかを取得する
+extern	int		InitializeMemImg( MEMIMG *Img, int Width, int Height, int Pitch/*規定値:-1*/, DWORD TransColor, int ColorType, int UsePalette, int UseAlpha, int AnalysisFlag = TRUE, const void *UserImage = NULL ) ;		// メモリ画像を初期化する、構造体はゼロ初期化されている必要がある( 戻り値: -1=失敗  0=成功 )
+extern	int		CheckValidMemImg( const MEMIMG *Img ) ;																												// MEMIMG が有効かどうかを取得する
 extern	void	TerminateMemImg( MEMIMG *Img ) ;																													// メモリ画像の後始末をする( 自前で初期化した場合は実行する必要なし( イメージ領域の解放だけなので ) )
-extern	void	BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *AlphaImage, MEMIMG *MemImg, int SrcX, int SrcY, int Width, int Height, int DestX, int DestY, int UseTransColorConvAlpha = TRUE ) ;	// BASEIMAGE イメージから MEMIMG イメージに画像データを転送する( パレットも勝手に転送される )
-extern	void	BltMemImgToBaseImage( BASEIMAGE *BaseImage, const MEMIMG *MemImg, int SrcX, int SrcY, int Width, int Height, int DestX, int DestY, int TransColor = 0, int TransFlag = FALSE ) ;	// MEMIMG イメージから BASEIMAGE イメージに画像データを転送する
-extern	void	ClearMemImg( MEMIMG *MemImg, const RECT *FillArea = NULL, DWORD Color = 0 ) ;																				// イメージを初期化する
-extern	void	DrawMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, int DestX, int DestY, int TransFlag = TRUE, const MEMIMG *BlendImg = NULL ) ;								// イメージを描画する
-extern	void	DrawTurnMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, int XTurnFlag, int YTurnFlag, int DestX, int DestY, int TransFlag = TRUE, const MEMIMG *BlendImg = NULL ) ;
-extern	void	DrawEnlargeMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT *DestRect, int TransFlag = TRUE, const MEMIMG *BlendImg = NULL ) ;								// イメージを拡大描画する
-extern	void	DrawEnlargeMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, int x1, int y1, int x2, int y2, int TransFlag = TRUE, const MEMIMG *BlendImg = NULL ) ;				// イメージを拡大描画する
-extern	void 	DrawRotationMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, int x, int y, float Angle, float EnlageRate, int TransFlag = TRUE, int TurnFlag = FALSE, const MEMIMG *BlendImg = NULL ) ;	// イメージを回転描画する
-extern	void	DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const DX_POINTDATA *pos3, int TransFlag = TRUE, const MEMIMG *BlendImg = NULL, int Color = 0xffffffff ) ;	// イメージを使用してポリゴンを描画する( ２Ｄ空間に画像を変形して描画するのが目的 )
-extern	void	DrawTransformMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const POINT *pos4, int TransFlag = TRUE, const MEMIMG *BlendImg = NULL ) ;								// イメージを変形描画する
-extern	void	DrawPolygonMemImg( MEMIMG *DestImg, MEMIMG *ZImg, const MEMIMG *SrcImg, const struct tagVERTEX_2D *Vertex3, int TransFlag = TRUE, const MEMIMG *BlendImg = NULL, int ZWriteFlag = TRUE, int GouraudShadeMode = TRUE, int PerspectiveEnable = TRUE, int ScissorTest = TRUE ) ;	// イメージを使用してポリゴンを描画する( ３Ｄ空間に３Ｄポリゴンを描画するのが目的 )
+extern	void	BltBaseImageToMemImg( const BASEIMAGE *RgbBaseImage, const BASEIMAGE *AlphaBaseImage, MEMIMG *MemImg, int SrcX, int SrcY, int Width, int Height, int DestX, int DestY, int UseTransColorConvAlpha = TRUE ) ;	// BASEIMAGE イメージから MEMIMG イメージに画像データを転送する( パレットも勝手に転送される )
+extern	void	BltMemImgToBaseImage( BASEIMAGE *BaseImage, const MEMIMG *MemImg, int SrcX, int SrcY, int Width, int Height, int DestX, int DestY, DWORD TransColor = 0, int TransFlag = FALSE ) ;	// MEMIMG イメージから BASEIMAGE イメージに画像データを転送する
+extern	void	ClearMemImg(            MEMIMG *MemImg, const RECT *FillArea = NULL, unsigned int Color = 0 ) ;																		// イメージを初期化する
+extern	void	DrawMemImg(             MEMIMG *DestImg, const MEMIMG *SrcImg, int DestX, int DestY,                                              int TransFlag = TRUE, const MEMIMG *BlendImg = NULL ) ;							// イメージを描画する
+extern	void	DrawTurnMemImg(         MEMIMG *DestImg, const MEMIMG *SrcImg, int XTurnFlag, int YTurnFlag, int DestX, int DestY,                int TransFlag = TRUE, const MEMIMG *BlendImg = NULL ) ;
+extern	void	DrawEnlargeMemImg(      MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT *DestRect,                                              int TransFlag = TRUE, const MEMIMG *BlendImg = NULL ) ;							// イメージを拡大描画する
+extern	void	DrawEnlargeMemImg(      MEMIMG *DestImg, const MEMIMG *SrcImg, int x1, int y1, int x2, int y2,                                    int TransFlag = TRUE, const MEMIMG *BlendImg = NULL ) ;							// イメージを拡大描画する
+extern	void 	DrawRotationMemImg(     MEMIMG *DestImg, const MEMIMG *SrcImg, int x, int y, float Angle, float EnlageRate,                       int TransFlag = TRUE, int TurnFlag = FALSE, const MEMIMG *BlendImg = NULL ) ;		// イメージを回転描画する
+extern	void	DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const DX_POINTDATA *pos3,                                          int TransFlag = TRUE, const MEMIMG *BlendImg = NULL, unsigned int Color = 0xffffffff ) ;	// イメージを使用してポリゴンを描画する( ２Ｄ空間に画像を変形して描画するのが目的 )
+extern	void	DrawTransformMemImg(    MEMIMG *DestImg, const MEMIMG *SrcImg, const POINT *pos4,                                                 int TransFlag = TRUE, const MEMIMG *BlendImg = NULL ) ;							// イメージを変形描画する
+extern	void	DrawPolygonMemImg(      MEMIMG *DestImg, MEMIMG *ZImg, const MEMIMG *SrcImg, const struct tagVERTEX_2D *Vertex3,                  int TransFlag = TRUE, const MEMIMG *BlendImg = NULL, int ZWriteFlag = TRUE, int GouraudShadeMode = TRUE, int PerspectiveEnable = TRUE, int ScissorTest = TRUE ) ;	// イメージを使用してポリゴンを描画する( ３Ｄ空間に３Ｄポリゴンを描画するのが目的 )
 
-extern	int		GetPixelColorMemImg( const MEMIMG *MemImg, int x, int y ) ;																								// イメージ中の指定座標の色を取得
-extern	void	PaintMemImg( MEMIMG *DestImg, int x, int y, int FillColor, int BoundaryColor ) ;																	// 指定点から境界色があるところまで塗りつぶす
-extern	void	DrawPixelMemImg( MEMIMG *DestImg, int x, int y, int Color ) ;																						// イメージに点を描画する
-extern	void	DrawFillBoxMemImg( MEMIMG *DestImg, const RECT *FillRect, int Color ) ;																					// イメージに中身のあるボックスを描画する
-extern	void	DrawFillBoxMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, int Color ) ;																	// イメージに中身のあるボックスを描画する
-extern	void	DrawLineMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, int Color ) ;																		// イメージに線を描画する
-extern	void	DrawLineBoxMemImg( MEMIMG *DestImg, int x1, int y1, int x2, int y2, int Color ) ;																	// イメージに枠だけのボックスを描画する
-extern 	void	DrawPixelSetMemImg( MEMIMG *DestImg, const POINTDATA *PointData, int Num ) ;																				// イメージに点の集合を描画する
-extern	void	DrawLineSetMemImg( MEMIMG *DestImg, const LINEDATA *LineData, int Num ) ;																					// イメージに線の集合を描画する
-extern	void	DrawCircleMemImg( MEMIMG *DestImg, int x, int y, int r, int Color, int FillFlag ) ;																	// イメージに円を描画する
-extern	void	DrawOvalMemImg( MEMIMG *DestImg, int x, int y, int rx, int ry, int Color, int FillFlag ) ;															// イメージに楕円を描画する
+extern	DWORD	GetPixelColorMemImg( const MEMIMG *MemImg, int x, int y ) ;																							// イメージ中の指定座標の色を取得
+extern	void	PaintMemImg(        MEMIMG *DestImg, int x, int y,                   unsigned int FillColor, ULONGLONG BoundaryColor ) ;								// 指定点から境界色があるところまで塗りつぶす
+extern	void	DrawPixelMemImg(    MEMIMG *DestImg, int x, int y,                   unsigned int Color ) ;																// イメージに点を描画する
+extern	void	DrawFillBoxMemImg(  MEMIMG *DestImg, const RECT *FillRect,           unsigned int Color ) ;																// イメージに中身のあるボックスを描画する
+extern	void	DrawFillBoxMemImg(  MEMIMG *DestImg, int x1, int y1, int x2, int y2, unsigned int Color ) ;																// イメージに中身のあるボックスを描画する
+extern	void	DrawLineMemImg(     MEMIMG *DestImg, int x1, int y1, int x2, int y2, unsigned int Color ) ;																// イメージに線を描画する
+extern	void	DrawLineBoxMemImg(  MEMIMG *DestImg, int x1, int y1, int x2, int y2, unsigned int Color ) ;																// イメージに枠だけのボックスを描画する
+extern 	void	DrawPixelSetMemImg( MEMIMG *DestImg, const POINTDATA *PointData, int Num ) ;																		// イメージに点の集合を描画する
+extern	void	DrawLineSetMemImg(  MEMIMG *DestImg, const LINEDATA *LineData,   int Num ) ;																		// イメージに線の集合を描画する
+extern	void	DrawCircleMemImg(   MEMIMG *DestImg, int x, int y, int r,            unsigned int Color, int FillFlag ) ;													// イメージに円を描画する
+extern	void	DrawOvalMemImg(     MEMIMG *DestImg, int x, int y, int rx, int ry,   unsigned int Color, int FillFlag ) ;													// イメージに楕円を描画する
 
 extern	void	SetBlendGraphParamMemImg( int BorderParam, int BorderRange ) ;																						// ブレンドグラフィック処理に必要なテーブルのセットアップを行う
 extern	COLORDATA *GetMemImgColorData( int ColorType, int UseAlpha, int UsePalette ) ;																				// 指定のフォーマットのカラーデータを得る
-#ifdef __WINDOWS__
-extern	D_DDPIXELFORMAT *GetMemImgPixelFormat( int ColorType, int UseAlpha, int UsePalette ) ;																		// 指定のフォーマットのカラーデータを得る
-#endif // __WINDOWS__
+//#ifdef __WINDOWS__
+//extern	int		CreatePixelFormat(	D_DDPIXELFORMAT *PixelFormatBuf, int ColorBitDepth, DWORD RedMask, DWORD GreenMask, DWORD BlueMask, DWORD AlphaMask ) ;			// DDPIXELFORMATデータを作成する
+//extern	D_DDPIXELFORMAT *GetMemImgPixelFormat( int ColorType, int UseAlpha, int UsePalette ) ;																		// 指定のフォーマットのカラーデータを得る
+//#endif // __WINDOWS__
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif

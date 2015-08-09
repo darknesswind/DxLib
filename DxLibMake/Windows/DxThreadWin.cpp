@@ -2,14 +2,14 @@
 // 
 // 		ＤＸライブラリ		Windows用スレッド関係プログラム
 // 
-//  	Ver 3.11f
+//  	Ver 3.14d
 // 
 //-----------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
-// Include ---------------------------------------------------------------
+// インクルード ---------------------------------------------------------------
 #include "DxThreadWin.h"
 #include "../DxMemory.h"
 
@@ -17,18 +17,22 @@
 #include "../DxBaseFunc.h"
 #endif
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 -----------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体声明 -----------------------------------------------------------------
+// マクロ定義 -----------------------------------------------------------------
 
-// 数据定义 -----------------------------------------------------------------
+// 構造体宣言 -----------------------------------------------------------------
 
-// 函数声明 -------------------------------------------------------------------
+// データ定義 -----------------------------------------------------------------
 
-// Program -----------------------------------------------------------------
+// 関数宣言 -------------------------------------------------------------------
+
+// プログラム -----------------------------------------------------------------
 
 
 // スレッドの処理を初期化する
@@ -43,7 +47,7 @@ DWORD WINAPI ThreadRunFunction( void *pParam )
 {
 	THREAD_INFO *pInfo = ( THREAD_INFO * )pParam ;
 
-	Thread_Suspend() ;
+	Thread_Suspend( pInfo ) ;
 
 	pInfo->pFunction( pInfo, pInfo->pParam ) ;
 
@@ -119,7 +123,7 @@ extern DWORD Thread_GetId( THREAD_INFO *pThreadInfo )
 }
 
 // スレッドを休止状態にする
-extern void Thread_Suspend( void )
+extern void Thread_Suspend( THREAD_INFO *pThreadInfo )
 {
 	SuspendThread( GetCurrentThread() ) ;
 }
@@ -181,8 +185,8 @@ extern int CriticalSection_Lock( DX_CRITICAL_SECTION *pCSection )
 
 #if !defined( __BCC ) || defined( _DEBUG )
 	int Length = _STRLEN( FilePath ) ;
-	if( Length >= 256 ) Length = 255 ;
-	_MEMCPY( pCSection->FilePath, FilePath, Length ) ;
+	if( Length >= 512 ) Length = 511 ;
+	_MEMCPY( pCSection->FilePath, FilePath, ( size_t )Length ) ;
 	pCSection->FilePath[ Length ] = '\0' ;
 	pCSection->LineNo = LineNo ;
 	pCSection->ThreadID = ThreadID ;
@@ -202,5 +206,9 @@ extern int CriticalSection_Unlock( DX_CRITICAL_SECTION *pCSection )
 
 
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 

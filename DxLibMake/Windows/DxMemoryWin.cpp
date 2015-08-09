@@ -2,71 +2,115 @@
 // 
 // 		ＤＸライブラリ		Windows用メモリ関係プログラム
 // 
-//  	Ver 3.11f
+//  	Ver 3.14d
 // 
 //-----------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
-// Include ---------------------------------------------------------------
-#include "DxMemoryWin.h"
+// インクルード ---------------------------------------------------------------
+#include "../DxMemory.h"
 #include <windows.h>
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 -----------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体声明 -----------------------------------------------------------------
+// マクロ定義 -----------------------------------------------------------------
 
-// 数据定义 -----------------------------------------------------------------
+// 構造体宣言 -----------------------------------------------------------------
 
-// 函数声明 -------------------------------------------------------------------
+// データ定義 -----------------------------------------------------------------
 
-// Program -----------------------------------------------------------------
+// 関数宣言 -------------------------------------------------------------------
 
-// ラッパー関数
+// プログラム -----------------------------------------------------------------
 
-// メモリを確保する
-extern void *AllocWrap( size_t AllocSize )
+// メモリ処理の初期化を行う関数の環境依存処理
+extern int MemoryInitialize_PF( void )
 {
-	void *AllocMemory ;
-
-//	AllocMemory = malloc( AllocSize ) ;
-	AllocMemory = HeapAlloc( GetProcessHeap(), 0, AllocSize ) ;
-
-	return AllocMemory ;
+	return 0 ;
 }
 
-// メモリを確保して０で初期化する
-extern void *CallocWrap( size_t AllocSize )
+// メモリ処理の後始末を行う関数の環境依存処理
+extern int MemoryTerminate_PF( void )
 {
-	void *AllocMemory ;
-
-//	AllocMemory = calloc( 1, AllocSize ) ;
-	AllocMemory = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY, AllocSize ) ;
-	
-	return AllocMemory ;
+	return 0 ;
 }
 
-// メモリの再確保を行う
-extern void *ReallocWrap( void *Memory, size_t AllocSize )
+// メモリ処理の周期的処理の環境依存処理
+extern int MemoryProcess_PF( void )
 {
-	void *AllocMemory ;
-
-//	AllocMemory = realloc( Memory, AllocSize ) ;
-	AllocMemory = HeapReAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY, Memory, AllocSize ) ;
-	
-	return AllocMemory ;
+	return 0 ;
 }
 
-// メモリを解放する
-extern void FreeWrap( void *Memory )
+// 環境依存の一般的なヒープ用のメモリ領域を確保するためのコールバック関数群の AutoAlloc_CreateHeapCallback
+extern int NormalMemory_AutoAlloc_CreateHeapCallback_PF( int Param, void *Buffer, ALLOCMEM_SIZE_TYPE Size )
 {
-//	free( Memory ) ;
-	HeapFree( GetProcessHeap(), 0, Memory ) ;
+	MEMORY_BASIC_INFORMATION	MemoryBasicInfo ;
+	PLATFORMHEAP_WIN *			PlatformHeap = ( PLATFORMHEAP_WIN * )Buffer ;
+	SIZE_T						Result ;
+
+	// バッファサイズチェック
+	if( sizeof( PLATFORMHEAP_WIN ) > ALLOCHEAP_CALLBACK_INFO_SIZE )
+	{
+		*( ( DWORD * )0x00000000 ) = 0xffffffff ;
+	}
+
+	// メモリを確保
+	PlatformHeap->AllocAddress = VirtualAlloc( NULL, Size, MEM_COMMIT, PAGE_READWRITE ) ;
+	if( PlatformHeap->AllocAddress == NULL )
+	{
+		return -1 ;
+	}
+
+	// 確保したメモリのサイズを取得
+	Result = VirtualQuery( PlatformHeap->AllocAddress, &MemoryBasicInfo, sizeof( MemoryBasicInfo ) ) ;
+	if( Result == 0 )
+	{
+		VirtualFree( PlatformHeap->AllocAddress, 0, MEM_RELEASE ) ;
+		return -1 ;
+	}
+	PlatformHeap->AllocSize = MemoryBasicInfo.RegionSize ;
+
+	return 0 ;
 }
 
+// 環境依存の一般的なヒープ用のメモリ領域を確保するためのコールバック関数群の AutoAlloc_GetHeapAddressCallback
+extern void * NormalMemory_AutoAlloc_GetHeapAddressCallback_PF( int Param, void *Buffer )
+{
+	PLATFORMHEAP_WIN *			PlatformHeap = ( PLATFORMHEAP_WIN * )Buffer ;
+
+	return PlatformHeap->AllocAddress ;
 }
+
+// 環境依存の一般的なヒープ用のメモリ領域を確保するためのコールバック関数群の AutoAlloc_GetHeapSizeCallback
+extern	ALLOCMEM_SIZE_TYPE	 NormalMemory_AutoAlloc_GetHeapSizeCallback_PF( int Param, void *Buffer )
+{
+	PLATFORMHEAP_WIN *			PlatformHeap = ( PLATFORMHEAP_WIN * )Buffer ;
+
+	return ( ALLOCMEM_SIZE_TYPE )PlatformHeap->AllocSize ;
+}
+
+// 環境依存の一般的なヒープ用のメモリ領域を確保するためのコールバック関数群の AutoAlloc_DeleteHeapCallback
+extern int  NormalMemory_AutoAlloc_DeleteHeapCallback_PF( int Param, void *Buffer )
+{
+	PLATFORMHEAP_WIN *			PlatformHeap = ( PLATFORMHEAP_WIN * )Buffer ;
+
+	// メモリを解放
+	VirtualFree( PlatformHeap->AllocAddress, 0, MEM_RELEASE ) ;
+
+	return 0 ;
+}
+
+
+#ifdef DX_USE_NAMESPACE
+
+}
+
+#endif // DX_USE_NAMESPACE
 

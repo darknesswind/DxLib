@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ読み込みプログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -23,8 +23,12 @@
 #include "Windows/DxWindow.h"
 #include "DxSystem.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 -----------------------------------
 
@@ -41,7 +45,7 @@ namespace DxLib
 		model->name##Last->DataNext = name ;\
 		model->name##Last = name;\
 	}\
-	name->Index = model->name##Num ;\
+	name->Index = ( int )model->name##Num ;\
 	model->name##Num ++ ;
 
 // オブジェクト内リストに追加
@@ -182,7 +186,10 @@ BYTE TgaSpecularDefaultGradFileImage[ 172/*124*/ ] =
 
 // 関数宣言 -------------------------------------
 
-static char *MV1RGetStringSpace( MV1_MODEL_BASE *MBase, const char *String ) ;							// モデル基本データ用の文字列スペースを確保する( -1:エラー )
+#ifndef UNICODE
+static char    *MV1RGetStringSpace(  MV1_MODEL_BASE *MBase, const char    *String ) ;					// モデル基本データ用の文字列スペースを確保する( -1:エラー )
+#endif
+static wchar_t *MV1RGetStringSpaceW( MV1_MODEL_BASE *MBase, const wchar_t *String ) ;					// モデル基本データ用の文字列スペースを確保する( -1:エラー )
 static bool MV1ConvertTrianglePolygon( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh ) ;						// 多角形ポリゴンを三角形ポリゴンに変換する
 static bool MV1OptimizePosition( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh ) ;							// 座標、スキニングウエイト値が全く同一の頂点を統合する
 static bool MV1MakeMeshNormals( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh ) ;							// メッシュ法線の自動計算( 全ポリゴンが三角形ポリゴンである必要があります )
@@ -242,7 +249,7 @@ static bool MV1ConvertTrianglePolygon( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh 
 	NewFace = ( MV1_MESHFACE_R * )ADDMEMAREA( ( sizeof( MV1_MESHFACE_R ) + ( 3 + MV1_READ_MAX_UV_NUM ) * 3 * sizeof( DWORD ) ) * NewFaceNum, &ReadModel->Mem ) ;
 	if( NewFace == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Error : ３ポリ変換後のデータを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x13\xff\xdd\x30\xea\x30\x09\x59\xdb\x63\x8c\x5f\x6e\x30\xc7\x30\xfc\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Error : ３ポリ変換後のデータを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return false ;
 	}
 	NewIndex = ( DWORD * )( NewFace + NewFaceNum ) ;
@@ -288,7 +295,7 @@ static bool MV1ConvertTrianglePolygon( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh 
 	NewFaceT = NewFace ;
 	for( i = 0 ; ( DWORD )i < Mesh->FaceNum ; i ++, NewFaceT ++, FaceT ++ )
 	{
-		AddNum = FaceT->IndexNum - 3 ;
+		AddNum = ( int )( FaceT->IndexNum - 3 ) ;
 		if( AddNum == 0 ) continue ;
 
 		p1 = 0 ;
@@ -296,7 +303,7 @@ static bool MV1ConvertTrianglePolygon( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh 
 		j = 0 ;
 		for(;;)
 		{
-			pt = p1 - 1 == -1 ? FaceT->IndexNum - 1 : p1 - 1 ;
+			pt = ( int )( p1 - 1 == -1 ? FaceT->IndexNum - 1 : p1 - 1 ) ;
 			NewFaceT2->IndexNum = 3 ;
 			NewFaceT2->PolygonNum = 1 ;
 			NewFaceT2->VertexIndex[ 0 ] = FaceT->VertexIndex[ p1 ] ;
@@ -317,7 +324,7 @@ static bool MV1ConvertTrianglePolygon( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh 
 			NewFaceT2->MaterialIndex = FaceT->MaterialIndex ;
 
 			p1 -- ;
-			if( p1 == -1 ) p1 = FaceT->IndexNum - 1 ;
+			if( p1 == -1 ) p1 = ( int )( FaceT->IndexNum - 1 ) ;
 			j ++ ;
 			NewFaceT2 ++ ;
 			if( AddNum == j ) break ;
@@ -391,7 +398,7 @@ static bool MV1OptimizePosition( MV1_MODEL_R * /*ReadModel*/, MV1_MESH_R *Mesh )
 	OldPositions = ( VECTOR * )DXALLOC( ( sizeof( DWORD ) + sizeof( BYTE ) + sizeof( VECTOR ) + PosSkinWUnitSize ) * Mesh->PositionNum ) ;
 	if( OldPositions == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : 頂点最適化処理で使用するテンポラリバッファの確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\x00\x67\x69\x90\x16\x53\xe6\x51\x06\x74\x67\x30\x7f\x4f\x28\x75\x59\x30\x8b\x30\xc6\x30\xf3\x30\xdd\x30\xe9\x30\xea\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : 頂点最適化処理で使用するテンポラリバッファの確保に失敗しました\n" @*/ )) ;
 		return false ;
 	}
 	PositionSkinW = ( MV1_OPTIMIZEPOSITION_WEIGHT * )( OldPositions + Mesh->PositionNum ) ;
@@ -460,7 +467,7 @@ static bool MV1OptimizePosition( MV1_MODEL_R * /*ReadModel*/, MV1_MESH_R *Mesh )
 				for( l = 0 ; ( DWORD )l < Face->IndexNum ; l ++ )
 				{
 					if( Face->VertexIndex[ l ] != ( DWORD )j ) continue ;
-					Face->VertexIndex[ l ] = i ;
+					Face->VertexIndex[ l ] = ( DWORD )i ;
 				}
 			}
 
@@ -486,11 +493,11 @@ static bool MV1OptimizePosition( MV1_MODEL_R * /*ReadModel*/, MV1_MESH_R *Mesh )
 	{
 		if( DisableFlag[ i ] == 1 ) continue ;
 
-		NewVertexIndex[ i ] = NewPositionNum ;
+		NewVertexIndex[ i ] = ( DWORD )NewPositionNum ;
 		Mesh->Positions[ NewPositionNum ] = OldPositions[ i ] ;
 		NewPositionNum ++ ;
 	}
-	Mesh->PositionNum = NewPositionNum ;
+	Mesh->PositionNum = ( DWORD )NewPositionNum ;
 
 	// ポリゴンの座標インデックスを付け直す
 	Face = Mesh->Faces ;
@@ -640,7 +647,7 @@ static bool MV1OptimizeSkinBoneInfo( MV1_MODEL_BASE *Model )
 	AfterSkin = ( MV1_SKIN_BONE * )DXALLOC( ( sizeof( int ) + sizeof( MV1_SKIN_BONE_USE_FRAME ) ) * Model->SkinBoneUseFrameNum + ( sizeof( MV1_SKIN_BONE ) + sizeof( int ) ) * Model->SkinBoneNum * 4 ) ;
 	if( AfterSkin == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Model Optimize Error : スキニングメッシュ情報最適化処理で使用するテンポラリバッファの確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x4f\x00\x70\x00\x74\x00\x69\x00\x6d\x00\x69\x00\x7a\x00\x65\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xb9\x30\xad\x30\xcb\x30\xf3\x30\xb0\x30\xe1\x30\xc3\x30\xb7\x30\xe5\x30\xc5\x60\x31\x58\x00\x67\x69\x90\x16\x53\xe6\x51\x06\x74\x67\x30\x7f\x4f\x28\x75\x59\x30\x8b\x30\xc6\x30\xf3\x30\xdd\x30\xe9\x30\xea\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Model Optimize Error : スキニングメッシュ情報最適化処理で使用するテンポラリバッファの確保に失敗しました\n" @*/ )) ;
 		return false ;
 	}
 	BeginToAfterIndex = ( int * )( AfterSkin + Model->SkinBoneNum ) ;
@@ -771,13 +778,19 @@ static bool MV1OptimizeSkinBoneInfo( MV1_MODEL_BASE *Model )
 // アニメーションデータを最適化する
 static bool MV1OptimizeAnim( MV1_MODEL_R *ReadModel )
 {
-	MV1_ANIM_R *AnimR ;
-	MV1_ANIMKEYSET_R *KeySetR ;
-//	MV1_ANIM_KEY_16BIT_F TimeSub, KeySub ;
-	int i, j, k, l ;
-	float /**Time,*/ f ;
-//	WORD *NewTimeB16 ;
+	MV1_ANIM_R           *AnimR ;
+	MV1_ANIMKEYSET_R     *KeySetR ;
+//	MV1_ANIM_KEY_16BIT_F  TimeSub ;
+//	MV1_ANIM_KEY_16BIT_F  KeySub ;
+	int                   i ;
+	int                   j ;
+	int                   k ;
+	int                   l ;
+//	float                *Time ;
+	float                 f ;
+//	WORD                 *NewTimeB16 ;
 
+#if 0 // 行列にXYZで異なるスケールがされていると正常に処理できないので解決の目処が立つまでコメントアウト
 	// MV1_ANIMKEY_TYPE_MATRIX4X4C を MV1_ANIMKEY_TYPE_MATRIX3X3 と MV1_ANIMKEY_TYPE_VECTOR に分解する
 	if( ReadModel->AnimDataNotDecomposition == FALSE )
 	{
@@ -1002,8 +1015,9 @@ static bool MV1OptimizeAnim( MV1_MODEL_R *ReadModel )
 			}
 		}
 	}
+#endif 
 
-/*
+
 	// MV1_ANIMKEY_TYPE_MATRIX3X3 タイプの MV1_ANIMKEY_DATATYPE_MATRIX3X3 を
 	// MV1_ANIMKEY_TYPE_VECTOR タイプの MV1_ANIMKEY_DATATYPE_ROTATE に変換する
 	AnimR = ReadModel->AnimFirst ;
@@ -1120,7 +1134,7 @@ static bool MV1OptimizeAnim( MV1_MODEL_R *ReadModel )
 			}
 		}
 	}
-*/
+
 	// 線形補間で済むデータを削除するか、減らせる数が少なく一定間隔で並ぶキーが多い場合は固定間隔にする
 	AnimR = ReadModel->AnimFirst ;
 	for( i = 0 ; ( DWORD )i < ReadModel->AnimNum ; i ++, AnimR = AnimR->DataNext )
@@ -1175,7 +1189,7 @@ static bool MV1OptimizeAnim( MV1_MODEL_R *ReadModel )
 					continue ;
 
 				// 分解した場合の総データサイズと、分解しない場合のサイズを比較して、分解した方が良い場合は分解する
-				BeginSize = sizeof( VECTOR ) * KeySetR->Num + sizeof( MV1_ANIM_KEYSET_BASE ) ;
+				BeginSize = ( int )( sizeof( VECTOR ) * KeySetR->Num + sizeof( MV1_ANIM_KEYSET_BASE ) ) ;
 				if( KeySetR->TimeType == MV1_ANIMKEY_TIME_TYPE_KEY )
 					BeginSize += sizeof( float ) * KeySetR->Num ;
 
@@ -1183,7 +1197,7 @@ static bool MV1OptimizeAnim( MV1_MODEL_R *ReadModel )
 				if( ix == false ) count ++ ;
 				if( iy == false ) count ++ ;
 				if( iz == false ) count ++ ;
-				AfterSize = sizeof( float ) * KeySetR->Num + sizeof( MV1_ANIM_KEYSET_BASE ) ;
+				AfterSize = ( int )( sizeof( float ) * KeySetR->Num + sizeof( MV1_ANIM_KEYSET_BASE ) ) ;
 				if( KeySetR->TimeType == MV1_ANIMKEY_TIME_TYPE_KEY )
 					AfterSize += sizeof( float ) * KeySetR->Num ;
 				AfterSize *= count ;
@@ -2172,7 +2186,7 @@ MATRIX3X3ADD :
 		// キーを減らして削減されるデータサイズが固定タイムにして
 		// 削減できるデータサイズより大きいか、そもそも固定タイムに
 		// できない場合はキーを減らす
-		AfterSizeK = num          * ( UnitSize + sizeof( float ) ) ;
+		AfterSizeK = ( int )( num          * ( UnitSize + sizeof( float ) ) ) ;
 		AfterSizeU = KeySetR->Num *   UnitSize ;
 		if( num == 1 || ( Ittei == false || AfterSizeK < AfterSizeU ) && num < KeySetR->Num )
 		{
@@ -2285,7 +2299,7 @@ static bool MV1MakeMeshNormals( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh )
 	Mesh->Normals = ( VECTOR * )DXALLOC( ( sizeof( VECTOR ) + sizeof( BYTE ) + sizeof( DWORD ) + sizeof( DWORD ) ) * Mesh->NormalNum ) ;
 	if( Mesh->Normals == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : 法線自動作成処理で格納する法線のメモリの確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xd5\x6c\xda\x7d\xea\x81\xd5\x52\x5c\x4f\x10\x62\xe6\x51\x06\x74\x67\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xd5\x6c\xda\x7d\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : 法線自動作成処理で格納する法線のメモリの確保に失敗しました\n" @*/ )) ;
 		return false ;
 	}
 	_MEMSET( Mesh->Normals, 0, ( sizeof( VECTOR ) + sizeof( BYTE ) + sizeof( DWORD ) + sizeof( DWORD ) ) * Mesh->NormalNum ) ;
@@ -2295,9 +2309,9 @@ static bool MV1MakeMeshNormals( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh )
 	NewNormalIndex = UseNormalIndex + Mesh->NormalNum ;
 
 	// 面の頂点インデックスの末尾にインデックスを追加するためにバッファを拡張する
-	if( MV1RSetupMeshFaceBuffer( ReadModel, Mesh, Mesh->FaceNum, Mesh->FaceUnitMaxIndexNum * 2 ) < 0 )
+	if( MV1RSetupMeshFaceBuffer( ReadModel, Mesh, ( int )Mesh->FaceNum, ( int )( Mesh->FaceUnitMaxIndexNum * 2 ) ) < 0 )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : 法線自動作成処理で格納する頂点インデックスのメモリの確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xd5\x6c\xda\x7d\xea\x81\xd5\x52\x5c\x4f\x10\x62\xe6\x51\x06\x74\x67\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\x02\x98\xb9\x70\xa4\x30\xf3\x30\xc7\x30\xc3\x30\xaf\x30\xb9\x30\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : 法線自動作成処理で格納する頂点インデックスのメモリの確保に失敗しました\n" @*/ )) ;
 		return false ;
 	}
 
@@ -2316,7 +2330,7 @@ static bool MV1MakeMeshNormals( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh )
 		VertexFaceList = ( MV1_MAKEVERTINDEXINFO ** )DXALLOC( sizeof( MV1_MAKEVERTINDEXINFO * ) * Mesh->PositionNum + sizeof( MV1_MAKEVERTINDEXINFO ) * IndexNum ) ;
 		if( VertexFaceList == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : 関係する面の情報を格納するメモリの確保に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xa2\x95\xc2\x4f\x59\x30\x8b\x30\x62\x97\x6e\x30\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : 関係する面の情報を格納するメモリの確保に失敗しました\n" @*/ )) ;
 			return false ;
 		}
 		_MEMSET( VertexFaceList, 0, sizeof( MV1_MAKEVERTINDEXINFO * ) * Mesh->PositionNum ) ;
@@ -2692,7 +2706,7 @@ static bool MV1MakeMeshNormals( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh )
 			// リストアップされた面に正規化した法線をセットする
 			for( k = 0 ; k < FaceCount ; k ++ )
 			{
-				Index = FaceList[ k ]->NormalIndex[ FaceIndex[ k ] ] ;
+				Index = ( int )FaceList[ k ]->NormalIndex[ FaceIndex[ k ] ] ;
 				Mesh->Normals[ Index ] = FaceNorm ;
 				Mesh->NormalSetFlag[ Index ] = 1 ;
 				FaceList[ k ]->NormalIndex[ FaceIndex[ k ] ] = FaceList[ 0 ]->NormalIndex[ FaceIndex[ 0 ] ] ;
@@ -2739,7 +2753,7 @@ static bool MV1MakeMeshNormals( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh )
 		if( Mesh->Normals == NULL )
 		{
 			DXFREE( Normal ) ;
-			DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : 法線自動作成処理で格納する法線のメモリの確保に失敗しました _ 2\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xd5\x6c\xda\x7d\xea\x81\xd5\x52\x5c\x4f\x10\x62\xe6\x51\x06\x74\x67\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xd5\x6c\xda\x7d\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x5f\x00\x20\x00\x32\x00\x0a\x00\x00"/*@ L"Read Model Convert Error : 法線自動作成処理で格納する法線のメモリの確保に失敗しました _ 2\n" @*/ )) ;
 			return false ;
 		}
 
@@ -2864,28 +2878,19 @@ extern int MV1RLoadFile( const char *FilePath, void **FileImage, int *FileSize )
 	DWORD_PTR FileHandle ;
 	size_t Size ;
 	void *Image ;
+	wchar_t FilePathW[ 512 ] ;
 
 	// テクスチャファイルを開く
-#ifdef UNICODE
-	wchar_t FilePathW[ 512 ] ;
-	MBCharToWChar( _GET_CODEPAGE(), FilePath, ( DXWCHAR * )FilePathW, 512 ) ;
+	ConvString( ( const char * )FilePath, DX_CODEPAGE_SHIFTJIS, ( char * )FilePathW, WCHAR_T_CODEPAGE ) ;
 	FileHandle = FOPEN( FilePathW ) ;
-#else
-	FileHandle = FOPEN( FilePath ) ;
-#endif
 
 	// ファイルが開けなかったらカレントフォルダから開こうとしてみる
 	if( FileHandle == 0 )
 	{
-		char FileName[ 512 ] ;
+		wchar_t FileName[ 512 ] ;
 
-		AnalysisFileNameAndDirPath_( FilePath, FileName, NULL ) ;
-#ifdef UNICODE
-		MBCharToWChar( _GET_CODEPAGE(), FileName, ( DXWCHAR * )FilePathW, 512 ) ;
-		FileHandle = FOPEN( FilePathW ) ;
-#else
+		AnalysisFileNameAndDirPathW_( FilePathW, FileName, NULL ) ;
 		FileHandle = FOPEN( FileName ) ;
-#endif
 	}
 
 	// ファイルが無かったらエラー
@@ -2927,13 +2932,7 @@ extern int MV1RLoadFileW( const wchar_t *FilePathW, void **FileImage, int *FileS
 	void *Image ;
 
 	// テクスチャファイルを開く
-#ifdef UNICODE
 	FileHandle = FOPEN( FilePathW ) ;
-#else
-	char FilePathA[ 512 ] ;
-	WCharToMBChar( _GET_CODEPAGE(), ( DXWCHAR * )FilePathW, FilePathA, 512 ) ;
-	FileHandle = FOPEN( FilePathA ) ;
-#endif
 
 	// ファイルが開けなかったらカレントフォルダから開こうとしてみる
 	if( FileHandle == 0 )
@@ -2941,12 +2940,7 @@ extern int MV1RLoadFileW( const wchar_t *FilePathW, void **FileImage, int *FileS
 		wchar_t FileNameW[ 512 ] ;
 
 		AnalysisFileNameAndDirPathW_( FilePathW, FileNameW, NULL ) ;
-#ifdef UNICODE
 		FileHandle = FOPEN( FileNameW ) ;
-#else
-		WCharToMBChar( _GET_CODEPAGE(), ( DXWCHAR * )FileNameW, FilePathA, 512 ) ;
-		FileHandle = FOPEN( FilePathA ) ;
-#endif
 	}
 
 	// ファイルが無かったらエラー
@@ -2980,14 +2974,28 @@ extern int MV1RLoadFileW( const wchar_t *FilePathW, void **FileImage, int *FileS
 	return 0 ;
 }
 
+#ifndef UNICODE
 // モデル基本データ用の文字列スペースを確保する
 static char *MV1RGetStringSpace( MV1_MODEL_BASE *MBase, const char *String )
 {
 	char *Return ;
 
-	Return = MBase->StringBuffer + MBase->StringSize ;
+	Return = ( char * )( ( BYTE * )MBase->StringBufferA + MBase->StringSizeA ) ;
 	_STRCPY( Return, String ) ;
-	MBase->StringSize += ( lstrlenA( String ) + 1 + 3 ) / 4 * 4 ;
+	MBase->StringSizeA += ( ( _STRLEN( String ) + 1 ) * sizeof( char ) + 3 ) / 4 * 4 ;
+
+	return Return ;
+}
+#endif
+
+// モデル基本データ用の文字列スペースを確保する
+static wchar_t *MV1RGetStringSpaceW( MV1_MODEL_BASE *MBase, const wchar_t *String )
+{
+	wchar_t *Return ;
+
+	Return = ( wchar_t * )( ( BYTE * )MBase->StringBufferW + MBase->StringSizeW ) ;
+	_WCSCPY( Return, String ) ;
+	MBase->StringSizeW += ( ( _WCSLEN( String ) + 1 ) * sizeof( wchar_t ) + 3 ) / 4 * 4 ;
 
 	return Return ;
 }
@@ -3024,6 +3032,8 @@ extern int MV1TermReadModel( MV1_MODEL_R *ReadModel )
 	return 0 ;
 }
 
+#ifndef UNICODE
+
 // 文字列の追加
 extern char *MV1RAddString( MV1_MODEL_R *ReadModel, const char *String )
 {
@@ -3031,10 +3041,10 @@ extern char *MV1RAddString( MV1_MODEL_R *ReadModel, const char *String )
 	char *Buffer ;
 
 	// 文字列の長さを取得
-	Length = lstrlenA( String ) ;
+	Length = _STRLEN( String ) ;
 
 	// メモリの確保
-	Buffer = ( char * )AddMemArea( Length + 1, &ReadModel->Mem ) ;
+	Buffer = ( char * )AddMemArea( ( size_t )( ( Length + 1 ) * sizeof( char ) ), &ReadModel->Mem ) ;
 	if( Buffer == NULL )
 		return NULL ;
 
@@ -3042,14 +3052,16 @@ extern char *MV1RAddString( MV1_MODEL_R *ReadModel, const char *String )
 	_STRCPY( Buffer, String ) ;
 
 	// 文字列データのサイズを加算
-	ReadModel->StringSize += Length + 1 ;
+	ReadModel->StringSizeA += ( Length + 1 ) * sizeof( char ) ;
 
 	// ４の倍数に合わせる
-	ReadModel->StringSize = ( ReadModel->StringSize + 3 ) / 4 * 4 ;
+	ReadModel->StringSizeA = ( ReadModel->StringSizeA + 3 ) / 4 * 4 ;
 
 	// 終了
 	return Buffer ;
 }
+
+#endif
 
 // 文字列の追加
 extern wchar_t *MV1RAddStringW( MV1_MODEL_R *ReadModel, const wchar_t *StringW )
@@ -3061,7 +3073,7 @@ extern wchar_t *MV1RAddStringW( MV1_MODEL_R *ReadModel, const wchar_t *StringW )
 	Length = _WCSLEN( StringW ) ;
 
 	// メモリの確保
-	Buffer = ( wchar_t * )AddMemArea( ( Length + 1 ) * 2, &ReadModel->Mem ) ;
+	Buffer = ( wchar_t * )AddMemArea( ( size_t )( ( Length + 1 ) * sizeof( wchar_t ) ), &ReadModel->Mem ) ;
 	if( Buffer == NULL )
 		return NULL ;
 
@@ -3069,27 +3081,65 @@ extern wchar_t *MV1RAddStringW( MV1_MODEL_R *ReadModel, const wchar_t *StringW )
 	_WCSCPY( Buffer, StringW ) ;
 
 	// 文字列データのサイズを加算
-	ReadModel->StringSize += ( Length + 1 ) * 2 ;
+	ReadModel->StringSizeW += ( Length + 1 ) * sizeof( wchar_t ) ;
 
 	// ４の倍数に合わせる
-	ReadModel->StringSize = ( ReadModel->StringSize + 3 ) / 4 * 4 ;
+	ReadModel->StringSizeW = ( ReadModel->StringSizeW + 3 ) / 4 * 4 ;
 
 	// 終了
 	return Buffer ;
 }
 
+#ifndef UNICODE
+
+// 文字列の追加
+extern char *MV1RAddStringWToA(	MV1_MODEL_R *ReadModel, const wchar_t *String )
+{
+	char TempBuffer[ 512 ] ;
+
+	ConvString( ( const char * )String, WCHAR_T_CODEPAGE, TempBuffer, ReadModel->CodePage ) ;
+	return MV1RAddString( ReadModel, TempBuffer ) ;
+}
+
+#endif
+
+// 文字列の追加
+extern wchar_t *MV1RAddStringAToW( MV1_MODEL_R *ReadModel, const char *String )
+{
+	wchar_t TempBuffer[ 512 ] ;
+
+	ConvString( String, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+	return MV1RAddStringW( ReadModel, TempBuffer ) ;
+}
 
 // フレームの追加
-extern MV1_FRAME_R *MV1RAddFrame( MV1_MODEL_R *ReadModel, const char *Name, MV1_FRAME_R *Parent )
+static MV1_FRAME_R *MV1RAddFrameBase( MV1_MODEL_R *ReadModel, const char *NameA, const wchar_t *NameW, MV1_FRAME_R *Parent )
 {
 	MV1_FRAME_R *Frame ;
 	MV1_FRAME_R *TempFrame ;
 	int i ;
+	BYTE TempBuffer[ 512 ] ;
+
+#ifndef UNICODE
+	if( NameA == NULL )
+	{
+		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		NameA = ( const char * )TempBuffer ;
+	}
+	else
+#endif
+	if( NameW == NULL )
+	{
+		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		NameW = ( const wchar_t * )TempBuffer ;
+	}
 
 	// メモリの確保
 	Frame = ( MV1_FRAME_R * )AddMemArea( sizeof( MV1_FRAME_R ), &ReadModel->Mem ) ;
 	if( Frame == NULL )
+	{
 		return NULL ;
+	}
 
 	// リストに追加
 	if( ReadModel->FrameFirst == NULL )
@@ -3149,12 +3199,20 @@ extern MV1_FRAME_R *MV1RAddFrame( MV1_MODEL_R *ReadModel, const char *Name, MV1_
 		TempFrame->Index = i ;
 	}
 	ReadModel->FrameNum ++ ;
-//	MODELLIST_ADD( ReadModel, Frame ) ;
 
 	// 名前を保存
-	Frame->Name = MV1RAddString( ReadModel, Name ) ;
-	if( Frame->Name == NULL )
+#ifndef UNICODE
+	Frame->NameA = MV1RAddString( ReadModel, NameA ) ;
+	if( Frame->NameA == NULL )
+	{
 		return NULL ;
+	}
+#endif
+	Frame->NameW = MV1RAddStringW( ReadModel, NameW ) ;
+	if( Frame->NameW == NULL )
+	{
+		return NULL ;
+	}
 
 	// 基本情報のセット
 	CreateIdentityMatrix( &Frame->Matrix ) ;
@@ -3168,6 +3226,18 @@ extern MV1_FRAME_R *MV1RAddFrame( MV1_MODEL_R *ReadModel, const char *Name, MV1_
 
 	// 終了
 	return Frame ;
+}
+
+// フレームの追加
+extern MV1_FRAME_R *MV1RAddFrame( MV1_MODEL_R *ReadModel, const char *Name, MV1_FRAME_R *Parent )
+{
+	return MV1RAddFrameBase( ReadModel, Name, NULL, Parent ) ;
+}
+
+// フレームの追加
+extern MV1_FRAME_R *MV1RAddFrameW( MV1_MODEL_R *ReadModel, const wchar_t *Name, MV1_FRAME_R *Parent )
+{
+	return MV1RAddFrameBase( ReadModel, NULL, Name, Parent ) ;
 }
 
 // メッシュの追加
@@ -3197,15 +3267,15 @@ extern int MV1RSetupMeshFaceBuffer( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh, in
 {
 	MV1_MESHFACE_R *OldFaces ;
 	DWORD *OldIndexBuffer ;
-	int OldMaxIndexNum ;
-	int OldFaceNum ;
+	DWORD OldMaxIndexNum ;
+	DWORD OldFaceNum ;
 
 	// 既に数が足りていたら何もしない
 	if( Mesh->FaceIndexBuffer != NULL && ( int )Mesh->FaceUnitMaxIndexNum >= MaxIndexNum &&
 		Mesh->Faces != NULL && ( int )Mesh->FaceNum >= FaceNum ) return 0 ;
 
-	OldFaceNum = Mesh->FaceNum ;
-	OldFaces = Mesh->Faces ;
+	OldFaceNum     = Mesh->FaceNum ;
+	OldFaces       = Mesh->Faces ;
 	OldIndexBuffer = Mesh->FaceIndexBuffer ;
 	OldMaxIndexNum = Mesh->FaceUnitMaxIndexNum ;
 
@@ -3214,8 +3284,8 @@ extern int MV1RSetupMeshFaceBuffer( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh, in
 	if( Mesh->Faces == NULL )
 		return -1 ;
 	Mesh->FaceIndexBuffer = ( DWORD * )( Mesh->Faces + FaceNum ) ;
-	Mesh->FaceUnitMaxIndexNum = MaxIndexNum ;
-	Mesh->FaceNum = FaceNum ;
+	Mesh->FaceUnitMaxIndexNum = ( DWORD )MaxIndexNum ;
+	Mesh->FaceNum             = ( DWORD )FaceNum ;
 
 	// 各面のポインタをセットアップ
 	{
@@ -3242,7 +3312,7 @@ extern int MV1RSetupMeshFaceBuffer( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh, in
 	{
 		MV1_MESHFACE_R *DestFace ;
 		MV1_MESHFACE_R *SrcFace ;
-		int i, k, l ;
+		DWORD i, k, l ;
 
 		DestFace = Mesh->Faces ;
 		SrcFace = OldFaces ;
@@ -3272,9 +3342,24 @@ extern int MV1RSetupMeshFaceBuffer( MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh, in
 }
 
 // シェイプデータの追加
-extern MV1_SHAPE_R *MV1RAddShape( MV1_MODEL_R *ReadModel, const char *Name, MV1_FRAME_R *Frame )
+static MV1_SHAPE_R *MV1RAddShapeBase( MV1_MODEL_R *ReadModel, const char *NameA, const wchar_t *NameW, MV1_FRAME_R *Frame )
 {
 	MV1_SHAPE_R *Shape ;
+	BYTE TempBuffer[ 512 ] ;
+
+#ifndef UNICODE
+	if( NameA == NULL )
+	{
+		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		NameA = ( const char * )TempBuffer ;
+	}
+	else
+#endif
+	if( NameW == NULL )
+	{
+		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		NameW = ( const wchar_t * )TempBuffer ;
+	}
 
 	// メモリの確保
 	Shape = ( MV1_SHAPE_R * )AddMemArea( sizeof( MV1_SHAPE_R ), &ReadModel->Mem ) ;
@@ -3282,9 +3367,18 @@ extern MV1_SHAPE_R *MV1RAddShape( MV1_MODEL_R *ReadModel, const char *Name, MV1_
 		return NULL ;
 
 	// 名前を保存
-	Shape->Name = MV1RAddString( ReadModel, Name ) ;
-	if( Shape->Name == NULL )
+#ifndef UNICODE
+	Shape->NameA = MV1RAddString( ReadModel, NameA ) ;
+	if( Shape->NameA == NULL )
+	{
 		return NULL ;
+	}
+#endif
+	Shape->NameW = MV1RAddStringW( ReadModel, NameW ) ;
+	if( Shape->NameW == NULL )
+	{
+		return NULL ;
+	}
 
 	// リストに追加
 	MODELLIST_ADD( ReadModel, Shape ) ;
@@ -3298,10 +3392,37 @@ extern MV1_SHAPE_R *MV1RAddShape( MV1_MODEL_R *ReadModel, const char *Name, MV1_
 	return Shape ;
 }
 
+// シェイプデータの追加
+extern MV1_SHAPE_R *MV1RAddShape( MV1_MODEL_R *ReadModel, const char *Name, MV1_FRAME_R *Frame )
+{
+	return MV1RAddShapeBase( ReadModel, Name, NULL, Frame ) ;
+}
+
+// シェイプデータの追加
+extern MV1_SHAPE_R *MV1RAddShapeW( MV1_MODEL_R *ReadModel, const wchar_t *Name, MV1_FRAME_R *Frame )
+{
+	return MV1RAddShapeBase( ReadModel, NULL, Name, Frame ) ;
+}
+
 // 物理演算用剛体データの追加
-extern MV1_PHYSICS_RIGIDBODY_R *MV1RAddPhysicsRididBody( MV1_MODEL_R *ReadModel, const char *Name, MV1_FRAME_R *TargetFrame )
+static MV1_PHYSICS_RIGIDBODY_R *MV1RAddPhysicsRididBodyBase( MV1_MODEL_R *ReadModel, const char *NameA, const wchar_t *NameW, MV1_FRAME_R *TargetFrame )
 {
 	MV1_PHYSICS_RIGIDBODY_R *PhysicsRigidBody ;
+	BYTE TempBuffer[ 512 ] ;
+
+#ifndef UNICODE
+	if( NameA == NULL )
+	{
+		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		NameA = ( const char * )TempBuffer ;
+	}
+	else
+#endif
+	if( NameW == NULL )
+	{
+		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		NameW = ( const wchar_t * )TempBuffer ;
+	}
 
 	// メモリの確保
 	PhysicsRigidBody = ( MV1_PHYSICS_RIGIDBODY_R * )AddMemArea( sizeof( MV1_PHYSICS_RIGIDBODY_R ), &ReadModel->Mem ) ;
@@ -3309,9 +3430,18 @@ extern MV1_PHYSICS_RIGIDBODY_R *MV1RAddPhysicsRididBody( MV1_MODEL_R *ReadModel,
 		return NULL ;
 
 	// 名前を保存
-	PhysicsRigidBody->Name = MV1RAddString( ReadModel, Name ) ;
-	if( PhysicsRigidBody->Name == NULL )
+#ifndef UNICODE
+	PhysicsRigidBody->NameA = MV1RAddString( ReadModel, NameA ) ;
+	if( PhysicsRigidBody->NameA == NULL )
+	{
 		return NULL ;
+	}
+#endif
+	PhysicsRigidBody->NameW = MV1RAddStringW( ReadModel, NameW ) ;
+	if( PhysicsRigidBody->NameW == NULL )
+	{
+		return NULL ;
+	}
 
 	// リストに追加
 	MODELLIST_ADD( ReadModel, PhysicsRigidBody ) ;
@@ -3323,10 +3453,38 @@ extern MV1_PHYSICS_RIGIDBODY_R *MV1RAddPhysicsRididBody( MV1_MODEL_R *ReadModel,
 	return PhysicsRigidBody ;
 }
 
+// 物理演算用剛体データの追加
+extern MV1_PHYSICS_RIGIDBODY_R *MV1RAddPhysicsRididBody( MV1_MODEL_R *ReadModel, const char *Name, MV1_FRAME_R *TargetFrame )
+{
+	return MV1RAddPhysicsRididBodyBase( ReadModel, Name, NULL, TargetFrame ) ;
+}
+
+// 物理演算用剛体データの追加
+extern MV1_PHYSICS_RIGIDBODY_R *MV1RAddPhysicsRididBodyW( MV1_MODEL_R *ReadModel, const wchar_t *Name, MV1_FRAME_R *TargetFrame )
+{
+	return MV1RAddPhysicsRididBodyBase( ReadModel, NULL, Name, TargetFrame ) ;
+}
+
+
 // 物理演算用剛体ジョイントデータの追加
-extern MV1_PHYSICS_JOINT_R *MV1RAddPhysicsJoint( MV1_MODEL_R *ReadModel, const char *Name )
+static MV1_PHYSICS_JOINT_R *MV1RAddPhysicsJointBase( MV1_MODEL_R *ReadModel, const char *NameA, const wchar_t *NameW )
 {
 	MV1_PHYSICS_JOINT_R *PhysicsJoint ;
+	BYTE TempBuffer[ 512 ] ;
+
+#ifndef UNICODE
+	if( NameA == NULL )
+	{
+		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		NameA = ( const char * )TempBuffer ;
+	}
+	else
+#endif
+	if( NameW == NULL )
+	{
+		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		NameW = ( const wchar_t * )TempBuffer ;
+	}
 
 	// メモリの確保
 	PhysicsJoint = ( MV1_PHYSICS_JOINT_R * )AddMemArea( sizeof( MV1_PHYSICS_JOINT_R ), &ReadModel->Mem ) ;
@@ -3334,15 +3492,36 @@ extern MV1_PHYSICS_JOINT_R *MV1RAddPhysicsJoint( MV1_MODEL_R *ReadModel, const c
 		return NULL ;
 
 	// 名前を保存
-	PhysicsJoint->Name = MV1RAddString( ReadModel, Name ) ;
-	if( PhysicsJoint->Name == NULL )
+#ifndef UNICODE
+	PhysicsJoint->NameA = MV1RAddString( ReadModel, NameA ) ;
+	if( PhysicsJoint->NameA == NULL )
+	{
 		return NULL ;
+	}
+#endif
+	PhysicsJoint->NameW = MV1RAddStringW( ReadModel, NameW ) ;
+	if( PhysicsJoint->NameW == NULL )
+	{
+		return NULL ;
+	}
 
 	// リストに追加
 	MODELLIST_ADD( ReadModel, PhysicsJoint ) ;
 
 	// 終了
 	return PhysicsJoint ;
+}
+
+// 物理演算用剛体ジョイントデータの追加
+extern MV1_PHYSICS_JOINT_R *MV1RAddPhysicsJoint( MV1_MODEL_R *ReadModel, const char *Name )
+{
+	return MV1RAddPhysicsJointBase( ReadModel, Name, NULL ) ;
+}
+
+// 物理演算用剛体ジョイントデータの追加
+extern MV1_PHYSICS_JOINT_R *MV1RAddPhysicsJointW( MV1_MODEL_R *ReadModel, const wchar_t *Name )
+{
+	return MV1RAddPhysicsJointBase( ReadModel, NULL, Name ) ;
 }
 
 // メッシュの削除
@@ -3390,9 +3569,24 @@ extern void MV1RSubMesh( MV1_MODEL_R *ReadModel, MV1_FRAME_R *Frame, MV1_MESH_R 
 }
 
 // マテリアルの追加
-extern MV1_MATERIAL_R *MV1RAddMaterial( MV1_MODEL_R *ReadModel, const char *Name )
+static MV1_MATERIAL_R *MV1RAddMaterialBase( MV1_MODEL_R *ReadModel, const char *NameA, const wchar_t *NameW )
 {
 	MV1_MATERIAL_R *Material ;
+	BYTE TempBuffer[ 512 ] ;
+
+#ifndef UNICODE
+	if( NameA == NULL )
+	{
+		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		NameA = ( const char * )TempBuffer ;
+	}
+	else
+#endif
+	if( NameW == NULL )
+	{
+		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		NameW = ( const wchar_t * )TempBuffer ;
+	}
 
 	// メモリの確保
 	Material = ( MV1_MATERIAL_R * )AddMemArea( sizeof( MV1_MATERIAL_R ), &ReadModel->Mem ) ;
@@ -3403,9 +3597,18 @@ extern MV1_MATERIAL_R *MV1RAddMaterial( MV1_MODEL_R *ReadModel, const char *Name
 	MODELLIST_ADD( ReadModel, Material ) ;
 
 	// 名前を保存
-	Material->Name = MV1RAddString( ReadModel, Name ) ;
-	if( Material->Name == NULL )
+#ifndef UNICODE
+	Material->NameA = MV1RAddString( ReadModel, NameA ) ;
+	if( Material->NameA == NULL )
+	{
 		return NULL ;
+	}
+#endif
+	Material->NameW = MV1RAddStringW( ReadModel, NameW ) ;
+	if( Material->NameW == NULL )
+	{
+		return NULL ;
+	}
 
 	// 初期値をセット
 	Material->Type = DX_MATERIAL_TYPE_NORMAL ;
@@ -3428,6 +3631,18 @@ extern MV1_MATERIAL_R *MV1RAddMaterial( MV1_MODEL_R *ReadModel, const char *Name
 	return Material ;
 }
 
+// マテリアルの追加
+extern MV1_MATERIAL_R *MV1RAddMaterial( MV1_MODEL_R *ReadModel, const char *Name )
+{
+	return MV1RAddMaterialBase( ReadModel, Name, NULL ) ;
+}
+
+// マテリアルの追加
+extern MV1_MATERIAL_R *MV1RAddMaterialW( MV1_MODEL_R *ReadModel, const wchar_t *Name )
+{
+	return MV1RAddMaterialBase( ReadModel, NULL, Name ) ;
+}
+
 // 指定インデックスのマテリアルを取得する
 extern MV1_MATERIAL_R *MV1RGetMaterial( MV1_MODEL_R *ReadModel, int Index )
 {
@@ -3441,11 +3656,11 @@ extern MV1_MATERIAL_R *MV1RGetMaterial( MV1_MODEL_R *ReadModel, int Index )
 }
 
 // テクスチャの追加
-extern MV1_TEXTURE_R *MV1RAddTexture(
+static MV1_TEXTURE_R *MV1RAddTextureBase(
 	MV1_MODEL_R *ReadModel,
-	const char *Name,
-	const char *ColorFilePath,
-	const char *AlphaFilePath,
+	const char *NameA,          const wchar_t *NameW,
+	const char *ColorFilePathA, const wchar_t *ColorFilePathW,
+	const char *AlphaFilePathA, const wchar_t *AlphaFilePathW,
 	int BumpMapFlag, float BumpMapNextPixelLength,
 	bool FilePathDoubleCancel,
 	bool ReverseFlag,
@@ -3453,92 +3668,120 @@ extern MV1_TEXTURE_R *MV1RAddTexture(
 {
 	MV1_TEXTURE_R *Texture ;
 	DWORD_PTR FileHandle, i ;
-	char ColorFileTempPath[ 512 ], AlphaFileTempPath[ 512 ] ;
-	char ColorFileRelativePath[ 1024 ], AlphaFileRelativePath[ 1024 ] ;
-	const char *ColorOpenFilePath, *AlphaOpenFilePath ;
-	char CurrentDirectory[ 1024 ] ;
-#ifdef UNICODE
-	wchar_t PathW[ 1024 ] ;
+	wchar_t ColorFileTempPath[ 512 ],      AlphaFileTempPath[ 512 ] ;
+	wchar_t ColorFileRelativePath[ 1024 ], AlphaFileRelativePath[ 1024 ] ;
+	const wchar_t *ColorOpenFilePathW = NULL, *AlphaOpenFilePathW = NULL ;
+	const char    *ColorOpenFilePathA = NULL, *AlphaOpenFilePathA = NULL ;
+	wchar_t CurrentDirectory[ 1024 ] ;
+	BYTE TempNameBuffer[ 512 ] ;
+	BYTE TempColorFilePathBuffer[ 2048 ] ;
+	BYTE TempAlphaFilePathBuffer[ 2048 ] ;
+
+#ifndef UNICODE
+	if( NameA == NULL )
+	{
+		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempNameBuffer, ReadModel->CodePage ) ;
+		NameA = ( const char * )TempNameBuffer ;
+	}
+	else
 #endif
+	if( NameW == NULL )
+	{
+		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempNameBuffer, WCHAR_T_CODEPAGE ) ;
+		NameW = ( const wchar_t * )TempNameBuffer ;
+	}
+
+	if( ColorFilePathA != NULL || ColorFilePathW != NULL )
+	{
+#ifndef UNICODE
+		if( ColorFilePathA == NULL )
+		{
+			ConvString( ( const char * )ColorFilePathW, WCHAR_T_CODEPAGE, ( char * )TempColorFilePathBuffer, ReadModel->CodePage ) ;
+			ColorFilePathA = ( const char * )TempColorFilePathBuffer ;
+		}
+		else
+#endif
+		if( ColorFilePathW == NULL )
+		{
+			ConvString( ( const char * )ColorFilePathA, ReadModel->CodePage, ( char * )TempColorFilePathBuffer, WCHAR_T_CODEPAGE ) ;
+			ColorFilePathW = ( const wchar_t * )TempColorFilePathBuffer ;
+		}
+	}
+
+	if( AlphaFilePathA != NULL || AlphaFilePathW != NULL )
+	{
+#ifndef UNICODE
+		if( AlphaFilePathA == NULL )
+		{
+			ConvString( ( const char * )AlphaFilePathW, WCHAR_T_CODEPAGE, ( char * )TempAlphaFilePathBuffer, ReadModel->CodePage ) ;
+			AlphaFilePathA = ( const char * )TempAlphaFilePathBuffer ;
+		}
+		else
+#endif
+		if( AlphaFilePathW == NULL )
+		{
+			ConvString( ( const char * )AlphaFilePathA, ReadModel->CodePage, ( char * )TempAlphaFilePathBuffer, WCHAR_T_CODEPAGE ) ;
+			AlphaFilePathW = ( const wchar_t * )TempAlphaFilePathBuffer ;
+		}
+	}
 
 	// 相対パスを求める
-	GetCurrentDirectoryA( 1024, CurrentDirectory ) ;
+	_WGETCWD( CurrentDirectory, 1024 ) ;
 
 	// カラーチャンネルファイルパスを保存
-	if( ColorFilePath )
+	if( ColorFilePathW )
 	{
-		CreateRelativePath_( ColorFilePath, CurrentDirectory, ColorFileRelativePath ) ;
+		CreateRelativePathW_( ColorFilePathW, CurrentDirectory, ColorFileRelativePath ) ;
 
 		// ファイルが開けるか調べる
-#ifdef UNICODE
-		MBCharToWChar( _GET_CODEPAGE(), ColorFilePath, ( DXWCHAR * )PathW, 1024 ) ;
-		FileHandle = FOPEN( PathW ) ;
-#else
 		FileHandle = FOPEN( ColorFileRelativePath ) ;
-#endif
 		if( FileHandle )
 		{
 			FCLOSE( FileHandle ) ;
-			ColorOpenFilePath = ColorFileRelativePath ;
+			ColorOpenFilePathW = ColorFileRelativePath ;
 		}
 		else
 		{
 			// 開けなかったらカレントフォルダから開こうとしてみる
-			AnalysisFileNameAndDirPath_( ColorFileRelativePath, ColorFileTempPath, NULL ) ;
-#ifdef UNICODE
-			MBCharToWChar( _GET_CODEPAGE(), ColorFileTempPath, ( DXWCHAR * )PathW, 1024 ) ;
-			FileHandle = FOPEN( PathW ) ;
-#else
+			AnalysisFileNameAndDirPathW_( ColorFileRelativePath, ColorFileTempPath, NULL ) ;
 			FileHandle = FOPEN( ColorFileTempPath ) ;
-#endif
 			if( FileHandle )
 			{
 				FCLOSE( FileHandle ) ;
-				ColorOpenFilePath = ColorFileTempPath ;
+				ColorOpenFilePathW = ColorFileTempPath ;
 			}
 			else
 			{
-				ColorOpenFilePath = ColorFileRelativePath ;
+				ColorOpenFilePathW = ColorFileRelativePath ;
 			}
 		}
 	}
 
 	// アルファチャンネル用ファイルパスを保存
-	if( AlphaFilePath )
+	if( AlphaFilePathW )
 	{
-		CreateRelativePath_( AlphaFilePath, CurrentDirectory, AlphaFileRelativePath ) ;
+		CreateRelativePathW_( AlphaFilePathW, CurrentDirectory, AlphaFileRelativePath ) ;
 
 		// ファイルが開けるか調べる
-#ifdef UNICODE
-		MBCharToWChar( _GET_CODEPAGE(), AlphaFileRelativePath, ( DXWCHAR * )PathW, 1024 ) ;
-		FileHandle = FOPEN( PathW ) ;
-#else
 		FileHandle = FOPEN( AlphaFileRelativePath ) ;
-#endif
 		if( FileHandle )
 		{
 			FCLOSE( FileHandle ) ;
-			AlphaOpenFilePath = AlphaFileRelativePath ;
+			AlphaOpenFilePathW = AlphaFileRelativePath ;
 		}
 		else
 		{
 			// 開けなかったらカレントフォルダから開こうとしてみる
-			AnalysisFileNameAndDirPath_( AlphaFileRelativePath, AlphaFileTempPath, NULL ) ;
-
-#ifdef UNICODE
-			MBCharToWChar( _GET_CODEPAGE(), AlphaFileTempPath, ( DXWCHAR * )PathW, 1024 ) ;
-			FileHandle = FOPEN( PathW ) ;
-#else
+			AnalysisFileNameAndDirPathW_( AlphaFileRelativePath, AlphaFileTempPath, NULL ) ;
 			FileHandle = FOPEN( AlphaFileTempPath ) ;
-#endif
 			if( FileHandle )
 			{
 				FCLOSE( FileHandle ) ;
-				AlphaOpenFilePath = AlphaFileTempPath ;
+				AlphaOpenFilePathW = AlphaFileTempPath ;
 			}
 			else
 			{
-				AlphaOpenFilePath = AlphaFileRelativePath ;
+				AlphaOpenFilePathW = AlphaFileRelativePath ;
 			}
 		}
 	}
@@ -3550,24 +3793,24 @@ extern MV1_TEXTURE_R *MV1RAddTexture(
 		Texture = ReadModel->TextureFirst ;
 		for( i = 0 ; ( DWORD )i < ReadModel->TextureNum ; i ++, Texture = Texture->DataNext )
 		{
-			if( ColorFilePath )
+			if( ColorFilePathW )
 			{
-				if( Texture->ColorFileName == NULL ) continue ;
-				if( _STRCMP( Texture->ColorFileName, ColorOpenFilePath ) != 0 ) continue ;
+				if( Texture->ColorFileNameW == NULL ) continue ;
+				if( _WCSCMP( Texture->ColorFileNameW, ColorOpenFilePathW ) != 0 ) continue ;
 			}
 			else
 			{
-				if( Texture->ColorFileName != NULL ) continue ;
+				if( Texture->ColorFileNameW != NULL ) continue ;
 			}
 
-			if( AlphaFilePath )
+			if( AlphaFilePathW )
 			{
-				if( Texture->AlphaFileName == NULL ) continue ;
-				if( _STRCMP( Texture->AlphaFileName, AlphaOpenFilePath ) != 0 ) continue ;
+				if( Texture->AlphaFileNameW == NULL ) continue ;
+				if( _WCSCMP( Texture->AlphaFileNameW, AlphaOpenFilePathW ) != 0 ) continue ;
 			}
 			else
 			{
-				if( Texture->AlphaFileName != NULL ) continue ;
+				if( Texture->AlphaFileNameW != NULL ) continue ;
 			}
 			break ;
 		}
@@ -3577,19 +3820,34 @@ extern MV1_TEXTURE_R *MV1RAddTexture(
 	// メモリの確保
 	Texture = ( MV1_TEXTURE_R * )AddMemArea( sizeof( MV1_TEXTURE_R ), &ReadModel->Mem ) ;
 	if( Texture == NULL )
+	{
 		return NULL ;
+	}
 
 	// リストに追加
 	MODELLIST_ADD( ReadModel, Texture ) ;
 
 	// 名前を保存
-	Texture->Name = MV1RAddString( ReadModel, Name ) ;
-	if( Texture->Name == NULL )
+#ifndef UNICODE
+	Texture->NameA = MV1RAddString( ReadModel, NameA ) ;
+	if( Texture->NameA == NULL )
+	{
 		return NULL ;
+	}
+#endif
+	Texture->NameW = MV1RAddStringW( ReadModel, NameW ) ;
+	if( Texture->NameW == NULL )
+	{
+		return NULL ;
+	}
 
 	// デフォルトのアドレスモードをセットする
 	Texture->AddressModeU = DX_TEXADDRESS_WRAP ;
 	Texture->AddressModeV = DX_TEXADDRESS_WRAP ;
+
+	// ＵＶ座標のデフォルトのスケール値をセットする
+	Texture->ScaleU = 1.0f ;
+	Texture->ScaleV = 1.0f ;
 	
 	// デフォルトのフィルタリングモードをセットする
 	Texture->FilterMode = DX_DRAWMODE_ANISOTROPIC ;
@@ -3607,23 +3865,77 @@ extern MV1_TEXTURE_R *MV1RAddTexture(
 	Texture->Bmp32AllZeroAlphaToXRGB8Flag = Bmp32AllZeroAlphaToXRGB8Flag ? 1 : 0 ;
 
 	// カラーチャンネルファイルパスを保存
-	if( ColorFilePath )
+	if( ColorFilePathW )
 	{
-		Texture->ColorFileName = MV1RAddString( ReadModel, ColorOpenFilePath ) ;
-		if( Texture->ColorFileName == NULL )
+#ifndef UNICODE
+		ConvString( ( const char * )ColorOpenFilePathW, WCHAR_T_CODEPAGE, ( char * )TempColorFilePathBuffer, ReadModel->CodePage ) ;
+		ColorOpenFilePathA = ( const char * )TempColorFilePathBuffer ;
+
+		Texture->ColorFileNameA = MV1RAddString( ReadModel, ColorOpenFilePathA ) ;
+		if( Texture->ColorFileNameA == NULL )
+		{
 			return NULL ;
+		}
+#endif
+
+		Texture->ColorFileNameW = MV1RAddStringW( ReadModel, ColorOpenFilePathW ) ;
+		if( Texture->ColorFileNameW == NULL )
+		{
+			return NULL ;
+		}
 	}
 
 	// アルファチャンネル用ファイルパスを保存
-	if( AlphaFilePath )
+	if( AlphaFilePathW )
 	{
-		Texture->AlphaFileName = MV1RAddString( ReadModel, AlphaOpenFilePath ) ;
-		if( Texture->AlphaFileName == NULL ) 
+#ifndef UNICODE
+		ConvString( ( const char * )AlphaOpenFilePathW, WCHAR_T_CODEPAGE, ( char * )TempAlphaFilePathBuffer, ReadModel->CodePage ) ;
+		AlphaOpenFilePathA = ( const char * )TempAlphaFilePathBuffer ;
+
+		Texture->AlphaFileNameA = MV1RAddString( ReadModel, AlphaOpenFilePathA ) ;
+		if( Texture->AlphaFileNameA == NULL ) 
+		{
 			return NULL ;
+		}
+#endif
+
+		Texture->AlphaFileNameW = MV1RAddStringW( ReadModel, AlphaOpenFilePathW ) ;
+		if( Texture->AlphaFileNameW == NULL ) 
+		{
+			return NULL ;
+		}
 	}
 
 	// 終了
 	return Texture ;
+}
+
+// テクスチャの追加
+extern MV1_TEXTURE_R *MV1RAddTexture(
+	MV1_MODEL_R *ReadModel,
+	const char *Name,
+	const char *ColorFilePath,
+	const char *AlphaFilePath,
+	int BumpMapFlag, float BumpMapNextPixelLength,
+	bool FilePathDoubleCancel,
+	bool ReverseFlag,
+	bool Bmp32AllZeroAlphaToXRGB8Flag )
+{
+	return MV1RAddTextureBase( ReadModel, Name, NULL, ColorFilePath, NULL, AlphaFilePath, NULL, BumpMapFlag, BumpMapNextPixelLength, FilePathDoubleCancel, ReverseFlag, Bmp32AllZeroAlphaToXRGB8Flag ) ;
+}
+
+// テクスチャの追加
+extern MV1_TEXTURE_R *MV1RAddTextureW(
+	MV1_MODEL_R *ReadModel,
+	const wchar_t *Name,
+	const wchar_t *ColorFilePath,
+	const wchar_t *AlphaFilePath,
+	int BumpMapFlag, float BumpMapNextPixelLength,
+	bool FilePathDoubleCancel,
+	bool ReverseFlag,
+	bool Bmp32AllZeroAlphaToXRGB8Flag )
+{
+	return MV1RAddTextureBase( ReadModel, NULL, Name, NULL, ColorFilePath, NULL, AlphaFilePath, BumpMapFlag, BumpMapNextPixelLength, FilePathDoubleCancel, ReverseFlag, Bmp32AllZeroAlphaToXRGB8Flag ) ;
 }
 
 // スキンウエイト情報の追加
@@ -3644,9 +3956,24 @@ extern MV1_SKIN_WEIGHT_R *MV1RAddSkinWeight( MV1_MODEL_R *ReadModel )
 }
 
 // アニメーションセットの追加
-extern MV1_ANIMSET_R *MV1RAddAnimSet( MV1_MODEL_R *ReadModel, const char *Name )
+static MV1_ANIMSET_R *MV1RAddAnimSetBase( MV1_MODEL_R *ReadModel, const char *NameA, const wchar_t *NameW )
 {
 	MV1_ANIMSET_R *AnimSet ;
+	BYTE TempBuffer[ 512 ] ;
+
+#ifndef UNICODE
+	if( NameA == NULL )
+	{
+		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		NameA = ( const char * )TempBuffer ;
+	}
+	else
+#endif
+	if( NameW == NULL )
+	{
+		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		NameW = ( const wchar_t * )TempBuffer ;
+	}
 
 	// メモリの確保
 	AnimSet = ( MV1_ANIMSET_R * )AddMemArea( sizeof( MV1_ANIMSET_R ), &ReadModel->Mem ) ;
@@ -3657,12 +3984,34 @@ extern MV1_ANIMSET_R *MV1RAddAnimSet( MV1_MODEL_R *ReadModel, const char *Name )
 	MODELLIST_ADD( ReadModel, AnimSet ) ;
 
 	// 名前を保存
-	AnimSet->Name = MV1RAddString( ReadModel, Name ) ;
-	if( AnimSet->Name == NULL )
+#ifndef UNICODE
+	AnimSet->NameA = MV1RAddString( ReadModel, NameA ) ;
+	if( AnimSet->NameA == NULL )
+	{
 		return NULL ;
+	}
+#endif
+
+	AnimSet->NameW = MV1RAddStringW( ReadModel, NameW ) ;
+	if( AnimSet->NameW == NULL )
+	{
+		return NULL ;
+	}
 
 	// 終了
 	return AnimSet ;
+}
+
+// アニメーションセットの追加
+extern MV1_ANIMSET_R *MV1RAddAnimSet( MV1_MODEL_R *ReadModel, const char *Name )
+{
+	return MV1RAddAnimSetBase( ReadModel, Name, NULL ) ;
+}
+
+// アニメーションセットの追加
+extern MV1_ANIMSET_R *MV1RAddAnimSetW( MV1_MODEL_R *ReadModel, const wchar_t *Name )
+{
+	return MV1RAddAnimSetBase( ReadModel, NULL, Name ) ;
 }
 
 // アニメーションの追加
@@ -3706,9 +4055,24 @@ extern MV1_ANIMKEYSET_R *MV1RAddAnimKeySet( MV1_MODEL_R *ReadModel, MV1_ANIM_R *
 }
 
 // ライトの追加
-extern MV1_LIGHT_R *MV1RAddLight( MV1_MODEL_R *ReadModel, const char *Name )
+static MV1_LIGHT_R *MV1RAddLightBase( MV1_MODEL_R *ReadModel, const char *NameA, const wchar_t *NameW )
 {
 	MV1_LIGHT_R *Light ;
+	BYTE TempBuffer[ 512 ] ;
+
+#ifndef UNICODE
+	if( NameA == NULL )
+	{
+		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		NameA = ( const char * )TempBuffer ;
+	}
+	else
+#endif
+	if( NameW == NULL )
+	{
+		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		NameW = ( const wchar_t * )TempBuffer ;
+	}
 
 	// メモリの確保
 	Light = ( MV1_LIGHT_R * )AddMemArea( sizeof( MV1_LIGHT_R ), &ReadModel->Mem ) ;
@@ -3719,16 +4083,44 @@ extern MV1_LIGHT_R *MV1RAddLight( MV1_MODEL_R *ReadModel, const char *Name )
 	MODELLIST_ADD( ReadModel, Light ) ;
 
 	// 名前を保存
-	Light->Name = MV1RAddString( ReadModel, Name ) ;
-	if( Light->Name == NULL )
+#ifndef UNICODE
+	Light->NameA = MV1RAddString( ReadModel, NameA ) ;
+	if( Light->NameA == NULL )
+	{
 		return NULL ;
+	}
+#endif
+
+	Light->NameW = MV1RAddStringW( ReadModel, NameW ) ;
+	if( Light->NameW == NULL )
+	{
+		return NULL ;
+	}
 
 	// 終了
 	return Light ;
 }
 
+// ライトの追加
+extern MV1_LIGHT_R *MV1RAddLight( MV1_MODEL_R *ReadModel, const char *Name )
+{
+	return MV1RAddLightBase( ReadModel, Name, NULL ) ;
+}
+
+// ライトの追加
+extern MV1_LIGHT_R *MV1RAddLightW( MV1_MODEL_R *ReadModel, const wchar_t *Name )
+{
+	return MV1RAddLightBase( ReadModel, NULL, Name ) ;
+}
+
 // 読み込み処理用モデルから基本モデルデータを作成する
-extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL_R *ReadModel, const TCHAR *CurrentDir, const MV1_FILE_READ_FUNC *ReadFunc, int ASyncThread )
+extern int MV1LoadModelToReadModel(
+	const MV1LOADMODEL_GPARAM *	GParam,
+	      MV1_MODEL_R *			ReadModel,
+	const wchar_t *				CurrentDir,
+	const MV1_FILE_READ_FUNC *	ReadFunc,
+	      int					ASyncThread
+)
 {
 	MV1_MESH_R					*Mesh ;
 	MV1_SKIN_WEIGHT_R			*SkinWeight ;
@@ -3738,7 +4130,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 	MV1_TRIANGLELIST_R			*TList ;
 	MV1_MATERIAL_R				*Material ;
 	MV1_TEXTURE_R				*Texture ;
-	MV1_TEXTURE_R				**Textures ;
+	MV1_TEXTURE_R				**Textures = NULL ;
 	MV1_ANIMSET_R				*AnimSet ;
 	MV1_ANIM_R					*Anim ;
 	MV1_ANIMKEYSET_R			*AnimKeySet ;
@@ -3758,9 +4150,9 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 	DWORD						MeshStartNum, MeshNowNum ;
 	DWORD						MeshPositionStartNum, MeshNormalStartNum, MeshBoneStartNum ;
 
-	TCHAR						DirectoryPath[ MAX_PATH + 2 ] ;
-	char						DirectoryPathA[ MAX_PATH + 2 ] ;
-	wchar_t						DirectoryPathW[ MAX_PATH + 2 ] ;
+	wchar_t						DirectoryPath[ FILEPATH_MAX + 2 ] ;
+//	char						DirectoryPathA[ FILEPATH_MAX + 2 ] ;
+//	wchar_t						DirectoryPathW[ FILEPATH_MAX + 2 ] ;
 
 	MV1_FRAME_BASE				*MBFrame ;
 	MV1_SKIN_BONE				*MBSkinW ;
@@ -3781,7 +4173,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 	MV1_PHYSICS_JOINT_BASE		*MBPhysicsJoint ;
 	MV1_TEXTURE_BASE			*MBTexture ;
 	MV1_MATERIAL_BASE			*MBMaterial ;
-	MV1_MATERIAL_LAYER			*MBMaterialLayer ;
+	MV1_MATERIAL_LAYER			*MBMaterialLayer = NULL ;
 	MV1_LIGHT					*MBLight ;
 	MV1_TRIANGLE_LIST_BASE		*MBTList ;
 	MV1_ANIMSET_BASE			*MBAnimSet ;
@@ -3794,7 +4186,8 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 //	BYTE					VertBuffer[ 2 ][ 32 * 1024 ] ;
 	COLOR_U8				OneColor ;
 	COLOR_F					*ColorF ;
-	int i, j, k, l, m, o, p, r, s, BoneNum, Size, Con, MaxCon, MaxFaceCon, NewHandle = -1, num, StartMatrixIndex ;
+	DWORD					i ;
+	int j, k, l, m, o, p, r, s, BoneNum, Size, Con, MaxCon, MaxFaceCon, NewHandle = -1, num, StartMatrixIndex ;
 	MV1_MODEL_BASE MTBase, *MBase ;
 	DWORD_PTR AllocSize ;
 
@@ -3802,21 +4195,14 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 	dirlen = 0 ;
 	if( CurrentDir != NULL )
 	{
-		lstrcpy( DirectoryPath, CurrentDir ) ;
-		dirlen = lstrlen( DirectoryPath ) ;
-		if( DirectoryPath[ dirlen - 1 ] != _T( '\\' ) && DirectoryPath[ dirlen - 1 ] != _T( '/' ) )
+		_WCSCPY( DirectoryPath, CurrentDir ) ;
+		dirlen = _WCSLEN( DirectoryPath ) ;
+		if( DirectoryPath[ dirlen - 1 ] != L'\\' && DirectoryPath[ dirlen - 1 ] != L'/' )
 		{
-			DirectoryPath[ dirlen ] = _T( '/' ) ;
-			DirectoryPath[ dirlen + 1 ] = _T( '\0' ) ;
+			DirectoryPath[ dirlen     ] = L'/' ;
+			DirectoryPath[ dirlen + 1 ] = L'\0' ;
 			dirlen ++ ;
 		}
-#ifdef UNICODE
-		WCharToMBChar( CP_ACP, ( DXWCHAR * )DirectoryPath, DirectoryPathA, MAX_PATH + 2 ) ;
-		lstrcpy( DirectoryPathW, DirectoryPath ) ;
-#else
-		MBCharToWChar( CP_ACP, DirectoryPath, ( DXWCHAR * )DirectoryPathW, MAX_PATH + 2 ) ;
-		lstrcpy( DirectoryPathA, DirectoryPath ) ;
-#endif
 	}
 
 	// 頂点の一時バッファを初期化
@@ -3837,14 +4223,14 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 		Shape->NextTable = ( DWORD * )ADDMEMAREA( sizeof( DWORD ) * Shape->TargetMesh->PositionNum, &ReadModel->Mem ) ;
 		if( Shape->NextTable == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : シェイプ対象頂点テーブル用メモリの確保に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xb7\x30\xa7\x30\xa4\x30\xd7\x30\xfe\x5b\x61\x8c\x02\x98\xb9\x70\xc6\x30\xfc\x30\xd6\x30\xeb\x30\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : シェイプ対象頂点テーブル用メモリの確保に失敗しました\n" @*/ )) ;
 			return -1 ;
 		}
 		_MEMSET( Shape->NextTable, 0xff, sizeof( DWORD ) * Shape->TargetMesh->PositionNum ) ;
 
-		for( i = 0 ; i < Shape->VertexNum ; i ++ )
+		for( i = 0 ; i < ( DWORD )Shape->VertexNum ; i ++ )
 		{
-			Shape->NextTable[ Shape->Vertex[ i ].TargetPositionIndex ] = i ;
+			Shape->NextTable[ Shape->Vertex[ i ].TargetPositionIndex ] = ( DWORD )i ;
 		}
 	}
 
@@ -3857,7 +4243,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 		Material = MV1RAddMaterial( ReadModel, "NoMaterial" ) ;
 		if( Material == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : Material オブジェクトの追加に失敗しました\n" ), i ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4d\x00\x61\x00\x74\x00\x65\x00\x72\x00\x69\x00\x61\x00\x6c\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : Material オブジェクトの追加に失敗しました\n" @*/, i ) ) ;
 			return -1 ;
 		}
 
@@ -3930,15 +4316,15 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 			Mesh->SkinFaceType = ( BYTE * )( Mesh->SkinFaceBoneNum + Mesh->FaceNum ) ;
 			if( Mesh->SkinFaceBoneNum == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : トライアングルタイプ配列格納用メモリの確保に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xc8\x30\xe9\x30\xa4\x30\xa2\x30\xf3\x30\xb0\x30\xeb\x30\xbf\x30\xa4\x30\xd7\x30\x4d\x91\x17\x52\x3c\x68\x0d\x7d\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : トライアングルタイプ配列格納用メモリの確保に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 			_MEMSET( Mesh->SkinFaceBoneNum, 0, ( sizeof( BYTE ) + sizeof( WORD ) ) * Mesh->FaceNum ) ;
 
 			// 各頂点がどのボーンの影響を受けるかの情報の初期化
-			if( InitBitList( &Mesh->SkinVerticesBlend, Mesh->SkinWeightsNum, Mesh->PositionNum, &ReadModel->Mem ) == -1 )
+			if( InitBitList( &Mesh->SkinVerticesBlend, ( int )Mesh->SkinWeightsNum, ( int )Mesh->PositionNum, &ReadModel->Mem ) == -1 )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : 頂点へのボーンの影響に関するデータの初期化に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\x78\x30\x6e\x30\xdc\x30\xfc\x30\xf3\x30\x6e\x30\x71\x5f\xff\x97\x6b\x30\xa2\x95\x59\x30\x8b\x30\xc7\x30\xfc\x30\xbf\x30\x6e\x30\x1d\x52\x1f\x67\x16\x53\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : 頂点へのボーンの影響に関するデータの初期化に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 
@@ -3946,14 +4332,14 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 			Mesh->SkinVerticeWeightInfo = ( float * )ADDMEMAREA( sizeof( float ) * Mesh->SkinWeightsNum * Mesh->PositionNum, &ReadModel->Mem ) ;
 			if( Mesh->SkinVerticeWeightInfo == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : 頂点へのボーンの影響値の情報を格納するメモリの確保に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\x78\x30\x6e\x30\xdc\x30\xfc\x30\xf3\x30\x6e\x30\x71\x5f\xff\x97\x24\x50\x6e\x30\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : 頂点へのボーンの影響値の情報を格納するメモリの確保に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 
 			// 各面がどのボーンの影響を受けるのかの情報の初期化
-			if( InitBitList( &Mesh->SkinFacesBlend, Mesh->SkinWeightsNum, Mesh->FaceNum, &ReadModel->Mem ) == -1 )
+			if( InitBitList( &Mesh->SkinFacesBlend, ( int )Mesh->SkinWeightsNum, ( int )Mesh->FaceNum, &ReadModel->Mem ) == -1 )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : 面へのボーンの影響に関するデータの初期化に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x62\x97\x78\x30\x6e\x30\xdc\x30\xfc\x30\xf3\x30\x6e\x30\x71\x5f\xff\x97\x6b\x30\xa2\x95\x59\x30\x8b\x30\xc7\x30\xfc\x30\xbf\x30\x6e\x30\x1d\x52\x1f\x67\x16\x53\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : 面へのボーンの影響に関するデータの初期化に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 
@@ -3970,7 +4356,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 					if( SkinWeightOne->Weight <= 0.0f || ( *( ( DWORD * )&SkinWeightOne->Weight ) & 0x7fffffff ) == 0 ) continue ;
 					
 					// 影響している頂点に情報を埋め込む
-					SetBitList( &Mesh->SkinVerticesBlend, SkinWeightOne->TargetVertex, i ) ;
+					SetBitList( &Mesh->SkinVerticesBlend, ( int )SkinWeightOne->TargetVertex, ( int )i ) ;
 					Mesh->SkinVerticeWeightInfo[ SkinWeightOne->TargetVertex * Mesh->SkinWeightsNum + i ] = SkinWeightOne->Weight ;
 				}
 			}
@@ -3980,12 +4366,12 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 			for( i = 0 ; ( DWORD )i < Mesh->FaceNum ; i ++, MeshFace ++ )
 			{
 				// ポリゴンが使用しているボーンの情報を構築
-				GetBitList( &Mesh->SkinVerticesBlend, MeshFace->VertexIndex[ 0 ], BitBuf ) ; 
+				GetBitList( &Mesh->SkinVerticesBlend, ( int )MeshFace->VertexIndex[ 0 ], BitBuf ) ; 
 				for( j = 1 ; ( DWORD )j < MeshFace->IndexNum ; j ++ )
-					OrBitList( &Mesh->SkinVerticesBlend, MeshFace->VertexIndex[ j ], BitBuf ) ;
+					OrBitList( &Mesh->SkinVerticesBlend, ( int )MeshFace->VertexIndex[ j ], BitBuf ) ;
 
 				// ポリゴンが使用しているボーンの組み合わせ情報を保存
-				CopyBitList( &Mesh->SkinFacesBlend, i, BitBuf ) ;
+				CopyBitList( &Mesh->SkinFacesBlend, ( int )i, BitBuf ) ;
 
 				// ポリゴンが使用しているボーンの数を取得
 				MaxFaceCon = GetBitCount( BitBuf, Mesh->SkinVerticesBlend.UnitSize ) ;
@@ -3994,7 +4380,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				MaxCon = 0 ;
 				for( j = 0 ; j < ( int )MeshFace->IndexNum ; j ++ )
 				{
-					GetBitList( &Mesh->SkinVerticesBlend, MeshFace->VertexIndex[ j ], BitBuf ) ; 
+					GetBitList( &Mesh->SkinVerticesBlend, ( int )MeshFace->VertexIndex[ j ], BitBuf ) ; 
 					Con = GetBitCount( BitBuf, Mesh->SkinVerticesBlend.UnitSize ) ;
 					if( MaxCon < Con ) MaxCon = Con ;
 				}
@@ -4021,7 +4407,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				{
 					Mesh->SkinFaceType[ i ] = MV1_VERTEX_TYPE_NORMAL ;
 					MaxCon = 1 ;
-//					return DXST_ERRORLOG_ADD( _T( "Error ボーンの指定が一つもないポリゴンがあります by Fbx\n" ) ) ;
+//					return DXST_ERRORLOG_ADDUTF16LE( L"Error ボーンの指定が一つもないポリゴンがあります by Fbx\n" ) ;
 				}
 
 				// 関わっているボーンの数を保存
@@ -4031,13 +4417,13 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 		// マテリアル毎のポリゴンの情報を構築する
 		{
-			int PolyNum, Ind ;
+			DWORD PolyNum, Ind ;
 
 			// マテリアルの種類の数だけ確保
 			Mesh->MaterialPolyList = ( MV1_MATERIAL_POLY_R * )ADDMEMAREA( sizeof( MV1_MATERIAL_POLY_R ) * ( Mesh->MaterialNum == 0 ? 1 : Mesh->MaterialNum ), &ReadModel->Mem ) ;
 			if( Mesh->MaterialPolyList == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : マテリアル毎のポリゴンデータを格納するメモリの確保に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\xce\x6b\x6e\x30\xdd\x30\xea\x30\xb4\x30\xf3\x30\xc7\x30\xfc\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : マテリアル毎のポリゴンデータを格納するメモリの確保に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 
@@ -4057,14 +4443,14 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				Mesh->FaceUseTriangleList = ( WORD * )ADDMEMAREA( sizeof( WORD ) * Mesh->FaceNum, &ReadModel->Mem ) ;
 				if( Mesh->FaceUseTriangleList == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : 各面とトライアングルリストの関係を保存するメモリ領域の確保に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x04\x54\x62\x97\x68\x30\xc8\x30\xe9\x30\xa4\x30\xa2\x30\xf3\x30\xb0\x30\xeb\x30\xea\x30\xb9\x30\xc8\x30\x6e\x30\xa2\x95\xc2\x4f\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : 各面とトライアングルリストの関係を保存するメモリ領域の確保に失敗しました\n" @*/ )) ;
 					return -1 ;
 				}
 
 				// スキンメッシュの場合
 				for( i = 0 ; ( DWORD )i < Mesh->FaceNum ; i ++ )
 				{
-					WORD UseMatrix[ DX_VS_CONSTF_WORLD_MAT_NUM ] ;
+					WORD UseMatrix[ MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM ] ;
 					int UseBoneNum ;
 
 					PolyNum = Mesh->Faces[ i ].PolygonNum ;
@@ -4090,7 +4476,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 						Mesh->MaterialPolyList[ Ind ].TypeNum[ Mesh->SkinFaceType[ i ] ] += PolyNum ;
 
 						// 自分が使う行列のリストを取得する
-						UseBoneNum = GetBitListNumber( &Mesh->SkinFacesBlend, i, UseMatrix ) ;
+						UseBoneNum = GetBitListNumber( &Mesh->SkinFacesBlend, ( int )i, UseMatrix ) ;
 
 						// 自分が使う行列が既にあるトライアングルリスト内にあるか調べる
 						TList = MPoly->SkinB4TriangleList ;
@@ -4124,7 +4510,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 							for(;;)
 							{
-								// 行列の数が DX_VS_CONSTF_WORLD_MAT_NUM 個に達していないトライアングルリストがある場合は
+								// 行列の数が MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM 個に達していないトライアングルリストがある場合は
 								// そのトライアングルリストで使用する行列の数を増やして格納する
 								TList = MPoly->SkinB4TriangleList ;
 								for( j = 0 ; j < MPoly->SkinB4TriangleListNum ; j ++, TList ++ )
@@ -4136,7 +4522,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 										for( k = 0 ; k < TList->UseBoneNum && TList->UseBone[ k ] != UseMatrix[ l ] ; k ++ ){}
 										if( k == TList->UseBoneNum )
 										{
-											if( TList->UseBoneNum >= DX_VS_CONSTF_WORLD_MAT_NUM ) break ;
+											if( TList->UseBoneNum >= MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM ) break ;
 											TList->UseBone[ TList->UseBoneNum ] = UseMatrix[ l ] ;
 											TList->UseBoneNum ++ ;
 										}
@@ -4172,7 +4558,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 						Mesh->MaterialPolyList[ Ind ].TypeNum[ Mesh->SkinFaceType[ i ] ] += PolyNum ;
 
 						// 自分が使う行列のリストを取得する
-						UseBoneNum = GetBitListNumber( &Mesh->SkinFacesBlend, i, UseMatrix ) ;
+						UseBoneNum = GetBitListNumber( &Mesh->SkinFacesBlend, ( int )i, UseMatrix ) ;
 
 						// 自分が使う行列が既にあるトライアングルリスト内にあるか調べる
 						TList = MPoly->SkinB8TriangleList ;
@@ -4206,7 +4592,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 							for(;;)
 							{
-								// 行列の数が DX_VS_CONSTF_WORLD_MAT_NUM 個に達していないトライアングルリストがある場合は
+								// 行列の数が MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM 個に達していないトライアングルリストがある場合は
 								// そのトライアングルリストで使用する行列の数を増やして格納する
 								TList = MPoly->SkinB8TriangleList ;
 								for( j = 0 ; j < MPoly->SkinB8TriangleListNum ; j ++, TList ++ )
@@ -4218,7 +4604,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 										for( k = 0 ; k < TList->UseBoneNum && TList->UseBone[ k ] != UseMatrix[ l ] ; k ++ ){}
 										if( k == TList->UseBoneNum )
 										{
-											if( TList->UseBoneNum >= DX_VS_CONSTF_WORLD_MAT_NUM ) break ;
+											if( TList->UseBoneNum >= MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM ) break ;
 											TList->UseBone[ TList->UseBoneNum ] = UseMatrix[ l ] ;
 											TList->UseBoneNum ++ ;
 										}
@@ -4262,8 +4648,8 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 		// 頂点データのサイズを算出
 		{
-			int MatNum ;
-			int FaceNum ;
+			DWORD MatNum ;
+			DWORD FaceNum ;
 			DWORD Size ;
 
 			// マテリアルの数をセット
@@ -4418,7 +4804,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 					MPoly = Mesh->MaterialPolyList ;
 					for( i = 0 ; i < MatNum ; i ++, MPoly ++ )
 					{
-						MPoly->SimpleTriangleListNum = ( MPoly->TypeNum[ MV1_VERTEX_TYPE_NORMAL ] * 3 + MV1_TRIANGLE_MAX_INDEX - 1 ) / MV1_TRIANGLE_MAX_INDEX ;
+						MPoly->SimpleTriangleListNum = ( int )( ( MPoly->TypeNum[ MV1_VERTEX_TYPE_NORMAL ] * 3 + MV1_TRIANGLE_MAX_INDEX - 1 ) / MV1_TRIANGLE_MAX_INDEX ) ;
 						Mesh->TriangleListNum += MPoly->SimpleTriangleListNum ;
 						Size = MPoly->TypeNum[ MV1_VERTEX_TYPE_NORMAL ] * 3 * sizeof( WORD ) ;
 						Mesh->IndexDataTotalSize                             += Size ;
@@ -4438,8 +4824,8 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 	// メッシュ座標データのサイズを加算
 	for( Mesh = ReadModel->MeshFirst ; Mesh ; Mesh = Mesh->DataNext )
 	{
-		Size = ( sizeof( MV1_MESH_POSITION ) + ( Mesh->Container->MaxBoneUseNum - 4 ) * sizeof( MV1_SKINBONE_BLEND ) ) * Mesh->PositionNum ;
-		Mesh->VertexDataTotalSize += Size ;
+		Size = ( int )( ( sizeof( MV1_MESH_POSITION ) + ( Mesh->Container->MaxBoneUseNum - 4 ) * sizeof( MV1_SKINBONE_BLEND ) ) * Mesh->PositionNum ) ;
+		Mesh->VertexDataTotalSize   += Size ;
 		ReadModel->MeshPositionSize += Size ;
 	}
 
@@ -4490,16 +4876,16 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 		AllocSize = 0 ;
 
 		// ファイルパスを保存する相対アドレスをセット
-		MTBase.FilePath = ( TCHAR * )AllocSize ;
-		AllocSize += ( ( lstrlen( ReadModel->FilePath ) + 1 ) * sizeof( TCHAR ) + 3 ) / 4 * 4 ;
+		MTBase.FilePath = ( wchar_t * )AllocSize ;
+		AllocSize += ( ( _WCSLEN( ReadModel->FilePath ) + 1 ) * sizeof( wchar_t ) + 3 ) / 4 * 4 ;
 
 		// モデル名を保存する相対アドレスをセット
-		MTBase.Name = ( TCHAR * )AllocSize ;
-		AllocSize += ( ( lstrlen( ReadModel->Name ) + 1 ) * sizeof( TCHAR ) + 3 ) / 4 * 4 ;
+		MTBase.Name = ( wchar_t * )AllocSize ;
+		AllocSize += ( ( _WCSLEN( ReadModel->Name ) + 1 ) * sizeof( wchar_t ) + 3 ) / 4 * 4 ;
 
 		// ディレクトリパスを保存する相対アドレスをセット
-		MTBase.DirectoryPath = ( TCHAR * )AllocSize ;
-		AllocSize += ( ( dirlen + 1 ) * sizeof( TCHAR ) + 3 ) / 4 * 4 ;
+		MTBase.DirectoryPath = ( wchar_t * )AllocSize ;
+		AllocSize += ( ( dirlen + 1 ) * sizeof( wchar_t ) + 3 ) / 4 * 4 ;
 
 		// 変更テーブル情報を保存する相対アドレスをセット
 		MTBase.ChangeDrawMaterialTable = ( DWORD * )AllocSize ;
@@ -4509,30 +4895,30 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 		AllocSize += ReadModel->ChangeMatrixTableSize ;
 
 		// フレーム配列の確保メモリ先頭からの相対アドレスをセット
-		MTBase.FrameNum = ReadModel->FrameNum ;
+		MTBase.FrameNum = ( int )ReadModel->FrameNum ;
 		MTBase.Frame = ( MV1_FRAME_BASE * )AllocSize ;
 		AllocSize += MTBase.FrameNum * sizeof( MV1_FRAME_BASE ) ;
-		MTBase.FrameUseSkinBoneNum = ReadModel->SkinWeightNum ;
+		MTBase.FrameUseSkinBoneNum = ( int )ReadModel->SkinWeightNum ;
 		MTBase.FrameUseSkinBone = ( MV1_SKIN_BONE ** )AllocSize ;
 		AllocSize += MTBase.FrameUseSkinBoneNum * sizeof( MV1_SKIN_BONE * ) ;
 
 		// マテリアル配列の確保メモリ先頭からの相対アドレスをセット
-		MTBase.MaterialNum = ReadModel->MaterialNum ;
+		MTBase.MaterialNum = ( int )ReadModel->MaterialNum ;
 		MTBase.Material = ( MV1_MATERIAL_BASE * )AllocSize ;
 		AllocSize += MTBase.MaterialNum * sizeof( MV1_MATERIAL_BASE ) ;
 
 		// テクスチャ配列の確保メモリ先頭からの相対アドレスをセット
-		MTBase.TextureNum = ReadModel->TextureNum ;
+		MTBase.TextureNum = ( int )ReadModel->TextureNum ;
 		MTBase.Texture = ( MV1_TEXTURE_BASE * )AllocSize ;
 		AllocSize += MTBase.TextureNum * sizeof( MV1_TEXTURE_BASE ) ;
 
 		// ライトの数をセット
-		MTBase.LightNum = ReadModel->LightNum ;
+		MTBase.LightNum = ( int )ReadModel->LightNum ;
 		MTBase.Light = ( MV1_LIGHT * )AllocSize ;
 		AllocSize += MTBase.LightNum * sizeof( MV1_LIGHT ) ;
 
 		// スキニングメッシュ用のボーン情報の数をセット
-		MTBase.SkinBoneNum = ReadModel->SkinWeightNum ;
+		MTBase.SkinBoneNum = ( int )ReadModel->SkinWeightNum ;
 		MTBase.SkinBone = ( MV1_SKIN_BONE * )AllocSize ;
 		AllocSize += MTBase.SkinBoneNum * sizeof( MV1_SKIN_BONE ) ;
 		MTBase.SkinBoneUseFrameNum = MTBase.SkinBoneNum ;
@@ -4540,63 +4926,69 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 		AllocSize += MTBase.SkinBoneUseFrameNum * sizeof( MV1_SKIN_BONE_USE_FRAME ) ;
 
 		// シェイプデータ配列の確保メモリ先頭からの相対アドレスをセット
-		MTBase.ShapeNum = ReadModel->ShapeNum ;
+		MTBase.ShapeNum = ( int )ReadModel->ShapeNum ;
 		MTBase.Shape = ( MV1_SHAPE_BASE * )AllocSize ;
 		AllocSize += MTBase.ShapeNum * sizeof( MV1_SHAPE_BASE ) ;
 
 		// シェイプメッシュのメモリアドレスをセット
-		MTBase.ShapeMeshNum = ReadModel->ShapeMeshNum ;
+		MTBase.ShapeMeshNum = ( int )ReadModel->ShapeMeshNum ;
 		MTBase.ShapeMesh = ( MV1_SHAPE_MESH_BASE * )AllocSize ;
 		AllocSize += MTBase.ShapeMeshNum * sizeof( MV1_SHAPE_MESH_BASE ) ;
 
 		// 物理演算で使用する剛体データのメモリアドレスをセット
-		MTBase.PhysicsRigidBodyNum = ReadModel->PhysicsRigidBodyNum ;
+		MTBase.PhysicsRigidBodyNum = ( int )ReadModel->PhysicsRigidBodyNum ;
 		MTBase.PhysicsRigidBody = ( MV1_PHYSICS_RIGIDBODY_BASE * )AllocSize ;
 		AllocSize += MTBase.PhysicsRigidBodyNum * sizeof( MV1_PHYSICS_RIGIDBODY_BASE ) ;
 
 		// 物理演算で使用するジョイントデータのメモリアドレスをセット
-		MTBase.PhysicsJointNum = ReadModel->PhysicsJointNum ;
+		MTBase.PhysicsJointNum = ( int )ReadModel->PhysicsJointNum ;
 		MTBase.PhysicsJoint = ( MV1_PHYSICS_JOINT_BASE * )AllocSize ;
 		AllocSize += MTBase.PhysicsJointNum * sizeof( MV1_PHYSICS_JOINT_BASE ) ;
 
 		// メッシュの数をセット
-		MTBase.MeshNum = ReadModel->MeshMaterialNum ;
+		MTBase.MeshNum = ( int )ReadModel->MeshMaterialNum ;
 		MTBase.Mesh = ( MV1_MESH_BASE * )AllocSize ;
 		AllocSize += MTBase.MeshNum * sizeof( MV1_MESH_BASE ) ;
 
 		// トライアングルリストのメモリアドレスをセット
-		MTBase.TriangleListNum = ReadModel->TriangleListNum ;
+		MTBase.TriangleListNum = ( int )ReadModel->TriangleListNum ;
 		MTBase.TriangleList = ( MV1_TRIANGLE_LIST_BASE * )AllocSize ;
 		AllocSize += MTBase.TriangleListNum * sizeof( MV1_TRIANGLE_LIST_BASE ) ;
 
 		// 頂点インデックスのメモリアドレスをセット
-		MTBase.TriangleListIndexNum = ReadModel->IndexNum ;
+		MTBase.TriangleListIndexNum = ( int )ReadModel->IndexNum ;
 		MTBase.TriangleListIndex = ( WORD * )AllocSize ;
 		AllocSize += ( MTBase.TriangleListIndexNum * 2 ) * sizeof( WORD ) ;
 		AllocSize = ( AllocSize + 15 ) / 16 * 16 ; 
 
 		// 文字列を保存するメモリアドレスのセット
-		MTBase.StringSize = ReadModel->StringSize ;
-		MTBase.StringBuffer = ( char * )AllocSize ;
-		AllocSize += MTBase.StringSize ;
+#ifndef UNICODE
+		MTBase.StringSizeA = ( int )ReadModel->StringSizeA ;
+		MTBase.StringBufferA = ( char * )AllocSize ;
+		AllocSize += MTBase.StringSizeA ;
+#endif
+
+		MTBase.StringSizeW = ( int )ReadModel->StringSizeW ;
+		MTBase.StringBufferW = ( wchar_t * )AllocSize ;
+		AllocSize += MTBase.StringSizeW ;
 
 		// アニメーションセットを保存するメモリアドレスのセット
-		MTBase.AnimSetNum = ReadModel->AnimSetNum ;
+		MTBase.AnimSetNum = ( int )ReadModel->AnimSetNum ;
 		MTBase.AnimSet = ( MV1_ANIMSET_BASE * )AllocSize ;
 		AllocSize += MTBase.AnimSetNum * sizeof( MV1_ANIMSET_BASE ) ;
 
 		// アニメーションを保存するメモリアドレスのセット
-		MTBase.AnimNum = ReadModel->AnimNum ;
+		MTBase.AnimNum = ( int )ReadModel->AnimNum ;
 		MTBase.Anim = ( MV1_ANIM_BASE * )AllocSize ;
 		AllocSize += MTBase.AnimNum * sizeof( MV1_ANIM_BASE ) ;
 
 		// アニメーションキーセットを保存するメモリアドレスのセット
-		MTBase.AnimKeySetNum = ReadModel->AnimKeySetNum ;
+		MTBase.AnimKeySetNum = ( int )ReadModel->AnimKeySetNum ;
 		MTBase.AnimKeySet = ( MV1_ANIM_KEYSET_BASE * )AllocSize ;
 		AllocSize += MTBase.AnimKeySetNum * sizeof( MV1_ANIM_KEYSET_BASE ) ;
 
 		// 各アニメーションキーを保存するメモリアドレスのセット
-		MTBase.AnimKeyDataSize = ReadModel->AnimKeyDataSize ;
+		MTBase.AnimKeyDataSize = ( int )ReadModel->AnimKeyDataSize ;
 		MTBase.AnimKeyData = ( void * )AllocSize ;
 		AllocSize += MTBase.AnimKeyDataSize ;
 
@@ -4606,10 +4998,10 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 	}
 
 	// モデル基データハンドルの作成
-	NewHandle = MV1AddModelBase() ;
+	NewHandle = MV1AddModelBase( ASyncThread ) ;
 	if( NewHandle < 0 )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Read Model Convert Error : モデル基本データハンドルの取得に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xe2\x30\xc7\x30\xeb\x30\xfa\x57\x2c\x67\xc7\x30\xfc\x30\xbf\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6e\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : モデル基本データハンドルの取得に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 	MBase = ( MV1_MODEL_BASE * )GetHandleInfo( NewHandle ) ;
@@ -4620,7 +5012,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 		MBase->DataBuffer = MDALLOCMEM( AllocSize ) ;
 		if( MBase->DataBuffer == NULL )
 		{
-			DXST_ERRORLOG_ADD( _T( "Read Model Convert Error : モデル基本データ保存用のメモリの確保に失敗しました\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xe2\x30\xc7\x30\xeb\x30\xfa\x57\x2c\x67\xc7\x30\xfc\x30\xbf\x30\xdd\x4f\x58\x5b\x28\x75\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : モデル基本データ保存用のメモリの確保に失敗しました\n" @*/ ) ;
 			goto ERRORLABEL ;
 		}
 		MBase->AllocMemorySize = AllocSize ;
@@ -4630,16 +5022,16 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 		VertInfoTable = ( MV1_MAKEVERTINDEXINFO ** )DXALLOC( sizeof( MV1_MAKEVERTINDEXINFO * ) * MaxPositionNum + sizeof( MV1_MAKEVERTINDEXINFO ) * MaxTriangleNum * 3 ) ;
 		if( VertInfoTable == NULL )
 		{
-			DXST_ERRORLOG_ADD( _T( "Read Model Convert Error : モデル基本データ構築に使用するテンポラリバッファの確保に失敗しました\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xe2\x30\xc7\x30\xeb\x30\xfa\x57\x2c\x67\xc7\x30\xfc\x30\xbf\x30\xcb\x69\xc9\x7b\x6b\x30\x7f\x4f\x28\x75\x59\x30\x8b\x30\xc6\x30\xf3\x30\xdd\x30\xe9\x30\xea\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : モデル基本データ構築に使用するテンポラリバッファの確保に失敗しました\n" @*/ ) ;
 			goto ERRORLABEL ;
 		}
 		VertInfoBuffer = ( MV1_MAKEVERTINDEXINFO * )( VertInfoTable + MaxPositionNum ) ;
 		VertValidBuffer = ( int * )VertInfoTable ;
 
 		// 各メモリアドレスの先頭をセット
-		MBase->DirectoryPath		= ( TCHAR * )                     ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.DirectoryPath        ) ;
-		MBase->FilePath				= ( TCHAR * )                     ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.FilePath             ) ;
-		MBase->Name					= ( TCHAR * )                     ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Name                 ) ;
+		MBase->DirectoryPath		= ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.DirectoryPath        ) ;
+		MBase->FilePath				= ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.FilePath             ) ;
+		MBase->Name					= ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Name                 ) ;
 
 		MBase->Frame                = ( MV1_FRAME_BASE * )            ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Frame                ) ;
 		MBase->FrameUseSkinBone     = ( MV1_SKIN_BONE ** )            ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.FrameUseSkinBone     ) ;
@@ -4653,7 +5045,10 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 		MBase->Light                = ( MV1_LIGHT * )                 ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Light                ) ;
 		MBase->TriangleList         = ( MV1_TRIANGLE_LIST_BASE * )    ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.TriangleList         ) ;
 		MBase->TriangleListIndex    = ( WORD * )                      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.TriangleListIndex    ) ;
-		MBase->StringBuffer         = ( char * )                      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.StringBuffer         ) ;
+#ifndef UNICODE
+		MBase->StringBufferA        = ( char * )                      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.StringBufferA        ) ;
+#endif
+		MBase->StringBufferW        = ( wchar_t * )                   ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.StringBufferW        ) ;
 		MBase->AnimSet              = ( MV1_ANIMSET_BASE * )          ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.AnimSet              ) ;
 		MBase->Anim                 = ( MV1_ANIM_BASE * )             ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.Anim                 ) ;
 		MBase->AnimKeySet           = ( MV1_ANIM_KEYSET_BASE * )      ( ( BYTE * )MBase->DataBuffer + ( DWORD_PTR )MTBase.AnimKeySet           ) ;
@@ -4701,7 +5096,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				sizeof( MV1_SHAPE_VERTEX_BASE ) * ReadModel->ShapeVertexNum          + 16 ) ;
 			if( MBase->VertexData == NULL )
 			{
-				DXST_ERRORLOG_ADD( _T( "Read Model Convert Error : 頂点座標と頂点法線を一時的に格納するメモリ領域の確保に失敗しました\n" ) ) ;
+				DXST_ERRORLOG_ADDUTF16LE( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\xa7\x5e\x19\x6a\x68\x30\x02\x98\xb9\x70\xd5\x6c\xda\x7d\x92\x30\x00\x4e\x42\x66\x84\x76\x6b\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : 頂点座標と頂点法線を一時的に格納するメモリ領域の確保に失敗しました\n" @*/ ) ;
 				goto ERRORLABEL ;
 			}
 			MBase->TriangleListNormalPosition    = ( MV1_TLIST_NORMAL_POS     * )( ( ( DWORD_PTR )MBase->VertexData + 15 ) / 16 * 16 ) ;
@@ -4717,9 +5112,12 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 		}
 
 		// モデル名とファイルパスとディレクトリパスを保存
-		lstrcpy( MBase->Name, ReadModel->Name ) ;
-		lstrcpy( MBase->FilePath, ReadModel->FilePath ) ;
-		lstrcpy( MBase->DirectoryPath, CurrentDir == NULL ? _T( "" ) : DirectoryPath ) ;
+		_WCSCPY( MBase->Name,          ReadModel->Name ) ;
+		_WCSCPY( MBase->FilePath,      ReadModel->FilePath ) ;
+		_WCSCPY( MBase->DirectoryPath, CurrentDir == NULL ? L"" : DirectoryPath ) ;
+
+		// 同時複数描画に対応するかどうかを保存
+		MBase->UsePackDraw = GParam->LoadModelToUsePackDraw ;
 
 		// 右手座標系かどうかを保存
 		MBase->RightHandType = FALSE ;
@@ -4738,7 +5136,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 		}
 
 		// ポリゴンの数を保存
-		MBase->TriangleNum = ReadModel->TriangleNum ;
+		MBase->TriangleNum = ( int )ReadModel->TriangleNum ;
 
 		// データをセット
 		{
@@ -4751,12 +5149,15 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 			// アニメーションを処理
 			AnimSet = ReadModel->AnimSetFirst ;
 			MBAnimSet = MBase->AnimSet ;
-			MBase->AnimSetNum = ReadModel->AnimSetNum ;
+			MBase->AnimSetNum = ( int )ReadModel->AnimSetNum ;
 			for( i = 0 ; i < ( int )ReadModel->AnimSetNum ; i ++, AnimSet = AnimSet->DataNext, MBAnimSet ++ )
 			{
 				// 名前のコピー
 				MBAnimSet->NameAllocMem = FALSE ;
-				MBAnimSet->Name = MV1RGetStringSpace( MBase, AnimSet->Name ) ;
+#ifndef UNICODE
+				MBAnimSet->NameA = MV1RGetStringSpace(  MBase, AnimSet->NameA ) ;
+#endif
+				MBAnimSet->NameW = MV1RGetStringSpaceW( MBase, AnimSet->NameW ) ;
 
 				// 加算アニメーションかどうかをセット
 				MBAnimSet->IsAddAnim = AnimSet->IsAddAnim ;
@@ -4784,7 +5185,6 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 					MBAnim->Container = MBAnimSet ;
 
 					// 対象となるフレームの名前をセット
-//					MBAnim->TargetFrameName = MV1RGetStringSpace( MBase, Anim->TargetFrameName ) ;
 					MBAnim->TargetFrame = MBase->Frame + Anim->TargetFrameIndex ;
 
 					// 対象となるフレームのインデックスをセット
@@ -4853,8 +5253,36 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 						// キーサイズの保存
 //						MBKeySet->UnitSize = Size ;
 
-						// 传送
-						_MEMCPY( MBKeySet->KeyFloat4, AnimKeySet->KeyFloat4, Size * MBKeySet->Num ) ;
+						// 転送
+						if( GParam->LoadModelToIgnoreScaling &&
+							( MBKeySet->DataType == MV1_ANIMKEY_DATATYPE_SCALE ||
+							  MBKeySet->DataType == MV1_ANIMKEY_DATATYPE_SCALE_X ||
+							  MBKeySet->DataType == MV1_ANIMKEY_DATATYPE_SCALE_Y ||
+							  MBKeySet->DataType == MV1_ANIMKEY_DATATYPE_SCALE_Z ) )
+						{
+							switch( MBKeySet->Type )
+							{
+							case MV1_ANIMKEY_TYPE_VECTOR :
+								for( l = 0; l < AnimKeySet->Num; l++ )
+								{
+									MBKeySet->KeyVector[ l ] = VGet( 1.0f, 1.0f, 1.0f ) ;
+								}
+								break ;
+
+							case MV1_ANIMKEY_TYPE_FLAT :
+							case MV1_ANIMKEY_TYPE_LINEAR :
+							case MV1_ANIMKEY_TYPE_BLEND :
+								for( l = 0; l < AnimKeySet->Num; l++ )
+								{
+									MBKeySet->KeyLinear[ l ] = 1.0f ;
+								}
+								break ;
+							}
+						}
+						else
+						{
+							_MEMCPY( MBKeySet->KeyFloat4, AnimKeySet->KeyFloat4, ( size_t )( Size * MBKeySet->Num ) ) ;
+						}
 						MBase->AnimKeyDataSize += Size * MBKeySet->Num ;
 						MBAnimSet->KeyDataSize += Size * MBKeySet->Num ;
 
@@ -4893,35 +5321,41 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 				// 名前を保存
 				MBTexture->NameAllocMem = FALSE ;
-				MBTexture->Name = MV1RGetStringSpace( MBase, Texture->Name ) ;
+#ifndef UNICODE
+				MBTexture->NameA = MV1RGetStringSpace(  MBase, Texture->NameA ) ;
+#endif
+				MBTexture->NameW = MV1RGetStringSpaceW( MBase, Texture->NameW ) ;
 
 				// テクスチャの読み込み
 				{
-					wchar_t ColorPathW[ MAX_PATH ], AlphaPathW[ MAX_PATH ], TempPathW[ MAX_PATH ] ;
+					wchar_t ColorPathW[ FILEPATH_MAX ] ;
+					wchar_t AlphaPathW[ FILEPATH_MAX ] ;
+					wchar_t *UseColorPath = NULL ;
+					wchar_t *UseAlphaPath = NULL ;
 
-					if( Texture->ColorFileName )
+					if( Texture->ColorFileNameW )
 					{
 						if( CurrentDir == NULL )
 						{
-							MBCharToWChar( 932/*_GET_CODEPAGE()*/, Texture->ColorFileName, ( DXWCHAR * )ColorPathW, MAX_PATH ) ;
+							UseColorPath = Texture->ColorFileNameW ;
 						}
 						else
 						{
-							MBCharToWChar( 932/*_GET_CODEPAGE()*/, Texture->ColorFileName, ( DXWCHAR * )TempPathW, MAX_PATH ) ;
-							ConvertFullPathW_( TempPathW, ColorPathW, DirectoryPathW ) ;
+							ConvertFullPathW_( Texture->ColorFileNameW, ColorPathW, DirectoryPath ) ;
+							UseColorPath = ColorPathW ;
 						}
 					}
 
-					if( Texture->AlphaFileName )
+					if( Texture->AlphaFileNameW )
 					{
 						if( CurrentDir == NULL )
 						{
-							MBCharToWChar( 932/*_GET_CODEPAGE()*/, Texture->AlphaFileName, ( DXWCHAR * )AlphaPathW, MAX_PATH ) ;
+							UseAlphaPath = Texture->AlphaFileNameW ;
 						}
 						else
 						{
-							MBCharToWChar( 932/*_GET_CODEPAGE()*/, Texture->AlphaFileName, ( DXWCHAR * )TempPathW, MAX_PATH ) ;
-							ConvertFullPathW_( TempPathW, AlphaPathW, DirectoryPathW ) ;
+							ConvertFullPathW_( Texture->AlphaFileNameW, AlphaPathW, DirectoryPath ) ;
+							UseAlphaPath = AlphaPathW ;
 						}
 					}
 
@@ -4931,10 +5365,13 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 							&MBTexture->GraphHandle,
 							&MBTexture->SemiTransFlag,
 							&MBTexture->IsDefaultTexture,
+#ifndef UNICODE
 							NULL, NULL,
-							Texture->ColorFileName ? ColorPathW : NULL,
-							Texture->AlphaFileName ? AlphaPathW : NULL,
-							CurrentDir == NULL ? NULL : DirectoryPathW,
+#endif
+							NULL, NULL,
+							Texture->ColorFileNameW ? UseColorPath : NULL,
+							Texture->AlphaFileNameW ? UseAlphaPath : NULL,
+							CurrentDir == NULL ? NULL : DirectoryPath,
 							Texture->BumpMapFlag, Texture->BumpMapNextPixelLength,
 							Texture->ReverseFlag,
 							Texture->Bmp32AllZeroAlphaToXRGB8Flag,
@@ -4942,7 +5379,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 							false,
 							ASyncThread ) == -1 )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "Read Model Convert Error : テクスチャ %s の読み込みに失敗しました\n", Texture->Name ) ) ;
+						DXST_ERRORLOGFMT_ADDW(( L"Read Model Convert Error : Texture Load Error : %s\n", Texture->NameW ) ) ;
 						goto ERRORLABEL ;
 					}
 				}
@@ -4954,16 +5391,26 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				// ファイルパスを保存
 				if( MBTexture->ColorImage )
 				{
-					MBTexture->ColorFilePath = MV1RGetStringSpace( MBase, Texture->ColorFileName ) ;
+#ifndef UNICODE
+					MBTexture->ColorFilePathA = MV1RGetStringSpace(  MBase, Texture->ColorFileNameA ) ;
+#endif
+					MBTexture->ColorFilePathW = MV1RGetStringSpaceW( MBase, Texture->ColorFileNameW ) ;
 				}
-				if( MBTexture->AlphaImage && Texture->AlphaFileName )
+				if( MBTexture->AlphaImage && Texture->AlphaFileNameW )
 				{
-					MBTexture->AlphaFilePath = MV1RGetStringSpace( MBase, Texture->AlphaFileName ) ;
+#ifndef UNICODE
+					MBTexture->AlphaFilePathA = MV1RGetStringSpace(  MBase, Texture->AlphaFileNameA ) ;
+#endif
+					MBTexture->AlphaFilePathW = MV1RGetStringSpaceW( MBase, Texture->AlphaFileNameW ) ;
 				}
 
 				// アドレッシングモードのセット
 				MBTexture->AddressModeU = Texture->AddressModeU ;
 				MBTexture->AddressModeV = Texture->AddressModeV ;
+
+				// テクスチャのスケール値をセット
+				MBTexture->ScaleU = Texture->ScaleU ;
+				MBTexture->ScaleV = Texture->ScaleV ;
 
 				// フィルタリングモードのセット
 				MBTexture->FilterMode = Texture->FilterMode ;
@@ -4985,7 +5432,10 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				MBase->MaterialNum ++ ;
 
 				// 名前を保存
-				MBMaterial->Name = MV1RGetStringSpace( MBase, Material->Name ) ;
+#ifndef UNICODE
+				MBMaterial->NameA = MV1RGetStringSpace(  MBase, Material->NameA ) ;
+#endif
+				MBMaterial->NameW = MV1RGetStringSpaceW( MBase, Material->NameW ) ;
 
 				// パラメータのコピー
 				MBMaterial->Type = Material->Type ;
@@ -5064,7 +5514,10 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				Frame->MV1Frame = MBFrame ;
 
 				// 名前をコピー
-				MBFrame->Name = MV1RGetStringSpace( MBase, Frame->Name ) ;
+#ifndef UNICODE
+				MBFrame->NameA = MV1RGetStringSpace(  MBase, Frame->NameA ) ;
+#endif
+				MBFrame->NameW = MV1RGetStringSpaceW( MBase, Frame->NameW ) ;
 
 				// 親へのアドレスをセット
 				if( Frame->Parent )
@@ -5114,14 +5567,21 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 					TempMatrix = Frame->Matrix ;
 					One = 1.0f ;
-					MBFrame->Translate = Frame->Translate ;
-					MBFrame->Scale = Frame->Scale ;
-					MBFrame->Rotate = Frame->Rotate ;
+					MBFrame->Translate   = Frame->Translate ;
+					if( GParam->LoadModelToIgnoreScaling )
+					{
+						MBFrame->Scale   = VGet( 1.0f, 1.0f, 1.0f ) ;
+					}
+					else
+					{
+						MBFrame->Scale   = Frame->Scale ;
+					}
+					MBFrame->Rotate      = Frame->Rotate ;
 					MBFrame->RotateOrder = Frame->RotateOrder ;
-					MBFrame->Quaternion = Frame->Quaternion ;
+					MBFrame->Quaternion  = Frame->Quaternion ;
 
-					MBFrame->PreRotate = Frame->PreRotate ;
-					MBFrame->PostRotate = Frame->PostRotate ;
+					MBFrame->PreRotate   = Frame->PreRotate ;
+					MBFrame->PostRotate  = Frame->PostRotate ;
 
 					// 平行移動要素が行列に仕込まれていたら行列から平行移動要素を取得する
 					if( ( *( ( DWORD * )&TempMatrix.m[ 3 ][ 0 ] ) & 0x7fffffff ) != 0 ||
@@ -5239,16 +5699,19 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 					}
 
 					// 拡大要素が行列に仕込まれていたら行列から拡大要素を抽出する
-					ScaleVector.x = ScaleMatrix.m[ 0 ][ 0 ] ;
-					ScaleVector.y = ScaleMatrix.m[ 1 ][ 1 ] ;
-					ScaleVector.z = ScaleMatrix.m[ 2 ][ 2 ] ;
-					if( ScaleVector.x < 0.99999f || ScaleVector.x > 1.00001f ||
-						ScaleVector.y < 0.99999f || ScaleVector.y > 1.00001f ||
-						ScaleVector.z < 0.99999f || ScaleVector.z > 1.00001f )
+					if( GParam->LoadModelToIgnoreScaling == FALSE )
 					{
-						MBFrame->Scale.x = ScaleVector.x ;
-						MBFrame->Scale.y = ScaleVector.y ;
-						MBFrame->Scale.z = ScaleVector.z ;
+						ScaleVector.x = ScaleMatrix.m[ 0 ][ 0 ] ;
+						ScaleVector.y = ScaleMatrix.m[ 1 ][ 1 ] ;
+						ScaleVector.z = ScaleMatrix.m[ 2 ][ 2 ] ;
+						if( ScaleVector.x < 0.99999f || ScaleVector.x > 1.00001f ||
+							ScaleVector.y < 0.99999f || ScaleVector.y > 1.00001f ||
+							ScaleVector.z < 0.99999f || ScaleVector.z > 1.00001f )
+						{
+							MBFrame->Scale.x = ScaleVector.x ;
+							MBFrame->Scale.y = ScaleVector.y ;
+							MBFrame->Scale.z = ScaleVector.z ;
+						}
 					}
 				}
 
@@ -5269,8 +5732,8 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				FrameMeshCounter ++ ;
 
 				// 最大ボーンブレンド数と１頂点辺りのサイズをセットする
-				MBFrame->MaxBoneBlendNum = Frame->MaxBoneUseNum ;
-				MBFrame->PosUnitSize = sizeof( MV1_MESH_POSITION ) + ( MBFrame->MaxBoneBlendNum - 4 ) * sizeof( MV1_SKINBONE_BLEND ) ;
+				MBFrame->MaxBoneBlendNum = ( int )Frame->MaxBoneUseNum ;
+				MBFrame->PosUnitSize     = ( int )( sizeof( MV1_MESH_POSITION ) + ( MBFrame->MaxBoneBlendNum - 4 ) * sizeof( MV1_SKINBONE_BLEND ) ) ;
 
 				// 各種フラグをセット
 				MBFrame->Flag = 0 ;
@@ -5301,10 +5764,13 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 					Shape = Frame->ShapeFirst ;
 					MBShape = MBFrame->Shape ;
-					for( i = 0 ; i < Frame->ShapeNum ; i ++, Shape = Shape->Next, MBShape ++ )
+					for( i = 0 ; i < ( DWORD )Frame->ShapeNum ; i ++, Shape = Shape->Next, MBShape ++ )
 					{
 						MBShape->Container = MBFrame ;
-						MBShape->Name = MV1RGetStringSpace( MBase, Shape->Name ) ;
+#ifndef UNICODE
+						MBShape->NameA = MV1RGetStringSpace(  MBase, Shape->NameA ) ;
+#endif
+						MBShape->NameW = MV1RGetStringSpaceW( MBase, Shape->NameW ) ;
 						MBShape->Mesh = NULL ;
 						MBShape->MeshNum = 0 ;
 					}
@@ -5314,7 +5780,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				if( Frame->MeshNum && Frame->MeshFirst->Positions )
 				{
 					Mesh = Frame->MeshFirst ;
-					for( i = 0 ; i < Frame->MeshNum ; i ++, Mesh = Mesh->Next )
+					for( i = 0 ; i < ( DWORD )Frame->MeshNum ; i ++, Mesh = Mesh->Next )
 					{
 						_MEMSET( TypeNumVertexDataSize, 0, sizeof( TypeNumVertexDataSize ) ) ;
 						TypeNumIndexDataSize = 0 ;
@@ -5335,16 +5801,51 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 							for( j = 0 ; ( DWORD )j < Mesh->NormalNum ; j ++, MBNormal ++, Normal ++ )
 							{
 								MBNormal->Normal = *Normal ;
-								MBNormal->Binormal.x = 0.0f ;
-								MBNormal->Binormal.y = 0.0f ;
-								MBNormal->Binormal.z = 0.0f ;
-								MBNormal->Tangent.x = 0.0f ;
-								MBNormal->Tangent.y = 0.0f ;
-								MBNormal->Tangent.z = 0.0f ;
-//								MBNormal->Binormal = Mesh->Binormals[ j ] ;
-//								MBNormal->Tangent = Mesh->Tangents[ j ] ;
 							}
-							MeshNormalStartNum = MBFrame->NormalNum ;
+
+							MBNormal = MBFrame->Normal + MBFrame->NormalNum ;
+							if( Mesh->Binormals != NULL )
+							{
+								MBFrame->Flag |= MV1_FRAMEFLAG_TANGENT_BINORMAL ;
+
+								Normal = Mesh->Binormals ;
+								for( j = 0 ; ( DWORD )j < Mesh->NormalNum ; j ++, MBNormal ++, Normal ++ )
+								{
+									MBNormal->Binormal = *Normal ;
+								}
+							}
+							else
+							{
+								for( j = 0 ; ( DWORD )j < Mesh->NormalNum ; j ++, MBNormal ++ )
+								{
+									MBNormal->Binormal.x = 0.0f ;
+									MBNormal->Binormal.y = 0.0f ;
+									MBNormal->Binormal.z = 0.0f ;
+								}
+							}
+
+							MBNormal = MBFrame->Normal + MBFrame->NormalNum ;
+							if( Mesh->Binormals != NULL )
+							{
+								MBFrame->Flag |= MV1_FRAMEFLAG_TANGENT_BINORMAL ;
+
+								Normal = Mesh->Tangents ;
+								for( j = 0 ; ( DWORD )j < Mesh->NormalNum ; j ++, MBNormal ++, Normal ++ )
+								{
+									MBNormal->Tangent = *Normal ;
+								}
+							}
+							else
+							{
+								for( j = 0 ; ( DWORD )j < Mesh->NormalNum ; j ++, MBNormal ++ )
+								{
+									MBNormal->Tangent.x = 0.0f ;
+									MBNormal->Tangent.y = 0.0f ;
+									MBNormal->Tangent.z = 0.0f ;
+								}
+							}
+
+							MeshNormalStartNum    = ( DWORD )MBFrame->NormalNum ;
 							MBFrame->NormalNum   += Mesh->NormalNum ;
 							MBase->MeshNormalNum += Mesh->NormalNum ;
 						}
@@ -5360,7 +5861,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 								MBFrame->PositionNum = 0 ;
 							}
 
-							MeshBoneStartNum = MBFrame->UseSkinBoneNum ;
+							MeshBoneStartNum = ( DWORD )MBFrame->UseSkinBoneNum ;
 							MBPosition = ( MV1_MESH_POSITION * )( ( BYTE * )MBFrame->Position + MBFrame->PosUnitSize * MBFrame->PositionNum ) ;
 							Position = Mesh->Positions ;
 							for( j = 0 ; ( DWORD )j < Mesh->PositionNum ; j ++, MBPosition = ( MV1_MESH_POSITION * )( ( BYTE * )MBPosition + MBFrame->PosUnitSize ), Position ++ )
@@ -5374,7 +5875,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 									VertB   = MBPosition->BoneWeight ;
 									for( m = 0 ; m < BoneNum ; m ++, VertB ++ )
 									{
-										VertB->Index = BitBuf[ m ] + MeshBoneStartNum ;
+										VertB->Index = ( int )( BitBuf[ m ] + MeshBoneStartNum ) ;
 										VertB->W     = Mesh->SkinVerticeWeightInfo[ Mesh->SkinWeightsNum * j + BitBuf[ m ] ] ;
 									}
 									if( BoneNum != MBFrame->MaxBoneBlendNum )
@@ -5384,8 +5885,8 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 									}
 								}
 							}
-							MeshPositionStartNum = MBFrame->PositionNum ;
-							MBFrame->PositionNum += Mesh->PositionNum ;
+							MeshPositionStartNum     = ( DWORD )MBFrame->PositionNum ;
+							MBFrame->PositionNum    += Mesh->PositionNum ;
 							MBase->MeshPositionSize += Mesh->PositionNum * MBFrame->PosUnitSize ;
 						}
 
@@ -5394,13 +5895,16 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 						MBSkinW = MBase->SkinBone + MBase->SkinBoneNum ;
 						for( j = 0 ; ( DWORD )j < Mesh->SkinWeightsNum ; j ++, MBSkinW ++ )
 						{
-							MBSkinW->BoneFrame = Mesh->SkinWeights[ j ]->TargetFrame ;
+							MBSkinW->BoneFrame = ( int )Mesh->SkinWeights[ j ]->TargetFrame ;
 							if( MBSkinW->BoneFrame == -1 )
 							{
-								DXST_ERRORLOGFMT_ADDA( ( "Read Model Convert Error : フレーム %s のスキニングメッシュのスキンウエイト情報で一致するノードの無いリンク情報がありました\n", Frame->Name ) ) ;
+								char FrameNameUTF16LE[ 512 ] ;
+
+								ConvString( ( const char * )Frame->NameW, WCHAR_T_CODEPAGE, FrameNameUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xd5\x30\xec\x30\xfc\x30\xe0\x30\x20\x00\x25\x00\x73\x00\x20\x00\x6e\x30\xb9\x30\xad\x30\xcb\x30\xf3\x30\xb0\x30\xe1\x30\xc3\x30\xb7\x30\xe5\x30\x6e\x30\xb9\x30\xad\x30\xf3\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\xc5\x60\x31\x58\x67\x30\x00\x4e\xf4\x81\x59\x30\x8b\x30\xce\x30\xfc\x30\xc9\x30\x6e\x30\x21\x71\x44\x30\xea\x30\xf3\x30\xaf\x30\xc5\x60\x31\x58\x4c\x30\x42\x30\x8a\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : フレーム %s のスキニングメッシュのスキンウエイト情報で一致するノードの無いリンク情報がありました\n" @*/, FrameNameUTF16LE ) ) ;
 								goto ERRORLABEL ;
 							}
-							ConvertMatrixToMatrix4x4c( &MBSkinW->ModelLocalMatrix, &Mesh->SkinWeights[ j ]->ModelLocalMatrix ) ;
+							ConvertMatrixFToMatrix4x4cF( &MBSkinW->ModelLocalMatrix, &Mesh->SkinWeights[ j ]->ModelLocalMatrix ) ;
 							if(                  MBSkinW->ModelLocalMatrix.m[ 0 ][ 0 ]                  == 1.0f &&
 								( *( ( DWORD * )&MBSkinW->ModelLocalMatrix.m[ 1 ][ 0 ] ) & 0x7fffffff ) == 0 &&
 								( *( ( DWORD * )&MBSkinW->ModelLocalMatrix.m[ 2 ][ 0 ] ) & 0x7fffffff ) == 0 &&
@@ -5440,10 +5944,10 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 						{
 							MBFrame->Mesh = MBase->Mesh + MBase->MeshNum ;
 						}
-						MeshStartNum = MBFrame->MeshNum ;
-						MeshNowNum = Mesh->MaterialNum ? Mesh->MaterialNum : 1 ;
+						MeshStartNum      = ( DWORD )MBFrame->MeshNum ;
+						MeshNowNum        = Mesh->MaterialNum ? Mesh->MaterialNum : 1 ;
 						MBFrame->MeshNum += MeshNowNum ;
-						MBase->MeshNum += MeshNowNum ;
+						MBase->MeshNum   += MeshNowNum ;
 
 						// トライアングルリストを作成
 						{
@@ -5476,7 +5980,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 								}
 
 								// バックカリングの有無のセット
-								MBMesh->BackCulling = Mesh->Materials[ o ] == NULL || Mesh->Materials[ o ]->DisableBackCulling == FALSE ? TRUE : FALSE ;
+								MBMesh->BackCulling = ( BYTE )( Mesh->Materials[ o ] == NULL || Mesh->Materials[ o ]->DisableBackCulling == FALSE ? TRUE : FALSE ) ;
 
 								// 頂点データと面データを構築する
 								{
@@ -5490,8 +5994,8 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 									MBMesh->UVUnitNum = 2 ;
 
 									// 頂点データの先頭アドレスをセット
-									MBMesh->Vertex = ( MV1_MESH_VERTEX * )( ( BYTE * )MBase->MeshVertex + MBase->MeshVertexSize ) ;
-									MBMesh->VertUnitSize = sizeof( MV1_MESH_VERTEX ) + MBMesh->UVSetUnitNum * MBMesh->UVUnitNum * sizeof( float ) - sizeof( float ) * 2 ;
+									MBMesh->Vertex       = ( MV1_MESH_VERTEX * )( ( BYTE * )MBase->MeshVertex + MBase->MeshVertexSize ) ;
+									MBMesh->VertUnitSize = ( int )( sizeof( MV1_MESH_VERTEX ) + MBMesh->UVSetUnitNum * MBMesh->UVUnitNum * sizeof( float ) - sizeof( float ) * 2 ) ;
 
 									// 面データのアドレスをセット
 									MBMesh->Face = MBase->MeshFace + MBase->MeshFaceNum ;
@@ -5516,8 +6020,8 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 										}*/
 
 										// 頂点タイプと所属トライアングルリスト番号を保存
-										MBFace->VertexType        = Mesh->SkinFaceType        == NULL ? MV1_VERTEX_TYPE_NORMAL : ( WORD )Mesh->SkinFaceType[ j ] ;
-										MBFace->TriangleListIndex = Mesh->FaceUseTriangleList == NULL ? -1                     : ( WORD )Mesh->FaceUseTriangleList[ j ] ;
+										MBFace->VertexType        = ( WORD )( Mesh->SkinFaceType        == NULL ? MV1_VERTEX_TYPE_NORMAL : ( WORD )Mesh->SkinFaceType[ j ]        ) ;
+										MBFace->TriangleListIndex = ( WORD )( Mesh->FaceUseTriangleList == NULL ? -1                     : ( WORD )Mesh->FaceUseTriangleList[ j ] ) ;
 
 										// ポリゴンの頂点の数だけ繰り返し
 										for( m = 0 ; m < 3 ; m ++ )
@@ -5600,14 +6104,14 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 												VInfo->Next = VertInfoTable[ MeshFace->VertexIndex[ m ] ] ;
 												VertInfoTable[ MeshFace->VertexIndex[ m ] ] = VInfo ;
 
-												_MEMCPY( ( BYTE * )MBMesh->Vertex + MBMesh->VertexNum * MBMesh->VertUnitSize, TVertex, MBMesh->VertUnitSize ) ;
-												MBFace->VertexIndex[ m ] = MBMesh->VertexNum ;
+												_MEMCPY( ( BYTE * )MBMesh->Vertex + MBMesh->VertexNum * MBMesh->VertUnitSize, TVertex, ( size_t )MBMesh->VertUnitSize ) ;
+												MBFace->VertexIndex[ m ] = ( DWORD )MBMesh->VertexNum ;
 												MBMesh->VertexNum ++ ;
 											}
 											else
 											{
 												// あったらインデックスをセット
-												MBFace->VertexIndex[ m ] = VInfo->VertexIndex ;
+												MBFace->VertexIndex[ m ] = ( DWORD )VInfo->VertexIndex ;
 											}
 										}
 
@@ -5622,9 +6126,9 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 										MBFace = MBMesh->Face ;
 										for( j = 0 ; j < MBMesh->FaceNum ; j ++, MBFace ++ )
 										{
-											p = MBFace->VertexIndex[ 1 ] ;
+											p = ( int )MBFace->VertexIndex[ 1 ] ;
 											MBFace->VertexIndex[ 1 ] = MBFace->VertexIndex[ 2 ] ;
-											MBFace->VertexIndex[ 2 ] = p ;
+											MBFace->VertexIndex[ 2 ] = ( DWORD )p ;
 										}
 									}
 
@@ -5751,8 +6255,8 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 										// 使用するボーンインデックスをセット
 										for( l = 0 ; l < TList->UseBoneNum ; l ++ )
-											MBTList->UseBone[ l ] = TList->UseBone[ l ] + MeshBoneStartNum ;
-										for( ; l < DX_VS_CONSTF_WORLD_MAT_NUM ; l ++ )
+											MBTList->UseBone[ l ] = ( int )( TList->UseBone[ l ] + MeshBoneStartNum ) ;
+										for( ; l < MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM ; l ++ )
 											MBTList->UseBone[ l ] = -1 ;
 										MBTList->UseBoneNum = TList->UseBoneNum ;
 
@@ -5871,8 +6375,8 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 										// 使用するボーンインデックスをセット
 										for( l = 0 ; l < TList->UseBoneNum ; l ++ )
-											MBTList->UseBone[ l ] = TList->UseBone[ l ] + MeshBoneStartNum ;
-										for( ; l < DX_VS_CONSTF_WORLD_MAT_NUM ; l ++ )
+											MBTList->UseBone[ l ] = ( int )( TList->UseBone[ l ] + MeshBoneStartNum ) ;
+										for( ; l < MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM ; l ++ )
 											MBTList->UseBone[ l ] = -1 ;
 										MBTList->UseBoneNum = TList->UseBoneNum ;
 
@@ -5998,7 +6502,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 										// １頂点あたりのサイズをセット
 										MBTList->PosUnitSize = ( unsigned short )( sizeof( MV1_TLIST_SKIN_POS_FREEB ) + sizeof( MV1_SKINBONE_BLEND ) * ( Mesh->MaterialPolyList[ o ].MaxBoneCount - 4 ) ) ;
-										MBTList->PosUnitSize = ( MBTList->PosUnitSize + 15 ) / 16 * 16 ;
+										MBTList->PosUnitSize = ( unsigned short )( ( MBTList->PosUnitSize + 15 ) / 16 * 16 ) ;
 
 										// 最大ボーン数を保存
 										MBTList->MaxBoneNum = Mesh->MaterialPolyList[ o ].MaxBoneCount ;
@@ -6120,8 +6624,8 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 										continue ;
 									ShapeVertex = &Shape->Vertex[ Shape->NextTable[ TVertex->PositionIndex - MeshPositionStartNum ] ] ;
 
-									MBShapeVertex->TargetMeshVertex = l ;
-									MBShapeVertex->Position = ShapeVertex->Position ;
+									MBShapeVertex->TargetMeshVertex = ( DWORD )l ;
+									MBShapeVertex->Position         = ShapeVertex->Position ;
 									if( Shape->ValidVertexNormal )
 									{
 										MBShapeVertex->Normal = ShapeVertex->Normal ;
@@ -6193,7 +6697,10 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 					MBLight->Phi = Frame->Light->Phi ;
 
 					// 名前をコピー
-					MBLight->Name = MV1RGetStringSpace( MBase, Frame->Name ) ;
+#ifndef UNICODE
+					MBLight->NameA = MV1RGetStringSpace(  MBase, Frame->NameA ) ;
+#endif
+					MBLight->NameW = MV1RGetStringSpaceW( MBase, Frame->NameW ) ;
 				}
 			}
 
@@ -6206,7 +6713,10 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				MBase->PhysicsRigidBodyNum ++ ;
 
 				// 名前を保存
-				MBPhysicsRigidBody->Name = MV1RGetStringSpace( MBase, PhysicsRigidBody->Name ) ;
+#ifndef UNICODE
+				MBPhysicsRigidBody->NameA = MV1RGetStringSpace(  MBase, PhysicsRigidBody->NameA ) ;
+#endif
+				MBPhysicsRigidBody->NameW = MV1RGetStringSpaceW( MBase, PhysicsRigidBody->NameW ) ;
 
 				// インデックスのセット
 				MBPhysicsRigidBody->Index = PhysicsRigidBody->Index ;
@@ -6240,7 +6750,10 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				MBase->PhysicsJointNum ++ ;
 
 				// 名前を保存
-				MBPhysicsJoint->Name = MV1RGetStringSpace( MBase, PhysicsJoint->Name ) ;
+#ifndef UNICODE
+				MBPhysicsJoint->NameA = MV1RGetStringSpace(  MBase, PhysicsJoint->NameA ) ;
+#endif
+				MBPhysicsJoint->NameW = MV1RGetStringSpaceW( MBase, PhysicsJoint->NameW ) ;
 
 				// インデックスのセット
 				MBPhysicsJoint->Index = PhysicsJoint->Index ;
@@ -6305,7 +6818,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				if( MBase->VertexData == NULL )
 				{
 					DXFREE( VertexData ) ;
-					DXST_ERRORLOG_ADD( _T( "Read Model Convert Error : 頂点座標と頂点法線を格納するメモリ領域の確保に失敗しました\n" ) ) ;
+					DXST_ERRORLOG_ADDUTF16LE( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\xa7\x5e\x19\x6a\x68\x30\x02\x98\xb9\x70\xd5\x6c\xda\x7d\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : 頂点座標と頂点法線を格納するメモリ領域の確保に失敗しました\n" @*/ ) ;
 					goto ERRORLABEL ;
 				}
 				MBase->TriangleListNormalPosition    = ( MV1_TLIST_NORMAL_POS     * )( ( ( DWORD_PTR )MBase->VertexData + 15 ) / 16 * 16 ) ;
@@ -6329,7 +6842,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				if( MBase->TriangleListSkinPosition8BNum     ) _MEMCPY( MBase->TriangleListSkinPosition8B,    SkinPosition8B,    sizeof( MV1_TLIST_SKIN_POS_8B ) * MBase->TriangleListSkinPosition8BNum ) ;
 				else                                           MBase->TriangleListSkinPosition8B    = NULL ;
 
-				if( MBase->TriangleListSkinPositionFREEBSize ) _MEMCPY( MBase->TriangleListSkinPositionFREEB, SkinPositionFREEB, MBase->TriangleListSkinPositionFREEBSize ) ;
+				if( MBase->TriangleListSkinPositionFREEBSize ) _MEMCPY( MBase->TriangleListSkinPositionFREEB, SkinPositionFREEB, ( size_t )MBase->TriangleListSkinPositionFREEBSize ) ;
 				else                                           MBase->TriangleListSkinPositionFREEB = NULL ;
 
 				if( MBase->MeshVertexIndexNum    ) _MEMCPY( MBase->MeshVertexIndex,   MeshVertexIndex,   sizeof( DWORD ) * MBase->MeshVertexIndexNum ) ;
@@ -6341,10 +6854,10 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				if( MBase->MeshNormalNum         ) _MEMCPY( MBase->MeshNormal,        MeshNormal,        sizeof( MV1_MESH_NORMAL ) * MBase->MeshNormalNum ) ;
 				else                               MBase->MeshNormal        = NULL ;
 
-				if( MBase->MeshPositionSize      ) _MEMCPY( MBase->MeshPosition,      MeshPosition,      MBase->MeshPositionSize ) ;
+				if( MBase->MeshPositionSize      ) _MEMCPY( MBase->MeshPosition,      MeshPosition,      ( size_t )MBase->MeshPositionSize ) ;
 				else                               MBase->MeshPosition      = NULL ;
 
-				if( MBase->MeshVertexSize        ) _MEMCPY( MBase->MeshVertex,        MeshVertex,        MBase->MeshVertexSize ) ;
+				if( MBase->MeshVertexSize        ) _MEMCPY( MBase->MeshVertex,        MeshVertex,        ( size_t )MBase->MeshVertexSize ) ;
 				else                               MBase->MeshVertex        = NULL ;
 
 				if( MBase->ShapeVertexNum        ) _MEMCPY( MBase->ShapeVertex,       ShapeVertex,       sizeof( MV1_SHAPE_VERTEX_BASE ) * MBase->ShapeVertexNum ) ;
@@ -6352,7 +6865,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 				// 各フレームのメッシュに関するポインタのアドレスを変更する
 				MBFrame = MBase->Frame ;
-				for( i = 0 ; i < MBase->FrameNum ; i ++, MBFrame ++ )
+				for( i = 0 ; i < ( DWORD )MBase->FrameNum ; i ++, MBFrame ++ )
 				{
 					if( MBFrame->Position )
 					{
@@ -6367,7 +6880,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 				
 				// 各メッシュの頂点データのアドレスを変更する
 				MBMesh = MBase->Mesh ;
-				for( i = 0 ; i < MBase->MeshNum ; i ++, MBMesh ++ )
+				for( i = 0 ; i < ( DWORD )MBase->MeshNum ; i ++, MBMesh ++ )
 				{
 					if( MBMesh->Face )
 					{
@@ -6382,7 +6895,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 				// 各シェイプメッシュの頂点データのアドレスを変更する
 				MBShapeMesh = MBase->ShapeMesh ;
-				for( i = 0 ; i < MBase->ShapeMeshNum ; i ++, MBShapeMesh ++ )
+				for( i = 0 ; i < ( DWORD )MBase->ShapeMeshNum ; i ++, MBShapeMesh ++ )
 				{
 					if( MBShapeMesh->Vertex )
 					{
@@ -6392,7 +6905,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 				// 各トライアングルリストのポインタのアドレスを変更する
 				MBMesh = MBase->Mesh ;
-				for( i = 0 ; i < MBase->MeshNum ; i ++, MBMesh ++ )
+				for( i = 0 ; i < ( DWORD )MBase->MeshNum ; i ++, MBMesh ++ )
 				{
 					MBTList = MBMesh->TriangleList ;
 					for( j = 0 ; j < MBMesh->TriangleListNum ; j ++, MBTList ++ )
@@ -6417,7 +6930,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 			// 各フレームのポリゴンの数と頂点の数をセットする
 			MBMesh = MBase->Mesh ;
-			for( i = 0 ; i < MBase->MeshNum ; i ++, MBMesh ++ )
+			for( i = 0 ; i < ( DWORD )MBase->MeshNum ; i ++, MBMesh ++ )
 			{
 				MBTList = MBMesh->TriangleList ;
 				for( j = 0 ; j < MBMesh->TriangleListNum ; j ++, MBTList ++ )
@@ -6430,7 +6943,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 			// 各ボーンとフレームの使用行列のリンク情報をセットする
 			MBSkinW = MBase->SkinBone ;
-			for( i = 0 ; i < MBase->SkinBoneNum ; i ++, MBSkinW ++ )
+			for( i = 0 ; i < ( DWORD )MBase->SkinBoneNum ; i ++, MBSkinW ++ )
 			{
 				MBSkinWF = MBSkinW->UseFrame ;
 				for( j = 0 ; j < MBSkinW->UseFrameNum ; j ++, MBSkinWF ++ )
@@ -6440,7 +6953,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 					if( k == MBFrame->UseSkinBoneNum )
 					{
 						// ここにはこないはず
-						DXST_ERRORLOG_ADD( _T( "エラー０" ) ) ;
+						DXST_ERRORLOG_ADDUTF16LE( "\xa8\x30\xe9\x30\xfc\x30\x10\xff\x00"/*@ L"エラー０" @*/ ) ;
 						return -1 ;
 					}
 					MBSkinWF->MatrixIndex = k ;
@@ -6460,7 +6973,7 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 	if( ReadModel->TranslateIsBackCulling )
 	{
 		MBMesh = MBase->Mesh ;
-		for( i = 0 ; i < MBase->MeshNum ; i ++, MBMesh ++ )
+		for( i = 0 ; i < ( DWORD )MBase->MeshNum ; i ++, MBMesh ++ )
 		{
 			if( MBMesh->Material->Diffuse.a < 0.99999999f )
 				MBMesh->BackCulling = 0 ;
@@ -6469,6 +6982,15 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 	// 初期行列のセットアップ
 	MV1SetupInitializeMatrixBase( MBase ) ;
+
+	// メッシュの半透明かどうかの情報をセットアップする
+	MV1SetupMeshSemiTransStateBase( MBase ) ;
+
+	// 同時複数描画関係の情報をセットアップする
+	if( MBase->UsePackDraw )
+	{
+		MV1SetupPackDrawInfo( MBase ) ;
+	}
 
 	// メモリの解放
 	if( VertInfoTable )
@@ -6491,13 +7013,20 @@ extern int MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL
 
 	// 高速処理用頂点データの構築
 	MBTList = MBase->TriangleList ;
-	for( i = 0 ; i < MBase->TriangleListNum ; i ++, MBTList ++ )
+	for( i = 0 ; i < ( DWORD )MBase->TriangleListNum ; i ++, MBTList ++ )
 	{
 		MV1SetupTriangleListPositionAndNormal( MBTList ) ;
 		MV1SetupToonOutLineTriangleList( MBTList ) ;
 	}
 
-	// 返回句柄
+#ifndef DX_NON_ASYNCLOAD
+	if( ASyncThread )
+	{
+		DecASyncLoadCount( NewHandle ) ;
+	}
+#endif // DX_NON_ASYNCLOAD
+
+	// ハンドルを返す
 	return NewHandle ;
 
 	// エラー処理
@@ -6506,6 +7035,13 @@ ERRORLABEL :
 	// ハンドルが有効な場合はハンドルの削除
 	if( NewHandle != -1 )
 	{
+#ifndef DX_NON_ASYNCLOAD
+		if( ASyncThread )
+		{
+			DecASyncLoadCount( NewHandle ) ;
+		}
+#endif // DX_NON_ASYNCLOAD
+
 		MV1SubModelBase( NewHandle ) ;
 		NewHandle = -1 ;
 	}
@@ -6520,7 +7056,11 @@ ERRORLABEL :
 	return -1 ;
 }
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif
 

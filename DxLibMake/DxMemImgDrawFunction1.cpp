@@ -2,22 +2,25 @@
 // 
 // 		ＤＸライブラリ		メモリイメージ制御用プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 // インクルード----------------------------------------------------------------
 #include "DxMemImg.h"
 #include "DxLib.h"
 #include "DxStatic.h"
-#include "DxGraphicsBase.h"
 #include "DxBaseFunc.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義------------------------------------------------------------------
 
@@ -41,7 +44,7 @@ extern void DrawTransformMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const PO
 	return ;
 }
 
-extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const DX_POINTDATA *pos3, int TransFlag, const MEMIMG *BlendImg, int Color )
+extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const DX_POINTDATA *pos3, int TransFlag, const MEMIMG *BlendImg, unsigned int Color )
 {
 	return ;
 }
@@ -177,7 +180,7 @@ extern void DrawRotationMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, int x, in
 	static DWORD PaletteTemp[256] ;
 	static DWORD_PTR SrcLineP[4096], BlendLineP[4096] ;
 
-	BYTE *BlendBP ;
+	BYTE *BlendBP = NULL ;
 	BYTE *BlendBPT ;
 	union
 	{
@@ -322,14 +325,14 @@ extern void DrawRotationMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, int x, in
 				xt = (int)( BD1X - x ) ;
 				yt = (int)( BD1Y - y ) ;
 
-				GX1 = _FTOL( ( CosD * xt - SinD * yt ) / EnlageRate ) + SrcImg->Width  / 2 * QUALI ;
-				GY1 = _FTOL( ( SinD * xt + CosD * yt ) / EnlageRate ) + SrcImg->Height / 2 * QUALI ;
+				GX1 = ( int )( _FTOL( ( CosD * xt - SinD * yt ) / EnlageRate ) + SrcImg->Width  / 2 * QUALI ) ;
+				GY1 = ( int )( _FTOL( ( SinD * xt + CosD * yt ) / EnlageRate ) + SrcImg->Height / 2 * QUALI ) ;
 
 				xt = (int)( BD1X - x ) ;
 				yt = (int)( (int)( py[MaxY2] / QUALI ) - y ) ; 
 
-				GX2 = _FTOL( ( CosD * xt - SinD * yt ) / EnlageRate ) + SrcImg->Width  / 2 * QUALI  ;
-				GY2 = _FTOL( ( SinD * xt + CosD * yt ) / EnlageRate ) + SrcImg->Height / 2 * QUALI  ;
+				GX2 = ( int )( _FTOL( ( CosD * xt - SinD * yt ) / EnlageRate ) + SrcImg->Width  / 2 * QUALI ) ;
+				GY2 = ( int )( _FTOL( ( SinD * xt + CosD * yt ) / EnlageRate ) + SrcImg->Height / 2 * QUALI ) ;
 
 				h = (int)( py[MaxY2] - py[MinY2] ) / QUALI ;
 				if( h == 0 ) return ;
@@ -386,7 +389,7 @@ extern void DrawRotationMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, int x, in
 	// パレットのコピー
 	if( SrcImg->Base->UsePalette == 1 )
 	{
-		memcpy( PaletteTemp, SrcImg->Base->Palette, SrcImg->Base->ColorNum * ( SrcImg->Base->ColorType == 0 ? 2 : 4 ) ) ;
+		_MEMCPY( PaletteTemp, SrcImg->Base->Palette, ( size_t )( SrcImg->Base->ColorNum * ( SrcImg->Base->ColorType == 0 ? 2 : 4 ) ) ) ;
 	}
 	
 	// 描画準備
@@ -396,8 +399,8 @@ extern void DrawRotationMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, int x, in
 		GAADY2 = GAADY ;
 		GAADX2 = GAADX ;
 
-		SizeX = SrcImg->Width * QUALI ;
-		SizeY = SrcImg->Height * QUALI ;
+		SizeX = ( int )( SrcImg->Width  * QUALI ) ;
+		SizeY = ( int )( SrcImg->Height * QUALI ) ;
 			
 		EndC = MaxX - BD1X ;
 		C = EndC ;
@@ -530,7 +533,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C16_USEPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -554,7 +557,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_ADD :			// 加法混合
+			case DX_BLENDMODE_ADD :			// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -576,7 +579,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_SUB :			// 减法混合
+			case DX_BLENDMODE_SUB :			// 減算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( TransFlag )		DRAWROTATIONMEMIMG_UBI_ND( if( *SrcBPT != TransColor )	CODE_UBI_C16_NBR_NAC_BSB( PAL16, DST16, DSTP16, BLND ), 1, 2 )
@@ -596,7 +599,7 @@ NOMALDRAW_C16_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_MUL :			// 乘法混合
+			case DX_BLENDMODE_MUL :			// 乗算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( TransFlag )		DRAWROTATIONMEMIMG_UBI_ND( if( *SrcBPT != TransColor )	CODE_UBI_C16_NBR_NAC_BML( PAL16, DST16, DSTP16, BLND ), 1, 2 )
@@ -788,7 +791,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C16_NOPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -832,7 +835,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_ADD :		// 加法混合
+			case DX_BLENDMODE_ADD :		// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -874,7 +877,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_SUB :		// 减法混合
+			case DX_BLENDMODE_SUB :		// 減算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -916,7 +919,7 @@ NOMALDRAW_C16_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_MUL :		// 乘法混合
+			case DX_BLENDMODE_MUL :		// 乗算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( SrcImg->Base->UseAlpha == 1 ){
@@ -1151,7 +1154,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C32_USEPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -1175,7 +1178,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_ADD :			// 加法混合
+			case DX_BLENDMODE_ADD :			// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -1197,7 +1200,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_SUB :			// 减法混合
+			case DX_BLENDMODE_SUB :			// 減算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( TransFlag )		DRAWROTATIONMEMIMG_UBI_ND( if( *SrcBPT != TransColor )	CODE_UBI_C32_NBR_NAC_BSB( PALP32, DSTP32, BLND ), 1, 4 )
@@ -1217,7 +1220,7 @@ NOMALDRAW_C32_USEPAL_BNO:
 				}
 				break ;
 				
-			case DX_BLENDMODE_MUL :			// 乘法混合
+			case DX_BLENDMODE_MUL :			// 乗算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( TransFlag )		DRAWROTATIONMEMIMG_UBI_ND( if( *SrcBPT != TransColor )	CODE_UBI_C32_NBR_NAC_BML( PALP32, DSTP32, BLND ), 1, 4 )
@@ -1409,7 +1412,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C32_NOPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -1453,7 +1456,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_ADD :		// 加法混合
+			case DX_BLENDMODE_ADD :		// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -1495,7 +1498,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_SUB :		// 减法混合
+			case DX_BLENDMODE_SUB :		// 減算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				if( BlendImg != NULL ){
@@ -1537,7 +1540,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 				}
 				break ;
 
-			case DX_BLENDMODE_MUL :		// 乘法混合
+			case DX_BLENDMODE_MUL :		// 乗算ブレンド
 				if( BlendImg != NULL ){
 					if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 						if( SrcImg->Base->UseAlpha == 1 ){
@@ -1862,7 +1865,7 @@ NOMALDRAW_C32_NOPAL_BNO:
 #define DSTP32	DestBPT
 
 #define BLND	*BlendBPT
-extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const DX_POINTDATA *pos3, int TransFlag, const MEMIMG *BlendImg, int Color )
+extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const DX_POINTDATA *pos3, int TransFlag, const MEMIMG *BlendImg, unsigned int Color )
 {
 	DWORD *RateTable1 ;
 	int *RateTable2 ;
@@ -1893,7 +1896,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 		DWORD ColorD ;
 	} ;
 	
-	BYTE *BlendBP ;
+	BYTE *BlendBP = NULL ;
 	BYTE *BlendBPT ;
 	union
 	{
@@ -2294,7 +2297,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 					
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C16_USEPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -2318,7 +2321,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 					
-				case DX_BLENDMODE_ADD :			// 加法混合
+				case DX_BLENDMODE_ADD :			// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -2340,7 +2343,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :			// 减法混合
+				case DX_BLENDMODE_SUB :			// 減算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( TransFlag )		DRAWBASICPOLYGONMEMIMG_UBI_ND( if( *SrcBPT != TransColor )	CODE_UBI_C16_NBR_NAC_BSB( PAL16, DST16, DSTP16, BLND ), 1, 2 )
@@ -2360,7 +2363,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 					
-				case DX_BLENDMODE_MUL :			// 乘法混合
+				case DX_BLENDMODE_MUL :			// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( TransFlag )		DRAWBASICPOLYGONMEMIMG_UBI_ND( if( *SrcBPT != TransColor )	CODE_UBI_C16_NBR_NAC_BML( PAL16, DST16, DSTP16, BLND ), 1, 2 )
@@ -2468,7 +2471,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C16_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -2512,7 +2515,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -2554,7 +2557,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -2596,7 +2599,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( SrcImg->Base->UseAlpha == 1 ){
@@ -2747,7 +2750,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 					
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C32_USEPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -2771,7 +2774,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 					
-				case DX_BLENDMODE_ADD :			// 加法混合
+				case DX_BLENDMODE_ADD :			// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -2793,7 +2796,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :			// 减法混合
+				case DX_BLENDMODE_SUB :			// 減算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( TransFlag )		DRAWBASICPOLYGONMEMIMG_UBI_ND( if( *SrcBPT != TransColor )	CODE_UBI_C32_NBR_NAC_BSB( PALP32, DSTP32, BLND ), 1, 4 )
@@ -2813,7 +2816,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 					
-				case DX_BLENDMODE_MUL :			// 乘法混合
+				case DX_BLENDMODE_MUL :			// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( TransFlag )		DRAWBASICPOLYGONMEMIMG_UBI_ND( if( *SrcBPT != TransColor )	CODE_UBI_C32_NBR_NAC_BML( PALP32, DSTP32, BLND ), 1, 4 )
@@ -2921,7 +2924,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 
-				case DX_BLENDMODE_ALPHA :		// α混合
+				case DX_BLENDMODE_ALPHA :		// αブレンド
 					if( MemImgManage.BlendParam == 255 ) goto NOMALDRAW_C32_NOPAL_BNO ;
 					else
 					if( MemImgManage.BlendParam == 0 ) return ;
@@ -2965,7 +2968,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 
-				case DX_BLENDMODE_ADD :		// 加法混合
+				case DX_BLENDMODE_ADD :		// 加算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -3007,7 +3010,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 
-				case DX_BLENDMODE_SUB :		// 减法混合
+				case DX_BLENDMODE_SUB :		// 減算ブレンド
 					if( MemImgManage.BlendParam == 0 ) return ;
 					
 					if( BlendImg != NULL ){
@@ -3049,7 +3052,7 @@ extern void DrawBasicPolygonMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const
 					}
 					break ;
 
-				case DX_BLENDMODE_MUL :		// 乘法混合
+				case DX_BLENDMODE_MUL :		// 乗算ブレンド
 					if( BlendImg != NULL ){
 						if( ( MemImgManage.bDrawBright & 0xffffff ) == 0xffffff ){
 							if( SrcImg->Base->UseAlpha == 1 ){
@@ -3204,7 +3207,7 @@ NOTEX_NOMALDRAW_C16_NOPAL_BNO:
 				DRAWBASICPOLYGONMEMIMG_NTEX_NBI_ND( CODE_NBI_C16_NBR_NAC_BNO( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto NOTEX_NOMALDRAW_C16_NOPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -3212,19 +3215,19 @@ NOTEX_NOMALDRAW_C16_NOPAL_BNO:
 				DRAWBASICPOLYGONMEMIMG_NTEX_NBI_ND( CODE_NBI_C16_NBR_NAC_BAL( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_ADD :		// 加法混合
+			case DX_BLENDMODE_ADD :		// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				DRAWBASICPOLYGONMEMIMG_NTEX_NBI_ND( CODE_NBI_C16_NBR_NAC_BAD( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_SUB :		// 减法混合
+			case DX_BLENDMODE_SUB :		// 減算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				DRAWBASICPOLYGONMEMIMG_NTEX_NBI_ND( CODE_NBI_C16_NBR_NAC_BSB( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
-			case DX_BLENDMODE_MUL :		// 乘法混合
+			case DX_BLENDMODE_MUL :		// 乗算ブレンド
 				DRAWBASICPOLYGONMEMIMG_NTEX_NBI_ND( CODE_NBI_C16_NBR_NAC_BML( SRC16, DST16, DSTP16 ), 2 )
 				break ;
 
@@ -3247,7 +3250,7 @@ NOTEX_NOMALDRAW_C32_NOPAL_BNO:
 				DRAWBASICPOLYGONMEMIMG_NTEX_NBI_ND( CODE_NBI_C32_NBR_NAC_BNO( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_ALPHA :		// α混合
+			case DX_BLENDMODE_ALPHA :		// αブレンド
 				if( MemImgManage.BlendParam == 255 ) goto NOTEX_NOMALDRAW_C32_NOPAL_BNO ;
 				else
 				if( MemImgManage.BlendParam == 0 ) return ;
@@ -3255,19 +3258,19 @@ NOTEX_NOMALDRAW_C32_NOPAL_BNO:
 				DRAWBASICPOLYGONMEMIMG_NTEX_NBI_ND( CODE_NBI_C32_NBR_NAC_BAL( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_ADD :		// 加法混合
+			case DX_BLENDMODE_ADD :		// 加算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				DRAWBASICPOLYGONMEMIMG_NTEX_NBI_ND( CODE_NBI_C32_NBR_NAC_BAD( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_SUB :		// 减法混合
+			case DX_BLENDMODE_SUB :		// 減算ブレンド
 				if( MemImgManage.BlendParam == 0 ) return ;
 				
 				DRAWBASICPOLYGONMEMIMG_NTEX_NBI_ND( CODE_NBI_C32_NBR_NAC_BSB( SRCP32, DSTP32 ), 4 )
 				break ;
 
-			case DX_BLENDMODE_MUL :		// 乘法混合
+			case DX_BLENDMODE_MUL :		// 乗算ブレンド
 				DRAWBASICPOLYGONMEMIMG_NTEX_NBI_ND( CODE_NBI_C32_NBR_NAC_BML( SRCP32, DSTP32 ), 4 )
 				break ;
 
@@ -3345,18 +3348,18 @@ extern void DrawTransformMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const PO
 
 		p[1].x = pos4[1].x ;
 		p[1].y = pos4[1].y ;
-		p[1].u = SrcImg->Width ;
+		p[1].u = ( int )SrcImg->Width ;
 		p[1].v = 0 ;
 
 		p[2].x = pos4[2].x ;
 		p[2].y = pos4[2].y ;
 		p[2].u = 0 ;
-		p[2].v = SrcImg->Height ;
+		p[2].v = ( int )SrcImg->Height ;
 
 		p[3].x = pos4[3].x ;
 		p[3].y = pos4[3].y ;
-		p[3].u = SrcImg->Width ;
-		p[3].v = SrcImg->Height ;
+		p[3].u = ( int )SrcImg->Width ;
+		p[3].v = ( int )SrcImg->Height ;
 
 		DrawBasicPolygonMemImg( DestImg, SrcImg, &p[0], TransFlag, BlendImg, 0 ) ;
 		DrawBasicPolygonMemImg( DestImg, SrcImg, &p[1], TransFlag, BlendImg, 0 ) ;
@@ -3368,4 +3371,8 @@ extern void DrawTransformMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const PO
 
 #endif
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE

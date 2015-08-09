@@ -2,14 +2,14 @@
 // 
 // 		ＤＸライブラリ		ソフトウェアで扱う画像プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxSoftImage.h"
 
 #ifndef DX_NON_SOFTIMAGE
@@ -20,15 +20,20 @@
 #include "DxBaseFunc.h"
 #include "DxMemory.h"
 #include "DxFile.h"
+#include "DxFont.h"
 #include "DxSystem.h"
 #include "DxLog.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
+
+// 構造体定義 --------------------------------------------------------------------
 
 // 内部大域変数宣言 --------------------------------------------------------------
 
@@ -48,7 +53,7 @@ extern int InitializeSoftImageManage( void )
 		return -1 ;
 
 	// ソフトイメージハンドル管理情報の初期化
-	InitializeHandleManage( DX_HANDLETYPE_SOFTIMAGE, sizeof( SOFTIMAGE ), MAX_SOFTIMAGE_NUM, InitializeSoftImageHandle, TerminateSoftImageHandle, DXSTRING( _T( "ソフトイメージ" ) ) ) ;
+	InitializeHandleManage( DX_HANDLETYPE_SOFTIMAGE, sizeof( SOFTIMAGE ), MAX_SOFTIMAGE_NUM, InitializeSoftImageHandle, TerminateSoftImageHandle, L"SoftImage" ) ;
 
 	// 初期化フラグを立てる
 	SoftImageManage.InitializeFlag = TRUE ;
@@ -86,7 +91,7 @@ extern int TerminateSoftImageManage( void )
 // ソフトウエアイメージハンドルの初期化
 extern int InitializeSoftImageHandle( HANDLEINFO * )
 {
-	// 不需要特别处理
+	// 特に何もしない
 	return 0 ;
 }
 
@@ -111,7 +116,7 @@ extern int NS_InitSoftImage( void )
 // LoadSoftImage の実処理関数
 static int LoadSoftImage_Static(
 	int SIHandle,
-	const TCHAR *FileName,
+	const wchar_t *FileName,
 	int ASyncThread
 )
 {
@@ -130,7 +135,7 @@ static int LoadSoftImage_Static(
 	}
 
 	// CreateBaseImageToFile でファイルから読み込み
-	if( NS_CreateBaseImageToFile( FileName, &SoftImg->BaseImage, FALSE ) == -1 )
+	if( CreateBaseImageToFile_WCHAR_T( FileName, &SoftImg->BaseImage, FALSE ) == -1 )
 		return -1 ;
 
 	// 正常終了
@@ -143,7 +148,7 @@ static int LoadSoftImage_Static(
 static void LoadSoftImage_ASync( ASYNCLOADDATA_COMMON *AParam )
 {
 	int SIHandle ;
-	const TCHAR *FileName ;
+	const wchar_t *FileName ;
 	int Addr ;
 	int Result ;
 
@@ -164,7 +169,7 @@ static void LoadSoftImage_ASync( ASYNCLOADDATA_COMMON *AParam )
 
 // LoadSoftImage のグローバル変数にアクセスしないバージョン
 extern int LoadSoftImage_UseGParam(
-	const TCHAR *FileName,
+	const wchar_t *FileName,
 	int ASyncLoadFlag
 )
 {
@@ -173,17 +178,20 @@ extern int LoadSoftImage_UseGParam(
 	CheckActiveState() ;
 
 	// ハンドルの作成
-	SIHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE ) ;
-	if( SIHandle == -1 ) return -1 ;
+	SIHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE, FALSE, -1 ) ;
+	if( SIHandle == -1 )
+	{
+		return -1 ;
+	}
 
 #ifndef DX_NON_ASYNCLOAD
 	if( ASyncLoadFlag )
 	{
 		ASYNCLOADDATA_COMMON *AParam = NULL ;
-		TCHAR FullPath[ 1024 ] ;
+		wchar_t FullPath[ 1024 ] ;
 		int Addr ;
 
-		ConvertFullPathT_( FileName, FullPath ) ;
+		ConvertFullPathW_( FileName, FullPath ) ;
 
 		// パラメータに必要なメモリのサイズを算出
 		Addr = 0 ;
@@ -230,6 +238,28 @@ ERR :
 
 // ソフトウエアで扱うイメージの読み込み( -1:エラー  -1以外:イメージハンドル )
 extern	int		NS_LoadSoftImage( const TCHAR *FileName )
+{
+#ifdef UNICODE
+	return LoadSoftImage_WCHAR_T(
+		FileName
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FileName, return -1 )
+
+	Result = LoadSoftImage_WCHAR_T(
+		UseFileNameBuffer
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FileName )
+
+	return Result ;
+#endif
+}
+
+// ソフトウエアで扱うイメージの読み込み( -1:エラー  -1以外:イメージハンドル )
+extern	int		LoadSoftImage_WCHAR_T( const wchar_t *FileName )
 {
 	return LoadSoftImage_UseGParam( FileName, GetASyncLoadFlag() ) ;
 }
@@ -304,8 +334,11 @@ extern int LoadSoftImageToMem_UseGParam(
 	CheckActiveState() ;
 
 	// ハンドルの作成
-	SIHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE ) ;
-	if( SIHandle == -1 ) return -1 ;
+	SIHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE, FALSE, -1 ) ;
+	if( SIHandle == -1 )
+	{
+		return -1 ;
+	}
 
 #ifndef DX_NON_ASYNCLOAD
 	if( ASyncLoadFlag )
@@ -369,15 +402,82 @@ extern	int		NS_MakeSoftImage( int SizeX, int SizeY )
 {
 	SOFTIMAGE *SoftImg ;
 	int NewHandle ;
+	int Result ;
 
 	// 新しいソフトイメージハンドルの取得
-	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE ) ;
-	if( NewHandle == -1 ) return -1 ;
-	if( SFTIMGCHK( NewHandle, SoftImg ) )
+	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE, FALSE, -1 ) ;
+	if( NewHandle == -1 )
+	{
 		return -1 ;
+	}
+	if( SFTIMGCHK_ASYNC( NewHandle, SoftImg ) )
+	{
+		return -1 ;
+	}
 
 	// CreateARGB8ColorBaseImage を使用
-	if( NS_CreateARGB8ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) == -1 )
+	Result = NS_CreateARGB8ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) ;
+	if( Result == -1 )
+	{
+		SubHandle( NewHandle ) ;
+		return -1 ;
+	}
+
+	// 成功したらハンドルを返す
+	return NewHandle ;
+}
+
+// ソフトウエアイメージハンドルの作成( RGBA 各チャンネル 32bit 浮動小数点型 カラー )
+extern	int		NS_MakeARGBF32ColorSoftImage( int SizeX, int SizeY )
+{
+	SOFTIMAGE *SoftImg ;
+	int NewHandle ;
+	int Result ;
+
+	// 新しいソフトイメージハンドルの取得
+	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE, FALSE, -1 ) ;
+	if( NewHandle == -1 )
+	{
+		return -1 ;
+	}
+	if( SFTIMGCHK_ASYNC( NewHandle, SoftImg ) )
+	{
+		return -1 ;
+	}
+
+	// CreateARGBF32ColorBaseImage を使用
+	Result = NS_CreateARGBF32ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) ;
+	if( Result == -1 )
+	{
+		SubHandle( NewHandle ) ;
+		return -1 ;
+	}
+
+	// 成功したらハンドルを返す
+	return NewHandle ;
+}
+
+// ソフトウエアイメージハンドルの作成( RGBA 各チャンネル 16bit 浮動小数点型 カラー )
+extern	int		NS_MakeARGBF16ColorSoftImage( int SizeX, int SizeY )
+{
+	SOFTIMAGE *SoftImg ;
+	int NewHandle ;
+	int Result ;
+
+	// 新しいソフトイメージハンドルの取得
+	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE, FALSE, -1 ) ;
+	if( NewHandle == -1 )
+	{
+		return -1 ;
+	}
+	if( SFTIMGCHK_ASYNC( NewHandle, SoftImg ) )
+	{
+		return -1 ;
+	}
+
+	// CreateARGBF16ColorBaseImage を使用
+	Result = NS_CreateARGBF16ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) ;
+	if( Result == -1 )
 	{
 		SubHandle( NewHandle ) ;
 		return -1 ;
@@ -399,15 +499,22 @@ extern	int		NS_MakeXRGB8ColorSoftImage( int SizeX, int SizeY )
 {
 	SOFTIMAGE *SoftImg ;
 	int NewHandle ;
+	int Result ;
 
 	// 新しいソフトイメージハンドルの取得
-	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE ) ;
-	if( NewHandle == -1 ) return -1 ;
-	if( SFTIMGCHK( NewHandle, SoftImg ) )
+	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE, FALSE, -1 ) ;
+	if( NewHandle == -1 )
+	{
 		return -1 ;
+	}
+	if( SFTIMGCHK_ASYNC( NewHandle, SoftImg ) )
+	{
+		return -1 ;
+	}
 
 	// CreateXRGB8ColorBaseImage を使用
-	if( NS_CreateXRGB8ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) == -1 )
+	Result = NS_CreateXRGB8ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) ;
+	if( Result == -1 )
 	{
 		SubHandle( NewHandle ) ;
 		return -1 ;
@@ -422,15 +529,22 @@ extern	int		NS_MakeARGB4ColorSoftImage( int SizeX, int SizeY )
 {
 	SOFTIMAGE *SoftImg ;
 	int NewHandle ;
+	int Result ;
 
 	// 新しいソフトイメージハンドルの取得
-	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE ) ;
-	if( NewHandle == -1 ) return -1 ;
-	if( SFTIMGCHK( NewHandle, SoftImg ) )
+	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE, FALSE, -1 ) ;
+	if( NewHandle == -1 )
+	{
 		return -1 ;
+	}
+	if( SFTIMGCHK_ASYNC( NewHandle, SoftImg ) )
+	{
+		return -1 ;
+	}
 
 	// CreateARGB4ColorBaseImage を使用
-	if( NS_CreateARGB4ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) == -1 )
+	Result = NS_CreateARGB4ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) ;
+	if( Result == -1 )
 	{
 		SubHandle( NewHandle ) ;
 		return -1 ;
@@ -445,15 +559,22 @@ extern	int		NS_MakeRGB8ColorSoftImage( int SizeX, int SizeY )
 {
 	SOFTIMAGE *SoftImg ;
 	int NewHandle ;
+	int Result ;
 
 	// 新しいソフトイメージハンドルの取得
-	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE ) ;
-	if( NewHandle == -1 ) return -1 ;
-	if( SFTIMGCHK( NewHandle, SoftImg ) )
+	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE, FALSE, -1 ) ;
+	if( NewHandle == -1 )
+	{
 		return -1 ;
+	}
+	if( SFTIMGCHK_ASYNC( NewHandle, SoftImg ) )
+	{
+		return -1 ;
+	}
 
 	// CreateRGB8ColorBaseImage を使用
-	if( NS_CreateRGB8ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) == -1 )
+	Result = NS_CreateRGB8ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) ;
+	if( Result == -1 )
 	{
 		SubHandle( NewHandle ) ;
 		return -1 ;
@@ -468,15 +589,22 @@ extern	int		NS_MakePAL8ColorSoftImage( int SizeX, int SizeY )
 {
 	SOFTIMAGE *SoftImg ;
 	int NewHandle ;
+	int Result ;
 
 	// 新しいソフトイメージハンドルの取得
-	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE ) ;
-	if( NewHandle == -1 ) return -1 ;
-	if( SFTIMGCHK( NewHandle, SoftImg ) )
+	NewHandle = AddHandle( DX_HANDLETYPE_SOFTIMAGE, FALSE, -1 ) ;
+	if( NewHandle == -1 )
+	{
 		return -1 ;
+	}
+	if( SFTIMGCHK_ASYNC( NewHandle, SoftImg ) )
+	{
+		return -1 ;
+	}
 
 	// CreatePAL8ColorBaseImage を使用
-	if( NS_CreatePAL8ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) == -1 )
+	Result = NS_CreatePAL8ColorBaseImage( SizeX, SizeY, &SoftImg->BaseImage ) ;
+	if( Result == -1 )
 	{
 		SubHandle( NewHandle ) ;
 		return -1 ;
@@ -678,6 +806,18 @@ extern	int		NS_DrawPixelSoftImage( int SIHandle, int x, int y, int  r, int  g, i
 	return NS_SetPixelBaseImage( &SoftImg->BaseImage, x, y, r, g, b, a ) ;
 }
 
+// ソフトウエアイメージハンドルの指定座標にドットを描画する(各色要素は浮動小数点数)
+extern	int		NS_DrawPixelSoftImageF( int SIHandle, int x, int y, float  r, float  g, float  b, float  a )
+{
+	SOFTIMAGE *SoftImg ;
+
+	// アドレスの取得
+	if( SFTIMGCHK( SIHandle, SoftImg ) )
+		return -1 ;
+
+	return NS_SetPixelBaseImageF( &SoftImg->BaseImage, x, y, r, g, b, a ) ;
+}
+
 // ソフトウエアで扱うイメージの指定座標にドットを描画する
 extern	void	NS_DrawPixelSoftImage_Unsafe_XRGB8( int SIHandle, int x, int y, int  r, int  g, int  b )
 {
@@ -754,29 +894,41 @@ extern	int		NS_GetPixelSoftImage(  int SIHandle, int x, int y, int *r, int *g, i
 	return NS_GetPixelBaseImage( &SoftImg->BaseImage, x, y, r, g, b, a ) ;
 }
 
+// ソフトウエアイメージハンドルの指定座標の色を取得する(各色要素は浮動小数点数)
+extern	int		NS_GetPixelSoftImageF( int SIHandle, int x, int y, float *r, float *g, float *b, float *a )
+{
+	SOFTIMAGE *SoftImg ;
+
+	// アドレスの取得
+	if( SFTIMGCHK( SIHandle, SoftImg ) )
+		return -1 ;
+
+	return NS_GetPixelBaseImageF( &SoftImg->BaseImage, x, y, r, g, b, a ) ;
+}
+
 // ソフトウエアで扱うイメージの指定座標の色を取得する
 extern	void		NS_GetPixelSoftImage_Unsafe_XRGB8(  int SIHandle, int x, int y, int *r, int *g, int *b )
 {
 	BASEIMAGE *BaseImage = &( ( SOFTIMAGE * )HandleManageArray[ DX_HANDLETYPE_SOFTIMAGE ].Handle[ SIHandle & DX_HANDLEINDEX_MASK ] )->BaseImage ;
-	DWORD Color ;
+	unsigned int Color ;
 
 	Color = *((DWORD *)((BYTE *)BaseImage->GraphData + BaseImage->Pitch * y + x * 4))  ;
-	*r = ( Color >> 16 ) & 0xff ;
-	*g = ( Color >>  8 ) & 0xff ;
-	*b =   Color         & 0xff ;
+	*r = ( int )( ( Color >> 16 ) & 0xff ) ;
+	*g = ( int )( ( Color >>  8 ) & 0xff ) ;
+	*b = ( int )(   Color         & 0xff ) ;
 }
 
 // ソフトウエアで扱うイメージの指定座標の色を取得する
 extern	void		NS_GetPixelSoftImage_Unsafe_ARGB8(  int SIHandle, int x, int y, int *r, int *g, int *b, int *a )
 {
 	BASEIMAGE *BaseImage = &( ( SOFTIMAGE * )HandleManageArray[ DX_HANDLETYPE_SOFTIMAGE ].Handle[ SIHandle & DX_HANDLEINDEX_MASK ] )->BaseImage ;
-	DWORD Color ;
+	unsigned int Color ;
 
 	Color = *((DWORD *)((BYTE *)BaseImage->GraphData + BaseImage->Pitch * y + x * 4))  ;
-	*a = ( Color >> 24 ) & 0xff ;
-	*r = ( Color >> 16 ) & 0xff ;
-	*g = ( Color >>  8 ) & 0xff ;
-	*b =   Color         & 0xff ;
+	*a = ( int )( ( Color >> 24 ) & 0xff ) ;
+	*r = ( int )( ( Color >> 16 ) & 0xff ) ;
+	*g = ( int )( ( Color >>  8 ) & 0xff ) ;
+	*b = ( int )(   Color         & 0xff ) ;
 }
 
 // ソフトウエアで扱うイメージの指定座標に線を描画する(各色要素は０～２５５)
@@ -885,42 +1037,114 @@ extern	int		NS_CheckPixelAlphaSoftImage( int SIHandle )
 
 // ソフトウエアで扱うイメージに文字列イメージを転送する
 extern	int		NS_BltStringSoftImage( 
-						int x, int y, const TCHAR *StrData,
-						int DestSIHandle, int DestEdgeSIHandle,
-						int VerticalFlag )
+	int x, int y, const TCHAR *StrData,
+	int DestSIHandle, int DestEdgeSIHandle,
+	int VerticalFlag
+)
+{
+#ifdef UNICODE
+	return BltStringSoftImage_WCHAR_T(
+		x, y, StrData,
+		DestSIHandle, DestEdgeSIHandle,
+		VerticalFlag
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( StrData, return -1 )
+
+	Result = BltStringSoftImage_WCHAR_T(
+		x, y, UseStrDataBuffer,
+		DestSIHandle, DestEdgeSIHandle,
+		VerticalFlag
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( StrData )
+
+	return Result ;
+#endif
+}
+
+// ソフトウエアで扱うイメージに文字列イメージを転送する
+extern	int		BltStringSoftImage_WCHAR_T( 
+	int x, int y, const wchar_t *StrData,
+	int DestSIHandle, int DestEdgeSIHandle,
+	int VerticalFlag
+)
 {
 	SOFTIMAGE *SoftImg, *EdgeSoftImg = NULL ;
 
 	// アドレスの取得
 	if( SFTIMGCHK( DestSIHandle, SoftImg ) )
+	{
 		return -1 ;
+	}
+
 	if( DestEdgeSIHandle != -1 )
 	{
 		if( SFTIMGCHK( DestEdgeSIHandle, EdgeSoftImg ) )
+		{
 			return -1 ;
+		}
 	}
 
-	return NS_FontBaseImageBlt( x, y, StrData, &SoftImg->BaseImage, DestEdgeSIHandle != -1 ? &EdgeSoftImg->BaseImage : NULL, VerticalFlag ) ;
+	return FontBaseImageBlt_WCHAR_T( x, y, StrData, &SoftImg->BaseImage, DestEdgeSIHandle != -1 ? &EdgeSoftImg->BaseImage : NULL, VerticalFlag ) ;
 }
 
 // ソフトウエアで扱うイメージに文字列イメージを転送する( フォントハンドル使用版 )
-extern	int		NS_BltStringSoftImageToHandle( 
-						int x, int y, const TCHAR *StrData,
-						int DestSIHandle, int DestEdgeSIHandle,
-						int FontHandle, int VerticalFlag )
+extern int NS_BltStringSoftImageToHandle( 
+	int x, int y, const TCHAR *StrData,
+	int DestSIHandle, int DestEdgeSIHandle,
+	int FontHandle, int VerticalFlag
+)
+{
+#ifdef UNICODE
+	return BltStringSoftImageToHandle_WCHAR_T(
+		x, y, StrData,
+		DestSIHandle, DestEdgeSIHandle,
+		FontHandle, VerticalFlag
+	) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( StrData, return -1 )
+
+	Result = BltStringSoftImageToHandle_WCHAR_T(
+		x, y, UseStrDataBuffer,
+		DestSIHandle, DestEdgeSIHandle,
+		FontHandle, VerticalFlag
+	) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( StrData )
+
+	return Result ;
+#endif
+}
+
+// ソフトウエアで扱うイメージに文字列イメージを転送する( フォントハンドル使用版 )
+extern int BltStringSoftImageToHandle_WCHAR_T(
+	int x, int y, const wchar_t *StrData,
+	int DestSIHandle, int DestEdgeSIHandle,
+	int FontHandle, int VerticalFlag
+)
 {
 	SOFTIMAGE *SoftImg, *EdgeSoftImg = NULL ;
 
 	// アドレスの取得
 	if( SFTIMGCHK( DestSIHandle, SoftImg ) )
+	{
 		return -1 ;
+	}
+
 	if( DestEdgeSIHandle != -1 )
 	{
 		if( SFTIMGCHK( DestEdgeSIHandle, EdgeSoftImg ) )
+		{
 			return -1 ;
+		}
 	}
 
-	return NS_FontBaseImageBltToHandle( x, y, StrData, &SoftImg->BaseImage, DestEdgeSIHandle != -1 ? &EdgeSoftImg->BaseImage : NULL, FontHandle, VerticalFlag ) ;
+	return FontBaseImageBltToHandle_WCHAR_T( x, y, StrData, &SoftImg->BaseImage, DestEdgeSIHandle != -1 ? &EdgeSoftImg->BaseImage : NULL, FontHandle, VerticalFlag ) ;
 }
 
 #endif // DX_NON_FONT
@@ -952,6 +1176,18 @@ extern	int		NS_SaveSoftImageToBmp( const TCHAR *FilePath, int SIHandle )
 	return NS_SaveBaseImageToBmp( FilePath, &SoftImg->BaseImage ) ;
 }
 
+// ソフトウエアで扱うイメージをＢＭＰ画像ファイルとして保存する
+extern	int		SaveSoftImageToBmp_WCHAR_T( const wchar_t *FilePath, int SIHandle )
+{
+	SOFTIMAGE *SoftImg ;
+
+	// アドレスの取得
+	if( SFTIMGCHK( SIHandle, SoftImg ) )
+		return -1 ;
+
+	return SaveBaseImageToBmp_WCHAR_T( FilePath, &SoftImg->BaseImage ) ;
+}
+
 #ifndef DX_NON_PNGREAD
 // ソフトウエアで扱うイメージをＰＮＧ画像ファイルとして保存する
 extern	int		NS_SaveSoftImageToPng( const TCHAR *FilePath, int SIHandle, int CompressionLevel )
@@ -963,6 +1199,18 @@ extern	int		NS_SaveSoftImageToPng( const TCHAR *FilePath, int SIHandle, int Comp
 		return -1 ;
 
 	return NS_SaveBaseImageToPng( FilePath, &SoftImg->BaseImage, CompressionLevel ) ;
+}
+
+// ソフトウエアで扱うイメージをＰＮＧ画像ファイルとして保存する
+extern	int		SaveSoftImageToPng_WCHAR_T( const wchar_t *FilePath, int SIHandle, int CompressionLevel )
+{
+	SOFTIMAGE *SoftImg ;
+
+	// アドレスの取得
+	if( SFTIMGCHK( SIHandle, SoftImg ) )
+		return -1 ;
+
+	return SaveBaseImageToPng_WCHAR_T( FilePath, &SoftImg->BaseImage, CompressionLevel ) ;
 }
 #endif
 
@@ -978,11 +1226,27 @@ extern	int		NS_SaveSoftImageToJpeg( const TCHAR *FilePath, int SIHandle, int Qua
 
 	return NS_SaveBaseImageToJpeg( FilePath, &SoftImg->BaseImage, Quality, Sample2x1 ) ;
 }
+
+// ソフトウエアで扱うイメージをＪＰＥＧ画像ファイルとして保存する
+extern	int		SaveSoftImageToJpeg_WCHAR_T( const wchar_t *FilePath, int SIHandle, int Quality, int Sample2x1 )
+{
+	SOFTIMAGE *SoftImg ;
+
+	// アドレスの取得
+	if( SFTIMGCHK( SIHandle, SoftImg ) )
+		return -1 ;
+
+	return SaveBaseImageToJpeg_WCHAR_T( FilePath, &SoftImg->BaseImage, Quality, Sample2x1 ) ;
+}
 #endif
 
 #endif // DX_NON_SAVEFUNCTION
 
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // DX_NON_SOFTIMAGE

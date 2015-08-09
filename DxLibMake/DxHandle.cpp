@@ -2,14 +2,14 @@
 // 
 // 		ＤＸライブラリ		ハンドル管理プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxHandle.h"
 #include "DxLib.h"
 #include "DxStatic.h"
@@ -29,12 +29,16 @@
 #include "DxFont.h"
 #endif // DX_NON_ASYNCLOAD
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
+
+// 構造体定義 --------------------------------------------------------------------
 
 // 内部大域変数宣言 --------------------------------------------------------------
 
@@ -55,7 +59,7 @@ extern int InitializeHandleManage(
 	int MaxNum,
 	int ( *InitializeFunction )( HANDLEINFO *HandleInfo ),
 	int ( *TerminateFunction )( HANDLEINFO *HandleInfo ),
-	const TCHAR *Name
+	const wchar_t *Name
 )
 {
 	HANDLEMANAGE *HandleManage = &HandleManageArray[ HandleType ] ;
@@ -76,6 +80,7 @@ extern int InitializeHandleManage(
 	HandleManage->InitializeFunction = InitializeFunction ;
 	HandleManage->TerminateFunction = TerminateFunction ;
 	HandleManage->Name = Name ;
+	ConvString( ( const char * )HandleManage->Name, WCHAR_T_CODEPAGE, HandleManage->NameUTF16LE, DX_CODEPAGE_UTF16LE ) ;
 
 	// ハンドルのデータポインタアドレスを格納するメモリアドレス配列の確保
 	HandleManage->Handle = ( HANDLEINFO ** )DXCALLOC( sizeof( HANDLEINFO * ) * MaxNum ) ;
@@ -130,7 +135,7 @@ extern int TerminateHandleManage( int HandleType )
 }
 
 // ハンドルを追加する
-extern int AddHandle( int HandleType, int Handle )
+extern int AddHandle( int HandleType, int ASyncThread, int Handle )
 {
 	int NextIndex ;
 	int NewHandle ;
@@ -149,7 +154,7 @@ extern int AddHandle( int HandleType, int Handle )
 		// クリティカルセクションの解放
 		CriticalSection_Unlock( &HandleManage->CriticalSection ) ;
 
-		DXST_ERRORLOGFMT_ADD(( _T( "%sハンドルの数が限界数( %d )に達していて新たなハンドルを作成できません" ), HandleManage->Name, HandleManage->MaxNum )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x25\x00\x73\x00\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6e\x30\x70\x65\x4c\x30\x50\x96\x4c\x75\x70\x65\x28\x00\x20\x00\x25\x00\x64\x00\x20\x00\x29\x00\x6b\x30\x54\x90\x57\x30\x66\x30\x44\x30\x66\x30\xb0\x65\x5f\x30\x6a\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x92\x30\x5c\x4f\x10\x62\x67\x30\x4d\x30\x7e\x30\x5b\x30\x93\x30\x00"/*@ L"%sハンドルの数が限界数( %d )に達していて新たなハンドルを作成できません" @*/, HandleManage->NameUTF16LE, HandleManage->MaxNum )) ;
 		return -1 ;
 	}
 
@@ -188,12 +193,13 @@ extern int AddHandle( int HandleType, int Handle )
 	}
 
 	// データ領域を確保する
-	if( ( *ppHandleInfo = ( HANDLEINFO * )DXCALLOC( HandleManage->OneSize ) ) == NULL )
+	*ppHandleInfo = ( HANDLEINFO * )DXCALLOC( ( size_t )HandleManage->OneSize ) ;
+	if( *ppHandleInfo == NULL )
 	{
 		// クリティカルセクションの解放
 		CriticalSection_Unlock( &HandleManage->CriticalSection ) ;
 
-		DXST_ERRORLOGFMT_ADD(( _T( "%sハンドルのデータを格納するメモリ領域の確保に失敗しました" ), HandleManage->Name )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x25\x00\x73\x00\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x6e\x30\xc7\x30\xfc\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"%sハンドルのデータを格納するメモリ領域の確保に失敗しました" @*/, HandleManage->NameUTF16LE )) ;
 		return -1 ;
 	}
 
@@ -213,6 +219,15 @@ extern int AddHandle( int HandleType, int Handle )
 
 	// メモリの確保サイズを保存
 	( *ppHandleInfo )->AllocSize = HandleManage->OneSize ;
+
+#ifndef DX_NON_ASYNCLOAD
+	// 非同期スレッドから呼ばれた場合は非同期読み込みカウントを１にする
+	if( ASyncThread )
+	{
+		( *ppHandleInfo )->ASyncLoadCount  = 1 ;
+		( *ppHandleInfo )->ASyncDataNumber = -1 ;
+	}
+#endif // DX_NON_ASYNCLOAD
 
 	// ハンドル値を保存
 	NewHandle = (*ppHandleInfo)->Handle = NextIndex | HandleManage->HandleTypeMask | ( (*ppHandleInfo)->ID << DX_HANDLECHECK_ADDRESS ) ;
@@ -244,7 +259,7 @@ extern int AddHandle( int HandleType, int Handle )
 	// クリティカルセクションの解放
 	CriticalSection_Unlock( &HandleManage->CriticalSection ) ;
 
-	// 返回句柄
+	// ハンドルを返す
 	return NewHandle ;
 }
 
@@ -273,17 +288,12 @@ extern int SubHandle( int Handle )
 		return -1 ;
 	}
 
-	// 削除フラグに-1を代入する
-	if( HandleInfo->DeleteFlag != NULL )
-	{
-		*HandleInfo->DeleteFlag = -1 ;
-	}
-
 #ifndef DX_NON_ASYNCLOAD
 	// 非同期読み込み中である場合でまだ処理が走っていなかったら処理をキャンセルする
 	if( HandleInfo->ASyncLoadCount != 0 )
 	{
-		if( DeleteASyncLoadData( HandleInfo->ASyncDataNumber, TRUE ) < -1 )
+		if( HandleInfo->ASyncDataNumber < 0 ||
+			DeleteASyncLoadData( HandleInfo->ASyncDataNumber, TRUE ) < -1 )
 		{
 			// クリティカルセクションの解放
 			CriticalSection_Unlock( &HandleManage->CriticalSection ) ;
@@ -292,7 +302,7 @@ extern int SubHandle( int Handle )
 			while( HandleInfo->ASyncLoadCount != 0 )
 			{
 				ProcessASyncLoadRequestMainThread() ;
-				Sleep( 0 );
+				Thread_Sleep( 0 );
 			}
 
 			// クリティカルセクションの取得
@@ -307,6 +317,12 @@ extern int SubHandle( int Handle )
 		// 戻り値が１の場合は削除キャンセル
 		if( HandleManage->TerminateFunction( HandleInfo ) == 1 )
 			goto END ;
+	}
+
+	// 削除フラグに-1を代入する
+	if( HandleInfo->DeleteFlag != NULL )
+	{
+		*HandleInfo->DeleteFlag = -1 ;
 	}
 
 	// リストから要素を外す
@@ -352,7 +368,7 @@ END :
 }
 
 // ハンドルの情報を格納するメモリ領域のサイズを変更する、非同期読み込み中でないことが前提
-extern int ReallocHandle( int Handle, int NewSize )
+extern int ReallocHandle( int Handle, size_t NewSize )
 {
 	HANDLEINFO *HandleInfo ;
 	int Index ;
@@ -370,14 +386,14 @@ extern int ReallocHandle( int Handle, int NewSize )
 	Index = Handle & DX_HANDLEINDEX_MASK ;
 
 	// 確保メモリのサイズが変化しない場合は何もせず終了
-	if( HandleInfo->AllocSize == NewSize )
+	if( ( size_t )HandleInfo->AllocSize == NewSize )
 		return 0 ;
 
 	// クリティカルセクションの取得
 	CRITICALSECTION_LOCK( &HandleManage->CriticalSection ) ;
 
 	// メモリの再確保
-	NewBuffer = ( HANDLEINFO * )DXREALLOC( HandleInfo, NewSize ) ;
+	NewBuffer = ( HANDLEINFO * )DXREALLOC( HandleInfo, ( size_t )NewSize ) ;
 
 	// メモリの再確保成功チェック
 	if( NewBuffer == NULL )
@@ -434,46 +450,90 @@ extern int AllHandleSub( int HandleType, int (*DeleteCancelCheckFunction)( HANDL
 	if( HandleManage->InitializeFlag == FALSE )
 		return -1 ;
 
-	// クリティカルセクションの取得
-	CRITICALSECTION_LOCK( &HandleManage->CriticalSection ) ;
-
-#ifndef DX_NON_ASYNCLOAD
-	// 非同期読み込み依頼があったら削除しておく
-	ppHandleInfo = &HandleManage->Handle[ HandleManage->AreaMin ] ;
-	for( i = HandleManage->AreaMin ; i <= HandleManage->AreaMax ; i ++, ppHandleInfo ++ )
-	{
-		if( *ppHandleInfo )
-		{
-			if( DeleteCancelCheckFunction == NULL ||
-				DeleteCancelCheckFunction( *ppHandleInfo ) == FALSE )
-			{
-				if( (*ppHandleInfo)->ASyncLoadCount != 0 )
-				{
-					if( DeleteASyncLoadData( (*ppHandleInfo)->ASyncDataNumber, TRUE ) >= -1 )
-					{
-						(*ppHandleInfo)->ASyncLoadCount = 0 ;
-					}
-				}
-			}
-		}
-	}
-#endif // DX_NON_ASYNCLOAD
-
-	// クリティカルセクションの解放
-	CriticalSection_Unlock( &HandleManage->CriticalSection ) ;
+//	// クリティカルセクションの取得
+//	CRITICALSECTION_LOCK( &HandleManage->CriticalSection ) ;
+//
+//#ifndef DX_NON_ASYNCLOAD
+//	// 非同期読み込み依頼があったら削除しておく
+//	ppHandleInfo = &HandleManage->Handle[ HandleManage->AreaMin ] ;
+//	for( i = HandleManage->AreaMin ; i <= HandleManage->AreaMax ; i ++, ppHandleInfo ++ )
+//	{
+//		if( *ppHandleInfo )
+//		{
+//			if( DeleteCancelCheckFunction == NULL ||
+//				DeleteCancelCheckFunction( *ppHandleInfo ) == FALSE )
+//			{
+//				if( (*ppHandleInfo)->ASyncLoadCount != 0 )
+//				{
+//					if( DeleteASyncLoadData( (*ppHandleInfo)->ASyncDataNumber, TRUE ) >= -1 )
+//					{
+//						(*ppHandleInfo)->ASyncLoadCount = 0 ;
+//					}
+//				}
+//			}
+//		}
+//	}
+//#endif // DX_NON_ASYNCLOAD
+//
+//	// クリティカルセクションの解放
+//	CriticalSection_Unlock( &HandleManage->CriticalSection ) ;
 
 	// すべてのハンドルデータを削除する
-	ppHandleInfo = &HandleManage->Handle[ HandleManage->AreaMin ] ;
-	for( i = HandleManage->AreaMin ; i <= HandleManage->AreaMax ; i ++, ppHandleInfo ++ )
 	{
-		if( *ppHandleInfo )
+		int AreaMin ;
+		int AreaMax ;
+		int Handle ;
+		int DeleteFlag ;
+		int LoopFlag ;
+
+		// クリティカルセクションの取得
+		CRITICALSECTION_LOCK( &HandleManage->CriticalSection ) ;
+
+		do
 		{
-			if( DeleteCancelCheckFunction == NULL ||
-				DeleteCancelCheckFunction( *ppHandleInfo ) == FALSE )
+			LoopFlag = FALSE ;
+
+			AreaMin = HandleManage->AreaMin ;
+			AreaMax = HandleManage->AreaMax ;
+
+			ppHandleInfo = &HandleManage->Handle[ AreaMin ] ;
+			for( i = AreaMin ; i <= AreaMax ; i ++, ppHandleInfo ++ )
 			{
-				SubHandle( (*ppHandleInfo)->Handle ) ;
+				if( *ppHandleInfo == NULL )
+				{
+					continue ;
+				}
+
+				if( DeleteCancelCheckFunction != NULL )
+				{
+					DeleteFlag = DeleteCancelCheckFunction( *ppHandleInfo ) == FALSE ? TRUE : FALSE ;
+				}
+				else
+				{
+					DeleteFlag = TRUE ;
+				}
+
+				if( DeleteFlag )
+				{
+					Handle = (*ppHandleInfo)->Handle ;
+
+					// クリティカルセクションの解放
+					CriticalSection_Unlock( &HandleManage->CriticalSection ) ;
+
+					SubHandle( Handle ) ;
+
+					// クリティカルセクションの取得
+					CRITICALSECTION_LOCK( &HandleManage->CriticalSection ) ;
+
+					LoopFlag = TRUE ;
+					break ;
+				}
 			}
-		}
+
+		}while( LoopFlag == TRUE ) ;
+
+		// クリティカルセクションの解放
+		CriticalSection_Unlock( &HandleManage->CriticalSection ) ;
 	}
 
 	// 終了
@@ -549,6 +609,58 @@ extern int DecASyncLoadCount( int Handle )
 
 	// 終了
 	return 0 ;
+}
+
+// ハンドルが非同期読み込み中だった場合、非同期読み込みが完了するまで待つ
+extern int WaitASyncLoad( int Handle )
+{
+#ifndef DX_NON_ASYNCLOAD
+	HANDLEINFO *HandleInfo ;
+	int HandleType = ( int )( ( ( DWORD )Handle & DX_HANDLETYPE_MASK ) >> DX_HANDLETYPE_ADDRESS ) ;
+	HANDLEMANAGE *HandleManage = &HandleManageArray[ HandleType ] ;
+
+	if( HandleManage->InitializeFlag == FALSE )
+		return -1 ;
+
+	// クリティカルセクションの取得
+	CRITICALSECTION_LOCK( &HandleManage->CriticalSection ) ;
+
+	// エラー判定
+	if( HANDLECHK_ASYNC( HandleType, Handle, HandleInfo ) )
+	{
+		// クリティカルセクションの解放
+		CriticalSection_Unlock( &HandleManage->CriticalSection ) ;
+
+		return -1 ;
+	}
+
+	// 非同期読み込み中である場合は処理が完了するまで待つ
+	if( HandleInfo->ASyncLoadCount != 0 )
+	{
+		// クリティカルセクションの解放
+		CriticalSection_Unlock( &HandleManage->CriticalSection ) ;
+
+		// 処理終了待ち
+		while( HandleInfo->ASyncLoadCount != 0 )
+		{
+			ProcessASyncLoadRequestMainThread() ;
+			Thread_Sleep( 0 );
+		}
+
+		// クリティカルセクションの取得
+		CRITICALSECTION_LOCK( &HandleManage->CriticalSection ) ;
+	}
+
+	// クリティカルセクションの解放
+	CriticalSection_Unlock( &HandleManage->CriticalSection ) ;
+
+	// 終了
+	return 0 ;
+#else // DX_NON_ASYNCLOAD
+
+	// 終了
+	return 0 ;
+#endif // DX_NON_ASYNCLOAD
 }
 
 #endif // DX_NON_ASYNCLOAD
@@ -642,7 +754,8 @@ extern int NS_SetDeleteHandleFlag( int Handle, int *DeleteFlag )
 
 
 
-
-
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE

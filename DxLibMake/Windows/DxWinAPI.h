@@ -2,25 +2,29 @@
 // 
 // 		ＤＸライブラリ		WinAPIプログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 #ifndef __DXWINAPI_H__
 #define __DXWINAPI_H__
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "../DxCompileConfig.h"
 #include <windows.h>
 #include <winsock.h>
 #include "../DxNetwork.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
+
+// 構造体定義 --------------------------------------------------------------------
 
 #ifndef DX_NON_NETWORK
 
@@ -87,6 +91,10 @@ struct WIN32APIFUNCTION
 	MCIERROR				( WINAPI *mciSendCommandFunc )( MCIDEVICEID IDDevice, UINT uMsg, DWORD_PTR fdwCommand, DWORD_PTR dwParam ) ;
 
 
+	HMODULE					Kernel32DLL ;
+	HMODULE					( WINAPI *GetModuleHandleWFunc )( LPCWSTR lpModuleName ) ;
+
+
 	HMODULE					Old32DLL ;
 	HRESULT					( WINAPI *CoCreateInstanceFunc )( REFCLSID rclsid, IUnknown * pUnkOuter, DWORD dwClsContext, REFIID riid, LPVOID *ppv ) ;
 	LPVOID					( WINAPI *CoTaskMemAllocFunc )( SIZE_T cb ) ;
@@ -98,6 +106,14 @@ struct WIN32APIFUNCTION
 
 	HMODULE					Comctl32DLL ;
 	void					( WINAPI *InitCommonControlsFunc )( VOID ) ;
+
+
+	HMODULE					User32DLL ;
+	BOOL					( WINAPI *WINNLSEnableIME_Func )( HWND hwnd, BOOL bFlag ) ;	// WINNLSEnableIME APIのアドレス
+	BOOL					( WINAPI *UpdateLayeredWindow )( HWND, HDC, POINT*, SIZE*, HDC, POINT*, COLORREF, BLENDFUNCTION*, DWORD ) ;		// UpdateLayeredWindow のＡＰＩポインタ
+	HWND					( WINAPI *CreateWindowExWFunc )( DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam ) ;
+	BOOL					( WINAPI *EnumDisplayDevicesWFunc )( LPCWSTR lpDevice, DWORD iDevNum, PDISPLAY_DEVICEW lpDisplayDevice, DWORD dwFlags ) ;
+
 } ;
 
 // WinAPI 情報構造体
@@ -115,9 +131,6 @@ struct WINAPIDATA
 
 	HMODULE					DwmApiDLL ;							// Desktop Window Manager API DLL
 	HRESULT					( WINAPI *DF_DwmEnableComposition )( UINT uCompositionAction ) ;	// DwmEnableComposition API のアドレス
-
-	HMODULE					User32DLL ;							// User32DLL
-	BOOL					( WINAPI *WINNLSEnableIME_Func )( HWND hwnd, BOOL bFlag ) ;	// WINNLSEnableIME APIのアドレス
 } ;
 
 // 内部大域変数宣言 --------------------------------------------------------------
@@ -131,6 +144,10 @@ extern int ReleaseWinAPI( void ) ;			// WindowsOS の DLL を解放する
 
 extern HRESULT WinAPI_CoCreateInstance_ASync( REFCLSID rclsid, IUnknown * pUnkOuter, DWORD dwClsContext, REFIID riid, LPVOID *ppv, int ASyncThread = FALSE ) ;
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // __DXWINAPI_H__

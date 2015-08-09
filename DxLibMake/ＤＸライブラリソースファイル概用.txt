@@ -1,11 +1,6 @@
 ﻿
 以下ソースの説明です( アルファベット順です )
 
-DxGuid.cpp
-DxGuid.h
-　　Com インターフェースのＧＵＩＤが書かれています。
-
-
 DxArchive_.cpp
 DxArchive_.h
 　　ＤＸＡファイル(アーカイブファイル)関係のプログラムが書かれています。
@@ -47,9 +42,9 @@ DxGraphics.cpp
 DxGraphics.h
 　　描画関係のプログラムが書かれています。
 
-DxGraphicsBase.cpp
-DxGraphicsBase.h
-　　描画関係で、DirectX のバージョンに依存しない部分のプログラムが書かれています。
+DxGraphicsFilter.cpp
+DxGraphicsFilter.h
+　　GraphFilter 関数関係のプログラムが書かれています。
 
 DxHandle.cpp
 DxHandle.h
@@ -92,6 +87,10 @@ DxMemImgDrawFunction2.cpp
 DxMemImgDrawFunction3.cpp
 　　ソフトウエアレンダリング関係のプログラムが書かれています。
 
+DxMemory.cpp
+DxMemory.h
+　　ＤＸライブラリ内で使用するメモリ確保関係のプログラムが書かれています。
+
 DxModel.cpp
 DxModel.h
 　　３Ｄモデリングデータを扱うためのプログラムが書かれています。
@@ -131,6 +130,14 @@ DxMovie.cpp
 DxMovie.h
 　　動画ファイルを扱うプログラムが書かれています。
 
+DxNetwork.cpp
+DxNetwork.h
+　　WinSock による通信関係のプログラムが書かれています。
+
+DxRingBuffer.cpp
+DxRingBuffer.h
+　　リングバッファのプログラムが書かれています。
+
 DxSoftImage.cpp
 DxSoftImage.h
 　　ソフトウエアで扱う画像関係の処理が書かれています。
@@ -155,10 +162,12 @@ DxThread.h
 　　スレッドに関係するプログラムが書かれています。
 
 DxUseCLib.cpp
+DxUseCLib.h
 　　DxUseCLib.lib のソースです。libpng や libjpeg 等の外部のライブラリを使用しているプログラムが書かれています。
 　　元々 DxGraphics.cpp や DxWin.cpp や DxSound.cpp にかかれていたものを抜き出したものなので構成が滅茶苦茶です。
 
 DxUseCLibOgg.cpp
+DxUseCLibOgg.h
 　　DxUseCLib.lib のソースその３です。
 　　Ogg 関連が長くなったので DxUseCLib.cpp から分離しました。
 
@@ -167,6 +176,7 @@ DxUseCLibPhysics.cpp
 　　Bullet Physics を使っているプログラムを纏めたものです。
 
 DxUseCStrmBaseFilter.cpp
+DxUseCStrmBaseFilter.h
 　　DirectShow のベースフィルターのソースです。
 
 

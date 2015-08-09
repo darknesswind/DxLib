@@ -2,11 +2,11 @@
 //
 //		ＤＸライブラリ　ムービー再生処理用プログラム
 //
-//				Ver 3.11f
+//				Ver 3.14d
 //
 // ----------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 #include "DxMovie.h"
@@ -16,20 +16,18 @@
 // インクルード----------------------------------------------------------------
 #include "DxLib.h"
 #include "DxStatic.h"
-#include "DxFile.h"
 #include "DxBaseFunc.h"
 #include "DxMemory.h"
 #include "DxSound.h"
 #include "DxUseCLib.h"
 #include "DxLog.h"
-#include "DxSystem.h"
-#include "Windows/DxWindow.h"
-#include "Windows/DxWinAPI.h"
-#include "Windows/DxGuid.h"
-#include "Windows/DxFileWin.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義------------------------------------------------------------------
 
@@ -54,18 +52,6 @@ MOVIEGRAPHMANAGE MovieData ;								// 動画関連データ
 
 // 関数プロトタイプ宣言--------------------------------------------------------
 
-#ifndef DX_NON_DSHOW_MOVIE
-// ムービーファイルをオープンする  
-extern int OpenMovieFunction(
-	MOVIEGRAPH * Movie,
-	const TCHAR *FileName,
-	int *Width,
-	int *Height,
-	int SurfaceMode,
-	int ASyncThread
-) ;
-#endif
-
 // プログラムコード------------------------------------------------------------
 
 // ムービー関連の管理処理の初期化
@@ -75,7 +61,7 @@ extern int InitializeMovieManage( void )
 		return -1 ;
 
 	// ハンドル管理情報の初期化
-	InitializeHandleManage( DX_HANDLETYPE_MOVIE, sizeof( MOVIEGRAPH ), MAX_MOVIE_NUM, InitializeMovieHandle, TerminateMovieHandle, DXSTRING( _T( "ムービー" ) ) ) ;
+	InitializeHandleManage( DX_HANDLETYPE_MOVIE, sizeof( MOVIEGRAPH ), MAX_MOVIE_NUM, InitializeMovieHandle, TerminateMovieHandle, L"Movie" ) ;
 
 	// 初期化フラグ立てる
 	MOVIE.InitializeFlag = TRUE ;
@@ -101,248 +87,19 @@ extern int TerminateMovieManage( void )
 }
 
 // OPENMOVIE_GPARAM のデータをセットする
-extern void InitOpenMovieGParam( OPENMOVIE_GPARAM *GParam )
+extern void Graphics_Image_InitOpenMovieGParam( OPENMOVIE_GPARAM *GParam )
 {
 	GParam->RightAlphaFlag = MOVIE.RightAlphaFlag ;
 	GParam->A8R8G8B8Flag = MOVIE.A8R8G8B8Flag ;
+	GParam->NotUseYUVFormatSurfaceFlag = MOVIE.NotUseYUVFormatSurfaceFlag ;
 }
-
-#ifndef DX_NON_DSHOW_MOVIE
-
-// ムービーファイルをオープンする  
-extern int OpenMovieFunction(
-	MOVIEGRAPH * Movie,
-	const TCHAR *FileName,
-	int *Width,
-	int *Height,
-	int SurfaceMode,
-	int ASyncThread
-)
-{
-	TCHAR ErStr[256] ;
-	D_IAMMultiMediaStream *pAMStream = NULL;
-	HRESULT hr ;
-
-	Movie->NowImage.GraphData = NULL;
-	Movie->YUVFlag = FALSE ;
-	Movie->OverlayDestX = 0 ;
-	Movie->OverlayDestY = 0 ;
-	Movie->OverlayDestExRate = 0 ;
-	Movie->OverlayDispFlag = 0 ;
-	Movie->FirstUpdateFlag = FALSE ;
-	_MEMSET( &Movie->OverlaySrcRect, 0, sizeof( RECT ) ) ;
-	_MEMSET( &Movie->OverlayDestRect, 0, sizeof( RECT ) ) ;
-
-	// もしオーバーレイが使えない場合はフルカラーにする
-	if( SurfaceMode == DX_MOVIESURFACE_OVERLAY  )
-	{
-		SurfaceMode = DX_MOVIESURFACE_FULLCOLOR ;
-	}
-
-	// もし画面が３２ビットカラーモードでフルカラーモードを指定してきた場合はノーマルにする
-	if( SurfaceMode == DX_MOVIESURFACE_FULLCOLOR && NS_GetColorBitDepth() == 32 ) SurfaceMode = DX_MOVIESURFACE_NORMAL ;
-
-	SurfaceMode = DX_MOVIESURFACE_FULLCOLOR ;
-
-	// グラフィックビルダーオブジェクトの作成
-	if( ( FAILED( WinAPI_CoCreateInstance_ASync(CLSID_FILTERGRAPH, NULL, CLSCTX_INPROC, IID_IGRAPHBUILDER, (void **)&Movie->pGraph, ASyncThread ) ) ) )
-	{
-		lstrcpy( ErStr, DXSTRING( _T( "CLSID_FilterGraph の作成に失敗しました\n" ) ) ) ;
-		goto ERROR_R ;
-	}
-
-	// Create the Texture Renderer object
-	Movie->pMovieImage = New_D_CMovieRender( NULL, &hr ) ;
-    
-    // Get a pointer to the IBaseFilter on the TextureRenderer, add it to graph
-    if (FAILED(hr = Movie->pGraph->AddFilter( Movie->pMovieImage, L"MovieRenderer")))
-    {
-        lstrcpy( ErStr, DXSTRING( _T( "Could not add renderer filter to graph!\n" )) );
-        return hr;
-    }
-
-	// BasicAudio インターフェイスを得る
-	if( FAILED( Movie->pGraph->QueryInterface( IID_IBASICAUDIO, ( void ** )&Movie->pBasicAudio ) ) )
-	{
-		lstrcpy( ErStr, DXSTRING( _T( "BasicAudio インターフェースの取得に失敗しました\n" ) ) ) ;
-		goto ERROR_R ;
-	}
-
-	// メディアコントローラオブジェクトを取得する
-	if( FAILED( Movie->pGraph->QueryInterface( IID_IMEDIACONTROL, ( void ** )&Movie->pMediaControl ) ) )
-	{
-		lstrcpy( ErStr, DXSTRING( _T( "IID_IMediaControlインターフェイスの取得に失敗しました\n" ) ) ) ;
-		goto ERROR_R ;
-	}
-
-	// メディアシーキングオブジェクトを取得する
-	if( FAILED( Movie->pGraph->QueryInterface( IID_IMEDIASEEKING, ( void ** )&Movie->pMediaSeeking ) ) )
-	{
-		lstrcpy( ErStr, DXSTRING( _T( "IID_IMediaSeekingインターフェイスの取得に失敗しました\n" ) ) ) ;
-		goto ERROR_R ;
-	}
-
-   	// ファイル名保存
-#ifdef UNICODE
-	lstrcpy( Movie->FileName, FileName ) ;
-#else
-	// ファイル名をUNICODEに変換
-	MBCharToWChar( _GET_CODEPAGE(), FileName, ( DXWCHAR * )Movie->FileName, sizeof( Movie->FileName ) / sizeof( wchar_t ) ) ;
-#endif
-
-	hr = Movie->pGraph->RenderFile( Movie->FileName, NULL ) ;
-	if( FAILED( hr ) )
-	{
-		lstrcpy( ErStr, DXSTRING( _T( "RenderFile faired!\n" )) ) ;
-
-		DWORD_PTR fp ;
-		HANDLE FileHandle ;
-		void *TempBuffer ;
-		size_t CompSize, MoveSize ;
-		DWORD WriteSize ;
-		size_t FileSize ;
-		const DWORD BufferSize = 0x100000 ;
-
-		lstrcpy( ErStr, DXSTRING( _T( "ファイル:" ) ) ) ;
-		lstrcat( ErStr, FileName ) ;
-		lstrcat( ErStr, DXSTRING( _T( " が開けませんでした\n" ) ) );
-
-		// 既にテンポラリファイルを作成している場合は、
-		// 更にテンポラリファイルを作成することはしない
-		if( Movie->UseTemporaryFile == TRUE )
-			goto ERROR_R ;
-
-		// ファイルが開けなかったらアーカイブされている可能性がある
-#ifdef UNICODE
-		fp = FOPEN( Movie->FileName ) ;
-#else
-		fp = FOPEN( FileName ) ;
-#endif
-		if( fp == 0 ) goto ERROR_R ;
-		
-		// 開けた場合はテンポラリファイルに書き出す
-		{
-			// ファイルサイズの取得
-			FSEEK( fp, 0L, SEEK_END ) ;
-			FileSize = ( size_t )FTELL( fp ) ;
-			FSEEK( fp, 0L, SEEK_SET ) ;
-
-			// 一時的にデータを格納するバッファを確保
-			TempBuffer = DXALLOC( BufferSize ) ;
-			if( TempBuffer == NULL )
-			{
-				FCLOSE( fp ) ;
-				goto ERROR_R ;
-			}
-
-			// テンポラリファイルの作成
-#ifdef UNICODE
-			FileHandle = CreateTemporaryFile( Movie->FileName ) ;
-#else
-			char TempFileNameA[ 512 ] ;
-			FileHandle = CreateTemporaryFile( TempFileNameA ) ;
-			MBCharToWChar( 932, TempFileNameA, ( DXWCHAR * )Movie->FileName, MAX_PATH ) ;
-#endif
-			if( FileHandle == NULL )
-			{
-				FCLOSE( fp ) ;
-				DXFREE( TempBuffer ) ;
-				goto ERROR_R ;
-			}
-			Movie->UseTemporaryFile = TRUE ;
-
-			// テンポラリファイルにデータを書き出す
-			CompSize = 0 ;
-			while( CompSize < FileSize )
-			{
-				MoveSize = CompSize - FileSize ;
-				if( MoveSize > BufferSize ) MoveSize = BufferSize ;
-
-				FREAD( TempBuffer, MoveSize, 1, fp ) ;
-				WriteFile( FileHandle, TempBuffer, ( DWORD )MoveSize, &WriteSize, NULL ) ;
-
-				if( MoveSize != WriteSize ) break ;
-				CompSize += MoveSize ;
-			}
-
-			// ファイルを閉じ、メモリを解放する
-			FCLOSE( fp ) ;
-			CloseHandle( FileHandle ) ;
-			DXFREE( TempBuffer ) ;
-		}
-
-		// 改めてファイルを開く
-		hr = Movie->pGraph->RenderFile( Movie->FileName, NULL ) ;
-		if( FAILED( hr ) )
-		{
-			// テンポラリファイルを削除
-			DeleteFileW( Movie->FileName ) ;
-			goto ERROR_R ;
-		}
-	}
-
-	// １フレームあたりの時間を得る
-	Movie->pMediaSeeking->GetDuration( &Movie->FrameTime ) ;
-	if( Movie->FrameTime == 0 )
-	{
-		Movie->FrameTime = 10000000 / 60 ;
-	}
-
-	// 終了時間を取得する
-	Movie->pMediaSeeking->GetStopPosition( &Movie->StopTime ) ;
-
-	// 画像イメージの情報をセットする
-	Movie->NowImage.Width = Movie->pMovieImage->Width ;
-	Movie->NowImage.Height = Movie->pMovieImage->Height ;
-	Movie->NowImage.Pitch = Movie->pMovieImage->Pitch ;
-	Movie->NowImage.GraphData = Movie->pMovieImage->ImageBuffer ;
-	Movie->NowImageGraphOutAlloc = TRUE ;
-	if( Movie->pMovieImage->ImageType == 0 )
-	{
-		NS_CreateFullColorData( &Movie->NowImage.ColorData ) ;
-	}
-	else
-	if( Movie->pMovieImage->ImageType == 1 && Movie->A8R8G8B8Flag )
-	{
-		NS_CreateARGB8ColorData( &Movie->NowImage.ColorData ) ;
-	}
-	else
-	{
-		NS_CreateXRGB8ColorData( &Movie->NowImage.ColorData ) ;
-	}
-	Movie->UseNowImage = &Movie->NowImage ;
-
-	if( Width ) *Width = Movie->pMovieImage->Width ;
-	if( Height ) *Height = Movie->pMovieImage->Height ;
-
-	// 終了
-	return 0 ;
-
-
-ERROR_R:
-
-	// 各種ＣＯＭオブジェクトを終了する
-	if( pAMStream					){ pAMStream->Release()					; pAMStream = NULL ; }
-
-	if( Movie->pFilter				){ Movie->pFilter->Release()			; Movie->pFilter = NULL ; }
-	if( Movie->pAllocator			){ Movie->pAllocator->Release()			; Movie->pAllocator = NULL ; }
-
-	if( Movie->pGraph				){ Movie->pGraph->Release()				; Movie->pGraph = NULL ; }
-	if( Movie->pMediaControl		){ Movie->pMediaControl->Release()		; Movie->pMediaControl = NULL ; }
-	if( Movie->pMediaSeeking		){ Movie->pMediaSeeking->Release()		; Movie->pMediaSeeking = NULL ; }
-	if( Movie->pBasicAudio			){ Movie->pBasicAudio->Release()		; Movie->pBasicAudio = NULL ; }
-
-	return DXST_ERRORLOG_ADD( ErStr ) ;
-}
-
-#endif // DX_NON_DSHOW_MOVIE
 
 // ムービーファイルをオープンする
-extern int OpenMovie( const TCHAR *FileName, int *Width, int *Height, int SurfaceMode )
+extern int OpenMovie( const wchar_t *FileName, int *Width, int *Height, int SurfaceMode )
 {
 	OPENMOVIE_GPARAM GParam ;
 
-	InitOpenMovieGParam( &GParam ) ;
+	Graphics_Image_InitOpenMovieGParam( &GParam ) ;
 
 	return OpenMovie_UseGParam( &GParam, FileName, Width, Height, SurfaceMode ) ;
 }
@@ -350,7 +107,7 @@ extern int OpenMovie( const TCHAR *FileName, int *Width, int *Height, int Surfac
 // ムービーハンドルを初期化をする関数
 extern int InitializeMovieHandle( HANDLEINFO * )
 {
-	// 不需要特别处理
+	// 特に何もしない
 	return 0 ;
 }
 
@@ -359,17 +116,21 @@ extern int TerminateMovieHandle( HANDLEINFO *HandleInfo )
 {
 	MOVIEGRAPH *Movie = ( MOVIEGRAPH * )HandleInfo ;
 
+	// 環境依存処理
+	TerminateMovieHandle_PF( HandleInfo ) ;
+
 #ifndef DX_NON_OGGTHEORA
 	// もし Theora を使用していた場合はその開放処理を行う
 	if( Movie->TheoraFlag )
 	{
+		TheoraDecode_Terminate( Movie->TheoraHandle ) ;
+
 		if( Movie->TheoraStreamData )
 		{
 			FCLOSE( Movie->TheoraStreamData ) ;
 			Movie->TheoraStreamData = 0 ;
 		}
 
-		TheoraDecode_Terminate( Movie->TheoraHandle ) ;
 #ifndef DX_NON_SOUND
 		NS_DeleteSoundMem( Movie->TheoraVorbisHandle ) ;
 		Movie->TheoraVorbisHandle = 0 ;
@@ -377,16 +138,7 @@ extern int TerminateMovieHandle( HANDLEINFO *HandleInfo )
 		Movie->TheoraHandle = 0 ;
 		Movie->TheoraFlag = 0 ;
 	}
-#endif
-
-#ifndef DX_NON_DSHOW_MOVIE
-	// もしテンポラリファイルを使用していた場合はテンポラリファイルを削除する
-	if( Movie->UseTemporaryFile == TRUE )
-	{
-		DeleteFileW( Movie->FileName ) ;
-		Movie->UseTemporaryFile = FALSE ;
-	}
-#endif // DX_NON_DSHOW_MOVIE
+#endif // DX_NON_OGGTHEORA
 
 	if( Movie->NowImage.GraphData != NULL )
 	{
@@ -397,34 +149,27 @@ extern int TerminateMovieHandle( HANDLEINFO *HandleInfo )
 		Movie->NowImage.GraphData = NULL ;
 	}
 
-	// 各種ＣＯＭオブジェクトを終了する
-//	if( Movie->pMovieImage )		{ Movie->pMovieImage->Release() ;			Movie->pMovieImage = NULL ; }
-//	if( Movie->pFilter )			{ Movie->pFilter->Release() ;				Movie->pFilter = NULL ; }
-	if( Movie->RefreshEvent )		{ CloseHandle( Movie->RefreshEvent ) ; 		Movie->RefreshEvent = NULL ; }
-#ifndef DX_NON_DSHOW_MOVIE
-	if( Movie->pBasicAudio )		{ Movie->pBasicAudio->Release() ; 			Movie->pBasicAudio = NULL ; }
-	if( Movie->pMediaSeeking )		{ Movie->pMediaSeeking->Release() ; 		Movie->pMediaSeeking = NULL ; }
-	if( Movie->pMediaControl )		{ Movie->pMediaControl->Release(); 			Movie->pMediaControl = NULL ; }
-	if( Movie->pGraph )				{ Movie->pGraph->Release(); 				Movie->pGraph = NULL ; }
-#endif
-
 	// 正常終了
 	return 0 ;
 }
 
 // OpenMovie のグローバル変数にアクセスしないバージョン
-extern int OpenMovie_UseGParam( OPENMOVIE_GPARAM *GParam, const TCHAR *FileName, int *Width, int *Height, int SurfaceMode, int ASyncThread )
+extern int OpenMovie_UseGParam( OPENMOVIE_GPARAM *GParam, const wchar_t *FileName, int *Width, int *Height, int SurfaceMode, int ASyncThread )
 {
 	int NewHandle ;
 	MOVIEGRAPH * Movie ;
 
 	// ハンドルの作成
-	NewHandle = AddHandle( DX_HANDLETYPE_MOVIE ) ;
+	NewHandle = AddHandle( DX_HANDLETYPE_MOVIE, ASyncThread, -1 ) ;
 	if( NewHandle < 0 )
+	{
 		return -1 ;
+	}
 
-	if( MOVIEHCHK( NewHandle, Movie ) )
+	if( MOVIEHCHK_ASYNC( NewHandle, Movie ) )
+	{
 		return -1 ;
+	}
 
 	// 右側をアルファとして扱うかフラグをセットする
 	Movie->RightAlpha = GParam->RightAlphaFlag ;
@@ -432,10 +177,13 @@ extern int OpenMovie_UseGParam( OPENMOVIE_GPARAM *GParam, const TCHAR *FileName,
 	// 32bitカラーフォーマットの動画を A8R8G8B8 形式として扱うかどうかのフラグをセットする
 	Movie->A8R8G8B8Flag = GParam->A8R8G8B8Flag ;
 
+	// YUVフォーマットのサーフェスを使用しないかどうかのフラグをセットする
+	Movie->NotUseYUVFormatSurfaceFlag = GParam->NotUseYUVFormatSurfaceFlag ;
+
 #ifndef DX_NON_OGGTHEORA
 	// Ogg Theora としてオープンしようとしてみる
 	Movie->TheoraStreamData = FOPEN( FileName ) ;
-	Movie->TheoraHandle = TheoraDecode_InitializeStream( &StreamFunction, Movie->TheoraStreamData, 10, ASyncThread ) ;
+	Movie->TheoraHandle = TheoraDecode_InitializeStream( &StreamFunctionW, Movie->TheoraStreamData, 10, Movie->NotUseYUVFormatSurfaceFlag, ASyncThread ) ;
 	if( Movie->TheoraHandle == 0 )
 	{
 		FCLOSE( Movie->TheoraStreamData ) ;
@@ -462,11 +210,13 @@ extern int OpenMovie_UseGParam( OPENMOVIE_GPARAM *GParam, const TCHAR *FileName,
 		// 開いたら Thera 用のセットアップを行う
 
 		// サウンド再生用にサウンドデータとしても読み込み
+		GParam.NotInitSoundMemDelete = TRUE ;
 		GParam.CreateSoundDataType = DX_SOUNDDATATYPE_FILE ;
 		GParam.OggVorbisFromTheoraFile = TRUE ;
 		GParam.DisableReadSoundFunctionMask = ~DX_READSOUNDFUNCTION_OGG ;
 		Movie->TheoraVorbisHandle = LoadSoundMemBase_UseGParam( &GParam, FileName, 1, -1, FALSE, ASyncThread ) ;
 		Movie->TheoraVorbisTotalTime = NS_GetSoundTotalTime( Movie->TheoraVorbisHandle ) ;
+		Movie->TheoraVorbisFrequency = NS_GetFrequencySoundMem( Movie->TheoraVorbisHandle ) ;
 
 		// ループタイプの決定( 長いほうを基準にする )
 		Movie->TheoraLoopType = Movie->TheoraVorbisTotalTime > Movie->TheoraTotalPlayTime ? 1 : 0 ;
@@ -475,6 +225,9 @@ extern int OpenMovie_UseGParam( OPENMOVIE_GPARAM *GParam, const TCHAR *FileName,
 		// ループタイプは動画データ合わせ
 		Movie->TheoraLoopType = 0 ;
 #endif // DX_NON_SOUND
+
+		// 再生速度の初期化
+		Movie->TheoraPlaySpeedRate = 1.0 ;
 
 		// Theora を使用しているフラグを立てる
 		Movie->TheoraFlag = 1 ;
@@ -486,17 +239,12 @@ extern int OpenMovie_UseGParam( OPENMOVIE_GPARAM *GParam, const TCHAR *FileName,
 		Movie->SurfaceMode = DX_MOVIESURFACE_NORMAL ;
 	}
 	else
-#endif
+#endif // DX_NON_OGGTHEORA
 	{
-		// オープンできなかったら普通のムービーとして開いてみる
-
-#ifndef DX_NON_DSHOW_MOVIE
-		// ファイルのオープン
-		Movie->UseTemporaryFile = FALSE ;
-		if( OpenMovieFunction( Movie, FileName, Width, Height,SurfaceMode, ASyncThread ) == -1 )
-#endif
+		// オープンできなかったら環境依存の動画ファイルオープンを試みる
+		if( OpenMovie_UseGParam_PF( Movie, GParam, FileName, Width, Height, SurfaceMode, ASyncThread ) == -1 )
 		{
-			DXST_ERRORLOG_ADD( _T( "ムービーファイルオープン処理時にエラーが発生しました" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\xe0\x30\xfc\x30\xd3\x30\xfc\x30\xd5\x30\xa1\x30\xa4\x30\xeb\x30\xaa\x30\xfc\x30\xd7\x30\xf3\x30\xe6\x51\x06\x74\x42\x66\x6b\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"ムービーファイルオープン処理時にエラーが発生しました" @*/ ) ;
 			goto ERR ;
 		}
 
@@ -516,10 +264,24 @@ extern int OpenMovie_UseGParam( OPENMOVIE_GPARAM *GParam, const TCHAR *FileName,
 	// 再生タイプはバックグラウンドにしておく
 	Movie->PlayType = DX_PLAYTYPE_BACK ;
 
-	// 返回句柄
+#ifndef DX_NON_ASYNCLOAD
+	if( ASyncThread )
+	{
+		DecASyncLoadCount( NewHandle ) ;
+	}
+#endif // DX_NON_ASYNCLOAD
+
+	// ハンドルを返す
 	return NewHandle ;
 
 ERR :
+#ifndef DX_NON_ASYNCLOAD
+	if( ASyncThread )
+	{
+		DecASyncLoadCount( NewHandle ) ;
+	}
+#endif // DX_NON_ASYNCLOAD
+
 	CloseMovie( NewHandle ) ;
 
 	// エラー終了
@@ -560,12 +322,20 @@ extern int PlayMovie_( int MovieHandle, int PlayType, int SysPlay )
 		THEORADECODE_INFO Info ;
 
 		// 再生開始時の時間を取得
-		Movie->TheoraPlayTime = NS_GetNowHiPerformanceCount() ;
+//		Movie->TheoraPlayTime = NS_GetNowHiPerformanceCount() ;
 
-		// 既に再生済みのフレーム数分だけ前に再生したことにする
+		// 再生開始時の時間を取得
+		Movie->TheoraPrevTimeCount = NS_GetNowHiPerformanceCount() ;
+
+		// 再生時間をセット
 		TheoraDecode_GetInfo( Movie->TheoraHandle, &Info ) ;
 		CurFrame = TheoraDecode_GetCurrentFrame( Movie->TheoraHandle ) ;
-		Movie->TheoraPlayTime -= _DTOL( 1000000.0 / Movie->TheoraFrameRate * CurFrame ) ;
+		Movie->TheoraPlayNowTime = _DTOL( 1000000.0 / Movie->TheoraFrameRate * CurFrame ) ;
+
+		// 既に再生済みのフレーム数分だけ前に再生したことにする
+//		TheoraDecode_GetInfo( Movie->TheoraHandle, &Info ) ;
+//		CurFrame = TheoraDecode_GetCurrentFrame( Movie->TheoraHandle ) ;
+//		Movie->TheoraPlayTime -= _DTOL( 1000000.0 / Movie->TheoraFrameRate * CurFrame ) ;
 
 		// Vorbis の再生も開始する
 #ifndef DX_NON_SOUND
@@ -574,16 +344,11 @@ extern int PlayMovie_( int MovieHandle, int PlayType, int SysPlay )
 #endif // DX_NON_SOUND
 	}
 	else
-#endif
-#ifndef DX_NON_DSHOW_MOVIE
+#endif // DX_NON_OGGTHEORA
 	{
-		// 再生
-		Movie->pMediaControl->Run() ;
+		// 環境依存の再生処理を行う
+		PlayMovie__PF( Movie, PlayType, SysPlay ) ;
 	}
-#else // DX_NON_DSHOW_MOVIE
-	{
-	}
-#endif
 
 	// 画像が更新されたフラグを倒す
 	Movie->NowImageUpdateFlag = FALSE ;
@@ -628,18 +393,14 @@ extern int PauseMovie( int MovieHandle, int SysPause )
 		UpdateMovie( MovieHandle ) ;
 	}
 	else
-#endif
-#ifndef DX_NON_DSHOW_MOVIE
+#endif // DX_NON_OGGTHEORA
 	{
-		if( Movie->pMediaControl == NULL ) return 0 ; 
-
-		// 停止
-		Movie->pMediaControl->Pause() ;
+		// 環境依存の再生停止処理
+		if( PauseMovie_PF( Movie, SysPause ) < 0 )
+		{
+			return 0 ;
+		}
 	}
-#else // DX_NON_DSHOW_MOVIE
-	{
-	}
-#endif
 
 	// 内部一時停止フラグを立てる
 	Movie->SysPauseFlag = 1 ;
@@ -676,13 +437,13 @@ extern int AddMovieFrame( int MovieHandle, unsigned int FrameNum )
 		return -1 ;
 
 	// 再生位置を変更
-	TheoraDecode_IncToFrame( Movie->TheoraHandle, FrameNum ) ;
+	TheoraDecode_IncToFrame( Movie->TheoraHandle, ( int )FrameNum ) ;
 
 	// 終了
 	return 0 ;
-#else
+#else // DX_NON_OGGTHEORA
 	return -1 ;
-#endif
+#endif // DX_NON_OGGTHEORA
 }
 
 // ムービーの再生位置を設定する(ミリ秒単位)
@@ -711,10 +472,11 @@ extern int SeekMovie( int MovieHandle, int Time )
 		TheoraDecode_SeekToTime( Movie->TheoraHandle, Time * 1000 ) ;
 
 		// 再生開始タイムを変更する
-		Movie->TheoraPlayTime = NS_GetNowHiPerformanceCount() ;
+//		Movie->TheoraPlayTime = NS_GetNowHiPerformanceCount() ;
 		TheoraDecode_GetInfo( Movie->TheoraHandle, &Info ) ;
 		CurFrame = TheoraDecode_GetCurrentFrame( Movie->TheoraHandle ) ;
-		Movie->TheoraPlayTime -= _DTOL( 1000000.0 / Movie->TheoraFrameRate * CurFrame ) ;
+		Movie->TheoraPlayNowTime = _DTOL( 1000000.0 / Movie->TheoraFrameRate * CurFrame ) ;
+//		Movie->TheoraPlayTime -= _DTOL( 1000000.0 / Movie->TheoraFrameRate * CurFrame ) ;
 	
 		// 再生位置を変更する
 #ifndef DX_NON_SOUND
@@ -722,21 +484,52 @@ extern int SeekMovie( int MovieHandle, int Time )
 #endif // DX_NON_SOUND
 	}
 	else
-#endif
-#ifndef DX_NON_DSHOW_MOVIE
+#endif // DX_NON_OGGTHEORA
 	{
-		LONGLONG Now, Stop ;
-
-		if( Movie->pMediaSeeking == NULL ) return 0 ;
-
-		Now = ( LONGLONG )Time * 10000 ;
-		Stop = 0 ;
-		Movie->pMediaSeeking->SetPositions( &Now, D_AM_SEEKING_AbsolutePositioning, &Stop, D_AM_SEEKING_NoPositioning ) ;
+		// 環境依存処理
+		if( SeekMovie_PF( Movie, Time ) < 0 )
+		{
+			return 0 ;
+		}
 	}
-#else // DX_NON_DSHOW_MOVIE
+
+	// 終了
+	return 0 ;
+}
+
+// ムービーの再生速度を設定する( 1.0 = 等倍速  2.0 = ２倍速 )、一部のファイルフォーマットのみで有効な機能です
+extern int SetPlaySpeedRateMovie( int MovieHandle, double SpeedRate )
+{
+	MOVIEGRAPH * Movie ;
+
+	// ムービーデータハンドルを取得
+	if( MOVIEHCHK( MovieHandle, Movie ) )
+		return -1 ;
+
+#ifndef DX_NON_OGGTHEORA
+	// Theora を使用しているかどうかで処理を分岐
+	if( Movie->TheoraFlag )
 	{
+		Movie->TheoraPlaySpeedRate = SpeedRate ;
+#ifndef DX_NON_SOUND
+		if( Movie->TheoraVorbisHandle != -1 )
+		{
+			NS_SetFrequencySoundMem( _DTOL( Movie->TheoraVorbisFrequency * Movie->TheoraPlaySpeedRate ), Movie->TheoraVorbisHandle ) ;
+		}
+		else
+#endif // DX_NON_SOUND
+		{
+		}
 	}
-#endif
+	else
+#endif // DX_NON_OGGTHEORA
+	{
+		// 環境依存処理
+		if( SetPlaySpeedRateMovie_PF( Movie, SpeedRate ) < 0 )
+		{
+			return 0 ;
+		}
+	}
 
 	// 終了
 	return 0 ;
@@ -746,76 +539,26 @@ extern int SeekMovie( int MovieHandle, int Time )
 extern int GetMovieState( int MovieHandle )
 {
 	MOVIEGRAPH * Movie ;
-//	OAFilterState PlayFlag ;
-#ifndef DX_NON_DSHOW_MOVIE
-	LONGLONG Current ;
-#endif
 
 	// ムービーデータハンドルを取得
 	if( MOVIEHCHK( MovieHandle, Movie ) )
+	{
 		return -1 ;
+	}
 
 #ifndef DX_NON_OGGTHEORA
 	// Theoraを使用しているかどうかで処理を分岐
 	if( Movie->TheoraFlag )
 	{
-/*
-#ifndef DX_NON_SOUND
-		if( Movie->TheoraVorbisHandle != -1 )
-		{
-			// サウンドが停止していたら再生停止
-			if( NS_CheckSoundMem( Movie->TheoraVorbisHandle ) == 0 )
-			{
-				// 現在の再生時間分までフレームを進めておく
-				UpdateMovie( MovieHandle ) ;
-
-				// 内部一時停止フラグを立てる
-				Movie->SysPauseFlag = 1 ;
-
-				// 再生中フラグを倒す
-				Movie->PlayFlag = FALSE ;
-
-				// 内部一時停止フラグを立てる
-				Movie->SysPauseFlag = 1 ;
-			}
-		}
-		else
-#endif // DX_NON_SOUND
-*/
-		{
-			return Movie->PlayFlag ;
-		}
+		return Movie->PlayFlag ;
 	}
 	else
-#endif
-#ifndef DX_NON_DSHOW_MOVIE
+#endif // DX_NON_OGGTHEORA
 	{
-		D_OAFilterState state ;
-
-		if( Movie->pMediaSeeking == NULL )
-			return Movie->PlayFlag ; 
-
-		if( Movie->pMediaControl->GetState( 1000, &state ) != S_OK )
-		{
-			return Movie->PlayFlag ;
-		}
-
-		Movie->pMediaSeeking->GetCurrentPosition( &Current ) ;
-		if( ( Movie->PlayType & DX_PLAYTYPE_LOOPBIT ) == 0 && Current >= Movie->StopTime && state == D_State_Stopped )
-		{
-			Movie->PlayFlag = FALSE ;
-
-			// 内部一時停止フラグを立てる
-			Movie->SysPauseFlag = 1 ;
-		}
+		// 環境依存処理
+		return GetMovieState_PF( Movie ) ;
 	}
-#else // DX_NON_DSHOW_MOVIE
-	{
-	}
-#endif
 
-//	if( Movie->pMediaControl->GetState( INFINITE, &PlayFlag ) != S_OK ) return -1 ;
-//	return PlayFlag == State_Running ? 1 : 0 ;
 	return Movie->PlayFlag ;
 }
 
@@ -838,20 +581,14 @@ extern int SetMovieVolume( int Volume, int MovieHandle )
 #endif // DX_NON_SOUND
 	}
 	else
-#endif
-#ifndef DX_NON_DSHOW_MOVIE
+#endif // DX_NON_OGGTHEORA
 	{
-		if( Movie->pBasicAudio == NULL ) return 0 ; 
-
-		// 音量セット
-		if( Volume > 10000 ) Volume = 10000 ;
-		if( Volume < 0 ) Volume = 0 ;
-		Movie->pBasicAudio->put_Volume( -10000 + Volume ) ;
+		// 環境依存処理
+		if( SetMovieVolume_PF( Movie, Volume ) < 0 )
+		{
+			return 0 ;
+		}
 	}
-#else // DX_NON_DSHOW_MOVIE
-	{
-	}
-#endif
 
 	// 終了
 	return 0 ;
@@ -883,40 +620,10 @@ extern BASEIMAGE *GetMovieBaseImage( int MovieHandle, int *ImageUpdateFlag )
 		// Theora のイメージを返す
 		return ( BASEIMAGE * )TheoraDecode_GetBaseImage( Movie->TheoraHandle ) ;
 	}
-	else
-#endif
-#ifndef DX_NON_DSHOW_MOVIE
-	{
-		// 使用していない場合
+#endif // DX_NON_OGGTHEORA
 
-		// ムービーのフレームを更新
-		if( GetMovieState( MovieHandle ) == FALSE )
-		{
-			int Time ;
-
-			Time = TellMovie( MovieHandle ) ;
-			PlayMovie_( MovieHandle ) ;
-			UpdateMovie( MovieHandle, TRUE ) ;
-			PauseMovie( MovieHandle ) ;
-			SeekMovie( MovieHandle, Time ) ;
-		}
-		else
-		{
-			UpdateMovie( MovieHandle ) ;
-		}
-
-		// NowImage の内容が更新されたかどうかのフラグを代入する
-		if( ImageUpdateFlag != NULL )
-		{
-			*ImageUpdateFlag = Movie->NowImageUpdateFlag ;
-		}
-		Movie->NowImageUpdateFlag = FALSE ;
-
-		return &Movie->NowImage ;
-	}
-#else // DX_NON_DSHOW_MOVIE
-	return NULL ;
-#endif
+	// 使用していない場合は環境依存の処理を行う
+	return GetMovieBaseImage_PF( Movie, ImageUpdateFlag ) ;
 }
 
 // ムービーの総フレーム数を得る( Ogg Theora でのみ有効 )
@@ -940,18 +647,15 @@ extern int GetMovieTotalFrame( int MovieHandle )
 
 	// 総フレーム数を返す
 	return info.TotalFrame ;
-#else
+#else // DX_NON_OGGTHEORA
 	return -1 ;
-#endif
+#endif // DX_NON_OGGTHEORA
 }
 
 // ムービーの再生位置を取得する(ミリ秒単位)
 extern int TellMovie( int MovieHandle )
 {
 	MOVIEGRAPH * Movie ;
-#ifndef DX_NON_DSHOW_MOVIE
-	D_STREAM_TIME NowTime ;
-#endif
 	
 	// ムービーデータハンドルを取得
 	if( MOVIEHCHK( MovieHandle, Movie ) )
@@ -971,30 +675,16 @@ extern int TellMovie( int MovieHandle )
 		// フレームから再生時間を割り出す
 		return _DTOL( TheoraDecode_GetCurrentFrame( Movie->TheoraHandle ) * 1000 / Movie->TheoraFrameRate ) ;
 	}
-	else
-#endif
-#ifndef DX_NON_DSHOW_MOVIE
-	{
-		if( Movie->pMediaSeeking == NULL ) return 0 ;
+#endif // DX_NON_OGGTHEORA
 
-		// 時間取得
-		if( Movie->pMediaSeeking->GetCurrentPosition( &NowTime ) != S_OK ) return -1 ;
-
-		// 時間を返す
-		return _DTOL( (double)NowTime / 10000 ) ;
-	}
-#else // DX_NON_DSHOW_MOVIE
-	return -1 ;
-#endif
+	// 使用していない場合は環境依存の処理を行う
+	return TellMovie_PF( Movie ) ;
 }
  
 // ムービーの再生位置を取得する(フレーム単位)
 extern int TellMovieToFrame( int MovieHandle )
 {
 	MOVIEGRAPH * Movie ;
-#ifndef DX_NON_DSHOW_MOVIE
-	D_STREAM_TIME NowTime ;
-#endif
 	
 	// ムービーデータハンドルを取得
 	if( MOVIEHCHK( MovieHandle, Movie ) )
@@ -1014,21 +704,10 @@ extern int TellMovieToFrame( int MovieHandle )
 		// 現在のフレームを返す
 		return TheoraDecode_GetCurrentFrame( Movie->TheoraHandle ) ;
 	}
-	else
-#endif
-#ifndef DX_NON_DSHOW_MOVIE
-	{
-		if( Movie->pMediaSeeking == NULL ) return 0 ;
+#endif // DX_NON_OGGTHEORA
 
-		// 時間取得
-		if( Movie->pMediaSeeking->GetCurrentPosition( &NowTime ) != S_OK ) return -1 ;
-
-		// 時間を返す
-		return _DTOL( (double)NowTime / Movie->FrameTime ) ;
-	}
-#else // DX_NON_DSHOW_MOVIE
-	return -1 ;
-#endif
+	// 使用していない場合は環境依存の処理を行う
+	return TellMovieToFrame_PF( Movie ) ;
 }
 
 // ムービーの再生位置を設定する(フレーム単位)
@@ -1055,10 +734,11 @@ extern int SeekMovieToFrame( int MovieHandle, int Frame )
 		TheoraDecode_SeekToFrame( Movie->TheoraHandle, Frame ) ;
 
 		// 再生開始タイムを変更する
-		Movie->TheoraPlayTime = NS_GetNowHiPerformanceCount() ;
+//		Movie->TheoraPlayTime = NS_GetNowHiPerformanceCount() ;
 		TheoraDecode_GetInfo( Movie->TheoraHandle, &Info ) ;
 		CurFrame = TheoraDecode_GetCurrentFrame( Movie->TheoraHandle ) ;
-		Movie->TheoraPlayTime -= _DTOL( 1000000.0 / Movie->TheoraFrameRate * CurFrame ) ;
+		Movie->TheoraPlayNowTime = _DTOL( 1000000.0 / Movie->TheoraFrameRate * CurFrame ) ;
+//		Movie->TheoraPlayTime -= _DTOL( 1000000.0 / Movie->TheoraFrameRate * CurFrame ) ;
 	
 		// 再生位置を変更する
 #ifndef DX_NON_SOUND
@@ -1066,21 +746,11 @@ extern int SeekMovieToFrame( int MovieHandle, int Frame )
 #endif // DX_NON_SOUND
 	}
 	else
-#endif
-#ifndef DX_NON_DSHOW_MOVIE
+#endif // DX_NON_OGGTHEORA
 	{
-		LONGLONG Now, Stop ;
-
-		if( Movie->pMediaSeeking == NULL ) return 0 ;
-
-		Now = ( D_STREAM_TIME )_DTOL64( (double)Frame * Movie->FrameTime ) ;
-		Stop = 0 ;
-		Movie->pMediaSeeking->SetPositions( &Now, D_AM_SEEKING_AbsolutePositioning, &Stop, D_AM_SEEKING_NoPositioning ) ;
+		// 環境依存の処理を行う
+		SeekMovieToFrame_PF( Movie, Frame ) ;
 	}
-#else  // DX_NON_DSHOW_MOVIE
-	{
-	}
-#endif
 
 	// 終了
 	return 0 ;
@@ -1104,15 +774,10 @@ extern LONGLONG GetOneFrameTimeMovie( int MovieHandle )
 		TheoraDecode_GetInfo( Movie->TheoraHandle, &Info ) ;
 		return _DTOL( 1000000 / Movie->TheoraFrameRate ) ;
 	}
-	else
-#endif
-#ifndef DX_NON_DSHOW_MOVIE
-	{
-		return Movie->FrameTime ;
-	}
-#else // DX_NON_DSHOW_MOVIE
-	return -1 ;
-#endif
+#endif // DX_NON_OGGTHEORA
+
+	// 環境依存の処理を行う
+	return GetOneFrameTimeMovie_PF( Movie ) ;
 }
 
 // ムービーグラフィックのデータを取得する
@@ -1150,7 +815,7 @@ extern int ReleaseMovieSurface( int MovieHandle )
 }
 
 // ムービーの更新を行う
-extern int UpdateMovie( int MovieHandle, int /*AlwaysFlag*/ )
+extern int UpdateMovie( int MovieHandle, int AlwaysFlag )
 {
 	MOVIEGRAPH * Movie ;
 //	LONGLONG NowFrame, OldFrame ;
@@ -1176,7 +841,7 @@ extern int UpdateMovie( int MovieHandle, int /*AlwaysFlag*/ )
 		{
 			// 再生時間は音声が有効な場合は音声から取得する
 #ifndef DX_NON_SOUND
-			if( Movie->TheoraVorbisHandle != -1 && NS_CheckSoundMem( Movie->TheoraVorbisHandle ) == 1 )
+/*			if( Movie->TheoraVorbisHandle != -1 && NS_CheckSoundMem( Movie->TheoraVorbisHandle ) == 1 )
 			{
 				NowTime = NS_GetSoundCurrentTime( Movie->TheoraVorbisHandle ) * 1000 ;
 				NowFrame = _DTOL( ( double )( NowTime * Movie->TheoraFrameRate ) / 1000000 ) ;
@@ -1187,11 +852,49 @@ extern int UpdateMovie( int MovieHandle, int /*AlwaysFlag*/ )
 					NowFrame = Info.TotalFrame - 1 ;
 				}
 			}
-			else
+			else*/
 #endif // DX_NON_SOUND
 			{
+				LONGLONG Temp64_1, Temp64_2 ;
+				DWORD Temp128[ 4 ] ;
+
 				NowTime = NS_GetNowHiPerformanceCount() ;
-				NowFrame = _DTOL( ( double )( ( NowTime - Movie->TheoraPlayTime ) * Movie->TheoraFrameRate ) / 1000000 ) ;
+
+				// 再生済み時間を進める
+				if( Movie->TheoraPlaySpeedRate < 0.999999999 || Movie->TheoraPlaySpeedRate > 1.0000000001 )
+				{
+					Temp64_1 = NowTime - Movie->TheoraPrevTimeCount ;
+					Temp64_2 = _DTOL( Movie->TheoraPlaySpeedRate * 0x10000 ) ;
+					_MUL128_1( ( DWORD * )&Temp64_1, ( DWORD * )&Temp64_2, Temp128 ) ;
+
+					Temp64_2 = 0x10000 ;
+					_DIV128_1( Temp128, ( DWORD * )&Temp64_2, ( DWORD * )&Temp64_1 ) ;
+
+					Movie->TheoraPlayNowTime += Temp64_1 ;
+				}
+				else
+				{
+					Movie->TheoraPlayNowTime += NowTime - Movie->TheoraPrevTimeCount ;
+				}
+
+				Movie->TheoraPrevTimeCount = NowTime ;
+
+				// 現在のフレームの算出
+				{
+					Temp64_1 = Movie->TheoraPlayNowTime ;
+					Temp64_2 = _DTOL( Movie->TheoraFrameRate * 0x10000 ) ;
+					_MUL128_1( ( DWORD * )&Temp64_1, ( DWORD * )&Temp64_2, Temp128 ) ;
+
+#if defined( DX_GCC_COMPILE ) || defined( __ANDROID )
+					Temp64_2 = 65536000000LL /* 1000000 * 0x10000 */ ;
+#else
+					Temp64_2 = 65536000000   /* 1000000 * 0x10000 */ ;
+#endif
+					_DIV128_1( Temp128, ( DWORD * )&Temp64_2, ( DWORD * )&Temp64_1 ) ;
+
+					NowFrame = ( int )Temp64_1 ;
+//					NowFrame = _DTOL( ( double )( ( NowTime - Movie->TheoraPlayTime ) * Movie->TheoraFrameRate ) / 1000000 ) ;
+				}
 
 				// ループ指定があるかどうかで総フレーム数を超えている場合の処理を分岐する
 				if( Info.TotalFrame <= NowFrame )
@@ -1271,69 +974,10 @@ extern int UpdateMovie( int MovieHandle, int /*AlwaysFlag*/ )
 	}
 	else
 #endif
-#ifndef DX_NON_DSHOW_MOVIE
 	{
-		LONGLONG Now, Stop ;
-
-		if( Movie->pMovieImage->NewImageSet )
-		{
-			Movie->NowImageUpdateFlag = TRUE ;
-
-			Movie->pMovieImage->NewImageSet = 0 ;
-			if( Movie->UpdateFunction )
-			{
-				Movie->NowImage.Width = Movie->pMovieImage->Width ;
-				Movie->NowImage.Height = Movie->pMovieImage->Height ;
-				Movie->NowImage.Pitch = Movie->pMovieImage->Pitch ;
-				Movie->NowImage.GraphData = Movie->pMovieImage->ImageBuffer ;
-				Movie->NowImageGraphOutAlloc = TRUE ;
-				if( Movie->pMovieImage->ImageType == 0 )
-				{
-					NS_CreateFullColorData( &Movie->NowImage.ColorData ) ;
-				}
-				else
-				if( Movie->pMovieImage->ImageType == 1 && Movie->A8R8G8B8Flag )
-				{
-					NS_CreateARGB8ColorData( &Movie->NowImage.ColorData ) ;
-				}
-				else
-				{
-					NS_CreateXRGB8ColorData( &Movie->NowImage.ColorData ) ;
-				}
-				Movie->UseNowImage = &Movie->NowImage ;
-				Movie->UpdateFunction( Movie, Movie->UpdateFunctionData ) ;
-			}
-		}
-
-		if( Movie->pMediaSeeking && Movie->pMediaControl )
-		{
-			Movie->pMediaSeeking->GetCurrentPosition( &Now ) ;
-			if( Now >= Movie->StopTime )
-			{
-				if( Movie->PlayType & DX_PLAYTYPE_LOOPBIT )
-				{
-					Now = 0 ;
-					Stop = 0 ;
-					Movie->pMediaSeeking->SetPositions( &Now, D_AM_SEEKING_AbsolutePositioning, &Stop, D_AM_SEEKING_NoPositioning ) ;
-					Movie->pMediaControl->Run() ;
-				}
-				else
-				{
-					// 停止
-					Movie->pMediaControl->Pause() ;
-
-					Movie->PlayFlag = FALSE ;
-
-					// 内部一時停止フラグを立てる
-					Movie->SysPauseFlag = 1 ;
-				}
-			}
-		}
+		// 環境依存処理を行う
+		UpdateMovie_PF( Movie, AlwaysFlag ) ;
 	}
-#else // DX_NON_DSHOW_MOVIE
-	{
-	}
-#endif
 
 	// 終了
 	return 0 ;
@@ -1359,6 +1003,10 @@ extern int SetCallbackMovie( int MovieHandle, void ( *Callback )( MOVIEGRAPH *Mo
 // ムービーの再生状態を停止する
 extern int DisableMovieAll( void )
 {
+	// 現バージョンでは特に何もしない
+	return 0 ;
+
+#if 0
 	MOVIEGRAPH *Movie ;
 	int i ;
 
@@ -1443,12 +1091,18 @@ extern int DisableMovieAll( void )
 
 	// 終了
 	return 0 ;
+#endif
 }
 
 
 // ムービーの再生状態を復元する
 extern int RestoreMovieAll( void )
 {
+	// 現バージョンでは特に何もしない
+	return 0 ;
+
+#if 0
+
 	MOVIEGRAPH *Movie ;
 	int i ;
 
@@ -1497,26 +1151,7 @@ extern int RestoreMovieAll( void )
 #endif
 #ifndef DX_NON_DSHOW_MOVIE
 		{
-/*			if( Movie )
-			{
-				LONGLONG Now, Stop ;
-
-				// 再オープン処理を行う
-				if( OpenMovieFunction( Movie, Movie->FileName, NULL, NULL, Movie->SurfaceMode ) == -1 )
-					return -1 ;
-
-				// 削除前の再生ポイントに設定
-				Now = Movie->BackUpTime ;
-				Stop = 0 ;
-				Movie->pMediaSeeking->SetPositions( &Now, D_AM_SEEKING_AbsolutePositioning, &Stop, D_AM_SEEKING_NoPositioning ) ;
-
-				// 再生中フラグが立っている場合は再生
-				if( Movie->SysPauseFlag == 0 )
-				{
-					Movie->pMediaControl->Run() ;
-				}
-			}
-*/		}
+		}
 #else // DX_NON_DSHOW_MOVIE
 		{
 		}
@@ -1525,7 +1160,7 @@ extern int RestoreMovieAll( void )
 
 	// 終了
 	return 0 ;
-
+#endif  
 }
 
 // すべてのムービーグラフィックをスタート
@@ -1585,7 +1220,18 @@ extern int NS_SetMovieColorA8R8G8B8Flag( int Flag )
 	return TRUE;
 }
 
+// ＹＵＶフォーマットのサーフェスが使用できる場合はＹＵＶフォーマットのサーフェスを使用するかどうかを設定する( TRUE:使用する( デフォルト ) FALSE:ＲＧＢフォーマットのサーフェスを使用する )
+extern int NS_SetMovieUseYUVFormatSurfaceFlag( int Flag )
+{
+	MOVIE.NotUseYUVFormatSurfaceFlag = Flag ? FALSE : TRUE ;
+	return TRUE;
+}
+
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif

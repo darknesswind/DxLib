@@ -2,7 +2,7 @@
 //
 //		ＤＸライブラリ　内部使用関連用ヘッダファイル
 //
-//				Ver 3.11f
+//				Ver 3.14d
 //
 // ----------------------------------------------------------------------------
 
@@ -14,8 +14,12 @@
 #include "DxCompileConfig.h"
 #include "DxLib.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 ----------------------------------
 
@@ -25,22 +29,38 @@ namespace DxLib
 #define RST
 #endif
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 // データ定義 --------------------------------------------
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
+#endif // DX_USE_NAMESPACE
+
+
+#ifdef DX_USE_NAMESPACE
 
 }
 
+#endif // DX_USE_NAMESPACE
+
 // 関数宣言 -----------------------------------------------
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // ライブラリ関数内部呼び出し簡略化マクロ -----------------
 
@@ -92,7 +112,7 @@ extern	int			NS_DxLib_IsInit( void ) ;													// ライブラリが初期�
 
 #ifndef DX_NON_NETWORK
 
-// 通信相关
+// 通信関係
 extern	int			NS_ProcessNetMessage(				int RunReleaseProcess = FALSE ) ;														// 通信メッセージの処理をする関数
 
 extern	int			NS_GetHostIPbyName(				const TCHAR *HostName, IPDATA      *IPDataBuf ) ;										// ＤＮＳサーバーを使ってホスト名からＩＰアドレスを取得する( IPv4版 )
@@ -113,7 +133,7 @@ extern	int			NS_GetNewAcceptNetWork(			void ) ;																				// 新たに�
 extern	int			NS_GetLostNetWork(					void ) ;																				// 接続を切断された通信回線を得る
 extern	int			NS_GetNetWorkIP(					int NetHandle, IPDATA      *IpBuf ) ;													// 接続先のＩＰを得る( IPv4版 )
 extern	int			NS_GetNetWorkIP_IPv6(				int NetHandle, IPDATA_IPv6 *IpBuf ) ;													// 接続先のＩＰを得る( IPv6版 )
-extern	int			NS_GetMyIPAddress(					IPDATA *IpBuf ) ;																		// 自分のＩＰを得る
+extern	int			NS_GetMyIPAddress(					IPDATA *IpBuf, int IpBufLength = 1, int *IpNum = NULL ) ;							// 自分のＩＰを得る
 extern	int			NS_SetConnectTimeOutWait(			int Time ) ;																			// 接続のタイムアウトまでの時間を設定する
 extern	int			NS_SetUseDXNetWorkProtocol(		int Flag ) ;																			// ＤＸライブラリの通信形態を使うかどうかをセットする
 extern	int			NS_GetUseDXNetWorkProtocol(		void ) ; 																				// ＤＸライブラリの通信形態を使うかどうかを取得する
@@ -165,7 +185,7 @@ extern	int			NS_URLParamAnalysis(			char **ParamList, char **ParamStringP ) ;			
 
 #ifndef DX_NON_NETWORK
 
-// 通信相关
+// 通信関係
 #define NS_ProcessNetMessage					ProcessNetMessage
 
 #define NS_GetHostIPbyName						GetHostIPbyName
@@ -260,7 +280,7 @@ extern	int			NS_GetNowCount(				int UseRDTSCFlag = FALSE ) ;				// ミリ秒単�
 extern	LONGLONG	NS_GetNowHiPerformanceCount(	int UseRDTSCFlag = FALSE ) ;				// GetNowCountの高精度バージョン
 extern	int			NS_GetDateTime(				DATEDATA *DateBuf ) ;						// 現在時刻を取得する 
 
-// 获取随机数
+// 乱数取得
 extern	int			NS_GetRand( int RandMax ) ;												// 乱数を取得する( RandMax : 返って来る値の最大値 )
 extern	int			NS_SRand(	 int Seed ) ;													// 乱数の初期値を設定する
 
@@ -292,12 +312,12 @@ extern 	int			NS_AppLogAdd(			 const TCHAR *String , ... ) ;						// 書式付�
 
 #ifndef DX_NON_PRINTF_DX
 
-// 日志输出功能函数
+// ログ出力機能関数
 extern	int			NS_SetLogDrawOutFlag(	 int DrawFlag ) ;									// ログ出力フラグをセットする
 extern 	int			NS_GetLogDrawFlag(		 void ) ;											// ログ出力をするかフラグの取得
 extern	int			NS_SetLogFontSize(		 int Size ) ;										// printfDx で画面に出力するログフォントのサイズを変更する
 
-// 简易屏幕输出函数
+// 簡易画面出力関数
 extern 	int			NS_printfDx(			 const TCHAR *FormatString , ... ) ;				// 簡易画面出力
 extern	int			NS_clsDx(				 void ) ;											// 簡易画面出力をクリアする
 #endif
@@ -370,9 +390,11 @@ extern	const TCHAR* NS_GetResourceIDString(	int ResourceID ) ;																		
 // ウインドウ関係情報取得関数
 extern	int			NS_GetWindowCRect(					RECT *RectBuf ) ;										// ウインドウのクライアント領域を取得する
 extern	int			NS_GetWindowActiveFlag(			void ) ;												// ウインドウのアクティブフラグを取得
+extern	int			NS_GetWindowMinSizeFlag(			void ) ;												// メインウインドウが最小化されているかどうかを取得する( 戻り値  TRUE:最小化されている  FALSE:最小化されていない )
+extern	int			NS_GetWindowMaxSizeFlag(			void ) ;												// メインウインドウが最大化されているかどうかを取得する( 戻り値  TRUE:最大化されている  FALSE:最大化されていない )
 extern	HWND		NS_GetMainWindowHandle(			void ) ;												// メインウインドウのハンドルを取得する
 extern	int			NS_GetWindowModeFlag(				void ) ;												// ウインドウモードで起動しているか、のフラグを取得する
-extern	int			NS_GetDefaultState(				int *SizeX , int *SizeY , int *ColorBitDepth ) ;		// 起動時のデスクトップの画面モードを取得する
+extern	int			NS_GetDefaultState(				int *SizeX , int *SizeY , int *ColorBitDepth, int *RefreshRate = NULL , int *LeftTopX = NULL , int *LeftTopY = NULL ) ;		// 起動時のデスクトップの画面モードを取得する
 extern	int			NS_GetActiveFlag(					void ) ;												// ソフトがアクティブかどうかを取得する
 extern	int			NS_GetNoActiveState(				int ResetFlag = TRUE ) ;								// 非アクティブになり、処理が一時停止していたかどうかを取得する(引数 ResetFlag=TRUE:状態をリセット FALSE:状態をリセットしない    戻り値: 0=一時停止はしていない  1=一時停止していた )
 extern	int			NS_GetMouseDispFlag(				void ) ;												// マウスを表示するかどうかのフラグを取得する
@@ -393,6 +415,8 @@ extern	int			NS_GetWindowUserCloseFlag(			int StateResetFlag = FALSE ) ;							/
 extern	int			NS_GetNotDrawFlag(					void ) ;												// 描画機能を使うかどうかのフラグを取得する
 extern	int			NS_GetPaintMessageFlag(			void ) ;												// WM_PAINT メッセージが来たかどうかを取得する(戻り値  TRUE:WM_PAINTメッセージが来た(一度取得すると以後、再び WM_PAINTメッセージが来るまで FALSE が返ってくるようになる)  FALSE:WM_PAINT メッセージは来ていない)
 extern	int			NS_GetValidHiPerformanceCounter(	void ) ;												// パフォーマンスカウンタが有効かどうかを取得する(戻り値  TRUE:有効  FALSE:無効)
+extern	TCHAR		NS_GetInputSystemChar(				int DeleteFlag ) ;										// 入力されたシステム文字を取得する
+
 
 // 設定系関数
 extern	int			NS_ChangeWindowMode(						int Flag ) ;																		// ウインドウモードを変更する
@@ -413,6 +437,7 @@ extern	int			NS_SetWindowIconID(						int ID ) ;																			// 使用す�
 extern	int			NS_SetWindowIconHandle(					HICON Icon ) ;																		// 使用するアイコンのハンドルをセットする
 extern	int			NS_SetUseASyncChangeWindowModeFunction(	int Flag , void (* CallBackFunction )( void * ) , void *Data ) ;					// 最大化ボタンやALT+ENTERキーによる非同期なウインドウモードの変更の機能の設定を行う
 extern	int			NS_SetWindowStyleMode(						int Mode ) ;																		// ウインドウのスタイルを変更する
+extern	int			NS_SetWindowZOrder(						int ZType /* = DX_WIN_ZTYPE_TOP 等 */ ) ;											// メインウインドウの奥行き位置を変更する
 extern	int			NS_SetWindowSizeChangeEnableFlag(			int Flag, int FitScreen = TRUE ) ;													// ウインドウのサイズを変更できるかどうかのフラグをセットする( NotFitScreen:ウインドウのクライアント領域に画面をフィットさせる(拡大させる)かどうか  TRUE:フィットさせる  FALSE:フィットさせない )
 extern	int			NS_SetWindowSizeExtendRate(				double ExRateX, double ExRateY = -1.0 ) ;											// 描画画面のサイズに対するウインドウサイズの比率を設定する( ExRateY がマイナスの場合は ExRateX の値が ExRateY にも使用されます )
 extern	int			NS_SetWindowSize(							int Width, int Height ) ;															// ウインドウモード時のウインドウのクライアント領域のサイズを設定する
@@ -440,7 +465,6 @@ extern	int			NS_SetUserWindowMessageProcessDXLibFlag(	int Flag ) ;														
 extern	int			NS_SetDXArchivePriority(					int Priority = 0 ) ;																// ＤＸアーカイブファイルと通常のフォルダのどちらも存在した場合、どちらを優先させるかを設定する( 1:フォルダを優先 0:ＤＸアーカイブファイルを優先(デフォルト) )
 extern	int			NS_SetDXArchiveExtension(					const TCHAR *Extension = NULL ) ;													// 検索するＤＸアーカイブファイルの拡張子を変更する
 extern	int			NS_SetDXArchiveKeyString(					const TCHAR *KeyString = NULL ) ;													// ＤＸアーカイブファイルの鍵文字列を設定する
-extern	int			NS_SetBackgroundColor(						int Red, int Green, int Blue ) ;													// メインウインドウのバックグラウンドカラーを設定する
 extern	int			NS_SetUseFPUPreserveFlag(					int Flag ) ;																		// FPUの精度を落とさない設定を使用するかどうかを設定する、DxLib_Init を呼び出す前のみ有効( TRUE:使用する(精度が落ちない)  FALSE:使用しない(精度を落とす(デフォルト) )
 extern	int			NS_SetValidMousePointerWindowOutClientAreaMoveFlag( int Flag ) ;																// マウスポインタがウインドウのクライアントエリアの外にいけるかどうかを設定する( TRUE:いける( デフォルト設定 )  FALSE:いけない )
 extern	int			NS_SetUseBackBufferTransColorFlag(			int Flag ) ;																		// バックバッファの透過色の部分を透過させるかどうかを設定する( TRUE:透過させる  FALSE:透過させない )
@@ -553,7 +577,7 @@ extern	int			NS_GetMouseInputLog(		int *Button, int *ClickX, int *ClickY, int Lo
 
 // DxMemory.cpp関数プロトタイプ宣言
 
-// 内存分配系函数
+// メモリ確保系関数
 extern	void*		NS_DxAlloc(						size_t AllocSize , const char *File = NULL , int Line = -1 ) ;					// メモリを確保する
 extern	void*		NS_DxCalloc(						size_t AllocSize , const char *File = NULL , int Line = -1 ) ;					// メモリを確保して０で初期化する
 extern	void*		NS_DxRealloc(						void *Memory , size_t AllocSize , const char *File = NULL , int Line = -1 ) ;	// メモリの再確保を行う
@@ -563,6 +587,7 @@ extern	int			NS_DxSetAllocPrintFlag(			int Flag ) ;																	// ＤＸラ
 extern	size_t		NS_DxGetAllocSize(					void ) ;																		// DxAlloc や DxCalloc で確保しているメモリサイズを取得する
 extern	int			NS_DxGetAllocNum(					void ) ;																		// DxAlloc や DxCalloc で確保しているメモリの数を取得する
 extern	void		NS_DxDumpAlloc(					void ) ;																		// DxAlloc や DxCalloc で確保しているメモリを列挙する
+extern	void		NS_DxDrawAlloc(					int x, int y, int Width, int Height ) ;											// DxAlloc や DxCalloc で確保しているメモリの状況を描画する
 extern	int			NS_DxErrorCheckAlloc(				void ) ;																		// 確保したメモリ情報が破壊されていないか調べる( -1:破壊あり  0:なし )
 extern	int			NS_DxSetAllocSizeOutFlag(			int Flag ) ;																	// メモリが確保、解放が行われる度に確保しているメモリの容量を出力するかどうかのフラグをセットする
 extern	int			NS_DxSetAllocMemoryErrorCheckFlag(	int Flag ) ;																	// メモリの確保、解放が行われる度に確保しているメモリ確保情報が破損していないか調べるかどうかのフラグをセットする
@@ -584,7 +609,7 @@ extern	int			NS_DxSetAllocMemoryErrorCheckFlag(	int Flag ) ;																	// 
 
 #ifndef DX_NON_INPUTSTRING
 
-// 字符编码缓存操作相关
+// 文字コードバッファ操作関係
 extern	int			NS_StockInputChar(		TCHAR CharCode ) ;								// バッファにコードをストックする
 extern	int			NS_ClearInputCharBuf(	void ) ;										// 文字コードバッファをクリアする
 extern	TCHAR		NS_GetInputChar(		int DeleteFlag ) ;								// 文字コードバッファに溜まったデータから文字コードを取得する
@@ -610,10 +635,10 @@ extern	int			NS_GetStringPoint2(			const TCHAR *String, int Point ) ;			// 全�
 extern	int			NS_GetStringLength(			const TCHAR *String ) ;						// 全角文字、半角文字入り乱れる中から文字数を取得する
 
 #ifndef DX_NON_FONT
-extern	int			NS_DrawObtainsString(			int x, int y, int AddY, const TCHAR *String, int StrColor, int StrEdgeColor = 0 , int FontHandle = -1 , int SelectBackColor = -1 , int SelectStrColor = 0 , int SelectStrEdgeColor = -1 , int SelectStart = -1 , int SelectEnd = -1 ) ;		// 規定領域に収めたかたちで文字列を描画
-extern	int			NS_DrawObtainsString_CharClip(	int x, int y, int AddY, const TCHAR *String, int StrColor, int StrEdgeColor = 0 , int FontHandle = -1 , int SelectBackColor = -1 , int SelectStrColor = 0 , int SelectStrEdgeColor = -1 , int SelectStart = -1 , int SelectEnd = -1 ) ;		// 描画可能領域に収まるように改行しながら文字列を描画( クリップが文字単位 )
+extern	int			NS_DrawObtainsString(			int x, int y, int AddY, const TCHAR *String, unsigned int StrColor, unsigned int StrEdgeColor = 0 , int FontHandle = -1 , unsigned int SelectBackColor = 0xffffffff , unsigned int SelectStrColor = 0 , unsigned int SelectStrEdgeColor = 0xffffffff , int SelectStart = -1 , int SelectEnd = -1 ) ;		// 描画可能領域に収まるように改行しながら文字列を描画
+extern	int			NS_DrawObtainsString_CharClip(	int x, int y, int AddY, const TCHAR *String, unsigned int StrColor, unsigned int StrEdgeColor = 0 , int FontHandle = -1 , unsigned int SelectBackColor = 0xffffffff , unsigned int SelectStrColor = 0 , unsigned int SelectStrEdgeColor = 0xffffffff , int SelectStart = -1 , int SelectEnd = -1 ) ;		// 描画可能領域に収まるように改行しながら文字列を描画( クリップが文字単位 )
 #endif // DX_NON_FONT
-extern	int			NS_DrawObtainsBox(				int x1, int y1, int x2, int y2, int AddY, int Color, int FillFlag ) ;																																										// 規定領域に収めたかたちで矩形を描画 
+extern	int			NS_DrawObtainsBox(				int x1, int y1, int x2, int y2, int AddY, unsigned int Color, int FillFlag ) ;																																										// 規定領域に収めたかたちで矩形を描画 
 
 #ifndef DX_NON_KEYEX
 
@@ -630,7 +655,10 @@ extern	int			NS_SetKeyInputStringColor(		ULONGLONG NmlStr, ULONGLONG NmlCur, ULO
 #else // defined( DX_GCC_COMPILE ) || defined( __ANDROID )
 extern	int			NS_SetKeyInputStringColor(		ULONGLONG NmlStr, ULONGLONG NmlCur, ULONGLONG IMEStrBack, ULONGLONG IMECur, ULONGLONG IMELine, ULONGLONG IMESelectStr, ULONGLONG IMEModeStr , ULONGLONG NmlStrE = 0 , ULONGLONG IMESelectStrE = 0 , ULONGLONG IMEModeStrE = 0 , ULONGLONG IMESelectWinE = 0xffffffffffffffff ,	ULONGLONG IMESelectWinF = 0xffffffffffffffff , ULONGLONG SelectStrBackColor = 0xffffffffffffffff , ULONGLONG SelectStrColor = 0xffffffffffffffff , ULONGLONG SelectStrEdgeColor = 0xffffffffffffffff, ULONGLONG IMEStr = 0xffffffffffffffff, ULONGLONG IMEStrE = 0xffffffffffffffff ) ;	// InputString関数使用時の文字の各色を変更する
 #endif // defined( DX_GCC_COMPILE ) || defined( __ANDROID )
+extern	int			NS_SetKeyInputStringColor2(	int TargetColor /* DX_KEYINPSTRCOLOR_NORMAL_STR 等 */, unsigned int Color ) ;															// InputString関数使用時の文字の各色を変更する
+extern	int			NS_ResetKeyInputStringColor2(	int TargetColor /* DX_KEYINPSTRCOLOR_NORMAL_STR 等 */ ) ;																		// SetKeyInputStringColor2 で設定した色をデフォルトに戻す
 extern	int			NS_SetKeyInputStringFont(		int FontHandle ) ;																												// キー入力文字列描画関連で使用するフォントのハンドルを変更する(-1でデフォルトのフォントハンドル)
+extern	int			NS_SetKeyInputStringEndCharaMode( int EndCharaMode /* DX_KEYINPSTR_ENDCHARAMODE_OVERWRITE 等 */ ) ;															// キー入力文字列処理の入力文字数が限界に達している状態で、文字列の末端部分で入力が行われた場合の処理モードを変更する
 extern	int			NS_DrawKeyInputModeString(		int x, int y ) ;																												// 入力モード文字列を描画する
 
 extern	int			NS_InitKeyInput(				void ) ;																														// キー入力データ初期化
@@ -680,7 +708,7 @@ extern	int			NS_GetKeyInputCursorPosition(	int InputHandle ) ;																		
 // DxFile.cpp関数プロトタイプ宣言
 
 // ファイルアクセス関数
-extern	int			NS_FileRead_open(				const TCHAR *FilePath , int ASync = FALSE ) ;					// 打开文件
+extern	int			NS_FileRead_open(				const TCHAR *FilePath , int ASync = FALSE ) ;					// ファイルを開く
 extern	LONGLONG	NS_FileRead_size(				const TCHAR *FilePath ) ;										// ファイルのサイズを得る
 extern	int			NS_FileRead_close(				int FileHandle ) ;												// ファイルを閉じる
 extern	LONGLONG	NS_FileRead_tell(				int FileHandle ) ;												// ファイルポインタの現在位置を得る
@@ -710,9 +738,10 @@ extern	LONGLONG	NS_FileRead_fullyLoad_getSize(	int FLoadHandle ) ;										// F
 extern	int			NS_SetUseDXArchiveFlag(		int Flag ) ;													// ＤＸアーカイブファイルの読み込み機能を使うかどうかを設定する( FALSE:使用しない  TRUE:使用する )
 extern	int			NS_GetStreamFunctionDefault(	void ) ;														// ＤＸライブラリでストリームデータアクセスに使用する関数がデフォルトのものか調べる( TRUE:デフォルト  FALSE:デフォルトではない )
 extern	int			NS_ChangeStreamFunction(		const STREAMDATASHREDTYPE2 *StreamThread ) ;						// ＤＸライブラリでストリームデータアクセスに使用する関数を変更する
+extern	int			NS_ChangeStreamFunctionW(		const STREAMDATASHREDTYPE2W *StreamThreadW ) ;					// ＤＸライブラリでストリームデータアクセスに使用する関数を変更する( wchar_t 使用版 )
 
 // 補助関係関数
-extern int			ConvertFullPath( const TCHAR *Src, TCHAR *Dest, const TCHAR *CurrentDir = NULL ) ;			// フルパスではないパス文字列をフルパスに変換する( CurrentDir はフルパスである必要がある(語尾に『\』があっても無くても良い) )( CurrentDir が NULL の場合は現在のカレントディレクトリを使用する )
+extern int			NS_ConvertFullPath( const TCHAR *Src, TCHAR *Dest, const TCHAR *CurrentDir = NULL ) ;			// フルパスではないパス文字列をフルパスに変換する( CurrentDir はフルパスである必要がある(語尾に『\』があっても無くても良い) )( CurrentDir が NULL の場合は現在のカレントディレクトリを使用する )
 
 
 
@@ -729,38 +758,40 @@ extern int			ConvertFullPath( const TCHAR *Src, TCHAR *Dest, const TCHAR *Curren
 
 
 
-// DxInput.cpp函数原型声明
+// DxInput.cpp関数プロトタイプ宣言
 
 #ifndef DX_NON_INPUT
 
-// 输入状态取得函数
-extern	int			NS_CheckHitKey(							int KeyCode ) ;															// キーボードの入力状態取得
-extern	int			NS_CheckHitKeyAll(							int CheckType = DX_CHECKINPUT_ALL ) ;									// 全キーの押下状態を取得
-extern	int			NS_GetHitKeyStateAll(						DX_CHAR *KeyStateBuf ) ;												// すべてのキーの押下状態を取得する
-extern	int			NS_SetKeyExclusiveCooperativeLevelFlag(	int Flag ) ;															// キーボードの協調レベルを排他レベルにするかどうかのフラグをセットする
+// 入力状態取得関数
+extern	int			NS_CheckHitKey(							int KeyCode ) ;															// キーボードの押下状態を取得する
+extern	int			NS_CheckHitKeyAll(							int CheckType = DX_CHECKINPUT_ALL ) ;									// どれか一つでもキーが押されているかどうかを取得( 押されていたら戻り値が 0 以外になる )
+extern	int			NS_GetHitKeyStateAll(						DX_CHAR *KeyStateBuf ) ;												// すべてのキーの押下状態を取得する( KeyStateBuf:char型256個分の配列の先頭アドレス )
 extern	int			NS_GetJoypadNum(							void ) ;																// ジョイパッドが接続されている数を取得する
-extern	int			NS_GetJoypadInputState(					int InputType ) ;														// ジョイバッドの入力状態取得
+extern	int			NS_GetJoypadInputState(					int InputType ) ;														// ジョイパッドの入力状態を取得する
 extern	int			NS_GetJoypadAnalogInput(					int *XBuf, int *YBuf, int InputType ) ;									// ジョイパッドのアナログ的なスティック入力情報を得る
 extern	int			NS_GetJoypadAnalogInputRight(				int *XBuf, int *YBuf, int InputType ) ;									// ( 使用非推奨 )ジョイパッドのアナログ的なスティック入力情報を得る(右スティック用)
-extern	int			NS_GetJoypadDirectInputState(				int InputType, DINPUT_JOYSTATE *DInputState ) ;							// DirectInput から得られるジョイパッドの生のデータを取得する( DX_INPUT_KEY や DX_INPUT_KEY_PAD1 を引数に渡すとエラー )
+extern	int			NS_GetJoypadDirectInputState(				int InputType, DINPUT_JOYSTATE *DInputState ) ;							// DirectInput から得られるジョイパッドの生のデータを取得する( DX_INPUT_KEY や DX_INPUT_KEY_PAD1 など、キーボードが絡むタイプを InputType に渡すとエラーとなり -1 を返す )
 extern	int			NS_CheckJoypadXInput(						int InputType ) ;														// 指定の入力デバイスが XInput に対応しているかどうかを取得する( 戻り値  TRUE:XInput対応の入力デバイス  FALSE:XInput非対応の入力デバイス   -1:エラー )( DX_INPUT_KEY や DX_INPUT_KEY_PAD1 など、キーボードが絡むタイプを InputType に渡すとエラーとなり -1 を返す )
 extern	int			NS_GetJoypadXInputState(					int InputType, XINPUT_STATE *XInputState ) ;							// XInput から得られる入力デバイス( Xbox360コントローラ等 )の生のデータを取得する( XInput非対応のパッドの場合はエラーとなり -1 を返す、DX_INPUT_KEY や DX_INPUT_KEY_PAD1 など、キーボードが絡むタイプを InputType に渡すとエラーとなり -1 を返す )
-extern	int			NS_KeyboradBufferProcess(					void ) ;																// キーボードのバッファからデータを取得する処理
-extern	int			NS_GetJoypadGUID(							int PadIndex, GUID *GuidBuffer ) ;										// ジョイパッドのＧＵIＤを得る
-extern	int			NS_ConvertKeyCodeToVirtualKey(				int KeyCode ) ;															// ＤＸライブラリのキーコードから Windows の仮想キーコードを取得する
-extern	int			NS_ConvertVirtualKeyToKeyCode(				int VirtualKey ) ;														//  Windows の仮想キーコード( VK_LEFT など ) に対応するＤＸライブラリのキーコード( KEY_INPUT_A など )を取得する( VirtualKey:変換したいWindowsの仮想キーコード　戻り値：ＤＸライブラリのキーコード )
-extern	int			NS_SetJoypadInputToKeyInput(				int InputType, int PadInput, int KeyInput1, int KeyInput2 = -1 , int KeyInput3 = -1 , int KeyInput4 = -1  ) ; // ジョイパッドの入力に対応したキーボードの入力を設定する
-extern	int			NS_SetJoypadDeadZone(						int InputType, double Zone ) ;											// ジョイパッドの無効ゾーンの設定を行う
-extern	int			NS_StartJoypadVibration(					int InputType, int Power, int Time ) ;									// ジョイパッドの振動を開始する
-extern	int			NS_StopJoypadVibration(					int InputType ) ;														// ジョイパッドの振動を停止する
-extern	int			NS_GetJoypadPOVState(						int InputType, int POVNumber ) ;										// ジョイパッドのＰＯＶ入力の状態を得る( 単位は角度の１００倍  中心位置にある場合は -1 が返る )
-extern	int			NS_GetJoypadName(							int InputType, TCHAR *InstanceNameBuffer, TCHAR *ProductNameBuffer ) ;	// ジョイパッドのデバイス登録名と製品登録名を取得する
-extern	int			NS_ReSetupJoypad(							void ) ;																// ジョイパッドの再セットアップを行う( 新たに接続されたジョイパッドがある場合に検出される )
+extern	int			NS_SetJoypadInputToKeyInput(				int InputType, int PadInput, int KeyInput1, int KeyInput2 = -1 , int KeyInput3 = -1 , int KeyInput4 = -1  ) ; // ジョイパッドの入力に対応したキーボードの入力を設定する( InputType:設定を変更するパッドの識別子( DX_INPUT_PAD1等 )　　PadInput:設定を変更するパッドボタンの識別子( PAD_INPUT_1 等 )　　KeyInput1:PadInput を押下したことにするキーコード( KEY_INPUT_A など )その１　　KeyInput2:その２、-1で設定なし　　KeyInput3:その３、-1で設定なし　　KeyInput4:その４、-1で設定なし )
+extern	int			NS_SetJoypadDeadZone(						int InputType, double Zone ) ;											// ジョイパッドの無効ゾーンの設定を行う( InputType:設定を変更するパッドの識別子( DX_INPUT_PAD1等 )   Zone:新しい無効ゾーン( 0.0 ～ 1.0 )、デフォルト値は 0.35 )
+extern	int			NS_StartJoypadVibration(					int InputType, int Power, int Time, int EffectIndex = -1 ) ;			// ジョイパッドの振動を開始する
+extern	int			NS_StopJoypadVibration(					int InputType, int EffectIndex = -1 ) ;									// ジョイパッドの振動を停止する
+extern	int			NS_GetJoypadPOVState(						int InputType, int POVNumber ) ;										// ジョイパッドのＰＯＶ入力の状態を得る( 戻り値　指定のPOVデータの角度、単位は角度の１００倍( 90度なら 9000 ) 中心位置にある場合は -1 が返る )
+extern	int			NS_ReSetupJoypad(							void ) ;																// ジョイパッドの再セットアップを行う( 新たに接続されたジョイパッドがあったら検出される )
 
-extern	int			NS_SetKeyboardNotDirectInputFlag(			int Flag ) ;															// キーボードの入力処理に DirectInput を使わないか、フラグをセットする
-extern	int			NS_SetUseDirectInputFlag(					int Flag ) ;															// 入力処理に DirectInput を使用するかどうかのフラグをセットする
+extern	int			NS_SetUseJoypadVibrationFlag(				int Flag ) ;															// ジョイパッドの振動機能を使用するかどうかを設定する( TRUE:使用する　　FALSE:使用しない )
+
+#ifdef __WINDOWS__
+extern	int			NS_SetKeyExclusiveCooperativeLevelFlag(	int Flag ) ;															// DirectInput のキーボードの協調レベルを排他レベルにするかどうかを設定する( TRUE:排他レベルにする  FALSE:標準レベルにする( デフォルト ) )、DxLib_Init の呼び出し前でのみ実行可能　
+extern	int			NS_SetKeyboardNotDirectInputFlag(			int Flag ) ;															// キーボードの入力処理に DirectInput を使わないかどうかを設定する( TRUE:DirectInput を使わず、Windows標準機能を使用する　　FALSE:DirectInput を使用する )
+extern	int			NS_SetUseDirectInputFlag(					int Flag ) ;															// 入力処理に DirectInput を使用するかどうかを設定する( TRUE:DirectInput を使用する　　FALSE:DirectInput を使わず、Windows標準機能を使用する )
 extern	int			NS_SetUseXInputFlag(						int Flag ) ;															// Xbox360コントローラの入力処理に XInput を使用するかどうかを設定する( TRUE:XInput を使用する( デフォルト )　　FALSE:XInput を使用しない )
-extern	int			NS_SetUseJoypadVibrationFlag(				int Flag ) ;															// ジョイパッドの振動機能を使用するかどうかのフラグをセットする
+extern	int			NS_GetJoypadGUID(							int PadIndex, GUID *GuidBuffer ) ;										// ジョイパッドのＧＵIＤを得る
+extern	int			NS_GetJoypadName(							int InputType, TCHAR *InstanceNameBuffer, TCHAR *ProductNameBuffer ) ;	// ジョイパッドのデバイス登録名と製品登録名を取得する
+extern	int			NS_ConvertKeyCodeToVirtualKey(				int KeyCode ) ;															// ＤＸライブラリのキーコード( KEY_INPUT_A など )に対応する Windows の仮想キーコード( VK_LEFT など ) を取得する( KeyCode:変換したいＤＸライブラリのキーコード　戻り値：Windowsの仮想キーコード )
+extern	int			NS_ConvertVirtualKeyToKeyCode(				int VirtualKey ) ;														//  Windows の仮想キーコード( VK_LEFT など ) に対応するＤＸライブラリのキーコード( KEY_INPUT_A など )を取得する( VirtualKey:変換したいWindowsの仮想キーコード　戻り値：ＤＸライブラリのキーコード )
+#endif // __WINDOWS__
 
 #endif // DX_NON_INPUT
 
@@ -797,7 +828,7 @@ extern	int			NS_DeleteShadowMap(				int SmHandle ) ;															// シャド�
 extern	int			NS_SetShadowMapLightDirection(		int SmHandle, VECTOR Direction ) ;											// シャドウマップが想定するライトの方向を設定する
 extern	int			NS_ShadowMap_DrawSetup(			int SmHandle ) ;										// シャドウマップへの描画の準備を行う
 extern	int			NS_ShadowMap_DrawEnd(				void ) ;															// シャドウマップへの描画を終了する
-extern	int			NS_SetDrawUseShadowMap(			int SlotIndex, int SmHandle ) ;												// 描画で使用するシャドウマップを指定する、スロットは０か１かを指定可能、SmHandle に -1 を渡すと指定のスロットのシャドウマップを解除
+extern	int			NS_SetUseShadowMap(				int SlotIndex, int SmHandle ) ;												// 描画で使用するシャドウマップを指定する、有効なスロットは０～２、SmHandle に -1 を渡すと指定のスロットのシャドウマップを解除
 extern	int			NS_SetShadowMapDrawArea(			int SmHandle, VECTOR MinPosition, VECTOR MaxPosition ) ;					// シャドウマップに描画する際の範囲を設定する( この関数で描画範囲を設定しない場合は視錐台を拡大した範囲が描画範囲となる )
 extern	int			NS_ResetShadowMapDrawArea(			int SmHandle ) ;															// SetShadowMapDrawArea の設定を解除する
 extern	int			NS_SetShadowMapAdjustDepth(		int SmHandle, float Depth ) ;												// シャドウマップを使用した描画時の補正深度を設定する
@@ -808,9 +839,9 @@ extern	int			NS_TestDrawShadowMap(				int SmHandle, int x1, int y1, int x2, int 
 // グラフィックハンドルへの画像転送関数
 extern	int			NS_BltBmpToGraph(					const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, int CopyPointX, int CopyPointY,                                                                                                   int GrHandle ) ;						// ＢＭＰの内容をグラフィックハンドルに転送
 extern	int			NS_BltBmpToDivGraph(				const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, int AllNum, int XNum, int YNum, int Width, int Height,                                                                      const int *GrHandle, int ReverseFlag ) ;	// ＢＭＰの内容を分割作成したグラフィックハンドルたちに転送
-extern	int			NS_BltBmpOrGraphImageToGraph(		const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, int BmpFlag, const BASEIMAGE *RgbImage, const BASEIMAGE *AlphaImage, int CopyPointX, int CopyPointY,                              int GrHandle ) ;						// ＢＭＰ か BASEIMAGE をグラフィックハンドルに転送
-extern	int			NS_BltBmpOrGraphImageToGraph2(		const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, int BmpFlag, const BASEIMAGE *RgbImage, const BASEIMAGE *AlphaImage, const RECT *SrcRect, int DestX, int DestY,                   int GrHandle ) ;						// ＢＭＰ か BASEIMAGE の指定の領域をグラフィックハンドルに転送
-extern	int			NS_BltBmpOrGraphImageToDivGraph(	const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, int BmpFlag, const BASEIMAGE *RgbImage, const BASEIMAGE *AlphaImage, int AllNum, int XNum, int YNum, int Width, int Height, const int *GrHandle, int ReverseFlag ) ;	// ＢＭＰ か BASEIMAGE を分割作成したグラフィックハンドルたちに転送
+extern	int			NS_BltBmpOrGraphImageToGraph(		const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, int BmpFlag, const BASEIMAGE *RgbBaseImage, const BASEIMAGE *AlphaBaseImage, int CopyPointX, int CopyPointY,                              int GrHandle ) ;						// ＢＭＰ か BASEIMAGE をグラフィックハンドルに転送
+extern	int			NS_BltBmpOrGraphImageToGraph2(		const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, int BmpFlag, const BASEIMAGE *RgbBaseImage, const BASEIMAGE *AlphaBaseImage, const RECT *SrcRect, int DestX, int DestY,                   int GrHandle ) ;						// ＢＭＰ か BASEIMAGE の指定の領域をグラフィックハンドルに転送
+extern	int			NS_BltBmpOrGraphImageToDivGraph(	const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, int BmpFlag, const BASEIMAGE *RgbBaseImage, const BASEIMAGE *AlphaBaseImage, int AllNum, int XNum, int YNum, int Width, int Height, const int *GrHandle, int ReverseFlag ) ;	// ＢＭＰ か BASEIMAGE を分割作成したグラフィックハンドルたちに転送
 
 // 画像からグラフィックハンドルを作成する関数
 extern	int			NS_LoadBmpToGraph(					const TCHAR *FileName, int TextureFlag, int ReverseFlag, int SurfaceMode = DX_MOVIESURFACE_NORMAL ) ;								// 画像ファイルからグラフィックハンドルを作成する
@@ -835,18 +866,18 @@ extern	int			NS_CreateGraphFromBmp(             const BITMAPINFO *RGBBmpInfo, co
 extern	int			NS_ReCreateGraphFromBmp(           const BITMAPINFO *RGBBmpInfo, const void *RGBBmpImage, int GrHandle, const BITMAPINFO *AlphaBmpInfo = NULL , const void *AlphaBmpImage = NULL , int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// ビットマップデータから既存のグラフィックハンドルにデータを転送する
 extern	int			NS_CreateDivGraphFromBmp(          const BITMAPINFO *RGBBmpInfo, const void *RGBBmpImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY, int *HandleBuf,              int TextureFlag = TRUE , int ReverseFlag = FALSE , const BITMAPINFO *AlphaBmpInfo = NULL , const void *AlphaBmpImage = NULL ) ;	// ビットマップデータから分割グラフィックハンドルを作成する
 extern	int			NS_ReCreateDivGraphFromBmp(        const BITMAPINFO *RGBBmpInfo, const void *RGBBmpImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY, const int *HandleBuf,        int TextureFlag = TRUE , int ReverseFlag = FALSE , const BITMAPINFO *AlphaBmpInfo = NULL , const void *AlphaBmpImage = NULL ) ;	// ビットマップデータから既存の分割グラフィックハンドルにデータを転送する
-extern	int			NS_CreateDXGraph(					const BASEIMAGE *RgbImage, const BASEIMAGE *AlphaImage,																		             int TextureFlag ) ;																									// GraphImage データからサイズを割り出し、それに合ったグラフィックハンドルを作成する
-extern	int			NS_CreateGraphFromGraphImage(      const BASEIMAGE *RGBImage,                                                                                                                int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータからグラフィックハンドルを作成する
-extern	int			NS_CreateGraphFromGraphImage(      const BASEIMAGE *RGBImage, const BASEIMAGE *AlphaImage,                                                                                   int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータからグラフィックハンドルを作成する
-extern	int			NS_ReCreateGraphFromGraphImage(    const BASEIMAGE *RGBImage,                              int GrHandle,                                                                     int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから既存のグラフィックハンドルにデータを転送する
-extern	int			NS_ReCreateGraphFromGraphImage(    const BASEIMAGE *RGBImage, const BASEIMAGE *AlphaImage, int GrHandle,                                                                     int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから既存のグラフィックハンドルにデータを転送する
-extern	int			NS_CreateDivGraphFromGraphImage(         BASEIMAGE *RGBImage,                              int AllNum, int XNum, int YNum, int SizeX, int SizeY,       int *HandleBuf,       int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから分割グラフィックハンドルを作成する
-extern	int			NS_CreateDivGraphFromGraphImage(         BASEIMAGE *RGBImage, const BASEIMAGE *AlphaImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY,       int *HandleBuf,       int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから分割グラフィックハンドルを作成する
-extern	int			NS_ReCreateDivGraphFromGraphImage(       BASEIMAGE *RGBImage,                              int AllNum, int XNum, int YNum, int SizeX, int SizeY, const int *HandleBuf,       int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから既存の分割グラフィックハンドルにデータを転送する
-extern	int			NS_ReCreateDivGraphFromGraphImage(       BASEIMAGE *RGBImage, const BASEIMAGE *AlphaImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY, const int *HandleBuf,       int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから既存の分割グラフィックハンドルにデータを転送する
-extern	int			NS_CreateGraph(                    int Width, int Height, int Pitch, const void *RGBImage, const void *AlphaImage = NULL , int GrHandle = -1 ) ;																																			// メモリ上のグラフィックデータからグラフィックハンドルを作成する
-extern	int			NS_CreateDivGraph(                 int Width, int Height, int Pitch, const void *RGBImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY, int *HandleBuf, const void *AlphaImage = NULL ) ;																							// メモリ上のグラフィックデータから分割グラフィックハンドルを作成する
-extern	int			NS_ReCreateGraph(                  int Width, int Height, int Pitch, const void *RGBImage, int GrHandle, const void *AlphaImage = NULL ) ;																																					// メモリ上のグラフィックデータからグラフィックハンドルを再作成する
+extern	int			NS_CreateDXGraph(					const BASEIMAGE *RgbBaseImage, const BASEIMAGE *AlphaBaseImage,																		             int TextureFlag ) ;																									// GraphImage データからサイズを割り出し、それに合ったグラフィックハンドルを作成する
+extern	int			NS_CreateGraphFromGraphImage(      const BASEIMAGE *RgbBaseImage,                                                                                                                int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータからグラフィックハンドルを作成する
+extern	int			NS_CreateGraphFromGraphImage(      const BASEIMAGE *RgbBaseImage, const BASEIMAGE *AlphaBaseImage,                                                                                   int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータからグラフィックハンドルを作成する
+extern	int			NS_ReCreateGraphFromGraphImage(    const BASEIMAGE *RgbBaseImage,                              int GrHandle,                                                                     int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから既存のグラフィックハンドルにデータを転送する
+extern	int			NS_ReCreateGraphFromGraphImage(    const BASEIMAGE *RgbBaseImage, const BASEIMAGE *AlphaBaseImage, int GrHandle,                                                                     int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから既存のグラフィックハンドルにデータを転送する
+extern	int			NS_CreateDivGraphFromGraphImage(         BASEIMAGE *RgbBaseImage,                              int AllNum, int XNum, int YNum, int SizeX, int SizeY,       int *HandleBuf,       int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから分割グラフィックハンドルを作成する
+extern	int			NS_CreateDivGraphFromGraphImage(         BASEIMAGE *RgbBaseImage, const BASEIMAGE *AlphaBaseImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY,       int *HandleBuf,       int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから分割グラフィックハンドルを作成する
+extern	int			NS_ReCreateDivGraphFromGraphImage(       BASEIMAGE *RgbBaseImage,                              int AllNum, int XNum, int YNum, int SizeX, int SizeY, const int *HandleBuf,       int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから既存の分割グラフィックハンドルにデータを転送する
+extern	int			NS_ReCreateDivGraphFromGraphImage(       BASEIMAGE *RgbBaseImage, const BASEIMAGE *AlphaBaseImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY, const int *HandleBuf,       int TextureFlag = TRUE , int ReverseFlag = FALSE ) ;																// GraphImageデータから既存の分割グラフィックハンドルにデータを転送する
+extern	int			NS_CreateGraph(                    int Width, int Height, int Pitch, const void *RgbBaseImage, const void *AlphaImage = NULL , int GrHandle = -1 ) ;																																			// メモリ上のグラフィックデータからグラフィックハンドルを作成する
+extern	int			NS_CreateDivGraph(                 int Width, int Height, int Pitch, const void *RgbBaseImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY, int *HandleBuf, const void *AlphaImage = NULL ) ;																							// メモリ上のグラフィックデータから分割グラフィックハンドルを作成する
+extern	int			NS_ReCreateGraph(                  int Width, int Height, int Pitch, const void *RgbBaseImage, int GrHandle, const void *AlphaImage = NULL ) ;																																					// メモリ上のグラフィックデータからグラフィックハンドルを再作成する
 #ifndef DX_NON_SOFTIMAGE
 extern	int			NS_CreateBlendGraphFromSoftImage(  int SIHandle ) ;																													// ソフトウエアで扱うイメージからブレンド用画像グラフィックハンドルを作成する( -1:エラー  -1以外:ブレンド用グラフィックハンドル )
 extern	int			NS_CreateGraphFromSoftImage(       int SIHandle ) ;																													// ソフトウエアで扱うイメージからグラフィックハンドルを作成する( -1:エラー  -1以外:グラフィックハンドル )
@@ -897,6 +928,7 @@ extern	int			NS_SetCreateDrawValidGraphZBufferBitDepth(		int BitDepth ) ;							
 extern	int			NS_GetCreateDrawValidGraphZBufferBitDepth(		void ) ;										// SetDrawScreen の引数として渡せる( 描画対象として使用できる )グラフィックハンドルに適用するＺバッファのビット深度を取得する
 extern	int			NS_SetCreateDrawValidGraphChannelNum(			int ChannelNum ) ;								// 作成する描画可能な画像のチャンネル数を設定する,SetDrawValidGraphCreateFlag 関数で描画可能画像を作成するように設定されていないと効果がない
 extern	int			NS_GetCreateDrawValidGraphChannelNum(			void ) ;										// 作成する描画可能な画像のチャンネル数を取得する
+extern	int			NS_SetCreateDrawValidGraphMultiSample(			int Samples, int Quality ) ;					// SetDrawScreen の引数として渡せる( 描画対象として使用できる )グラフィックハンドルに適用するマルチサンプリング( アンチエイリアシング )設定を行う( Samples:マルチサンプル処理に使用するドット数( 多いほど重くなります )  Quality:マルチサンプル処理の品質 )
 extern	int			NS_SetDrawValidMultiSample(					int Samples, int Quality ) ;					// 描画可能な画像のマルチサンプリング設定を行う
 extern	int			NS_GetMultiSampleQuality(						int Samples ) ;									// 指定のマルチサンプル数で使用できる最大クオリティ値を取得する( 戻り値がマイナスの場合は引数のサンプル数が使用できないことを示します )
 extern	int			NS_SetUseTransColor(							int Flag ) ;									// 透過色機能を使用するかどうかを設定する
@@ -910,14 +942,15 @@ extern	int			NS_GetUseNotManageTextureFlag(					void ) ;										// 非管理�
 extern	int			NS_SetTransColor(								int Red, int Green, int Blue ) ;				// グラフィックに設定する透過色をセットする
 extern	int			NS_GetTransColor(								int *Red, int *Green, int *Blue ) ;				// 透過色を得る
 extern	int			NS_SetUseDivGraphFlag(							int Flag ) ;									// 必要ならグラフィックの分割を行うか、フラグのセット
+extern	int			NS_SetUseAlphaImageLoadFlag(					int Flag ) ;									// LoadGraph などの際にファイル名の末尾に _a が付いたアルファチャンネル用の画像ファイルを追加で読み込む処理を行うかどうかを設定する( TRUE:行う( デフォルト )  FALSE:行わない )
 extern	int			NS_SetUseMaxTextureSize(						int Size ) ;									// 使用するテクスチャーの最大サイズをセット(0でデフォルト)
 extern	int			NS_SetUseGraphBaseDataBackup(					int Flag ) ;									// 画像を作成する際に使用した画像データのバックアップをしてデバイスロスト時に使用するかどうかのフラグをセットする( TRUE:バックアップをする( デフォルト )  FALSE:バックアップをしない )
 extern	int			NS_GetUseGraphBaseDataBackup(					void ) ;										// 画像を作成する際に使用した画像データのバックアップをしてデバイスロスト時に使用するかどうかのフラグを取得する
 
 // 画像情報関係関数
-extern	const DWORD* NS_GetFullColorImage(				int GrHandle ) ;																		// 指定の画像のＡＲＧＢ８のフルカラーイメージを取得する
+extern	const unsigned int* NS_GetFullColorImage(				int GrHandle ) ;																		// 指定の画像のＡＲＧＢ８のフルカラーイメージを取得する
 
-extern	int			NS_GraphLock(						int GrHandle, int *PitchBuf, void **DataPointBuf, COLORDATA **ColorDataPP = NULL ) ;	// グラフィックメモリ領域のロック
+extern	int			NS_GraphLock(						int GrHandle, int *PitchBuf, void **DataPointBuf, COLORDATA **ColorDataPP = NULL, int WriteOnly = FALSE ) ;	// グラフィックメモリ領域のロック
 extern	int			NS_GraphUnLock(					int GrHandle ) ;																		// グラフィックメモリ領域のロック解除
 
 extern	int			NS_SetUseGraphZBuffer(				int GrHandle, int UseFlag, int BitDepth = -1 ) ;										// グラフィック専用のＺバッファを持つかどうかを設定する( 描画可能画像のみ可能 )
@@ -940,34 +973,46 @@ extern	int			NS_GetCreateGraphColorData(		COLORDATA *ColorData, IMAGEFORMATDESC 
 // 画像パレット操作関係関数( ソフトウエア画像のみ使用可能 )
 extern	int			NS_GetGraphPalette(				int GrHandle, int ColorIndex, int *Red, int *Green, int *Blue ) ;						// メモリ上に読み込んだ画像のパレットを取得する(フルカラー画像の場合は無効)
 extern	int			NS_GetGraphOriginalPalette(		int GrHandle, int ColorIndex, int *Red, int *Green, int *Blue ) ;						// メモリ上に読み込んだ画像の SetGraphPalette で変更する前のパレットを取得する
-extern	int			NS_SetGraphPalette(				int GrHandle, int ColorIndex, int Color ) ;												// メモリ上に読み込んだ画像のパレットを変更する(フルカラー画像の場合は無効)
+extern	int			NS_SetGraphPalette(				int GrHandle, int ColorIndex, unsigned int Color ) ;												// メモリ上に読み込んだ画像のパレットを変更する(フルカラー画像の場合は無効)
 extern	int			NS_ResetGraphPalette(				int GrHandle ) ;																		// SetGraphPalette で変更したパレットを全て元に戻す
 
-// 几何图形绘制函数
-extern	int			NS_DrawLine(       int x1, int y1, int x2, int y2,                                 int Color, int Thickness = 1 ) ;									// 線を描画
-extern	int			NS_DrawBox(        int x1, int y1, int x2, int y2,                                 int Color, int FillFlag ) ;											// 四角形の描画
-extern	int			NS_DrawFillBox(    int x1, int y1, int x2, int y2,                                 int Color ) ;														// 中身のある四角を描画
-extern	int			NS_DrawLineBox(    int x1, int y1, int x2, int y2,                                 int Color ) ;														// 四角形の描画 
-extern	int			NS_DrawCircle(     int x, int y, int r,                                            int Color, int FillFlag = TRUE, int LineThickness = 1 ) ;				// 円を描く
-extern	int			NS_DrawOval(       int x, int y, int rx, int ry,                                   int Color, int FillFlag,        int LineThickness = 1 ) ;				// 楕円を描く
-extern	int			NS_DrawTriangle(   int x1, int y1, int x2, int y2, int x3, int y3,                 int Color, int FillFlag ) ;											// 三角形の描画
-extern	int			NS_DrawQuadrangle( int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4, int Color, int FillFlag ) ;											// 四角形の描画
-extern	int			NS_DrawPixel(      int x, int y,                                                   int Color ) ;														// 点を描画する
+// 図形描画関数
+extern	int			NS_DrawLine(       int x1, int y1, int x2, int y2,                                 unsigned int Color, int Thickness = 1 ) ;		// 線を描画する
+extern	int			NS_DrawBox(        int x1, int y1, int x2, int y2,                                 unsigned int Color, int FillFlag ) ;			// 四角形の描画する
+extern	int			NS_DrawFillBox(    int x1, int y1, int x2, int y2,                                 unsigned int Color ) ;							// 中身を塗りつぶす四角形を描画する
+extern	int			NS_DrawLineBox(    int x1, int y1, int x2, int y2,                                 unsigned int Color ) ;							// 枠だけの四角形の描画 する
+extern	int			NS_DrawCircle(     int x, int y, int r,                                            unsigned int Color, int FillFlag = TRUE, int LineThickness = 1 ) ;	// 円を描画する
+extern	int			NS_DrawOval(       int x, int y, int rx, int ry,                                   unsigned int Color, int FillFlag,        int LineThickness = 1 ) ;	// 楕円を描画する
+extern	int			NS_DrawTriangle(   int x1, int y1, int x2, int y2, int x3, int y3,                 unsigned int Color, int FillFlag ) ;			// 三角形を描画する
+extern	int			NS_DrawQuadrangle( int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4, unsigned int Color, int FillFlag ) ;			// 四角形を描画する
+extern	int			NS_DrawRoundRect(	int x1, int y1, int x2, int y2, int rx, int ry,                 unsigned int Color, int FillFlag ) ;			// 角の丸い四角形を描画する
+extern 	int			NS_DrawPixel(      int x, int y,                                                   unsigned int Color ) ;							// 点を描画する
 
-extern	int			NS_Paint(			int x, int y, int FillColor, int BoundaryColor = -1 ) ;																				// 指定点から境界色があるところまで塗りつぶす(境界色を -1 にすると指定点の色の領域を塗りつぶす)
+#if defined( DX_GCC_COMPILE ) || defined( __ANDROID )
+extern	int			NS_Paint(			int x, int y, unsigned int FillColor, ULONGLONG BoundaryColor = 0xffffffffffffffffULL ) ;						// 指定点から境界色があるところまで塗りつぶす(境界色を -1 にすると指定点の色の領域を塗りつぶす)
+#else // defined( DX_GCC_COMPILE ) || defined( __ANDROID )
+extern	int			NS_Paint(			int x, int y, unsigned int FillColor, ULONGLONG BoundaryColor = 0xffffffffffffffff ) ;							// 指定点から境界色があるところまで塗りつぶす(境界色を -1 にすると指定点の色の領域を塗りつぶす)
+#endif // defined( DX_GCC_COMPILE ) || defined( __ANDROID )
 
-extern	int			NS_DrawPixelSet(   const POINTDATA *PointData, int Num ) ;																									// 点の集合を描く
-extern	int			NS_DrawLineSet(    const LINEDATA *LineData,   int Num ) ;																									// 線の集合を描く
+extern 	int			NS_DrawPixelSet(   const POINTDATA *PointData, int Num ) ;																	// 点の集合を描画する
+extern	int			NS_DrawLineSet(    const LINEDATA *LineData,   int Num ) ;																	// 線の集合を描画する
 
-extern	int			NS_DrawPixel3D(    VECTOR Pos,                                                            int Color ) ;												// ３Ｄの点を描画する
-extern	int			NS_DrawLine3D(     VECTOR Pos1, VECTOR Pos2,                                              int Color ) ;												// ３Ｄの線分を描画する
-extern	int			NS_DrawTriangle3D( VECTOR Pos1, VECTOR Pos2, VECTOR Pos3,                                 int Color, int FillFlag ) ;									// ３Ｄの三角形を描画する
-extern	int			NS_DrawCube3D(     VECTOR Pos1, VECTOR Pos2,                             int DifColor, int SpcColor, int FillFlag ) ;									// ３Ｄの立方体を描画する
-extern	int			NS_DrawSphere3D(   VECTOR CenterPos,                float r, int DivNum, int DifColor, int SpcColor, int FillFlag ) ;									// ３Ｄの球体を描画する
-extern	int			NS_DrawCapsule3D(  VECTOR Pos1, VECTOR Pos2,        float r, int DivNum, int DifColor, int SpcColor, int FillFlag ) ;									// 绘制3D的Capsule
-extern	int			NS_DrawCone3D(     VECTOR TopPos, VECTOR BottomPos, float r, int DivNum, int DifColor, int SpcColor, int FillFlag ) ;									// ３Ｄの円錐を描画する
+extern	int			NS_DrawPixel3D(     VECTOR   Pos,                                                                 unsigned int Color ) ;						// ３Ｄの点を描画する
+extern	int			NS_DrawPixel3DD(    VECTOR_D Pos,                                                                 unsigned int Color ) ;						// ３Ｄの点を描画する
+extern	int			NS_DrawLine3D(      VECTOR   Pos1,   VECTOR   Pos2,                                               unsigned int Color ) ;						// ３Ｄの線分を描画する
+extern	int			NS_DrawLine3DD(     VECTOR_D Pos1,   VECTOR_D Pos2,                                               unsigned int Color ) ;						// ３Ｄの線分を描画する
+extern	int			NS_DrawTriangle3D(  VECTOR   Pos1,   VECTOR   Pos2, VECTOR   Pos3,                                unsigned int Color, int FillFlag ) ;		// ３Ｄの三角形を描画する
+extern	int			NS_DrawTriangle3DD( VECTOR_D Pos1,   VECTOR_D Pos2, VECTOR_D Pos3,                                unsigned int Color, int FillFlag ) ;		// ３Ｄの三角形を描画する
+extern	int			NS_DrawCube3D(      VECTOR   Pos1,   VECTOR   Pos2,                            unsigned int DifColor, unsigned int SpcColor, int FillFlag ) ;		// ３Ｄの立方体を描画する
+extern	int			NS_DrawCube3DD(     VECTOR_D Pos1,   VECTOR_D Pos2,                            unsigned int DifColor, unsigned int SpcColor, int FillFlag ) ;		// ３Ｄの立方体を描画する
+extern	int			NS_DrawSphere3D(    VECTOR   CenterPos,                  float  r, int DivNum, unsigned int DifColor, unsigned int SpcColor, int FillFlag ) ;		// ３Ｄの球体を描画する
+extern	int			NS_DrawSphere3DD(   VECTOR_D CenterPos,                  double r, int DivNum, unsigned int DifColor, unsigned int SpcColor, int FillFlag ) ;		// ３Ｄの球体を描画する
+extern	int			NS_DrawCapsule3D(   VECTOR   Pos1,   VECTOR   Pos2,      float  r, int DivNum, unsigned int DifColor, unsigned int SpcColor, int FillFlag ) ;		// ３Ｄのカプセルを描画する
+extern	int			NS_DrawCapsule3DD(  VECTOR_D Pos1,   VECTOR_D Pos2,      double r, int DivNum, unsigned int DifColor, unsigned int SpcColor, int FillFlag ) ;		// ３Ｄのカプセルを描画する
+extern	int			NS_DrawCone3D(      VECTOR   TopPos, VECTOR   BottomPos, float  r, int DivNum, unsigned int DifColor, unsigned int SpcColor, int FillFlag ) ;		// ３Ｄの円錐を描画する
+extern	int			NS_DrawCone3DD(     VECTOR_D TopPos, VECTOR_D BottomPos, double r, int DivNum, unsigned int DifColor, unsigned int SpcColor, int FillFlag ) ;		// ３Ｄの円錐を描画する
 
-// 图像绘制函数
+// 画像描画関数
 extern	int			NS_LoadGraphScreen(          int x, int y, const TCHAR *GraphName, int TransFlag ) ;								// ＢＭＰファイルを読みこんで画面に描画する
 
 extern	int			NS_DrawGraph(                int x, int y,                                                                 int GrHandle, int TransFlag ) ;										// グラフィックの描画
@@ -995,12 +1040,14 @@ extern	int			NS_DrawRectExtendGraph(      int DestX1, int DestY1, int DestX2, in
 extern	int			NS_DrawRectRotaGraph(        int x, int y, int SrcX, int SrcY, int Width, int Height, double ExtRate, double Angle,                                   int GraphHandle, int TransFlag, int TurnFlag ) ; 
 extern	int			NS_DrawRectRotaGraph2(       int x, int y, int SrcX, int SrcY, int Width, int Height, int cx, int cy, double ExtRate,  double Angle,                  int GraphHandle, int TransFlag, int TurnFlag ) ; 
 extern	int			NS_DrawRectRotaGraph3(       int x, int y, int SrcX, int SrcY, int Width, int Height, int cx, int cy, double ExtRateX, double ExtRateY, double Angle, int GraphHandle, int TransFlag, int TurnFlag ) ; 
+extern	int			NS_DrawRectModiGraph(        int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4, int SrcX, int SrcY, int Width, int Height,               int GraphHandle, int TransFlag ) ;							// 画像の指定矩形部分のみを自由変形描画
 
 extern	int			NS_DrawRectGraphF(           float DestX,  float DestY,                              int SrcX, int SrcY, int    Width, int    Height,                           int GraphHandle, int TransFlag, int TurnFlag ) ;	// グラフィックの指定矩形部分のみを描画
 extern	int			NS_DrawRectExtendGraphF(     float DestX1, float DestY1, float DestX2, float DestY2, int SrcX, int SrcY, int SrcWidth, int SrcHeight,                           int GraphHandle, int TransFlag ) ;					// グラフィックの指定矩形部分のみを拡大描画
 extern	int			NS_DrawRectRotaGraphF(       float x, float y, int SrcX, int SrcY, int Width, int Height,                       double ExtRate,                   double Angle, int GraphHandle, int TransFlag, int TurnFlag ) ; 
 extern	int			NS_DrawRectRotaGraph2F(      float x, float y, int SrcX, int SrcY, int Width, int Height, float cxf, float cyf, double ExtRate,                   double Angle, int GraphHandle, int TransFlag, int TurnFlag ) ; 
 extern	int			NS_DrawRectRotaGraph3F(      float x, float y, int SrcX, int SrcY, int Width, int Height, float cxf, float cyf, double ExtRateX, double ExtRateY, double Angle, int GraphHandle, int TransFlag, int TurnFlag ) ; 
+extern	int			NS_DrawRectModiGraphF(       float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, int SrcX, int SrcY, int Width, int Height,         int GraphHandle, int TransFlag ) ;					// 画像の指定矩形部分のみを自由変形描画( 座標指定が float 版 )
 
 extern	int			NS_DrawBlendGraph(           int x, int y, int GrHandle, int TransFlag,                 int BlendGraph, int BorderParam, int BorderRange ) ;									// ブレンド画像と合成して画像を描画する
 extern	int			NS_DrawBlendGraphPos(        int x, int y, int GrHandle, int TransFlag, int bx, int by, int BlendGraph, int BorderParam, int BorderRange ) ;									// ブレンド画像と合成して画像を描画する( ブレンド画像の起点座標を指定する版 )
@@ -1016,6 +1063,9 @@ extern	int			NS_DrawRotaGraph3ToZBuffer(  int x, int y, int cx, int cy, double E
 extern	int			NS_DrawModiGraphToZBuffer(   int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4,               int GrHandle, int WriteZMode /* DX_ZWRITE_MASK 等 */ ) ;							// Ｚバッファに対して画像の自由変形描画
 extern	int			NS_DrawBoxToZBuffer(         int x1, int y1, int x2, int y2,                                               int FillFlag, int WriteZMode /* DX_ZWRITE_MASK 等 */ ) ;							// Ｚバッファに対して矩形の描画を行う
 extern	int			NS_DrawCircleToZBuffer(      int x, int y, int r,                                                          int FillFlag, int WriteZMode /* DX_ZWRITE_MASK 等 */ ) ;							// Ｚバッファに対して円の描画を行う
+extern	int			NS_DrawTriangleToZBuffer(    int x1, int y1, int x2, int y2, int x3, int y3,                               int FillFlag, int WriteZMode /* DX_ZWRITE_MASK 等 */ ) ;							// Ｚバッファに対して三角形を描画する
+extern	int			NS_DrawQuadrangleToZBuffer(  int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4,               int FillFlag, int WriteZMode /* DX_ZWRITE_MASK 等 */ ) ;							// Ｚバッファに対して四角形を描画する
+extern	int			NS_DrawRoundRectToZBuffer(   int x1, int y1, int x2, int y2, int rx, int ry,                               int FillFlag, int WriteZMode /* DX_ZWRITE_MASK 等 */ ) ;							// Ｚバッファに対して角の丸い四角形を描画する
 
 extern	int			NS_DrawPolygon(                             const VERTEX    *Vertex, int PolygonNum,                                                                                                    int GrHandle, int TransFlag, int UVScaling = FALSE ) ;		// ２Ｄポリゴンを描画する( Vertex:三角形を形成する頂点配列の先頭アドレス( 頂点の数はポリゴンの数×３ )  PolygonNum:描画するポリゴンの数  GrHandle:使用するグラフィックハンドル  TransFlag:透過色処理を行うかどうか( TRUE:行う  FALSE:行わない )  UVScaling:基本FALSEでOK )
 extern	int			NS_DrawPolygon2D(                           const VERTEX2D  *Vertex, int PolygonNum,                                                                                                    int GrHandle, int TransFlag ) ;							// ２Ｄポリゴンを描画する
@@ -1047,7 +1097,7 @@ extern	int			NS_DrawModiBillboard3D(                     VECTOR Pos, float x1, f
 extern	int			NS_DrawBillboard3D(                         VECTOR Pos, float cx, float cy, float Size, float Angle,                                       int GrHandle, int TransFlag, int TurnFlag = FALSE ) ;		// ３Ｄ空間上にグラフィックを描画
 
 
-// 绘制设定相关函数
+// 描画設定関係関数
 extern	int			NS_SetDrawMode(						int DrawMode ) ;												// 描画モードをセットする
 extern	int			NS_GetDrawMode(						void ) ;														// 描画モードを取得する
 extern	int			NS_SetDrawBlendMode(					int BlendMode, int BlendParam ) ;								// 描画ブレンドモードをセットする
@@ -1062,6 +1112,7 @@ extern	int			NS_SetDrawBright(						int RedBright, int GreenBright, int BlueBrig
 extern	int			NS_GetDrawBright(						int *Red, int *Green, int *Blue ) ;								// 描画輝度を取得する
 extern	int			NS_SetIgnoreDrawGraphColor(			int EnableFlag ) ;												// 描画する画像の色成分を無視するかどうかを指定する( EnableFlag:この機能を使うかどうか( TRUE:使う  FALSE:使わない ) )
 extern	int			NS_SetMaxAnisotropy(					int MaxAnisotropy ) ;											// 最大異方性の値をセットする
+extern	int			NS_SetUseLarge3DPositionSupport(		int UseFlag ) ;													// ３Ｄ処理で使用する座標値が 10000000.0f などの大きな値になっても描画の崩れを小さく抑える処理を使用するかどうかを設定する、DxLib_Init の呼び出し前でのみ使用可能( TRUE:描画の崩れを抑える処理を使用する( CPU負荷が上がります )　　FALSE:描画の崩れを抑える処理は使用しない( デフォルト ) )
 
 extern	int			NS_SetUseZBufferFlag(					int Flag ) ;													// Ｚバッファを有効にするか、フラグをセットする( ２Ｄと３Ｄ描画に影響 )
 extern	int			NS_SetWriteZBufferFlag(				int Flag ) ;													// Ｚバッファに書き込みを行うか、フラグをセットする( ２Ｄと３Ｄ描画に影響 )
@@ -1084,26 +1135,43 @@ extern	int			NS_RunRestoreShred(					void ) ;														// グラフィック
 extern	int			NS_SetGraphicsDeviceRestoreCallbackFunction( void (* Callback )( void *Data ), void *CallbackData ) ;	// グラフィックスデバイスがロストから復帰した際に呼ばれるコールバック関数を設定する
 extern	int			NS_SetGraphicsDeviceLostCallbackFunction(    void (* Callback )( void *Data ), void *CallbackData ) ;	// グラフィックスデバイスがロストから復帰する前に呼ばれるコールバック関数を設定する
 
-extern	int			NS_SetTransformToWorld(				const MATRIX *Matrix ) ;										// ローカル座標からワールド座標に変換するための行列を設定する
-extern	int			NS_GetTransformToWorldMatrix(			      MATRIX *MatBuf ) ;										// ローカル座標からワールド座標に変換するための行列を取得する
-extern	int			NS_SetTransformToView(					const MATRIX *Matrix ) ;										// ワールド座標からビュー座標に変換するための行列を設定する
-extern	int			NS_GetTransformToViewMatrix(			      MATRIX *MatBuf ) ;										// ワールド座標からビュー座標に変換するための行列を取得する
-extern	int			NS_SetTransformToProjection(			const MATRIX *Matrix ) ;										// ビュー座標からプロジェクション座標に変換するための行列を設定する
-extern	int			NS_GetTransformToProjectionMatrix(		      MATRIX *MatBuf ) ;										// ビュー座標からプロジェクション座標に変換するための行列を取得する
-extern	int			NS_SetTransformToViewport(				const MATRIX *Matrix ) ;										// ビューポート行列を設定する
-extern	int			NS_GetTransformToViewportMatrix(		      MATRIX *MatBuf ) ;										// ビューポート行列を取得する
-extern	int			NS_GetTransformToAPIViewportMatrix(	      MATRIX *MatBuf ) ;										// Direct3Dで自動適用されるビューポート行列を取得する
+extern	int			NS_SetTransformToWorld(					const MATRIX   *Matrix ) ;										// ローカル座標からワールド座標に変換するための行列を設定する
+extern	int			NS_SetTransformToWorldD(				const MATRIX_D *Matrix ) ;										// ローカル座標からワールド座標に変換するための行列を設定する
+extern	int			NS_GetTransformToWorldMatrix(			      MATRIX   *MatBuf ) ;										// ローカル座標からワールド座標に変換するための行列を取得する
+extern	int			NS_GetTransformToWorldMatrixD(			      MATRIX_D *MatBuf ) ;										// ローカル座標からワールド座標に変換するための行列を取得する
+extern	int			NS_SetTransformToView(					const MATRIX   *Matrix ) ;										// ワールド座標からビュー座標に変換するための行列を設定する
+extern	int			NS_SetTransformToViewD(					const MATRIX_D *Matrix ) ;										// ワールド座標からビュー座標に変換するための行列を設定する
+extern	int			NS_GetTransformToViewMatrix(			      MATRIX   *MatBuf ) ;										// ワールド座標からビュー座標に変換するための行列を取得する
+extern	int			NS_GetTransformToViewMatrixD(			      MATRIX_D *MatBuf ) ;										// ワールド座標からビュー座標に変換するための行列を取得する
+extern	int			NS_SetTransformToProjection(			const MATRIX   *Matrix ) ;										// ビュー座標からプロジェクション座標に変換するための行列を設定する
+extern	int			NS_SetTransformToProjectionD(			const MATRIX_D *Matrix ) ;										// ビュー座標からプロジェクション座標に変換するための行列を設定する
+extern	int			NS_GetTransformToProjectionMatrix(		      MATRIX   *MatBuf ) ;										// ビュー座標からプロジェクション座標に変換するための行列を取得する
+extern	int			NS_GetTransformToProjectionMatrixD(			  MATRIX_D *MatBuf ) ;										// ビュー座標からプロジェクション座標に変換するための行列を取得する
+extern	int			NS_SetTransformToViewport(				const MATRIX   *Matrix ) ;										// ビューポート行列を設定する
+extern	int			NS_SetTransformToViewportD(				const MATRIX_D *Matrix ) ;										// ビューポート行列を設定する
+extern	int			NS_GetTransformToViewportMatrix(	    MATRIX   *MatBuf ) ;											// ビューポート行列を取得する
+extern	int			NS_GetTransformToViewportMatrixD(	    MATRIX_D *MatBuf ) ;											// ビューポート行列を取得する
+extern	int			NS_GetTransformToAPIViewportMatrix(		MATRIX   *MatBuf ) ;											// Direct3Dで自動適用されるビューポート行列を取得する
+extern	int			NS_GetTransformToAPIViewportMatrixD(	MATRIX_D *MatBuf ) ;											// Direct3Dで自動適用されるビューポート行列を取得する
 extern	int			NS_SetDefTransformMatrix(				void ) ;														// デフォルトの変換行列を設定する
-extern	int			NS_GetTransformPosition(				VECTOR *LocalPos, float *x, float *y ) ;						// ローカル座標から画面座標を取得する
-extern	float		NS_GetBillboardPixelSize(				VECTOR WorldPos, float WorldSize ) ;							// ワールド空間上のビルボードのサイズからスクリーンに投影した場合のピクセル単位のサイズを取得する
-extern	VECTOR		NS_ConvWorldPosToViewPos(				VECTOR WorldPos ) ;												// ワールド座標をカメラ座標に変換する
-extern	VECTOR		NS_ConvWorldPosToScreenPos(			VECTOR WorldPos ) ;												// ワールド座標をスクリーン座標に変換する
-extern	FLOAT4		NS_ConvWorldPosToScreenPosPlusW(		VECTOR WorldPos ) ;												// ワールド座標をスクリーン座標に変換する、最後のＸＹＺ座標をＷで割る前の値を得る
-extern	VECTOR		NS_ConvScreenPosToWorldPos(			VECTOR ScreenPos ) ;											// スクリーン座標をワールド座標に変換する
-extern	VECTOR		NS_ConvScreenPosToWorldPos_ZLinear(	VECTOR ScreenPos ) ;											// スクリーン座標をワールド座標に変換する( Z座標が線形 )
+extern	int			NS_GetTransformPosition(				VECTOR   *LocalPos, float  *x, float  *y ) ;					// ローカル座標からスクリーン座標を取得する
+extern	int			NS_GetTransformPositionD(				VECTOR_D *LocalPos, double *x, double *y ) ;					// ローカル座標からスクリーン座標を取得する
+extern	float		NS_GetBillboardPixelSize(				VECTOR   WorldPos, float  WorldSize ) ;							// ワールド空間上のビルボードのサイズからスクリーンに投影した場合のピクセル単位のサイズを取得する
+extern	double		NS_GetBillboardPixelSizeD(				VECTOR_D WorldPos, double WorldSize ) ;							// ワールド空間上のビルボードのサイズからスクリーンに投影した場合のピクセル単位のサイズを取得する
+extern	VECTOR		NS_ConvWorldPosToViewPos(				VECTOR   WorldPos ) ;											// ワールド座標をビュー座標に変換する
+extern	VECTOR_D	NS_ConvWorldPosToViewPosD(				VECTOR_D WorldPos ) ;											// ワールド座標をビュー座標に変換する
+extern	VECTOR		NS_ConvWorldPosToScreenPos(				VECTOR   WorldPos ) ;											// ワールド座標をスクリーン座標に変換する
+extern	VECTOR_D	NS_ConvWorldPosToScreenPosD(			VECTOR_D WorldPos ) ;											// ワールド座標をスクリーン座標に変換する
+extern	FLOAT4		NS_ConvWorldPosToScreenPosPlusW(		VECTOR   WorldPos ) ;											// ワールド座標をスクリーン座標に変換する、最後のＸＹＺ座標をＷで割る前の値を得る
+extern	DOUBLE4		NS_ConvWorldPosToScreenPosPlusWD(		VECTOR_D WorldPos ) ;											// ワールド座標をスクリーン座標に変換する、最後のＸＹＺ座標をＷで割る前の値を得る
+extern	VECTOR		NS_ConvScreenPosToWorldPos(				VECTOR   ScreenPos ) ;											// スクリーン座標をワールド座標に変換する
+extern	VECTOR_D	NS_ConvScreenPosToWorldPosD(			VECTOR_D ScreenPos ) ;											// スクリーン座標をワールド座標に変換する
+extern	VECTOR		NS_ConvScreenPosToWorldPos_ZLinear(		VECTOR   ScreenPos ) ;											// スクリーン座標をワールド座標に変換する( Z座標が線形 )
+extern	VECTOR_D	NS_ConvScreenPosToWorldPos_ZLinearD(	VECTOR_D ScreenPos ) ;											// スクリーン座標をワールド座標に変換する( Z座標が線形 )
 
 extern	int			NS_SetUseCullingFlag(					int Flag ) ;													// SetUseBackCulling の旧名称
 extern	int			NS_SetUseBackCulling(					int Flag /* DX_CULLING_LEFT 等 */ ) ;							// ポリゴンカリングの有効、無効をセットする
+extern	int			NS_GetUseBackCulling(					void ) ;														// ポリゴンカリングモードを取得する
 
 extern	int			NS_SetTextureAddressMode(				int Mode /* DX_TEXADDRESS_WRAP 等 */ , int Stage = -1 ) ;		// テクスチャアドレスモードを設定する
 extern	int			NS_SetTextureAddressModeUV(			int ModeU, int ModeV, int Stage = -1 ) ;						// テクスチャアドレスモードを設定する
@@ -1112,14 +1180,20 @@ extern	int			NS_SetTextureAddressTransformMatrix(	MATRIX Matrix ) ;												/
 extern	int			NS_ResetTextureAddressTransform(		void ) ;														// テクスチャ座標変換パラメータをリセットする
 
 extern	int			NS_SetFogEnable(						int Flag ) ;													// フォグを有効にするかどうかを設定する( TRUE:有効  FALSE:無効 )
+extern	int			NS_GetFogEnable(						void ) ;														// フォグが有効かどうかを取得する( TRUE:有効  FALSE:無効 )
 extern	int			NS_SetFogMode(							int Mode /* DX_FOGMODE_NONE 等 */ ) ;							// フォグモードを設定する
-extern	int			NS_SetFogColor(						int r, int g, int b ) ;											// フォグカラーを変更する
-extern	int			NS_SetFogStartEnd(						float start, float end ) ;										// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
+extern	int			NS_GetFogMode(							void ) ;														// フォグモードを取得する
+extern	int			NS_SetFogColor(						int  r, int  g, int  b ) ;										// フォグカラーを設定する
+extern	int			NS_GetFogColor(						int *r, int *g, int *b ) ;										// フォグカラーを取得する
+extern	int			NS_SetFogStartEnd(						float  start, float  end ) ;									// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
+extern	int			NS_GetFogStartEnd(						float *start, float *end ) ;									// フォグが始まる距離と終了する距離を取得する( 0.0f ～ 1.0f )
 extern	int			NS_SetFogDensity(						float density ) ;												// フォグの密度を設定する( 0.0f ～ 1.0f )
+extern	float		NS_GetFogDensity(						void ) ;														// フォグの密度を取得する( 0.0f ～ 1.0f )
 
 
 // 画面関係関数
-extern	int				NS_GetPixel(									int x, int y ) ;																// 指定座標の色を取得する
+extern	unsigned int	NS_GetPixel(									int x, int y ) ;																// 指定座標の色を取得する
+extern	int				NS_SetBackgroundColor(						int Red, int Green, int Blue ) ;													// メインウインドウのバックグラウンドカラーを設定する
 extern	int				NS_GetDrawScreenGraph(							                             int x1, int y1, int x2, int y2,                       int GrHandle, int UseClientFlag = TRUE ) ;	// 描画先の画面から指定領域の画像情報をグラフィックハンドルに転送する
 extern	int				NS_BltDrawValidGraph(							int TargetDrawValidGrHandle, int x1, int y1, int x2, int y2, int DestX, int DestY, int DestGrHandle ) ;							// 描画可能グラフィックハンドルから指定領域の画像情報をグラフィックハンドルに転送する
 extern	int				NS_ScreenFlip(									void ) ;																		// 裏画面と表画面の内容を交換する
@@ -1135,8 +1209,11 @@ extern	int				NS_SetDrawZBuffer(								int DrawScreen ) ;																// 描
 #ifdef __WINDOWS__
 extern	int				NS_BltBackScreenToWindow(						HWND Window, int ClientX, int ClientY ) ;										// 裏画面の内容を指定のウインドウに転送する
 extern	int				NS_BltRectBackScreenToWindow(					HWND Window, RECT BackScreenRect, RECT WindowClientRect ) ;						// 裏画面の指定の領域をウインドウのクライアント領域の指定の領域に転送する
+extern	int				NS_SetScreenFlipTargetWindow(					HWND TargetWindow ) ;															// ScreenFlip で画像を転送する先のウインドウを設定する( NULL を指定すると設定解除 )
 #endif // __WINDOWS__
 extern	int				NS_SetGraphMode(								int ScreenSizeX, int ScreenSizeY, int ColorBitDepth, int RefreshRate = 60 ) ;	// 画面モードを設定する
+extern	int				NS_SetFullScreenResolutionMode(					int ResolutionMode /* DX_FSRESOLUTIONMODE_NATIVE 等 */ ) ;						// フルスクリーン解像度モードを設定する
+extern	int				NS_SetFullScreenScalingMode(					int ScalingMode /* DX_FSSCALINGMODE_NEAREST 等 */ ) ;							// フルスクリーンモード時の画面拡大モードを設定する
 extern	int				NS_SetEmulation320x240(						int Flag ) ;																	// ６４０ｘ４８０の画面で３２０ｘ２４０の画面解像度にするかどうかのフラグをセットする、６４０ｘ４８０以外の解像度では無効( TRUE:有効  FALSE:無効 )
 extern	int				NS_SetZBufferSize(								int ZBufferSizeX, int ZBufferSizeY ) ;											// 画面用のＺバッファのサイズを設定する
 extern	int				NS_SetZBufferBitDepth(							int BitDepth ) ;																// 画面用のＺバッファのビット深度を設定する( 16 or 24 or 32 )
@@ -1152,11 +1229,13 @@ extern	int				NS_GetColorBitDepth(							void ) ;																		// 画面の�
 extern	int				NS_GetChangeDisplayFlag(						void ) ;																		// 画面モードが変更されているかどうかのフラグを取得する
 extern	int				NS_GetVideoMemorySize(							int *AllSize, int *FreeSize ) ;													// ビデオメモリの容量を得る
 extern	int				NS_GetRefreshRate(								void ) ;																		// 現在の画面のリフレッシュレートを取得する
-extern	int				NS_GetDisplayModeNum(							void ) ;																		// 変更可能なディスプレイモードの数を取得する
-extern	DISPLAYMODEDATA	NS_GetDisplayMode(								int ModeIndex ) ;																// 変更可能なディスプレイモードの情報を取得する( ModeIndex は 0 ～ GetDisplayModeNum の戻り値-1 )
+extern	int				NS_GetDisplayNum(								void ) ;																		// ディスプレイの数を取得
+extern	int				NS_GetDisplayModeNum(							int DisplayIndex = 0 ) ;														// 変更可能なディスプレイモードの数を取得する
+extern	DISPLAYMODEDATA	NS_GetDisplayMode(								int ModeIndex, int DisplayIndex = 0 ) ;											// 変更可能なディスプレイモードの情報を取得する( ModeIndex は 0 ～ GetDisplayModeNum の戻り値-1 )
+extern	int				NS_GetDisplayMaxResolution(					int *SizeX, int *SizeY, int DisplayIndex = 0 ) ;								// ディスプレイの最大解像度を取得する
 extern	const COLORDATA* NS_GetDispColorData(							void ) ;																		// ディスプレーのカラーデータポインタを得る
 extern	int				NS_GetMultiDrawScreenNum(						void ) ;																		// 同時に描画を行うことができる画面の数を取得する
-extern	int				NS_SetDisplayRefreshRate(						int RefreshRate ) ;																// ( 現在効果なし )フルスクリーン時の画面のリフレッシュレートを変更する
+extern	int				NS_GetDrawFloatCoordType(						void ) ;																		// DrawGraphF 等の浮動小数点値で座標を指定する関数における座標タイプを取得する( 戻り値 : DX_DRAWFLOATCOORDTYPE_DIRECT3D9 など )
 
 // その他設定関係関数
 extern	int			NS_SetUseNormalDrawShader(						int Flag ) ;									// 通常描画にプログラマブルシェーダーを使用するかどうかを設定する( TRUE:使用する( デフォルト )  FALSE:使用しない )
@@ -1168,10 +1247,16 @@ extern	int			NS_SetScreenMemToVramFlag(						int Flag ) ;									// ( 同効果
 extern	int			NS_GetScreenMemToSystemMemFlag(				void ) ;										// 画面グラフィックデータがシステムメモリに存在するかフラグの取得
 
 extern	int			NS_SetUseBasicGraphDraw3DDeviceMethodFlag(		int Flag ) ;									// 単純図形の描画に３Ｄデバイスの機能を使用するかどうかのフラグをセットする
+extern	int			NS_SetUseDisplayIndex(							int Index ) ;									// ＤＸライブラリのウインドウを表示するディスプレイデバイスを設定する
 extern	int			NS_SetWindowDrawRect(							const RECT *DrawRect ) ;								// 通常使用しない
 extern	int			NS_RestoreGraphSystem(							void ) ;										// ＤＸライブラリのグラフィック関連の復帰処理を行う
 extern	int			NS_SetAeroDisableFlag(							int Flag ) ;									// Vista以降の Windows Aero を無効にするかどうかをセットする、TRUE:無効にする  FALSE:有効にする( DxLib_Init の前に呼ぶ必要があります )
 extern	int			NS_SetUseDirect3D9Ex(							int Flag ) ;									// Vista以降の環境で Direct3D9Ex を使用するかどうかを設定する( TRUE:使用する( デフォルト )  FALSE:使用しない )( DxLib_Init の前に呼ぶ必要があります )
+extern	int			NS_SetUseDirect3D11(							int Flag ) ;									// Direct3D11 を使用するかどうかを設定する( TRUE:使用する  FALSE:使用しない )
+extern	int			NS_SetUseDirect3D11MinFeatureLevel(			int Level /* DX_DIRECT3D_11_FEATURE_LEVEL_10_0 など */ ) ;		// Direct3D11 で使用する最低機能レベルを指定する関数です、尚、DX_DIRECT3D_11_FEATURE_LEVEL_11_0 より低い機能レベルでの正常な動作は保証しません( デフォルトは DX_DIRECT3D_11_FEATURE_LEVEL_11_0 )
+extern	int			NS_SetUseDirect3DVersion(						int Version /* DX_DIRECT3D_9 など */ ) ;		// 使用する Direct3D のバージョンを設定する、DxLib_Init 呼び出しの前でのみ使用可能　
+extern	int			NS_GetUseDirect3DVersion(						void ) ;										// 使用している Direct3D のバージョンを取得する( DX_DIRECT3D_9 など )
+extern	int			NS_GetUseDirect3D11FeatureLevel(				void ) ;										// 使用している Direct3D11 の FeatureLevel ( DX_DIRECT3D_11_FEATURE_LEVEL_9_1 等 )を取得する( 戻り値　-1：エラー　-1以外：Feature Level )
 extern	int			NS_SetUseHardwareVertexProcessing(				int Flag ) ;									// ハードウエアの頂点演算処理機能を使用するかどうかを設定する
 extern	int			NS_SetUsePixelLighting(						int Flag ) ;									// ピクセル単位でライティングを行うかどうかを設定する、要 ShaderModel 3.0( TRUE:ピクセル単位のライティングを行う  FALSE:頂点単位のライティングを行う( デフォルト ) )
 extern	int			NS_SetMultiThreadFlag(							int Flag ) ;									// DirectDraw や Direct3D の協調レベルをマルチスレッド対応にするかどうかをセットする
@@ -1183,14 +1268,14 @@ extern	int			NS_SetBasicBlendFlag(							int Flag ) ;									// ( 現在効果�
 #ifdef __WINDOWS__
 extern	int			NS_SetUseDirectDrawFlag(						int Flag ) ;									// ( 同効果のSetUseSoftwareRenderModeFlag を使用して下さい )ＤｉｒｅｃｔＤｒａｗを使用するかどうかをセットする
 extern	int			NS_SetUseGDIFlag(								int Flag ) ;									// ＧＤＩ描画を必要とするか、を変更する
-extern	int			NS_SetDDrawUseGuid(							const GUID *Guid ) ;									// ＤｉｒｅｃｔＤｒａｗが使用するＧＵＤＩを設定する
+extern	int			NS_SetDDrawUseGuid(							const GUID *Guid ) ;									// ＤｉｒｅｃｔＤｒａｗが使用するＧＵＩＤを設定する
 extern	const void*		NS_GetUseDDrawObj(								void ) ;										// 現在使用しているＤｉｒｅｃｔＤｒａｗオブジェクトのアドレスを取得する( 戻り値を IDirectDraw7 * にキャストして下さい )
 extern	const GUID*		NS_GetDirectDrawDeviceGUID(					int Number ) ;									// 有効な DirectDraw デバイスの GUID を取得する
 extern	int			NS_GetDirectDrawDeviceDescription(				int Number, char *StringBuffer ) ;				// 有効な DirectDraw デバイスの名前を得る
 extern	int			NS_GetDirectDrawDeviceNum(						void ) ;										// 有効な DirectDraw デバイスの数を取得する
 extern	int			NS_GetUseGDIFlag(								void ) ;										// ＧＤＩ描画を必要とするかの状態を取得する
-extern	const DX_DIRECT3DDEVICE9* NS_GetUseDirect3DDevice9(				void ) ;										// 使用中のＤｉｒｅｃｔ３ＤＤｅｖｉｃｅ９オブジェクトを得る
-extern	const DX_DIRECT3DSURFACE9 *NS_GetUseDirect3D9BackBufferSurface(	void ) ;										// 使用中のバックバッファのDirect3DSurface9オブジェクトを取得する
+extern	const void* NS_GetUseDirect3DDevice9(					void ) ;										// 使用中のＤｉｒｅｃｔ３ＤＤｅｖｉｃｅ９オブジェクトを得る
+extern	const void* NS_GetUseDirect3D9BackBufferSurface(		void ) ;										// 使用中のバックバッファのDirect3DSurface9オブジェクトを取得する
 #endif // __WINDOWS__
 extern	int			NS_RefreshDxLibDirect3DSetting(				void ) ;										// ＤＸライブラリのＤｉｒｅｃｔ３Ｄ設定をしなおす( 特殊用途 )
 extern	int			NS_RenderVertex(								void ) ;										// 頂点バッファに溜まった頂点データを吐き出す( 特殊用途 )
@@ -1291,6 +1376,14 @@ extern	int			NS_DrawPrimitive3DToShader_UseVertexBuffer2(        int VertexBufHa
 extern	int			NS_DrawPrimitiveIndexed3DToShader_UseVertexBuffer(  int VertexBufHandle, int IndexBufHandle, int PrimitiveType /* DX_PRIMTYPE_TRIANGLELIST 等 */ ) ;										// シェーダーを使って３Ｄプリミティブを描画する( 頂点バッファとインデックスバッファ使用版 )
 extern	int			NS_DrawPrimitiveIndexed3DToShader_UseVertexBuffer2( int VertexBufHandle, int IndexBufHandle, int PrimitiveType /* DX_PRIMTYPE_TRIANGLELIST 等 */, int BaseVertex, int StartVertex, int UseVertexNum, int StartIndex, int UseIndexNum ) ;	// シェーダーを使って３Ｄプリミティブを描画する( 頂点バッファとインデックスバッファ使用版 )
 
+// シェーダー用定数バッファ関係関数
+extern	int			NS_InitShaderConstantBuffer(		void ) ;																					// 全てのシェーダー用定数バッファハンドルを削除する
+extern	int			NS_CreateShaderConstantBuffer(		int BufferSize ) ;																			// シェーダー用定数バッファハンドルを初期化する
+extern	int			NS_DeleteShaderConstantBuffer(		int SConstBufHandle ) ;																		// シェーダー用定数バッファハンドルの後始末
+extern	void *		NS_GetBufferShaderConstantBuffer(	int SConstBufHandle ) ;																		// シェーダー用定数バッファハンドルの定数バッファのアドレスを取得する
+extern	int			NS_UpdateShaderConstantBuffer(		int SConstBufHandle ) ;																		// シェーダー用定数バッファハンドルの定数バッファへの変更を適用する
+extern	int			NS_SetShaderConstantBuffer(		int SConstBufHandle, int TargetShader /* DX_SHADERTYPE_VERTEX など */ , int Slot ) ;		// シェーダー用定数バッファハンドルの定数バッファを指定のシェーダーの指定のスロットにセットする
+
 // フィルター関係関数
 #ifndef DX_NON_FILTER
 extern	int			NS_GraphFilter(        int    GrHandle,                                                                                     int FilterType /* DX_GRAPH_FILTER_GAUSS 等 */ , ... ) ;		// 画像にフィルター処理を行う
@@ -1331,13 +1424,14 @@ extern	int			NS_GraphBlendRectBlt( int SrcGrHandle, int BlendGrHandle, int DestG
 #endif // DX_NON_FILTER
 
 #ifndef DX_NON_MOVIE
-// MovieGraph相关函数
+// ムービーグラフィック関係関数
 extern	int			NS_PlayMovie(						const TCHAR *FileName, int ExRate, int PlayType ) ;						// 動画ファイルの再生
 extern	int			NS_OpenMovieToGraph(				const TCHAR *FileName, int FullColor = TRUE ) ;							// ムービーを開く
 extern	int			NS_PlayMovieToGraph(				int GraphHandle, int PlayType = DX_PLAYTYPE_BACK , int SysPlay = 0 ) ;	// ムービーグラフィックに含まれるムービーの再生を開始する
 extern	int			NS_PauseMovieToGraph(				int GraphHandle, int SysPause = 0 ) ;									// ムービーグラフィックに含まれるムービーの再生をストップする
 extern	int			NS_AddMovieFrameToGraph(			int GraphHandle, unsigned int FrameNum ) ;								// ムービーのフレームを進める、戻すことは出来ない( ムービーが停止状態で、且つ Ogg Theora のみ有効 )
 extern	int			NS_SeekMovieToGraph(				int GraphHandle, int Time ) ;											// ムービーの再生位置を設定する(ミリ秒単位)
+extern	int			NS_SetPlaySpeedRateMovieToGraph(		int GraphHandle, double SpeedRate ) ;									// 動画ファイルの再生速度を設定する( 1.0 = 等倍速  2.0 = ２倍速 )、一部のファイルフォーマットのみで有効な機能です
 extern	int			NS_GetMovieStateToGraph(			int GraphHandle ) ;														// ムービーの再生状態を得る
 extern	int			NS_SetMovieVolumeToGraph(			int Volume, int GraphHandle ) ;											// ムービーのボリュームをセットする(0～10000)
 extern	int			NS_ChangeMovieVolumeToGraph(		int Volume, int GraphHandle ) ;											// ムービーのボリュームをセットする(0～255)
@@ -1350,43 +1444,75 @@ extern	LONGLONG	NS_GetOneFrameTimeMovieToGraph(	int GraphHandle ) ;													
 extern	int			NS_GetLastUpdateTimeMovieToGraph(	int GraphHandle ) ;														// ムービーのイメージを最後に更新した時間を得る(ミリ秒単位)
 extern	int			NS_SetMovieRightImageAlphaFlag(	int Flag ) ;															// 読み込む動画ファイル映像の右半分の赤成分をα情報として扱うかどうかをセットする( TRUE:α情報として扱う  FALSE:α情報として扱わない( デフォルト ) )
 extern	int			NS_SetMovieColorA8R8G8B8Flag(		int Flag ) ;															// 読み込む動画ファイルが32bitカラーだった場合、A8R8G8B8 形式として扱うかどうかをセットする、32bitカラーではない動画ファイルに対しては無効( Flag  TRUE:A8R8G8B8として扱う  FALSE:X8R8G8B8として扱う( デフォルト ) )
+extern	int			NS_SetMovieUseYUVFormatSurfaceFlag(	int Flag ) ;															// ＹＵＶフォーマットのサーフェスが使用できる場合はＹＵＶフォーマットのサーフェスを使用するかどうかを設定する( TRUE:使用する( デフォルト ) FALSE:ＲＧＢフォーマットのサーフェスを使用する )
 #endif
 
 // カメラ関係関数
 extern	int			NS_SetCameraNearFar(					float Near, float Far ) ;											// カメラの Nearクリップ面と Farクリップ面の距離を設定する
-extern	int			NS_SetCameraPositionAndTarget_UpVecY(  VECTOR Position, VECTOR Target ) ;									// カメラの設定をする、視点、注視点、アップベクトルはＹ軸版
-extern	int			NS_SetCameraPositionAndTargetAndUpVec( VECTOR Position, VECTOR Target, VECTOR Up ) ;						// カメラの設定をする、視点、注視点、アップベクトル指定版
-extern	int			NS_SetCameraPositionAndAngle(			VECTOR Position, float VRotate, float HRotate, float TRotate ) ;	// カメラの設定をする、垂直回転角度、水平回転角度、捻り回転角度、視点指定版
-extern	int			NS_SetCameraViewMatrix(				MATRIX ViewMatrix ) ;												// ビュー行列を直接設定する
+extern	int			NS_SetCameraNearFarD(					double Near, double Far ) ;											// カメラの Nearクリップ面と Farクリップ面の距離を設定する
+extern	int			NS_SetCameraPositionAndTarget_UpVecY(  VECTOR    Position, VECTOR   Target ) ;								// カメラの視点、注視点、アップベクトルを設定する( アップベクトルはＹ軸方向から導き出す )
+extern	int			NS_SetCameraPositionAndTarget_UpVecYD( VECTOR_D  Position, VECTOR_D Target ) ;								// カメラの視点、注視点、アップベクトルを設定する( アップベクトルはＹ軸方向から導き出す )
+extern	int			NS_SetCameraPositionAndTargetAndUpVec( VECTOR    Position, VECTOR   TargetPosition, VECTOR   UpVector ) ;	// カメラの視点、注視点、アップベクトルを設定する
+extern	int			NS_SetCameraPositionAndTargetAndUpVecD( VECTOR_D Position, VECTOR_D TargetPosition, VECTOR_D UpVector ) ;	// カメラの視点、注視点、アップベクトルを設定する
+extern	int			NS_SetCameraPositionAndAngle(			VECTOR   Position, float  VRotate, float  HRotate, float  TRotate ) ;	// カメラの視点、注視点、アップベクトルを設定する( 注視点とアップベクトルは垂直回転角度、水平回転角度、捻り回転角度から導き出す )
+extern	int			NS_SetCameraPositionAndAngleD(			VECTOR_D Position, double VRotate, double HRotate, double TRotate ) ;	// カメラの視点、注視点、アップベクトルを設定する( 注視点とアップベクトルは垂直回転角度、水平回転角度、捻り回転角度から導き出す )
+extern	int			NS_SetCameraViewMatrix(					MATRIX   ViewMatrix ) ;												// ビュー行列を直接設定する
+extern	int			NS_SetCameraViewMatrixD(				MATRIX_D ViewMatrix ) ;												// ビュー行列を直接設定する
 extern	int			NS_SetCameraScreenCenter(				float x, float y ) ;												// 画面上におけるカメラが見ている映像の中心の座標を設定する
+extern	int			NS_SetCameraScreenCenterD(				double x, double y ) ;												// 画面上におけるカメラが見ている映像の中心の座標を設定する
 
-extern	int			NS_SetupCamera_Perspective(			float Fov ) ;														// 遠近法カメラをセットアップする
-extern	int			NS_SetupCamera_Ortho(					float Size ) ;														// 正射影カメラをセットアップする
-extern	int			NS_SetupCamera_ProjectionMatrix(		MATRIX ProjectionMatrix ) ;											// 射影行列を設定する
-extern	int			NS_SetCameraDotAspect(					float DotAspect ) ;													// カメラのドットアスペクト比を設定する
+extern	int			NS_SetupCamera_Perspective(			float  Fov ) ;														// 遠近法カメラをセットアップする
+extern	int			NS_SetupCamera_PerspectiveD(			double Fov ) ;														// 遠近法カメラをセットアップする
+extern	int			NS_SetupCamera_Ortho(					float  Size ) ;														// 正射影カメラをセットアップする
+extern	int			NS_SetupCamera_OrthoD(					double Size ) ;														// 正射影カメラをセットアップする
+extern	int			NS_SetupCamera_ProjectionMatrix(		MATRIX   ProjectionMatrix ) ;										// 射影行列を直接設定する
+extern	int			NS_SetupCamera_ProjectionMatrixD(		MATRIX_D ProjectionMatrix ) ;										// 射影行列を直接設定する
+extern	int			NS_SetCameraDotAspect(					float  DotAspect ) ;												// カメラのドットアスペクト比を設定する
+extern	int			NS_SetCameraDotAspectD(				double DotAspect ) ;												// カメラのドットアスペクト比を設定する
 
-extern	int			NS_CheckCameraViewClip(				VECTOR CheckPos ) ;													// 指定の座標がカメラの視界に入っているかどうかを判定する( 戻り値 TRUE:視界に入っていない  FALSE:視界に入っている )
-extern	int			NS_CheckCameraViewClip_Dir(			VECTOR CheckPos ) ;													// 指定の座標がカメラの視界に入っているかどうかを判定する、戻り値で外れている方向も知ることができる( 戻り値 0:視界に入っている  0以外:視界に入っていない( DX_CAMERACLIP_LEFT や DX_CAMERACLIP_RIGHT が or 演算で混合されたもの、and 演算で方向を確認できる ) )
-extern	int			NS_CheckCameraViewClip_Box(			VECTOR BoxPos1, VECTOR BoxPos2 ) ;									// 二つの座標で表されるボックスがカメラの視界に入っているかどうかを判定する( 戻り値 TRUE:視界に入っていない  FALSE:視界に入っている )
+extern	int			NS_CheckCameraViewClip(				VECTOR   CheckPos ) ;													// 指定の座標がカメラの視界に入っているかどうかを判定する( 戻り値 TRUE:視界に入っていない  FALSE:視界に入っている )
+extern	int			NS_CheckCameraViewClipD(				VECTOR_D CheckPos ) ;													// 指定の座標がカメラの視界に入っているかどうかを判定する( 戻り値 TRUE:視界に入っていない  FALSE:視界に入っている )
+extern	int			NS_CheckCameraViewClip_Dir(			VECTOR   CheckPos ) ;													// 指定の座標がカメラの視界に入っているかどうかを判定する、戻り値で外れている方向も知ることができる( 戻り値 0:視界に入っている  0以外:視界に入っていない( DX_CAMERACLIP_LEFT や DX_CAMERACLIP_RIGHT が or 演算で混合されたもの、and 演算で方向を確認できる ) )
+extern	int			NS_CheckCameraViewClip_DirD(			VECTOR_D CheckPos ) ;													// 指定の座標がカメラの視界に入っているかどうかを判定する、戻り値で外れている方向も知ることができる( 戻り値 0:視界に入っている  0以外:視界に入っていない( DX_CAMERACLIP_LEFT や DX_CAMERACLIP_RIGHT が or 演算で混合されたもの、and 演算で方向を確認できる ) )
+extern	int			NS_CheckCameraViewClip_Box(			VECTOR   BoxPos1, VECTOR   BoxPos2 ) ;									// 二つの座標で表されるボックスがカメラの視界に入っているかどうかを判定する( 戻り値 TRUE:視界に入っていない  FALSE:視界に入っている )
+extern	int			NS_CheckCameraViewClip_BoxD(			VECTOR_D BoxPos1, VECTOR_D BoxPos2 ) ;									// 二つの座標で表されるボックスがカメラの視界に入っているかどうかを判定する( 戻り値 TRUE:視界に入っていない  FALSE:視界に入っている )
 
 extern	float		NS_GetCameraNear(						void ) ;															// カメラの Near クリップ面の距離を取得する
+extern	double		NS_GetCameraNearD(						void ) ;															// カメラの Near クリップ面の距離を取得する
 extern	float		NS_GetCameraFar(						void ) ;															// カメラの Far クリップ面の距離を取得する
+extern	double		NS_GetCameraFarD(						void ) ;															// カメラの Far クリップ面の距離を取得する
 
 extern	VECTOR		NS_GetCameraPosition(					void ) ;															// カメラの位置を取得する
+extern	VECTOR_D	NS_GetCameraPositionD(					void ) ;															// カメラの位置を取得する
 extern	VECTOR		NS_GetCameraTarget(					void ) ;															// カメラの注視点を取得する
-extern	VECTOR		NS_GetCameraUpVector(					void ) ;															// カメラの視線に垂直な上方向のベクトルを得る
+extern	VECTOR_D	NS_GetCameraTargetD(					void ) ;															// カメラの注視点を取得する
+extern	VECTOR		NS_GetCameraUpVector(					void ) ;															// カメラの視線に垂直な上方向のベクトルを取得する
+extern	VECTOR_D	NS_GetCameraUpVectorD(					void ) ;															// カメラの視線に垂直な上方向のベクトルを取得する
 extern	float		NS_GetCameraAngleHRotate(				void ) ;															// カメラの水平方向の向きを取得する
+extern	double		NS_GetCameraAngleHRotateD(				void ) ;															// カメラの水平方向の向きを取得する
 extern	float		NS_GetCameraAngleVRotate(				void ) ;															// カメラの垂直方向の向きを取得する
+extern	double		NS_GetCameraAngleVRotateD(				void ) ;															// カメラの垂直方向の向きを取得する
 extern	float		NS_GetCameraAngleTRotate(				void ) ;															// カメラの向きの捻り角度を取得する
+extern	double		NS_GetCameraAngleTRotateD(				void ) ;															// カメラの向きの捻り角度を取得する
 
 extern	MATRIX		NS_GetCameraViewMatrix(				void ) ;															// ビュー行列を取得する
+extern	MATRIX_D	NS_GetCameraViewMatrixD(				void ) ;															// ビュー行列を取得する
 extern	MATRIX		NS_GetCameraBillboardMatrix(			void ) ;															// ビルボード行列を取得する
+extern	MATRIX_D	NS_GetCameraBillboardMatrixD(			void ) ;															// ビルボード行列を取得する
+extern	int			NS_GetCameraScreenCenter(				float  *x, float  *y ) ;											// 画面上におけるカメラが見ている映像の中心の座標を取得する
+extern	int			NS_GetCameraScreenCenterD(				double *x, double *y ) ;											// 画面上におけるカメラが見ている映像の中心の座標を取得する
 extern	float		NS_GetCameraFov(						void ) ;															// カメラの視野角を取得する
+extern	double		NS_GetCameraFovD(						void ) ;															// カメラの視野角を取得する
 extern	float		NS_GetCameraSize(						void ) ;															// カメラの視野サイズを取得する
+extern	double		NS_GetCameraSizeD(						void ) ;															// カメラの視野サイズを取得する
 extern	MATRIX		NS_GetCameraProjectionMatrix(			void ) ;															// 射影行列を取得する
+extern	MATRIX_D	NS_GetCameraProjectionMatrixD(			void ) ;															// 射影行列を取得する
 extern	float		NS_GetCameraDotAspect(					void ) ;															// カメラのドットアスペクト比を得る
+extern	double		NS_GetCameraDotAspectD(				void ) ;															// カメラのドットアスペクト比を得る
 extern	MATRIX		NS_GetCameraViewportMatrix(			void ) ;															// ビューポート行列を取得する
+extern	MATRIX_D	NS_GetCameraViewportMatrixD(			void ) ;															// ビューポート行列を取得する
 extern	MATRIX		NS_GetCameraAPIViewportMatrix(			void ) ;															// Direct3Dで自動適用されるビューポート行列を取得する
+extern	MATRIX_D	NS_GetCameraAPIViewportMatrixD(		void ) ;															// Direct3Dで自動適用されるビューポート行列を取得する
 
 // ライト関係関数
 extern	int			NS_SetUseLighting(				int Flag ) ;																// ライティング計算機能を使用するかどうかを設定する
@@ -1416,7 +1542,7 @@ extern	VECTOR		NS_GetLightDirection(			void ) ;																	// ライトの�
 extern	VECTOR		NS_GetLightPosition(			void ) ;																	// ライトの位置を取得する
 extern	int			NS_GetLightRangeAtten(			float *Range, float *Atten0, float *Atten1, float *Atten2 )	;				// ライトの距離減衰パラメータを取得する( 有効距離、距離減衰係数０、１、２ )
 extern	int			NS_GetLightAngle(				float *OutAngle, float *InAngle ) ;											// ライトのスポットライトのパラメータを取得する( 外部コーン角度、内部コーン角度 )
-extern	int			NS_SetLightUseShadowMap(		int SmSlotIndex, int UseFlag ) ;											// デフォルトライトに SetDrawUseShadowMap で指定したシャドウマップを適用するかどうかを設定する( SmSlotIndex:シャドウマップスロット( SetDrawUseShadowMap の第一引数に設定する値 ) UseFlag:適用にするかどうかのフラグ( TRUE:適用する( デフォルト )  FALSE:適用しない ) )
+extern	int			NS_SetLightUseShadowMap(		int SmSlotIndex, int UseFlag ) ;											// デフォルトライトに SetUseShadowMap で指定したシャドウマップを適用するかどうかを設定する( SmSlotIndex:シャドウマップスロット( SetUseShadowMap の第一引数に設定する値 ) UseFlag:適用にするかどうかのフラグ( TRUE:適用する( デフォルト )  FALSE:適用しない ) )
 
 extern	int			NS_CreateDirLightHandle(       VECTOR Direction ) ;														// ディレクショナルライトハンドルを作成する
 extern	int			NS_CreateSpotLightHandle(      VECTOR Position, VECTOR Direction, float OutAngle, float InAngle, float Range, float Atten0, float Atten1, float Atten2 ) ;	// スポットライトハンドルを作成する
@@ -1432,7 +1558,7 @@ extern	int			NS_SetLightDirectionHandle(    int LHandle, VECTOR Direction ) ;			
 extern	int			NS_SetLightPositionHandle(     int LHandle, VECTOR Position ) ;											// ライトハンドルのライトの位置を設定する
 extern	int			NS_SetLightRangeAttenHandle(   int LHandle, float Range, float Atten0, float Atten1, float Atten2 ) ;		// ライトハンドルのライトの距離減衰パラメータを設定する( 有効距離、距離減衰係数０、１、２ )
 extern	int			NS_SetLightAngleHandle(        int LHandle, float OutAngle, float InAngle ) ;								// ライトハンドルのライトのスポットライトのパラメータを設定する( 外部コーン角度、内部コーン角度 )
-extern	int			NS_SetLightUseShadowMapHandle(	int LHandle, int SmSlotIndex, int UseFlag ) ;								// ライトハンドルのライトに SetDrawUseShadowMap で指定したシャドウマップを適用するかどうかを設定する( SmSlotIndex:シャドウマップスロット( SetDrawUseShadowMap の第一引数に設定する値 ) UseFlag:適用にするかどうかのフラグ( TRUE:適用する( デフォルト )  FALSE:適用しない ) )
+extern	int			NS_SetLightUseShadowMapHandle(	int LHandle, int SmSlotIndex, int UseFlag ) ;								// ライトハンドルのライトに SetUseShadowMap で指定したシャドウマップを適用するかどうかを設定する( SmSlotIndex:シャドウマップスロット( SetUseShadowMap の第一引数に設定する値 ) UseFlag:適用にするかどうかのフラグ( TRUE:適用する( デフォルト )  FALSE:適用しない ) )
 extern	int			NS_GetLightTypeHandle(         int LHandle ) ;																// ライトハンドルのライトのタイプを取得する( 戻り値は DX_LIGHTTYPE_DIRECTIONAL 等 )
 extern	int			NS_GetLightEnableHandle(       int LHandle ) ;																// ライトハンドルのライト効果の有効、無効を取得する( TRUE:有効  FALSE:無効 )
 extern	COLOR_F		NS_GetLightDifColorHandle(     int LHandle ) ;																// ライトハンドルのライトのディフューズカラーを取得する
@@ -1449,9 +1575,6 @@ extern	int			NS_GetEnableLightHandle(		int Index ) ;																// 有効に
 // 色情報取得用関数
 extern	int			NS_GetTexFormatIndex(			const IMAGEFORMATDESC *Format ) ;																								// テクスチャフォーマットのインデックスを得る
 extern	int			NS_ColorKaiseki(				const void *PixelData, COLORDATA* ColorData ) ;																					// 色ビット情報解析
-#ifdef __WINDOWS__
-extern	int			NS_CreatePixelFormat(			D_DDPIXELFORMAT *PixelFormatBuf, int ColorBitDepth, DWORD RedMask, DWORD GreenMask, DWORD BlueMask, DWORD AlphaMask ) ;		// DDPIXELFORMATデータを作成する
-#endif // __WINDOWS__
 
 
 
@@ -1484,8 +1607,11 @@ extern	int			NS_GetMaskSize(					int *WidthBuf, int *HeightBuf, int MaskHandle )
 extern	int			NS_SetDataToMask(					int Width, int Height, const void *MaskData, int MaskHandle ) ;										// マスクのデータをマスクに転送する
 extern	int			NS_DeleteMask(						int MaskHandle ) ;																				// マスクデータを削除
 extern	int			NS_BmpBltToMask(					HBITMAP Bmp, int BmpPointX, int BmpPointY, int MaskHandle ) ;									// マスクデータにＢＭＰデータをマスクデータと見たてて転送
+extern	int			NS_GraphImageBltToMask(			const BASEIMAGE *BaseImage, int ImageX, int ImageY, int MaskHandle ) ;								// マスクハンドルにBASEIMAGEデータを転送する
 extern	int			NS_LoadMask(						const TCHAR *FileName ) ;																		// マスクデータをロードする
 extern	int			NS_LoadDivMask(					const TCHAR *FileName, int AllNum, int XNum, int YNum, int XSize, int YSize, int *HandleBuf ) ;	// マスクを画像から分割読みこみ
+extern	int			NS_CreateMaskFromMem(				const void *FileImage, int FileImageSize ) ;																		// メモリ上にある画像ファイルイメージを読み込みマスクハンドルを作成する
+extern	int			NS_CreateDivMaskFromMem(			const void *FileImage, int FileImageSize, int AllNum, int XNum, int YNum, int XSize, int YSize, int *HandleBuf ) ;	// メモリ上にある画像ファイルイメージを分割読み込みしてマスクハンドルを作成する
 extern	int			NS_DrawMask(						int x, int y, int MaskHandle, int TransMode ) ;													// マスクをセットする
 #ifndef DX_NON_FONT
 extern	int			NS_DrawFormatStringMask(			int x, int y, int Flag,                 const TCHAR *FormatString, ... ) ;						// 書式指定ありの文字列をマスクスクリーンに描画する
@@ -1527,6 +1653,8 @@ extern	int			NS_CheckFontName(							const TCHAR *FontName, int CharSet = -1 /* 
 extern	int			NS_InitFontToHandle(                       void ) ;																						// フォントのステータスをデフォルトに戻す
 
 extern	int			NS_CreateFontToHandle(                     const TCHAR *FontName, int Size, int Thick, int FontType = -1 , int CharSet = -1 , int EdgeSize = -1 , int Italic = FALSE , int Handle = -1 ) ;			// 新しいフォントデータを作成
+extern	int			NS_LoadFontDataToHandle(					const TCHAR *FileName,                        int EdgeSize = -1 ) ;		// フォントデータファイルからフォントハンドルを作成する
+extern	int			NS_LoadFontDataFromMemToHandle(			const void *FontDataImage, int FontDataImageSize, int EdgeSize = -1 ) ;		// メモリ上のフォントデータファイルイメージからフォントハンドルを作成する
 extern	int			NS_SetFontSpaceToHandle(                   int Point, int FontHandle ) ;																	// 字間を変更する
 extern	int			NS_SetDefaultFontState(                    const TCHAR *FontName, int Size, int Thick, int FontType = -1 , int CharSet = -1 , int EdgeSize = -1 , int Italic = FALSE ) ;	// デフォルトフォントハンドルの設定を変更する
 extern	int			NS_DeleteFontToHandle(                     int FontHandle ) ;																				// フォントキャッシュの制御を終了する
@@ -1543,7 +1671,7 @@ extern	int			NS_SetFontCacheCharNum(                    int CharNum ) ;									
 extern	int			NS_ChangeFont(                             const TCHAR *FontName, int CharSet = -1 /* DX_CHARSET_SHFTJIS 等 */ ) ;							// フォントを変更
 extern	int			NS_ChangeFontType(                         int FontType ) ;																				// フォントタイプの変更
 // FontCacheStringDraw は DrawString を使ってください
-extern	int			NS_FontCacheStringDrawToHandle(            int x, int y, const TCHAR *StrData, int Color, int EdgeColor, BASEIMAGE *DestImage, const RECT *ClipRect /* NULL 可 */ , int FontHandle, int VerticalFlag = FALSE , SIZE *DrawSizeP = NULL ) ;
+extern	int			NS_FontCacheStringDrawToHandle(            int x, int y, const TCHAR *StrData, unsigned int Color, unsigned int EdgeColor, BASEIMAGE *DestImage, const RECT *ClipRect /* NULL 可 */ , int FontHandle, int VerticalFlag = FALSE , SIZE *DrawSizeP = NULL ) ;
 extern	int			NS_FontBaseImageBlt(                       int x, int y, const TCHAR *StrData, BASEIMAGE *DestImage, BASEIMAGE *DestEdgeImage,                 int VerticalFlag = FALSE ) ;															// 基本イメージに文字列イメージを転送する
 extern	int			NS_FontBaseImageBltToHandle(               int x, int y, const TCHAR *StrData, BASEIMAGE *DestImage, BASEIMAGE *DestEdgeImage, int FontHandle, int VerticalFlag = FALSE ) ;															// 基本イメージに文字列イメージを転送する
 
@@ -1576,29 +1704,39 @@ extern	int			NS_GetFontSpaceToHandle(                   int FontHandle ) ;						
 extern	int			NS_SetFontCacheUsePremulAlphaFlag(         int Flag ) ;																					// フォントキャッシュとして保存する画像の形式を乗算済みαチャンネル付き画像にするかどうかを設定する( TRUE:乗算済みαを使用する  FLASE:乗算済みαを使用しない( デフォルト ) )
 extern	int			NS_GetFontCacheUsePremulAlphaFlag(         void ) ;																						// フォントキャッシュとして保存する画像の形式を乗算済みαチャンネル付き画像にするかどうかを取得する
 
+#ifndef DX_NON_SAVEFUNCTION
+
+extern	int			NS_CreateFontDataFile(						const TCHAR *SaveFilePath, const TCHAR *FontName, int Size, int BitDepth /* DX_FONTIMAGE_BIT_1等 */ , int Thick, int Italic = FALSE , int CharSet = -1 , const TCHAR *SaveCharaList = NULL ) ;				// フォントデータファイルを作成する
+
+#endif
+
 // 文字列描画関数
-extern	int			NS_DrawString(                      int x, int y, const TCHAR *String, int Color,                 int EdgeColor = 0 ) ;																// 文字列の描画
-extern	int			NS_DrawVString(                     int x, int y, const TCHAR *String, int Color,                 int EdgeColor = 0 ) ;																// 文字列の描画
-extern	int			NS_DrawFormatString(                int x, int y, int Color,                 const TCHAR *FormatString, ... ) ;																		// 書式指定文字列を描画する
-extern	int			NS_DrawFormatVString(               int x, int y, int Color,                 const TCHAR *FormatString, ... ) ;																		// 書式指定文字列を描画する
-extern	int			NS_DrawExtendString(                int x, int y, double ExRateX, double ExRateY, const TCHAR *String, int Color,                 int EdgeColor = 0 ) ;								// 文字列の拡大描画
-extern	int			NS_DrawExtendVString(               int x, int y, double ExRateX, double ExRateY, const TCHAR *String, int Color,                 int EdgeColor = 0 ) ;								// 文字列の拡大描画
-extern	int			NS_DrawExtendFormatString(          int x, int y, double ExRateX, double ExRateY, int Color,                 const TCHAR *FormatString, ... ) ;										// 書式指定文字列を拡大描画する
-extern	int			NS_DrawExtendFormatVString(         int x, int y, double ExRateX, double ExRateY, int Color,                 const TCHAR *FormatString, ... ) ;										// 書式指定文字列を拡大描画する
+extern	int			NS_DrawString(                      int x, int y, const TCHAR *String, unsigned int Color,                 unsigned int EdgeColor = 0 ) ;																// 文字列の描画
+extern	int			NS_DrawVString(                     int x, int y, const TCHAR *String, unsigned int Color,                 unsigned int EdgeColor = 0 ) ;																// 文字列の描画
+extern	int			NS_DrawFormatString(                int x, int y, unsigned int Color,                 const TCHAR *FormatString, ... ) ;																		// 書式指定文字列を描画する
+extern	int			NS_DrawFormatVString(               int x, int y, unsigned int Color,                 const TCHAR *FormatString, ... ) ;																		// 書式指定文字列を描画する
+extern	int			NS_DrawExtendString(                int x, int y, double ExRateX, double ExRateY, const TCHAR *String, unsigned int Color,                 unsigned int EdgeColor = 0 ) ;								// 文字列の拡大描画
+extern	int			NS_DrawExtendVString(               int x, int y, double ExRateX, double ExRateY, const TCHAR *String, unsigned int Color,                 unsigned int EdgeColor = 0 ) ;								// 文字列の拡大描画
+extern	int			NS_DrawExtendFormatString(          int x, int y, double ExRateX, double ExRateY, unsigned int Color,                 const TCHAR *FormatString, ... ) ;										// 書式指定文字列を拡大描画する
+extern	int			NS_DrawExtendFormatVString(         int x, int y, double ExRateX, double ExRateY, unsigned int Color,                 const TCHAR *FormatString, ... ) ;										// 書式指定文字列を拡大描画する
+extern	int			NS_DrawRotaString(							int x, int y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, unsigned int Color, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE , const TCHAR *String       = NULL       ) ;		// デフォルトフォントハンドルを使用して文字列を回転描画する
+extern	int			NS_DrawRotaFormatString(					int x, int y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, unsigned int Color, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE , const TCHAR *FormatString = NULL , ... ) ;		// デフォルトフォントハンドルを使用して書式指定文字列を回転描画する
 
-extern	int			NS_DrawStringF(                            float x, float y, const TCHAR *String, int Color,                 int EdgeColor = 0 ) ;																			// デフォルトフォントハンドルを使用して文字列を描画する( 座標指定が float 版 )
-extern	int			NS_DrawVStringF(                           float x, float y, const TCHAR *String, int Color,                 int EdgeColor = 0 ) ;																			// デフォルトフォントハンドルを使用して文字列を描画する( 縦書き )( 座標指定が float 版 )
-extern	int			NS_DrawFormatStringF(                      float x, float y, int Color,                 const TCHAR *FormatString, ... ) ;																					// デフォルトフォントハンドルを使用して書式指定文字列を描画する( 座標指定が float 版 )
-extern	int			NS_DrawFormatVStringF(                     float x, float y, int Color,                 const TCHAR *FormatString, ... ) ;																					// デフォルトフォントハンドルを使用して書式指定文字列を描画する( 縦書き )( 座標指定が float 版 )
-extern	int			NS_DrawExtendStringF(                      float x, float y, double ExRateX, double ExRateY, const TCHAR *String, int Color,                 int EdgeColor = 0 ) ;											// デフォルトフォントハンドルを使用して文字列の拡大描画( 座標指定が float 版 )
-extern	int			NS_DrawExtendVStringF(                     float x, float y, double ExRateX, double ExRateY, const TCHAR *String, int Color,                 int EdgeColor = 0 ) ;											// デフォルトフォントハンドルを使用して文字列の拡大描画( 縦書き )( 座標指定が float 版 )
-extern	int			NS_DrawExtendFormatStringF(                float x, float y, double ExRateX, double ExRateY, int Color,                 const TCHAR *FormatString, ... ) ;													// デフォルトフォントハンドルを使用して書式指定文字列を拡大描画する( 座標指定が float 版 )
-extern	int			NS_DrawExtendFormatVStringF(               float x, float y, double ExRateX, double ExRateY, int Color,                 const TCHAR *FormatString, ... ) ;													// デフォルトフォントハンドルを使用して書式指定文字列を拡大描画する( 縦書き )( 座標指定が float 版 )
+extern	int			NS_DrawStringF(                            float x, float y, const TCHAR *String, unsigned int Color,                 unsigned int EdgeColor = 0 ) ;																			// デフォルトフォントハンドルを使用して文字列を描画する( 座標指定が float 版 )
+extern	int			NS_DrawVStringF(                           float x, float y, const TCHAR *String, unsigned int Color,                 unsigned int EdgeColor = 0 ) ;																			// デフォルトフォントハンドルを使用して文字列を描画する( 縦書き )( 座標指定が float 版 )
+extern	int			NS_DrawFormatStringF(                      float x, float y, unsigned int Color,                 const TCHAR *FormatString, ... ) ;																					// デフォルトフォントハンドルを使用して書式指定文字列を描画する( 座標指定が float 版 )
+extern	int			NS_DrawFormatVStringF(                     float x, float y, unsigned int Color,                 const TCHAR *FormatString, ... ) ;																					// デフォルトフォントハンドルを使用して書式指定文字列を描画する( 縦書き )( 座標指定が float 版 )
+extern	int			NS_DrawExtendStringF(                      float x, float y, double ExRateX, double ExRateY, const TCHAR *String, unsigned int Color,                 unsigned int EdgeColor = 0 ) ;											// デフォルトフォントハンドルを使用して文字列の拡大描画( 座標指定が float 版 )
+extern	int			NS_DrawExtendVStringF(                     float x, float y, double ExRateX, double ExRateY, const TCHAR *String, unsigned int Color,                 unsigned int EdgeColor = 0 ) ;											// デフォルトフォントハンドルを使用して文字列の拡大描画( 縦書き )( 座標指定が float 版 )
+extern	int			NS_DrawExtendFormatStringF(                float x, float y, double ExRateX, double ExRateY, unsigned int Color,                 const TCHAR *FormatString, ... ) ;													// デフォルトフォントハンドルを使用して書式指定文字列を拡大描画する( 座標指定が float 版 )
+extern	int			NS_DrawExtendFormatVStringF(               float x, float y, double ExRateX, double ExRateY, unsigned int Color,                 const TCHAR *FormatString, ... ) ;													// デフォルトフォントハンドルを使用して書式指定文字列を拡大描画する( 縦書き )( 座標指定が float 版 )
+extern	int			NS_DrawRotaStringF(						float x, float y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, unsigned int Color, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE , const TCHAR *String       = NULL       ) ;		// デフォルトフォントハンドルを使用して文字列を回転描画する( 座標指定が float 版 )
+extern	int			NS_DrawRotaFormatStringF(					float x, float y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, unsigned int Color, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE , const TCHAR *FormatString = NULL , ... ) ;		// デフォルトフォントハンドルを使用して書式指定文字列を回転描画する( 座標指定が float 版 )
 
-extern	int			NS_DrawNumberToI(                   int x, int y,                          int    Num, int RisesNum, int Color, int EdgeColor = 0 ) ;													// 整数型の数値を描画する
-extern	int			NS_DrawNumberToF(                   int x, int y,                          double Num, int Length,   int Color, int EdgeColor = 0 ) ;													// 浮動小数点型の数値を描画する
-extern	int			NS_DrawNumberPlusToI(               int x, int y, const TCHAR *NoteString, int    Num, int RisesNum, int Color, int EdgeColor = 0 ) ;													// 整数型の数値とその説明の文字列を一度に描画する
-extern 	int			NS_DrawNumberPlusToF(               int x, int y, const TCHAR *NoteString, double Num, int Length,   int Color, int EdgeColor = 0 ) ;													// 浮動小数点型の数値とその説明の文字列を一度に描画する
+extern	int			NS_DrawNumberToI(                   int x, int y,                          int    Num, int RisesNum, unsigned int Color, unsigned int EdgeColor = 0 ) ;													// 整数型の数値を描画する
+extern	int			NS_DrawNumberToF(                   int x, int y,                          double Num, int Length,   unsigned int Color, unsigned int EdgeColor = 0 ) ;													// 浮動小数点型の数値を描画する
+extern	int			NS_DrawNumberPlusToI(               int x, int y, const TCHAR *NoteString, int    Num, int RisesNum, unsigned int Color, unsigned int EdgeColor = 0 ) ;													// 整数型の数値とその説明の文字列を一度に描画する
+extern 	int			NS_DrawNumberPlusToF(               int x, int y, const TCHAR *NoteString, double Num, int Length,   unsigned int Color, unsigned int EdgeColor = 0 ) ;													// 浮動小数点型の数値とその説明の文字列を一度に描画する
 
 extern	int			NS_DrawStringToZBuffer(                      int x, int y, const TCHAR *String,                                                 int WriteZMode /* DX_ZWRITE_MASK 等 */ ) ;										// Ｚバッファに対して文字列の描画
 extern	int			NS_DrawVStringToZBuffer(                     int x, int y, const TCHAR *String,                                                 int WriteZMode /* DX_ZWRITE_MASK 等 */ ) ;										// Ｚバッファに対して文字列の描画
@@ -1608,31 +1746,37 @@ extern	int			NS_DrawExtendStringToZBuffer(                int x, int y, double E
 extern	int			NS_DrawExtendVStringToZBuffer(               int x, int y, double ExRateX, double ExRateY, const TCHAR *String,                 int WriteZMode /* DX_ZWRITE_MASK 等 */ ) ;										// Ｚバッファに対して文字列の拡大描画
 extern	int			NS_DrawExtendFormatStringToZBuffer(          int x, int y, double ExRateX, double ExRateY,                                      int WriteZMode /* DX_ZWRITE_MASK 等 */, const TCHAR *FormatString, ... ) ;		// Ｚバッファに対して書式指定文字列を拡大描画する
 extern	int			NS_DrawExtendFormatVStringToZBuffer(         int x, int y, double ExRateX, double ExRateY,                                      int WriteZMode /* DX_ZWRITE_MASK 等 */, const TCHAR *FormatString, ... ) ;		// Ｚバッファに対して書式指定文字列を拡大描画する
+extern	int			NS_DrawRotaStringToZBuffer(				int x, int y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle,                        int WriteZMode /* DX_ZWRITE_MASK 等 */ , int VerticalFlag = FALSE , const TCHAR *String       = NULL       ) ;		// デフォルトフォントハンドルを使用して文字列を回転描画する
+extern	int			NS_DrawRotaFormatStringToZBuffer(			int x, int y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle,                        int WriteZMode /* DX_ZWRITE_MASK 等 */ , int VerticalFlag = FALSE , const TCHAR *FormatString = NULL , ... ) ;		// デフォルトフォントハンドルを使用して書式指定文字列を回転描画する
 
 
 
-extern	int			NS_DrawStringToHandle(              int x, int y, const TCHAR *String, int Color, int FontHandle, int EdgeColor = 0 , int VerticalFlag = FALSE ) ;										// 文字列を描画する
-extern	int			NS_DrawVStringToHandle(             int x, int y, const TCHAR *String, int Color, int FontHandle, int EdgeColor = 0 ) ;																// 文字列を描画する
-extern	int			NS_DrawFormatStringToHandle(        int x, int y, int Color, int FontHandle, const TCHAR *FormatString, ... ) ;																		// 書式指定文字列を描画する
-extern	int			NS_DrawFormatVStringToHandle(       int x, int y, int Color, int FontHandle, const TCHAR *FormatString, ... ) ;																		// 書式指定文字列を描画する
-extern	int			NS_DrawExtendStringToHandle(        int x, int y, double ExRateX, double ExRateY, const TCHAR *String, int Color, int FontHandle, int EdgeColor = 0 , int VerticalFlag = FALSE ) ;		// 文字列を拡大描画する
-extern	int			NS_DrawExtendVStringToHandle(       int x, int y, double ExRateX, double ExRateY, const TCHAR *String, int Color, int FontHandle, int EdgeColor = 0 ) ;								// 文字列を拡大描画する
-extern	int			NS_DrawExtendFormatStringToHandle(  int x, int y, double ExRateX, double ExRateY, int Color, int FontHandle, const TCHAR *FormatString, ... ) ;										// 書式指定文字列を拡大描画する
-extern	int			NS_DrawExtendFormatVStringToHandle( int x, int y, double ExRateX, double ExRateY, int Color, int FontHandle, const TCHAR *FormatString, ... ) ;										// 書式指定文字列を拡大描画する
+extern	int			NS_DrawStringToHandle(              int x, int y, const TCHAR *String, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE ) ;										// 文字列を描画する
+extern	int			NS_DrawVStringToHandle(             int x, int y, const TCHAR *String, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 ) ;																// 文字列を描画する
+extern	int			NS_DrawFormatStringToHandle(        int x, int y, unsigned int Color, int FontHandle, const TCHAR *FormatString, ... ) ;																		// 書式指定文字列を描画する
+extern	int			NS_DrawFormatVStringToHandle(       int x, int y, unsigned int Color, int FontHandle, const TCHAR *FormatString, ... ) ;																		// 書式指定文字列を描画する
+extern	int			NS_DrawExtendStringToHandle(        int x, int y, double ExRateX, double ExRateY, const TCHAR *String, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE ) ;		// 文字列を拡大描画する
+extern	int			NS_DrawExtendVStringToHandle(       int x, int y, double ExRateX, double ExRateY, const TCHAR *String, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 ) ;								// 文字列を拡大描画する
+extern	int			NS_DrawExtendFormatStringToHandle(  int x, int y, double ExRateX, double ExRateY, unsigned int Color, int FontHandle, const TCHAR *FormatString, ... ) ;										// 書式指定文字列を拡大描画する
+extern	int			NS_DrawExtendFormatVStringToHandle( int x, int y, double ExRateX, double ExRateY, unsigned int Color, int FontHandle, const TCHAR *FormatString, ... ) ;										// 書式指定文字列を拡大描画する
+extern	int			NS_DrawRotaStringToHandle(					int x, int y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE , const TCHAR *String       = NULL       ) ;		// フォントハンドルを使用して文字列を回転描画する
+extern	int			NS_DrawRotaFormatStringToHandle(			int x, int y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE , const TCHAR *FormatString = NULL , ... ) ;		// フォントハンドルを使用して書式指定文字列を回転描画する
 
-extern	int			NS_DrawStringFToHandle(                    float x, float y, const TCHAR *String, int Color, int FontHandle, int EdgeColor = 0 , int VerticalFlag = FALSE ) ;												// フォントハンドルを使用して文字列を描画する( 座標指定が float 版 )
-extern	int			NS_DrawVStringFToHandle(                   float x, float y, const TCHAR *String, int Color, int FontHandle, int EdgeColor = 0 ) ;																			// フォントハンドルを使用して文字列を描画する( 縦書き )( 座標指定が float 版 )
-extern	int			NS_DrawFormatStringFToHandle(              float x, float y, int Color, int FontHandle, const TCHAR *FormatString, ... ) ;																					// フォントハンドルを使用して書式指定文字列を描画する( 座標指定が float 版 )
-extern	int			NS_DrawFormatVStringFToHandle(             float x, float y, int Color, int FontHandle, const TCHAR *FormatString, ... ) ;																					// フォントハンドルを使用して書式指定文字列を描画する( 縦書き )( 座標指定が float 版 )
-extern	int			NS_DrawExtendStringFToHandle(              float x, float y, double ExRateX, double ExRateY, const TCHAR *String, int Color, int FontHandle, int EdgeColor = 0 , int VerticalFlag = FALSE ) ;				// フォントハンドルを使用して文字列を拡大描画する( 座標指定が float 版 )
-extern	int			NS_DrawExtendVStringFToHandle(             float x, float y, double ExRateX, double ExRateY, const TCHAR *String, int Color, int FontHandle, int EdgeColor = 0 ) ;											// フォントハンドルを使用して文字列を拡大描画する( 縦書き )( 座標指定が float 版 )
-extern	int			NS_DrawExtendFormatStringFToHandle(        float x, float y, double ExRateX, double ExRateY, int Color, int FontHandle, const TCHAR *FormatString, ... ) ;													// フォントハンドルを使用して書式指定文字列を拡大描画する( 座標指定が float 版 )
-extern	int			NS_DrawExtendFormatVStringFToHandle(       float x, float y, double ExRateX, double ExRateY, int Color, int FontHandle, const TCHAR *FormatString, ... ) ;													// フォントハンドルを使用して書式指定文字列を拡大描画する( 縦書き )( 座標指定が float 版 )
+extern	int			NS_DrawStringFToHandle(                    float x, float y, const TCHAR *String, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE ) ;												// フォントハンドルを使用して文字列を描画する( 座標指定が float 版 )
+extern	int			NS_DrawVStringFToHandle(                   float x, float y, const TCHAR *String, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 ) ;																			// フォントハンドルを使用して文字列を描画する( 縦書き )( 座標指定が float 版 )
+extern	int			NS_DrawFormatStringFToHandle(              float x, float y, unsigned int Color, int FontHandle, const TCHAR *FormatString, ... ) ;																					// フォントハンドルを使用して書式指定文字列を描画する( 座標指定が float 版 )
+extern	int			NS_DrawFormatVStringFToHandle(             float x, float y, unsigned int Color, int FontHandle, const TCHAR *FormatString, ... ) ;																					// フォントハンドルを使用して書式指定文字列を描画する( 縦書き )( 座標指定が float 版 )
+extern	int			NS_DrawExtendStringFToHandle(              float x, float y, double ExRateX, double ExRateY, const TCHAR *String, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE ) ;				// フォントハンドルを使用して文字列を拡大描画する( 座標指定が float 版 )
+extern	int			NS_DrawExtendVStringFToHandle(             float x, float y, double ExRateX, double ExRateY, const TCHAR *String, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 ) ;											// フォントハンドルを使用して文字列を拡大描画する( 縦書き )( 座標指定が float 版 )
+extern	int			NS_DrawExtendFormatStringFToHandle(        float x, float y, double ExRateX, double ExRateY, unsigned int Color, int FontHandle, const TCHAR *FormatString, ... ) ;													// フォントハンドルを使用して書式指定文字列を拡大描画する( 座標指定が float 版 )
+extern	int			NS_DrawExtendFormatVStringFToHandle(       float x, float y, double ExRateX, double ExRateY, unsigned int Color, int FontHandle, const TCHAR *FormatString, ... ) ;													// フォントハンドルを使用して書式指定文字列を拡大描画する( 縦書き )( 座標指定が float 版 )
+extern	int			NS_DrawRotaStringFToHandle(				float x, float y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE , const TCHAR *String       = NULL       ) ;		// フォントハンドルを使用して文字列を回転描画する( 座標指定が float 版 )
+extern	int			NS_DrawRotaFormatStringFToHandle(			float x, float y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 , int VerticalFlag = FALSE , const TCHAR *FormatString = NULL , ... ) ;		// フォントハンドルを使用して書式指定文字列を回転描画する( 座標指定が float 版 )
 
-extern	int			NS_DrawNumberToIToHandle(           int x, int y,                          int    Num, int RisesNum, int Color, int FontHandle, int EdgeColor = 0 ) ;									// 整数型の数値を描画する
-extern	int			NS_DrawNumberToFToHandle(           int x, int y,                          double Num, int Length,   int Color, int FontHandle, int EdgeColor = 0 ) ;									// 浮動小数点型の数値を描画する
-extern	int			NS_DrawNumberPlusToIToHandle(       int x, int y, const TCHAR *NoteString, int    Num, int RisesNum, int Color, int FontHandle, int EdgeColor = 0 ) ;									// 整数型の数値とその説明の文字列を一度に描画する
-extern	int			NS_DrawNumberPlusToFToHandle(       int x, int y, const TCHAR *NoteString, double Num, int Length,   int Color, int FontHandle, int EdgeColor = 0 ) ;									// 浮動小数点型の数値とその説明の文字列を一度に描画する
+extern	int			NS_DrawNumberToIToHandle(           int x, int y,                          int    Num, int RisesNum, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 ) ;									// 整数型の数値を描画する
+extern	int			NS_DrawNumberToFToHandle(           int x, int y,                          double Num, int Length,   unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 ) ;									// 浮動小数点型の数値を描画する
+extern	int			NS_DrawNumberPlusToIToHandle(       int x, int y, const TCHAR *NoteString, int    Num, int RisesNum, unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 ) ;									// 整数型の数値とその説明の文字列を一度に描画する
+extern	int			NS_DrawNumberPlusToFToHandle(       int x, int y, const TCHAR *NoteString, double Num, int Length,   unsigned int Color, int FontHandle, unsigned int EdgeColor = 0 ) ;									// 浮動小数点型の数値とその説明の文字列を一度に描画する
 
 extern	int			NS_DrawStringToHandleToZBuffer(              int x, int y, const TCHAR *String, int FontHandle,                                 int WriteZMode /* DX_ZWRITE_MASK 等 */ , int VerticalFlag = FALSE ) ;			// Ｚバッファに対して文字列を描画する
 extern	int			NS_DrawVStringToHandleToZBuffer(             int x, int y, const TCHAR *String, int FontHandle,                                 int WriteZMode /* DX_ZWRITE_MASK 等 */ ) ;										// Ｚバッファに対して文字列を描画する
@@ -1642,6 +1786,8 @@ extern	int			NS_DrawExtendStringToHandleToZBuffer(        int x, int y, double E
 extern	int			NS_DrawExtendVStringToHandleToZBuffer(       int x, int y, double ExRateX, double ExRateY, const TCHAR *String, int FontHandle, int WriteZMode /* DX_ZWRITE_MASK 等 */ ) ;										// Ｚバッファに対して文字列を拡大描画する
 extern	int			NS_DrawExtendFormatStringToHandleToZBuffer(  int x, int y, double ExRateX, double ExRateY, int FontHandle,                      int WriteZMode /* DX_ZWRITE_MASK 等 */, const TCHAR *FormatString, ... ) ;		// Ｚバッファに対して書式指定文字列を拡大描画する
 extern	int			NS_DrawExtendFormatVStringToHandleToZBuffer( int x, int y, double ExRateX, double ExRateY, int FontHandle,                      int WriteZMode /* DX_ZWRITE_MASK 等 */, const TCHAR *FormatString, ... ) ;		// Ｚバッファに対して書式指定文字列を拡大描画する
+extern	int			NS_DrawRotaStringToHandleToZBuffer(		int x, int y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, int FontHandle,        int WriteZMode /* DX_ZWRITE_MASK 等 */ , int VerticalFlag = FALSE , const TCHAR *String       = NULL       ) ;		// フォントハンドルを使用して文字列を回転描画する
+extern	int			NS_DrawRotaFormatStringToHandleToZBuffer(	int x, int y, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, int FontHandle,        int WriteZMode /* DX_ZWRITE_MASK 等 */ , int VerticalFlag = FALSE , const TCHAR *FormatString = NULL , ... ) ;		// フォントハンドルを使用して書式指定文字列を回転描画する
 
 #endif // DX_NON_FONT
 
@@ -1679,10 +1825,12 @@ extern	int			NS_DrawExtendFormatVStringToHandleToZBuffer( int x, int y, double E
 // DxBaseImage.cpp 関数プロトタイプ宣言
 
 // 基本イメージデータのロード＋ＤＩＢ関係
-extern	int			NS_CreateGraphImageOrDIBGraph(    const TCHAR *FileName, const void *DataImage, int DataImageSize, int DataImageType /* LOADIMAGE_TYPE_FILE 等 */ , int BmpFlag, int ReverseFlag, BASEIMAGE *Image, BITMAPINFO **BmpInfo, void **GraphData ) ;					// 画像ファイル若しくはメモリ上に展開された画像ファイルイメージを読み込み、基本イメージデータ若しくはＢＭＰデータを構築する
+extern	int			NS_CreateGraphImageOrDIBGraph(    const TCHAR *FileName, const void *DataImage, int DataImageSize, int DataImageType /* LOADIMAGE_TYPE_FILE 等 */ , int BmpFlag, int ReverseFlag, BASEIMAGE *BaseImage, BITMAPINFO **BmpInfo, void **GraphData ) ;					// 画像ファイル若しくはメモリ上に展開された画像ファイルイメージを読み込み、基本イメージデータ若しくはＢＭＰデータを構築する
 extern	int			NS_CreateGraphImageType2(         STREAMDATA *Src, BASEIMAGE *Dest ) ;																																															// 画像データから構築したストリーム読み込み用データを使用して基本イメージデータを構築する
 extern	int			NS_CreateBmpInfo(                 BITMAPINFO *BmpInfo, int Width, int Height, int Pitch, const void *SrcGrData, void **DestGrData ) ;																													// 24bitカラー形式のビットマップデータからＢＭＰデータを構築する
-extern	DWORD		NS_GetGraphImageFullColorCode(    const BASEIMAGE *GraphImage, int x, int y ) ;																																												// 基本イメージデータの指定座標のフルカラーコードを取得する
+extern	int			NS_GetImageSize_File(             const TCHAR *FileName, int *SizeX, int *SizeY ) ;																																											// 画像ファイルの横ピクセル数と縦ピクセル数を取得する
+extern	int			NS_GetImageSize_Mem(              const void *FileImage, int FileImageSize, int *SizeX, int *SizeY ) ;																																							// メモリ上に展開された画像ファイルの横ピクセル数と縦ピクセル数を取得する
+extern	unsigned int NS_GetGraphImageFullColorCode(    const BASEIMAGE *GraphImage, int x, int y ) ;																																												// 基本イメージデータの指定座標のフルカラーコードを取得する
 extern	int			NS_CreateGraphImage_plus_Alpha(   const TCHAR *FileName, const void *RgbImage, int RgbImageSize, int RgbImageType, const void *AlphaImage, int AlphaImageSize, int AlphaImageType, BASEIMAGE *RgbGraphImage, BASEIMAGE *AlphaGraphImage, int ReverseFlag ) ;	// 画像ファイル若しくはメモリ上に展開された画像ファイルイメージを読み込み、基本イメージデータを構築する
 extern	int			NS_ReverseGraphImage(             BASEIMAGE *GraphImage ) ;																																																	// 基本イメージデータを左右反転する
 #ifdef __WINDOWS__
@@ -1697,12 +1845,12 @@ extern	int			NS_ConvGraphImageToBitmap(        const BASEIMAGE *GraphImage, BITM
 
 //extern int		NS_AddUserGraphLoadFunction( int ( *UserLoadFunc )( FILE *fp, BITMAPINFO **BmpInfo, void **GraphData ) ) ;																					// ユーザー定義の画像データ読み込み関数を登録する
 //extern int		NS_AddUserGraphLoadFunction2( int ( *UserLoadFunc )( void *Image, int ImageSize, int ImageType, BITMAPINFO **BmpInfo, void **GraphData ) ) ;												// ユーザー定義の画像データ読み込み関数を登録する
-//extern int		NS_AddUserGraphLoadFunction3( int ( *UserLoadFunc )( void *DataImage, int DataImageSize, int DataImageType, int BmpFlag, BASEIMAGE *Image, BITMAPINFO **BmpInfo, void **GraphData ) ) ;	// ユーザー定義の画像データ読み込み関数Ver3を登録する
-extern	int			NS_AddUserGraphLoadFunction4( int (* UserLoadFunc )( STREAMDATA *Src, BASEIMAGE *Image ) ) ; 																								// ユーザー定義の画像データ読み込み関数Ver4を登録する
+//extern int		NS_AddUserGraphLoadFunction3( int ( *UserLoadFunc )( void *DataImage, int DataImageSize, int DataImageType, int BmpFlag, BASEIMAGE *BaseImage, BITMAPINFO **BmpInfo, void **GraphData ) ) ;	// ユーザー定義の画像データ読み込み関数Ver3を登録する
+extern	int			NS_AddUserGraphLoadFunction4( int (* UserLoadFunc )( STREAMDATA *Src, BASEIMAGE *BaseImage ) ) ; 																								// ユーザー定義の画像データ読み込み関数Ver4を登録する
 //extern int		NS_SubUserGraphLoadFunction( int ( *UserLoadFunc )( FILE *fp, BITMAPINFO **BmpInfo, void **GraphData ) ) ;																					// ユーザー定義の画像データ読み込み関数を登録から抹消する
 //extern int		NS_SubUserGraphLoadFunction2( int ( *UserLoadFunc )( void *Image, int ImageSize, int ImageType, BITMAPINFO **BmpInfo, void **GraphData ) ) ;												// ユーザー定義の画像データ読み込み関数を登録から抹消する
-//extern int		NS_SubUserGraphLoadFunction3( int ( *UserLoadFunc )( void *DataImage, int DataImageSize, int DataImageType, int BmpFlag, BASEIMAGE *Image, BITMAPINFO **BmpInfo, void **GraphData ) ) ;	// ユーザー定義の画像データ読み込み関数Ver3を登録から抹消する
-extern	int			NS_SubUserGraphLoadFunction4( int (* UserLoadFunc )( STREAMDATA *Src, BASEIMAGE *Image ) ) ; 																								// ユーザー定義の画像データ読み込み関数Ver4を登録から抹消する
+//extern int		NS_SubUserGraphLoadFunction3( int ( *UserLoadFunc )( void *DataImage, int DataImageSize, int DataImageType, int BmpFlag, BASEIMAGE *BaseImage, BITMAPINFO **BmpInfo, void **GraphData ) ) ;	// ユーザー定義の画像データ読み込み関数Ver3を登録から抹消する
+extern	int			NS_SubUserGraphLoadFunction4( int (* UserLoadFunc )( STREAMDATA *Src, BASEIMAGE *BaseImage ) ) ; 																								// ユーザー定義の画像データ読み込み関数Ver4を登録から抹消する
 
 extern	int			NS_SetUseFastLoadFlag(            int Flag ) ;														// 高速読み込みルーチンを使用するかどうかを設定する( TRUE:使用する( デフォルト )  FALSE:使用しない )
 extern	int			NS_SetGraphDataShavedMode(        int ShavedMode /* DX_SHAVEDMODE_NONE 等 */ ) ;					// 画像減色時の画像劣化緩和処理モードを設定する( デフォルトでは緩和処理無しの DX_SHAVEDMODE_NONE )
@@ -1714,6 +1862,8 @@ extern	int			NS_CreateBaseImage(               const TCHAR *FileName, const void
 extern	int			NS_CreateGraphImage(              const TCHAR *FileName, const void *DataImage, int DataImageSize, int DataImageType,                      BASEIMAGE *GraphImage, int ReverseFlag ) ;			// CreateBaseImage の旧名称
 extern	int			NS_CreateBaseImageToFile(         const TCHAR *FileName,                                                                                   BASEIMAGE *BaseImage,  int ReverseFlag = FALSE ) ;	// 画像ファイルから基本イメージデータを構築する
 extern	int			NS_CreateBaseImageToMem(                                 const void *FileImage, int FileImageSize,                                         BASEIMAGE *BaseImage,  int ReverseFlag = FALSE ) ;	// メモリ上に展開された画像ファイルイメージから基本イメージデータを構築する
+extern	int			NS_CreateARGBF32ColorBaseImage(   int SizeX, int SizeY,                             BASEIMAGE *BaseImage ) ;																					// ＡＲＧＢ各チャンネル 32bit 浮動小数点型 カラーの基本イメージデータを作成する
+extern	int			NS_CreateARGBF16ColorBaseImage(   int SizeX, int SizeY,                             BASEIMAGE *BaseImage ) ;																					// ＡＲＧＢ各チャンネル 16bit 浮動小数点型 カラーの基本イメージデータを作成する
 extern	int			NS_CreateARGB8ColorBaseImage(     int SizeX, int SizeY,                             BASEIMAGE *BaseImage ) ;																					// ＡＲＧＢ８カラーの基本イメージデータを作成する
 extern	int			NS_CreateXRGB8ColorBaseImage(     int SizeX, int SizeY,                             BASEIMAGE *BaseImage ) ;																					// ＸＲＧＢ８カラーの基本イメージデータを作成する
 extern	int			NS_CreateRGB8ColorBaseImage(      int SizeX, int SizeY,                             BASEIMAGE *BaseImage ) ;																					// ＲＧＢ８カラーの基本イメージデータを作成する
@@ -1734,9 +1884,9 @@ extern	int			NS_GetDrawScreenBaseImage(        int x1, int y1, int x2, int y2, B
 extern	int			NS_GetDrawScreenBaseImageDestPos( int x1, int y1, int x2, int y2, BASEIMAGE *BaseImage, int DestX, int DestY ) ;																				// 描画対象の画面から指定領域を基本イメージデータに転送する( 転送先座標指定版 )
 #ifdef __WINDOWS__
 extern	int			NS_UpdateLayerdWindowForBaseImage(                    const BASEIMAGE *BaseImage ) ;																											// 基本イメージデータを使用して UpdateLayerdWindow を行う
-extern	int			UpdateLayerdWindowForBaseImageRect(                   const BASEIMAGE *BaseImage, int x1, int y1, int x2, int y2 ) ;																		// 基本イメージデータの指定の範囲を使用して UpdateLayerdWindow を行う
+extern	int			NS_UpdateLayerdWindowForBaseImageRect(                   const BASEIMAGE *BaseImage, int x1, int y1, int x2, int y2 ) ;																		// 基本イメージデータの指定の範囲を使用して UpdateLayerdWindow を行う
 extern	int			NS_UpdateLayerdWindowForPremultipliedAlphaBaseImage(  const BASEIMAGE *BaseImage ) ;																											// 乗算済みアルファの基本イメージデータを使用して UpdateLayerdWindow を行う
-extern	int			UpdateLayerdWindowForPremultipliedAlphaBaseImageRect( const BASEIMAGE *BaseImage, int x1, int y1, int x2, int y2 ) ;																		// 乗算済みアルファの基本イメージデータの指定の範囲を使用して UpdateLayerdWindow を行う
+extern	int			NS_UpdateLayerdWindowForPremultipliedAlphaBaseImageRect( const BASEIMAGE *BaseImage, int x1, int y1, int x2, int y2 ) ;																		// 乗算済みアルファの基本イメージデータの指定の範囲を使用して UpdateLayerdWindow を行う
 #endif // __WINDOWS__
 extern	int			NS_FillBaseImage(                       BASEIMAGE *BaseImage, int r, int g, int b, int a ) ;																											// 基本イメージデータを指定の色で塗りつぶす
 extern	int			NS_FillRectBaseImage(                   BASEIMAGE *BaseImage, int x, int y, int w, int h, int r, int g, int b, int a ) ;																				// 基本イメージデータの指定の領域を指定の色で塗りつぶす
@@ -1746,7 +1896,9 @@ extern	int			NS_SetPaletteBaseImage(                 BASEIMAGE *BaseImage, int P
 extern	int			NS_SetPixelPalCodeBaseImage(            BASEIMAGE *BaseImage, int x, int y, int palNo ) ;																												// 基本イメージデータの指定の座標の色コードを変更する(パレット画像用)
 extern	int			NS_GetPixelPalCodeBaseImage(      const BASEIMAGE *BaseImage, int x, int y ) ;																															// 基本イメージデータの指定の座標の色コードを取得する(パレット画像用)
 extern	int			NS_SetPixelBaseImage(                   BASEIMAGE *BaseImage, int x, int y, int  r, int  g, int  b, int  a ) ;																							// 基本イメージデータの指定の座標の色を変更する(各色要素は０～２５５)
-extern	int			NS_GetPixelBaseImage(                   BASEIMAGE *BaseImage, int x, int y, int *r, int *g, int *b, int *a ) ;																							// 基本イメージデータの指定の座標の色を取得する(各色要素は０～２５５)
+extern	int			NS_SetPixelBaseImageF(                  BASEIMAGE *BaseImage, int x, int y, float  r, float  g, float  b, float  a ) ;																					// 基本イメージデータの指定の座標の色を変更する(各色要素は浮動小数点数)
+extern	int			NS_GetPixelBaseImage(             const BASEIMAGE *BaseImage, int x, int y, int *r, int *g, int *b, int *a ) ;																							// 基本イメージデータの指定の座標の色を取得する(各色要素は０～２５５)
+extern	int			NS_GetPixelBaseImageF(            const BASEIMAGE *BaseImage, int x, int y, float *r, float *g, float *b, float *a ) ;																					// 基本イメージデータの指定の座標の色を取得する(各色要素は浮動小数点数)
 extern	int			NS_DrawLineBaseImage(                   BASEIMAGE *BaseImage, int x1, int y1, int x2, int y2, int r, int g, int b, int a ) ;																			// 基本イメージデータの指定の座標に線を描画する(各色要素は０～２５５)
 extern	int			NS_BltBaseImage(                        int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage ) ;									// 基本イメージデータを別の基本イメージデータに転送する
 extern	int			NS_BltBaseImage(                                                                        int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage ) ;									// 基本イメージデータを別の基本イメージデータに転送する
@@ -1784,25 +1936,27 @@ extern int			NS_GraphColorMatchBltVer2(       void *DestGraphData, int DestPitch
 
 
 // 色情報取得関係
-extern	COLOR_F		NS_GetColorF(              float Red, float Green, float Blue, float Alpha ) ;												// 浮動小数点型のカラー値を作成する
-extern	COLOR_U8	NS_GetColorU8(             int Red, int Green, int Blue, int Alpha ) ;														// 符号なし整数８ビットのカラー値を作成する
-extern	DWORD		NS_GetColor(               int Red, int Green, int Blue ) ;																// ３原色の値から現在の画面モードに対応したカラー値を得る
-extern	int			NS_GetColor2(              int Color, int *Red, int *Green, int *Blue ) ;													// 画面モードに対応したカラー値から個々の３原色の値を抜き出す
-extern	int			NS_GetColor3(              const COLORDATA *ColorData, int Red, int Green, int Blue, int Alpha = 255 ) ;					// ３原色の値から指定のピクセルフォーマットに対応したカラー値を得る
-extern	int			NS_GetColor4(              const COLORDATA *DestColorData, const COLORDATA* SrcColorData, int SrcColor ) ;						// 指定のカラーフォーマットのカラー値を別のカラーフォーマットのカラー値に変換する
-extern	int			NS_GetColor5(              const COLORDATA *ColorData, int Color, int *Red, int *Green, int *Blue, int *Alpha = NULL ) ;	// 指定のカラーフォーマットのカラー値を３原色の値に変換する
-extern	int			NS_CreatePaletteColorData( COLORDATA *ColorDataBuf ) ;																		// パレットカラーのカラーフォーマットを構築する
-extern	int			NS_CreateXRGB8ColorData(   COLORDATA *ColorDataBuf ) ;																		// ＸＲＧＢ８カラーのカラーフォーマットを構築する
-extern	int			NS_CreateARGB8ColorData(   COLORDATA *ColorDataBuf ) ;																		// ＡＲＧＢ８カラーのカラーフォーマットを構築する
-extern	int			NS_CreateARGB4ColorData(   COLORDATA *ColorDataBuf ) ;																		// ＡＲＧＢ４カラーのカラーフォーマットを構築する
-extern	int			NS_CreateFullColorData(    COLORDATA *ColorDataBuf ) ;																		// ２４ビットカラーのカラーフォーマットを構築する
-extern	int			NS_CreateGrayColorData(    COLORDATA *ColorDataBuf ) ;																		// グレースケールのカラーフォーマットを構築する
-extern	int			NS_CreatePal8ColorData(    COLORDATA *ColorDataBuf ) ;																		// パレット２５６色のカラーフォーマットを構築する
-extern	int			NS_CreateColorData(        COLORDATA *ColorDataBuf, int ColorBitDepth,
-									        DWORD RedMask, DWORD GreenMask, DWORD BlueMask, DWORD AlphaMask,
-									        int ChannelNum = 0, int ChannelBitDepth = 0, int FloatTypeFlag = FALSE ) ;						// カラーフォーマットを作成する
-extern	void		NS_SetColorDataNoneMask(   COLORDATA *ColorData ) ;																		// NoneMask 以外の要素を埋めた COLORDATA 構造体の情報を元に NoneMask をセットする
-extern	int			NS_CmpColorData(           const COLORDATA *ColorData1, const COLORDATA *ColorData2 ) ;									// 二つのカラーフォーマットが等しいかどうか調べる( 戻り値　TRUE:等しい  FALSE:等しくない )
+extern	COLOR_F			NS_GetColorF(              float Red, float Green, float Blue, float Alpha ) ;												// 浮動小数点型のカラー値を作成する
+extern	COLOR_U8		NS_GetColorU8(             int Red, int Green, int Blue, int Alpha ) ;														// 符号なし整数８ビットのカラー値を作成する
+extern	unsigned int	NS_GetColor(               int Red, int Green, int Blue ) ;																	// DrawPixel 等の描画関数で使用するカラー値を取得する
+extern	int				NS_GetColor2(              unsigned int Color, int *Red, int *Green, int *Blue ) ;													// カラー値から赤、緑、青の値を取得する
+extern	unsigned int	NS_GetColor3(              const COLORDATA *ColorData, int Red, int Green, int Blue, int Alpha = 255 ) ;					// 指定のピクセルフォーマットに対応したカラー値を得る
+extern	unsigned int	NS_GetColor4(              const COLORDATA *DestColorData, const COLORDATA* SrcColorData, unsigned int SrcColor ) ;				// 指定のカラーフォーマットのカラー値を別のカラーフォーマットのカラー値に変換する
+extern	int				NS_GetColor5(              const COLORDATA *ColorData, unsigned int Color, int *Red, int *Green, int *Blue, int *Alpha = NULL ) ;	// 指定のカラーフォーマットのカラー値を赤、緑、青、アルファの値を取得する
+extern	int				NS_CreatePaletteColorData( COLORDATA *ColorDataBuf ) ;																		// パレットカラーのカラーフォーマットを構築する
+extern	int				NS_CreateARGBF32ColorData( COLORDATA *ColorDataBuf ) ;																		// ＡＲＧＢ各チャンネル 32bit 浮動小数点型カラーのカラーフォーマットを構築する
+extern	int				NS_CreateARGBF16ColorData( COLORDATA *ColorDataBuf ) ;																		// ＡＲＧＢ各チャンネル 16bit 浮動小数点型カラーのカラーフォーマットを構築する
+extern	int				NS_CreateXRGB8ColorData(   COLORDATA *ColorDataBuf ) ;																		// ＸＲＧＢ８カラーのカラーフォーマットを構築する
+extern	int				NS_CreateARGB8ColorData(   COLORDATA *ColorDataBuf ) ;																		// ＡＲＧＢ８カラーのカラーフォーマットを構築する
+extern	int				NS_CreateARGB4ColorData(   COLORDATA *ColorDataBuf ) ;																		// ＡＲＧＢ４カラーのカラーフォーマットを構築する
+extern	int				NS_CreateFullColorData(    COLORDATA *ColorDataBuf ) ;																		// ２４ビットカラーのカラーフォーマットを構築する
+extern	int				NS_CreateGrayColorData(    COLORDATA *ColorDataBuf ) ;																		// グレースケールのカラーフォーマットを構築する
+extern	int				NS_CreatePal8ColorData(    COLORDATA *ColorDataBuf ) ;																		// パレット２５６色のカラーフォーマットを構築する
+extern	int				NS_CreateColorData(        COLORDATA *ColorDataBuf, int ColorBitDepth,
+													DWORD RedMask, DWORD GreenMask, DWORD BlueMask, DWORD AlphaMask,
+													int ChannelNum = 0, int ChannelBitDepth = 0, int FloatTypeFlag = FALSE ) ;						// カラーフォーマットを作成する
+extern	void			NS_SetColorDataNoneMask(   COLORDATA *ColorData ) ;																		// NoneMask 以外の要素を埋めた COLORDATA 構造体の情報を元に NoneMask をセットする
+extern	int				NS_CmpColorData(           const COLORDATA *ColorData1, const COLORDATA *ColorData2 ) ;									// 二つのカラーフォーマットが等しいかどうか調べる( 戻り値　TRUE:等しい  FALSE:等しくない )
 
 #endif // DX_NOTUSE_DRAWFUNCTION
 
@@ -1825,6 +1979,8 @@ extern	int			NS_InitSoftImage(                   void ) ;																			// �
 extern	int			NS_LoadSoftImage(                   const TCHAR *FileName ) ;															// ソフトウエアで扱うイメージの読み込み( -1:エラー  -1以外:イメージハンドル )
 extern	int			NS_LoadSoftImageToMem(              const void *FileImage, int FileImageSize ) ;												// ソフトウエアで扱うイメージのメモリからの読み込み( -1:エラー  -1以外:イメージハンドル )
 extern	int			NS_MakeSoftImage(                   int SizeX, int SizeY ) ;															// ソフトウエアで扱うイメージの作成( -1:エラー  -1以外:イメージハンドル )
+extern	int			NS_MakeARGBF32ColorSoftImage(       int SizeX, int SizeY ) ;															// ソフトウエアイメージハンドルの作成( RGBA 各チャンネル 32bit 浮動小数点型 カラー )
+extern	int			NS_MakeARGBF16ColorSoftImage(       int SizeX, int SizeY ) ;															// ソフトウエアイメージハンドルの作成( RGBA 各チャンネル 16bit 浮動小数点型 カラー )
 extern	int			NS_MakeARGB8ColorSoftImage(         int SizeX, int SizeY ) ;															// ソフトウエアで扱うイメージの作成( RGBA8 カラー )
 extern	int			NS_MakeXRGB8ColorSoftImage(         int SizeX, int SizeY ) ;															// ソフトウエアで扱うイメージの作成( XRGB8 カラー )
 extern	int			NS_MakeARGB4ColorSoftImage(         int SizeX, int SizeY ) ;															// ソフトウエアで扱うイメージの作成( ARGB4 カラー )
@@ -1855,9 +2011,11 @@ extern	int			NS_GetPixelPalCodeSoftImage(        int SIHandle, int x, int y ) ;	
 extern	void		*NS_GetImageAddressSoftImage(       int SIHandle ) ;																	// ソフトウエアで扱うイメージの実イメージが格納されているメモリ領域の先頭アドレスを取得する
 extern	int			NS_GetPitchSoftImage(               int SIHandle ) ;																	// ソフトウエアイメージハンドルのメモリに格納されている画像のピッチ( 1ライン辺りのバイト数 )を取得する
 extern	int			NS_DrawPixelSoftImage(              int SIHandle, int x, int y, int  r, int  g, int  b, int  a ) ;						// ソフトウエアで扱うイメージの指定座標にドットを描画する(各色要素は０～２５５)
+extern	int			NS_DrawPixelSoftImageF(             int SIHandle, int x, int y, float  r, float  g, float  b, float  a ) ;				// ソフトウエアイメージハンドルの指定座標にドットを描画する(各色要素は浮動小数点数)
 extern	void		NS_DrawPixelSoftImage_Unsafe_XRGB8( int SIHandle, int x, int y, int  r, int  g, int  b ) ;								// ソフトウエアで扱うイメージの指定座標にドットを描画する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や ARGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
 extern	void		NS_DrawPixelSoftImage_Unsafe_ARGB8( int SIHandle, int x, int y, int  r, int  g, int  b, int  a ) ;						// ソフトウエアで扱うイメージの指定座標にドットを描画する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や XRGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
 extern	int			NS_GetPixelSoftImage(               int SIHandle, int x, int y, int *r, int *g, int *b, int *a ) ;						// ソフトウエアで扱うイメージの指定座標の色を取得する(各色要素は０～２５５)
+extern	int			NS_GetPixelSoftImageF(              int SIHandle, int x, int y, float *r, float *g, float *b, float *a ) ;				// ソフトウエアイメージハンドルの指定座標の色を取得する(各色要素は浮動小数点数)
 extern	void		NS_GetPixelSoftImage_Unsafe_XRGB8(  int SIHandle, int x, int y, int *r, int *g, int *b ) ;								// ソフトウエアで扱うイメージの指定座標の色を取得する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や XRGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
 extern	void		NS_GetPixelSoftImage_Unsafe_ARGB8(  int SIHandle, int x, int y, int *r, int *g, int *b, int *a ) ;						// ソフトウエアで扱うイメージの指定座標の色を取得する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や ARGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
 extern	int			NS_DrawLineSoftImage(               int SIHandle, int x1, int y1, int x2, int y2, int r, int g, int b, int a ) ;		// ソフトウエアで扱うイメージの指定座標に線を描画する(各色要素は０～２５５)
@@ -1905,9 +2063,9 @@ extern	int			NS_SaveSoftImageToJpeg(             const TCHAR *FilePath, int SIHa
 
 #ifndef DX_NON_SOUND
 
-// DxSound.cpp函数原型声明
+// DxSound.cpp関数プロトタイプ宣言
 
-// 音频数据管理类函数
+// サウンドデータ管理系関数
 extern	int			NS_InitSoundMem(                        int LogOutFlag = FALSE ) ;																	// 全てのサウンドハンドルを削除する
 
 extern	int			NS_AddSoundData(                        int Handle = -1 ) ;																										// サウンドハンドルを作成する
@@ -2008,22 +2166,22 @@ extern	int			NS_SetDisableReadSoundFunctionMask(     int Mask ) ;															
 extern	int			NS_GetDisableReadSoundFunctionMask(     void ) ;																					// 使用しないサウンドデータ読み込み処理のマスクを取得する( DX_READSOUNDFUNCTION_PCM 等 )
 extern	int			NS_SetEnableSoundCaptureFlag(           int Flag ) ;																				// サウンドキャプチャを前提とした動作をするかどうかを設定する
 extern	int			NS_SetUseSoftwareMixingSoundFlag(       int Flag ) ;																				// サウンドの処理をソフトウエアで行うかどうかを設定する( TRUE:ソフトウエア  FALSE:ハードウエア( デフォルト ) )
-extern	int			NS_SetEnableXAudioFlag(                 int Flag ) ;																				// サウンドの再生にXAudioを使用するかどうかを設定する( TRUE:使用する( デフォルト )  FALSE:使用しない )
+extern	int			NS_SetEnableXAudioFlag(                 int Flag ) ;																				// サウンドの再生にXAudioを使用するかどうかを設定する( TRUE:使用する  FALSE:使用しない( デフォルト ) )
 extern	int			NS_SetUseOldVolumeCalcFlag(             int Flag ) ;																				// ChangeVolumeSoundMem, ChangeNextPlayVolumeSoundMem, ChangeMovieVolumeToGraph の音量計算式を Ver3.10c以前のものを使用するかどうかを設定する( TRUE:Ver3.10c以前の計算式を使用  FALSE:3.10d以降の計算式を使用( デフォルト ) )
 
-extern	int			NS_SetCreate3DSoundFlag(                    int Flag ) ;																			// 次に作成するサウンドハンドルを３Ｄサウンド用にするかどうかを設定する( TRUE:３Ｄサウンド用にする  FALSE:３Ｄサウンド用にしない( デフォルト ) )
-extern	int			NS_Set3DSoundOneMetre(                      float Distance ) ;																		// ３Ｄ空間の１メートルに相当する距離を設定する、DxLib_Init を呼び出す前でのみ呼び出し可能( デフォルト:1.0f )
-extern	int			NS_Set3DSoundListenerPosAndFrontPos_UpVecY( VECTOR Position, VECTOR FrontPosition ) ;												// ３Ｄサウンドのリスナーの位置とリスナーの前方位置を設定する( リスナーの上方向はＹ軸固定 )
-extern	int			NS_Set3DSoundListenerPosAndFrontPos(        VECTOR Position, VECTOR FrontPosition, VECTOR UpVector ) ;								// ３Ｄサウンドのリスナーの位置とリスナーの前方位置とリスナーの上方向を設定する
-extern	int			NS_Set3DSoundListenerVelocity(              VECTOR Velocity ) ;																	// ３Ｄサウンドのリスナーの移動速度を設定する
-extern	int			NS_Set3DSoundListenerConeAngle(             float InnerAngle, float OuterAngle ) ;													// ３Ｄサウンドのリスナーの可聴角度範囲を設定する
-extern	int			NS_Set3DSoundListenerConeVolume(            float InnerAngleVolume, float OuterAngleVolume ) ;										// ３Ｄサウンドのリスナーの可聴角度範囲の音量倍率を設定する
+extern	int			NS_SetCreate3DSoundFlag(                     int Flag ) ;																			// 次に作成するサウンドハンドルを３Ｄサウンド用にするかどうかを設定する( TRUE:３Ｄサウンド用にする  FALSE:３Ｄサウンド用にしない( デフォルト ) )
+extern	int			NS_Set3DSoundOneMetre(                       float Distance ) ;																		// ３Ｄ空間の１メートルに相当する距離を設定する、DxLib_Init を呼び出す前でのみ呼び出し可能( デフォルト:1.0f )
+extern	int			NS_Set3DSoundListenerPosAndFrontPos_UpVecY(  VECTOR Position, VECTOR FrontPosition ) ;												// ３Ｄサウンドのリスナーの位置とリスナーの前方位置を設定する( リスナーの上方向はＹ軸固定 )
+extern	int			NS_Set3DSoundListenerPosAndFrontPosAndUpVec( VECTOR Position, VECTOR FrontPosition, VECTOR UpVector ) ;								// ３Ｄサウンドのリスナーの位置とリスナーの前方位置とリスナーの上方向を設定する
+extern	int			NS_Set3DSoundListenerVelocity(               VECTOR Velocity ) ;																	// ３Ｄサウンドのリスナーの移動速度を設定する
+extern	int			NS_Set3DSoundListenerConeAngle(              float InnerAngle, float OuterAngle ) ;													// ３Ｄサウンドのリスナーの可聴角度範囲を設定する
+extern	int			NS_Set3DSoundListenerConeVolume(             float InnerAngleVolume, float OuterAngleVolume ) ;										// ３Ｄサウンドのリスナーの可聴角度範囲の音量倍率を設定する
 
-// 信息采集系函数
+// 情報取得系関数
 extern	const void*	NS_GetDSoundObj(                        void ) ;	/* 戻り値を IDirectSound * にキャストして下さい */								// ＤＸライブラリが使用している DirectSound オブジェクトを取得する
 
 #ifndef DX_NON_BEEP
-// BEEP音播放用命令
+// BEEP音再生用命令
 extern	int			NS_SetBeepFrequency(					int Freq ) ;																				// ビープ音周波数設定関数
 extern	int			NS_PlayBeep(							void ) ;																					// ビープ音を再生する
 extern	int			NS_StopBeep(							void ) ;																					// ビープ音を止める
@@ -2039,7 +2197,7 @@ extern	int			NS_StopSound(							void ) ;																					// StopSoundFile �
 extern	int			NS_SetVolumeSoundFile(					int VolumePal ) ;																			// サウンドファイルの音量を設定する
 extern	int			NS_SetVolumeSound(						int VolumePal ) ;																			// SetVolumeSound の旧名称
 
-// 控制SoftWave的音频类函数
+// ソフトウエア制御サウンド系関数
 extern	int			NS_InitSoftSound(						void ) ;																					// ソフトウエアで扱う波形データハンドルをすべて削除する
 extern	int			NS_LoadSoftSound(						const TCHAR *FileName ) ;																	// ソフトウエアで扱う波形データハンドルをサウンドファイルから作成する
 extern	int			NS_LoadSoftSoundFromMemImage(			const void *FileImage, int FileImageSize ) ;												// ソフトウエアで扱う波形データハンドルをメモリ上に展開されたサウンドファイルイメージから作成する
@@ -2089,7 +2247,7 @@ extern	int			NS_CheckSoftSoundPlayerNoneData(		int SSoundPlayerHandle ) ;							
 
 
 
-// ＭＩＤＩ控制函数
+// ＭＩＤＩ制御関数
 extern	int			NS_DeleteMusicMem(						int MusicHandle ) ;																			// ＭＩＤＩハンドルを削除する
 extern	int			NS_LoadMusicMem(						const TCHAR *FileName ) ;																	// ＭＩＤＩファイルを読み込む
 extern	int			NS_LoadMusicMemByMemImage(				const void *FileImage, int FileImageSize ) ;														// メモリ上に展開されたＭＩＤＩファイルを読み込む
@@ -2177,7 +2335,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetNowHiPerformanceCount				GetNowHiPerformanceCount
 #define NS_GetDateTime							GetDateTime
 
-// 获取随机数
+// 乱数取得
 #define NS_GetRand								GetRand
 #define NS_SRand								SRand
 
@@ -2204,12 +2362,12 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 
 #ifndef DX_NON_PRINTF_DX
 
-// 日志输出功能函数
+// ログ出力機能関数
 #define NS_SetLogDrawOutFlag					SetLogDrawOutFlag
 #define NS_GetLogDrawFlag						GetLogDrawFlag
 #define NS_SetLogFontSize						SetLogFontSize
 
-// 简易屏幕输出函数
+// 簡易画面出力関数
 #define NS_printfDx								printfDx
 #define NS_clsDx								clsDx
 #endif
@@ -2277,6 +2435,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 // ウインドウ関係情報取得関数
 #define NS_GetWindowCRect						GetWindowCRect
 #define NS_GetWindowActiveFlag					GetWindowActiveFlag
+#define NS_GetWindowMinSizeFlag					GetWindowMinSizeFlag
+#define NS_GetWindowMaxSizeFlag					GetWindowMaxSizeFlag
 #define NS_GetMainWindowHandle					GetMainWindowHandle
 #define NS_GetWindowModeFlag					GetWindowModeFlag
 #define NS_GetDefaultState						GetDefaultState
@@ -2300,6 +2460,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetNotDrawFlag						GetNotDrawFlag
 #define NS_GetPaintMessageFlag					GetPaintMessageFlag
 #define NS_GetValidHiPerformanceCounter			GetValidHiPerformanceCounter
+#define NS_GetInputSystemChar					GetInputSystemChar
 
 // 設定系関数
 #define NS_ChangeWindowMode						ChangeWindowMode
@@ -2320,6 +2481,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_SetWindowIconHandle					SetWindowIconHandle
 #define NS_SetUseASyncChangeWindowModeFunction	SetUseASyncChangeWindowModeFunction
 #define NS_SetWindowStyleMode					SetWindowStyleMode
+#define NS_SetWindowZOrder						SetWindowZOrder
 #define NS_SetWindowSizeChangeEnableFlag		SetWindowSizeChangeEnableFlag
 #define NS_SetWindowSizeExtendRate				SetWindowSizeExtendRate
 #define NS_SetWindowSize						SetWindowSize
@@ -2347,7 +2509,6 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_SetDXArchivePriority					SetDXArchivePriority
 #define NS_SetDXArchiveExtension				SetDXArchiveExtension
 #define NS_SetDXArchiveKeyString				SetDXArchiveKeyString
-#define NS_SetBackgroundColor					SetBackgroundColor
 #define NS_SetUseFPUPreserveFlag				SetUseFPUPreserveFlag
 #define NS_SetValidMousePointerWindowOutClientAreaMoveFlag		SetValidMousePointerWindowOutClientAreaMoveFlag
 #define NS_SetUseBackBufferTransColorFlag		SetUseBackBufferTransColorFlag
@@ -2453,7 +2614,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 
 // DxMemory.cpp関数プロトタイプ宣言
 
-// 内存分配系函数
+// メモリ確保系関数
 #define NS_DxAlloc								DxAlloc
 #define NS_DxCalloc								DxCalloc
 #define NS_DxRealloc							DxRealloc
@@ -2463,6 +2624,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DxGetAllocSize						DxGetAllocSize
 #define NS_DxGetAllocNum						DxGetAllocNum
 #define NS_DxDumpAlloc							DxDumpAlloc
+#define NS_DxDrawAlloc							DxDrawAlloc
 #define NS_DxErrorCheckAlloc					DxErrorCheckAlloc
 #define NS_DxSetAllocSizeOutFlag				DxSetAllocSizeOutFlag
 #define NS_DxSetAllocMemoryErrorCheckFlag		DxSetAllocMemoryErrorCheckFlag
@@ -2480,7 +2642,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 
 #ifndef DX_NON_INPUTSTRING
 
-// 字符编码缓存操作相关
+// 文字コードバッファ操作関係
 #define NS_StockInputChar						StockInputChar
 #define NS_ClearInputCharBuf					ClearInputCharBuf
 #define NS_GetInputChar							GetInputChar
@@ -2520,7 +2682,10 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetIMEInputModeStr					GetIMEInputModeStr
 #define NS_GetIMEInputData						GetIMEInputData
 #define NS_SetKeyInputStringColor				SetKeyInputStringColor
+#define NS_SetKeyInputStringColor2				SetKeyInputStringColor2
+#define NS_ResetKeyInputStringColor2			ResetKeyInputStringColor2
 #define NS_SetKeyInputStringFont				SetKeyInputStringFont
+#define NS_SetKeyInputStringEndCharaMode		SetKeyInputStringEndCharaMode
 #define NS_DrawKeyInputModeString				DrawKeyInputModeString
 
 #define NS_InitKeyInput							InitKeyInput
@@ -2597,6 +2762,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_SetUseDXArchiveFlag					SetUseDXArchiveFlag
 #define NS_GetStreamFunctionDefault				GetStreamFunctionDefault
 #define NS_ChangeStreamFunction					ChangeStreamFunction
+#define NS_ChangeStreamFunctionW				ChangeStreamFunctionW
 
 // 補助関係関数
 #define NS_ConvertFullPath						ConvertFullPath
@@ -2613,11 +2779,11 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 
 
 
-// DxInput.cpp函数原型声明
+// DxInput.cpp関数プロトタイプ宣言
 
 #ifndef DX_NON_INPUT
 
-// 输入状态取得函数
+// 入力状態取得関数
 #define NS_CheckHitKey							CheckHitKey
 #define NS_CheckHitKeyAll						CheckHitKeyAll
 #define NS_GetHitKeyStateAll					GetHitKeyStateAll
@@ -2629,7 +2795,6 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetJoypadDirectInputState			GetJoypadDirectInputState
 #define NS_CheckJoypadXInput					CheckJoypadXInput
 #define NS_GetJoypadXInputState					GetJoypadXInputState
-#define NS_KeyboradBufferProcess				KeyboradBufferProcess
 #define NS_GetJoypadGUID						GetJoypadGUID
 #define NS_ConvertKeyCodeToVirtualKey			ConvertKeyCodeToVirtualKey
 #define NS_ConvertVirtualKeyToKeyCode			ConvertVirtualKeyToKeyCode
@@ -2680,7 +2845,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_SetShadowMapLightDirection			SetShadowMapLightDirection
 #define NS_ShadowMap_DrawSetup					ShadowMap_DrawSetup
 #define NS_ShadowMap_DrawEnd					ShadowMap_DrawEnd
-#define NS_SetDrawUseShadowMap					SetDrawUseShadowMap
+#define NS_SetUseShadowMap						SetUseShadowMap
 #define NS_SetShadowMapDrawArea					SetShadowMapDrawArea
 #define NS_ResetShadowMapDrawArea				ResetShadowMapDrawArea
 #define NS_SetShadowMapAdjustDepth				SetShadowMapAdjustDepth
@@ -2780,6 +2945,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetCreateDrawValidGraphZBufferBitDepth		GetCreateDrawValidGraphZBufferBitDepth
 #define NS_SetCreateDrawValidGraphChannelNum	SetCreateDrawValidGraphChannelNum
 #define NS_GetCreateDrawValidGraphChannelNum	GetCreateDrawValidGraphChannelNum
+#define NS_SetCreateDrawValidGraphMultiSample	SetCreateDrawValidGraphMultiSample
 #define NS_SetDrawValidMultiSample				SetDrawValidMultiSample
 #define NS_GetMultiSampleQuality				GetMultiSampleQuality
 #define NS_SetUseTransColor						SetUseTransColor
@@ -2793,6 +2959,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_SetTransColor						SetTransColor
 #define NS_GetTransColor						GetTransColor
 #define NS_SetUseDivGraphFlag					SetUseDivGraphFlag
+#define NS_SetUseAlphaImageLoadFlag				SetUseAlphaImageLoadFlag
 #define NS_SetUseMaxTextureSize					SetUseMaxTextureSize
 #define NS_SetUseGraphBaseDataBackup			SetUseGraphBaseDataBackup
 #define NS_GetUseGraphBaseDataBackup			GetUseGraphBaseDataBackup
@@ -2820,13 +2987,13 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetValidRestoreShredPoint			GetValidRestoreShredPoint
 #define NS_GetCreateGraphColorData				GetCreateGraphColorData
 
-// 调色板操作相关函数
+// パレット操作関係関数
 #define NS_GetGraphPalette						GetGraphPalette
 #define NS_GetGraphOriginalPalette				GetGraphOriginalPalette
 #define NS_SetGraphPalette						SetGraphPalette
 #define NS_ResetGraphPalette					ResetGraphPalette
 
-// 几何图形绘制函数
+// 図形描画関数
 #define NS_DrawLine										DrawLine
 #define NS_DrawBox										DrawBox
 #define NS_DrawFillBox									DrawFillBox
@@ -2835,6 +3002,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawOval										DrawOval
 #define NS_DrawTriangle									DrawTriangle
 #define NS_DrawQuadrangle								DrawQuadrangle
+#define NS_DrawRoundRect								DrawRoundRect
 #define NS_DrawPixel									DrawPixel
 
 #define NS_Paint										Paint
@@ -2843,14 +3011,21 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawLineSet									DrawLineSet
 
 #define NS_DrawPixel3D									DrawPixel3D
+#define NS_DrawPixel3DD									DrawPixel3DD
 #define NS_DrawLine3D									DrawLine3D
+#define NS_DrawLine3DD									DrawLine3DD
 #define NS_DrawTriangle3D								DrawTriangle3D
+#define NS_DrawTriangle3DD								DrawTriangle3DD
 #define NS_DrawCube3D									DrawCube3D
+#define NS_DrawCube3DD									DrawCube3DD
 #define NS_DrawSphere3D									DrawSphere3D
+#define NS_DrawSphere3DD								DrawSphere3DD
 #define NS_DrawCapsule3D								DrawCapsule3D
+#define NS_DrawCapsule3DD								DrawCapsule3DD
 #define NS_DrawCone3D									DrawCone3D
+#define NS_DrawCone3DD									DrawCone3DD
 
-// 图像绘制函数
+// 画像描画関数
 #define NS_LoadGraphScreen								LoadGraphScreen
 
 #define NS_DrawGraph									DrawGraph
@@ -2878,12 +3053,14 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawRectRotaGraph							DrawRectRotaGraph
 #define NS_DrawRectRotaGraph2							DrawRectRotaGraph2
 #define NS_DrawRectRotaGraph3							DrawRectRotaGraph3
+#define NS_DrawRectModiGraph							DrawRectModiGraph
 
 #define NS_DrawRectGraphF								DrawRectGraphF
 #define NS_DrawRectExtendGraphF							DrawRectExtendGraphF
 #define NS_DrawRectRotaGraphF							DrawRectRotaGraphF
 #define NS_DrawRectRotaGraph2F							DrawRectRotaGraph2F
 #define NS_DrawRectRotaGraph3F							DrawRectRotaGraph3F
+#define NS_DrawRectModiGraphF							DrawRectModiGraphF
 
 #define NS_DrawBlendGraph								DrawBlendGraph
 #define NS_DrawBlendGraphPos							DrawBlendGraphPos
@@ -2899,6 +3076,9 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawModiGraphToZBuffer						DrawModiGraphToZBuffer
 #define NS_DrawBoxToZBuffer								DrawBoxToZBuffer
 #define NS_DrawCircleToZBuffer							DrawCircleToZBuffer
+#define NS_DrawTriangleToZBuffer						DrawTriangleToZBuffer
+#define NS_DrawQuadrangleToZBuffer						DrawQuadrangleToZBuffer
+#define NS_DrawRoundRectToZBuffer						DrawRoundRectToZBuffer
 
 #define NS_DrawPolygon									DrawPolygon
 #define NS_DrawPolygon2D								DrawPolygon2D
@@ -2929,7 +3109,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawModiBillboard3D							DrawModiBillboard3D
 #define NS_DrawBillboard3D								DrawBillboard3D
 
-// 绘制设定相关函数
+// 描画設定関係関数
 #define NS_SetDrawMode							SetDrawMode
 #define NS_GetDrawMode							GetDrawMode
 #define NS_SetDrawBlendMode						SetDrawBlendMode
@@ -2942,6 +3122,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetDrawBright						GetDrawBright
 #define NS_SetIgnoreDrawGraphColor				SetIgnoreDrawGraphColor
 #define NS_SetMaxAnisotropy						SetMaxAnisotropy
+#define NS_SetUseLarge3DPositionSupport			SetUseLarge3DPositionSupport
 
 #define NS_SetUseZBufferFlag					SetUseZBufferFlag
 #define NS_SetWriteZBufferFlag					SetWriteZBufferFlag
@@ -2965,25 +3146,43 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_SetGraphicsDeviceLostCallbackFunction		SetGraphicsDeviceLostCallbackFunction
 
 #define NS_SetTransformToWorld					SetTransformToWorld
+#define NS_SetTransformToWorldD					SetTransformToWorldD
 #define NS_GetTransformToWorldMatrix			GetTransformToWorldMatrix
+#define NS_GetTransformToWorldMatrixD			GetTransformToWorldMatrixD
 #define NS_SetTransformToView					SetTransformToView
+#define NS_SetTransformToViewD					SetTransformToViewD
 #define NS_GetTransformToViewMatrix				GetTransformToViewMatrix
+#define NS_GetTransformToViewMatrixD			GetTransformToViewMatrixD
 #define NS_SetTransformToProjection				SetTransformToProjection
+#define NS_SetTransformToProjectionD			SetTransformToProjectionD
 #define NS_GetTransformToProjectionMatrix		GetTransformToProjectionMatrix
+#define NS_GetTransformToProjectionMatrixD		GetTransformToProjectionMatrixD
 #define NS_SetTransformToViewport				SetTransformToViewport
+#define NS_SetTransformToViewportD				SetTransformToViewportD
 #define NS_GetTransformToViewportMatrix			GetTransformToViewportMatrix
+#define NS_GetTransformToViewportMatrixD		GetTransformToViewportMatrixD
 #define NS_GetTransformToAPIViewportMatrix		GetTransformToAPIViewportMatrix
+#define NS_GetTransformToAPIViewportMatrixD		GetTransformToAPIViewportMatrixD
 #define NS_SetDefTransformMatrix				SetDefTransformMatrix
+#define NS_SetDefTransformMatrixD				SetDefTransformMatrixD
 #define NS_GetTransformPosition					GetTransformPosition
+#define NS_GetTransformPositionD				GetTransformPositionD
 #define NS_GetBillboardPixelSize				GetBillboardPixelSize
+#define NS_GetBillboardPixelSizeD				GetBillboardPixelSizeD
 #define	NS_ConvWorldPosToViewPos				ConvWorldPosToViewPos
+#define	NS_ConvWorldPosToViewPosD				ConvWorldPosToViewPosD
 #define NS_ConvWorldPosToScreenPos				ConvWorldPosToScreenPos
+#define NS_ConvWorldPosToScreenPosD				ConvWorldPosToScreenPosD
 #define NS_ConvWorldPosToScreenPosPlusW			ConvWorldPosToScreenPosPlusW
+#define NS_ConvWorldPosToScreenPosPlusWD		ConvWorldPosToScreenPosPlusWD
 #define NS_ConvScreenPosToWorldPos				ConvScreenPosToWorldPos
+#define NS_ConvScreenPosToWorldPosD				ConvScreenPosToWorldPosD
 #define NS_ConvScreenPosToWorldPos_ZLinear		ConvScreenPosToWorldPos_ZLinear
+#define NS_ConvScreenPosToWorldPos_ZLinearD		ConvScreenPosToWorldPos_ZLinearD
 
 #define NS_SetUseCullingFlag					SetUseCullingFlag
 #define NS_SetUseBackCulling					SetUseBackCulling
+#define NS_GetUseBackCulling					GetUseBackCulling
 
 #define NS_SetTextureAddressMode				SetTextureAddressMode
 #define NS_SetTextureAddressModeUV				SetTextureAddressModeUV
@@ -2992,13 +3191,19 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_ResetTextureAddressTransform			ResetTextureAddressTransform
 
 #define NS_SetFogEnable							SetFogEnable
+#define NS_GetFogEnable							GetFogEnable
 #define NS_SetFogMode							SetFogMode
+#define NS_GetFogMode							GetFogMode
 #define NS_SetFogColor							SetFogColor
+#define NS_GetFogColor							GetFogColor
 #define NS_SetFogStartEnd						SetFogStartEnd
+#define NS_GetFogStartEnd						GetFogStartEnd
 #define NS_SetFogDensity						SetFogDensity
+#define NS_GetFogDensity						GetFogDensity
 
 // 画面関係関数
 #define NS_GetPixel								GetPixel
+#define NS_SetBackgroundColor					SetBackgroundColor
 #define NS_GetDrawScreenGraph					GetDrawScreenGraph
 #define NS_BltDrawValidGraph					BltDrawValidGraph
 #define NS_ScreenFlip							ScreenFlip
@@ -3014,8 +3219,11 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #ifdef __WINDOWS__
 #define NS_BltBackScreenToWindow				BltBackScreenToWindow
 #define NS_BltRectBackScreenToWindow			BltRectBackScreenToWindow
+#define NS_SetScreenFlipTargetWindow			SetScreenFlipTargetWindow
 #endif // __WINDOWS__
 #define NS_SetGraphMode							SetGraphMode
+#define NS_SetFullScreenResolutionMode			SetFullScreenResolutionMode
+#define NS_SetFullScreenScalingMode				SetFullScreenScalingMode
 #define NS_SetEmulation320x240					SetEmulation320x240
 #define NS_SetZBufferSize						SetZBufferSize
 #define NS_SetZBufferBitDepth					SetZBufferBitDepth
@@ -3031,11 +3239,13 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetChangeDisplayFlag					GetChangeDisplayFlag
 #define NS_GetVideoMemorySize					GetVideoMemorySize
 #define NS_GetRefreshRate						GetRefreshRate
+#define NS_GetDisplayNum						GetDisplayNum
 #define NS_GetDisplayModeNum					GetDisplayModeNum
 #define NS_GetDisplayMode						GetDisplayMode
+#define NS_GetDisplayMaxResolution				GetDisplayMaxResolution
 #define NS_GetDispColorData						GetDispColorData
-#define NS_SetDisplayRefreshRate				SetDisplayRefreshRate
 #define NS_GetMultiDrawScreenNum				GetMultiDrawScreenNum
+#define NS_GetDrawFloatCoordType				GetDrawFloatCoordType
 
 // その他設定関係関数
 #define NS_SetUseNormalDrawShader				SetUseNormalDrawShader
@@ -3047,10 +3257,17 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetScreenMemToSystemMemFlag			GetScreenMemToSystemMemFlag
 
 #define NS_SetUseBasicGraphDraw3DDeviceMethodFlag	SetUseBasicGraphDraw3DDeviceMethodFlag
+#define NS_SetUseDisplayIndex					SetUseDisplayIndex
+
 #define NS_SetWindowDrawRect					SetWindowDrawRect
 #define NS_RestoreGraphSystem					RestoreGraphSystem
 #define NS_SetAeroDisableFlag					SetAeroDisableFlag
 #define NS_SetUseDirect3D9Ex					SetUseDirect3D9Ex
+#define NS_SetUseDirect3D11						SetUseDirect3D11
+#define NS_SetUseDirect3D11MinFeatureLevel		SetUseDirect3D11MinFeatureLevel
+#define NS_SetUseDirect3DVersion				SetUseDirect3DVersion
+#define NS_GetUseDirect3DVersion				GetUseDirect3DVersion
+#define NS_GetUseDirect3D11FeatureLevel			GetUseDirect3D11FeatureLevel
 #define NS_SetUseHardwareVertexProcessing		SetUseHardwareVertexProcessing
 #define NS_SetUsePixelLighting					SetUsePixelLighting
 #define NS_SetMultiThreadFlag					SetMultiThreadFlag
@@ -3170,6 +3387,14 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawPrimitiveIndexed3DToShader_UseVertexBuffer		DrawPrimitiveIndexed3DToShader_UseVertexBuffer
 #define NS_DrawPrimitiveIndexed3DToShader_UseVertexBuffer2		DrawPrimitiveIndexed3DToShader_UseVertexBuffer2
 
+// シェーダー用定数バッファ関係関数
+#define NS_InitShaderConstantBuffer						InitShaderConstantBuffer
+#define NS_CreateShaderConstantBuffer					CreateShaderConstantBuffer
+#define NS_DeleteShaderConstantBuffer					DeleteShaderConstantBuffer
+#define NS_GetBufferShaderConstantBuffer				GetBufferShaderConstantBuffer
+#define NS_UpdateShaderConstantBuffer					UpdateShaderConstantBuffer
+#define NS_SetShaderConstantBuffer						SetShaderConstantBuffer
+
 // フィルター関係関数
 #ifndef DX_NON_FILTER
 
@@ -3185,13 +3410,14 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 
 #ifndef DX_NON_MOVIE
 
-// MovieGraph相关函数
+// ムービーグラフィック関係関数
 #define NS_PlayMovie							PlayMovie
 #define NS_OpenMovieToGraph						OpenMovieToGraph
 #define NS_PlayMovieToGraph						PlayMovieToGraph
 #define NS_PauseMovieToGraph					PauseMovieToGraph
 #define NS_AddMovieFrameToGraph					AddMovieFrameToGraph
 #define NS_SeekMovieToGraph						SeekMovieToGraph
+#define NS_SetPlaySpeedRateMovieToGraph			SetPlaySpeedRateMovieToGraph
 #define NS_GetMovieStateToGraph					GetMovieStateToGraph
 #define NS_SetMovieVolumeToGraph				SetMovieVolumeToGraph
 #define NS_ChangeMovieVolumeToGraph				ChangeMovieVolumeToGraph
@@ -3204,44 +3430,76 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetLastUpdateTimeMovieToGraph		GetLastUpdateTimeMovieToGraph
 #define NS_SetMovieRightImageAlphaFlag			SetMovieRightImageAlphaFlag
 #define NS_SetMovieColorA8R8G8B8Flag			SetMovieColorA8R8G8B8Flag
+#define NS_SetMovieUseYUVFormatSurfaceFlag		SetMovieUseYUVFormatSurfaceFlag
 
 #endif
 
 // カメラ関係関数
 #define NS_SetCameraNearFar						SetCameraNearFar
+#define NS_SetCameraNearFarD					SetCameraNearFarD
 #define NS_SetCameraPositionAndTarget_UpVecY	SetCameraPositionAndTarget_UpVecY
+#define NS_SetCameraPositionAndTarget_UpVecYD	SetCameraPositionAndTarget_UpVecYD
 #define NS_SetCameraPositionAndTargetAndUpVec	SetCameraPositionAndTargetAndUpVec
+#define NS_SetCameraPositionAndTargetAndUpVecD	SetCameraPositionAndTargetAndUpVecD
 #define NS_SetCameraPositionAndAngle			SetCameraPositionAndAngle
+#define NS_SetCameraPositionAndAngleD			SetCameraPositionAndAngleD
 #define NS_SetCameraViewMatrix					SetCameraViewMatrix
+#define NS_SetCameraViewMatrixD					SetCameraViewMatrixD
 #define NS_SetCameraScreenCenter				SetCameraScreenCenter
+#define NS_SetCameraScreenCenterD				SetCameraScreenCenterD
 
 #define NS_SetupCamera_Perspective				SetupCamera_Perspective
+#define NS_SetupCamera_PerspectiveD				SetupCamera_PerspectiveD
 #define NS_SetupCamera_Ortho					SetupCamera_Ortho
+#define NS_SetupCamera_OrthoD					SetupCamera_OrthoD
 #define NS_SetupCamera_ProjectionMatrix			SetupCamera_ProjectionMatrix
+#define NS_SetupCamera_ProjectionMatrixD		SetupCamera_ProjectionMatrixD
 #define NS_SetCameraDotAspect					SetCameraDotAspect
+#define NS_SetCameraDotAspectD					SetCameraDotAspectD
 
 #define NS_CheckCameraViewClip					CheckCameraViewClip
+#define NS_CheckCameraViewClipD					CheckCameraViewClipD
 #define NS_CheckCameraViewClip_Dir				CheckCameraViewClip_Dir
+#define NS_CheckCameraViewClip_DirD				CheckCameraViewClip_DirD
 #define NS_CheckCameraViewClip_Box				CheckCameraViewClip_Box
+#define NS_CheckCameraViewClip_BoxD				CheckCameraViewClip_BoxD
 
 #define NS_GetCameraNear						GetCameraNear
+#define NS_GetCameraNearD						GetCameraNearD
 #define NS_GetCameraFar							GetCameraFar
+#define NS_GetCameraFarD						GetCameraFarD
 
 #define NS_GetCameraPosition					GetCameraPosition
+#define NS_GetCameraPositionD					GetCameraPositionD
 #define NS_GetCameraTarget						GetCameraTarget
+#define NS_GetCameraTargetD						GetCameraTargetD
 #define NS_GetCameraUpVector					GetCameraUpVector
+#define NS_GetCameraUpVectorD					GetCameraUpVectorD
 #define NS_GetCameraAngleHRotate				GetCameraAngleHRotate
+#define NS_GetCameraAngleHRotateD				GetCameraAngleHRotateD
 #define NS_GetCameraAngleVRotate				GetCameraAngleVRotate
+#define NS_GetCameraAngleVRotateD				GetCameraAngleVRotateD
 #define NS_GetCameraAngleTRotate				GetCameraAngleTRotate
+#define NS_GetCameraAngleTRotateD				GetCameraAngleTRotateD
 
 #define NS_GetCameraViewMatrix					GetCameraViewMatrix
+#define NS_GetCameraViewMatrixD					GetCameraViewMatrixD
 #define NS_GetCameraBillboardMatrix				GetCameraBillboardMatrix
+#define NS_GetCameraBillboardMatrixD			GetCameraBillboardMatrixD
+#define NS_GetCameraScreenCenter				GetCameraScreenCenter
+#define NS_GetCameraScreenCenterD				GetCameraScreenCenterD
 #define NS_GetCameraFov							GetCameraFov
+#define NS_GetCameraFovD						GetCameraFovD
 #define NS_GetCameraSize						GetCameraSize
+#define NS_GetCameraSizeD						GetCameraSizeD
 #define NS_GetCameraProjectionMatrix			GetCameraProjectionMatrix
+#define NS_GetCameraProjectionMatrixD			GetCameraProjectionMatrixD
 #define NS_GetCameraDotAspect					GetCameraDotAspect
+#define NS_GetCameraDotAspectD					GetCameraDotAspectD
 #define NS_GetCameraViewportMatrix				GetCameraViewportMatrix
+#define NS_GetCameraViewportMatrixD				GetCameraViewportMatrixD
 #define NS_GetCameraAPIViewportMatrix			GetCameraAPIViewportMatrix
+#define NS_GetCameraAPIViewportMatrixD			GetCameraAPIViewportMatrixD
 
 // ライト関係関数
 #define NS_SetUseLighting						SetUseLighting
@@ -3304,9 +3562,6 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 // 色情報取得用関数
 #define NS_GetTexFormatIndex					GetTexFormatIndex
 #define NS_ColorKaiseki							ColorKaiseki
-#ifdef __WINDOWS__
-#define NS_CreatePixelFormat					CreatePixelFormat
-#endif // __WINDOWS__
 
 
 
@@ -3345,8 +3600,11 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_SetDataToMask						SetDataToMask
 #define NS_DeleteMask							DeleteMask
 #define NS_BmpBltToMask							BmpBltToMask
+#define NS_GraphImageBltToMask					GraphImageBltToMask
 #define NS_LoadMask								LoadMask
 #define NS_LoadDivMask							LoadDivMask
+#define NS_CreateMaskFromMem					CreateMaskFromMem
+#define NS_CreateDivMaskFromMem					CreateDivMaskFromMem
 #define NS_DrawMask								DrawMask
 #ifndef DX_NON_FONT
 #define NS_DrawFormatStringMask					DrawFormatStringMask
@@ -3387,6 +3645,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_InitFontToHandle							InitFontToHandle
 
 #define NS_CreateFontToHandle						CreateFontToHandle
+#define NS_LoadFontDataToHandle						LoadFontDataToHandle
+#define NS_LoadFontDataFromMemToHandle				LoadFontDataFromMemToHandle
 #define NS_SetFontSpaceToHandle						SetFontSpaceToHandle
 #define NS_SetDefaultFontState						SetDefaultFontState
 #define NS_DeleteFontToHandle						DeleteFontToHandle
@@ -3436,6 +3696,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define	NS_SetFontCacheUsePremulAlphaFlag			SetFontCacheUsePremulAlphaFlag
 #define NS_GetFontCacheUsePremulAlphaFlag			GetFontCacheUsePremulAlphaFlag
 
+#define NS_CreateFontDataFile						CreateFontDataFile
+
 // 文字列描画関数
 #define NS_DrawString								DrawString
 #define NS_DrawVString								DrawVString
@@ -3445,6 +3707,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawExtendVString						DrawExtendVString
 #define NS_DrawExtendFormatString					DrawExtendFormatString
 #define NS_DrawExtendFormatVString					DrawExtendFormatVString
+#define NS_DrawRotaString							DrawRotaString
+#define NS_DrawRotaFormatString						DrawRotaFormatString
 
 #define NS_DrawStringF								DrawStringF
 #define NS_DrawVStringF								DrawVStringF
@@ -3454,6 +3718,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawExtendVStringF						DrawExtendVStringF
 #define NS_DrawExtendFormatStringF					DrawExtendFormatStringF
 #define NS_DrawExtendFormatVStringF					DrawExtendFormatVStringF
+#define NS_DrawRotaStringF							DrawRotaStringF
+#define NS_DrawRotaFormatStringF					DrawRotaFormatStringF
 
 #define NS_DrawNumberToI							DrawNumberToI
 #define NS_DrawNumberToF							DrawNumberToF
@@ -3468,6 +3734,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawExtendVStringToZBuffer				DrawExtendVStringToZBuffer
 #define NS_DrawExtendFormatStringToZBuffer			DrawExtendFormatStringToZBuffer
 #define NS_DrawExtendFormatVStringToZBuffer			DrawExtendFormatVStringToZBuffer
+#define NS_DrawRotaStringToZBuffer					DrawRotaStringToZBuffer
+#define NS_DrawRotaFormatStringToZBuffer			DrawRotaFormatStringToZBuffer
 
 
 
@@ -3479,6 +3747,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawExtendVStringToHandle				DrawExtendVStringToHandle
 #define NS_DrawExtendFormatStringToHandle			DrawExtendFormatStringToHandle
 #define NS_DrawExtendFormatVStringToHandle			DrawExtendFormatVStringToHandle
+#define NS_DrawRotaStringToHandle					DrawRotaStringToHandle
+#define NS_DrawRotaFormatStringToHandle				DrawRotaFormatStringToHandle
 
 #define NS_DrawStringFToHandle						DrawStringFToHandle
 #define NS_DrawVStringFToHandle						DrawVStringFToHandle
@@ -3488,6 +3758,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawExtendVStringFToHandle				DrawExtendVStringFToHandle
 #define NS_DrawExtendFormatStringFToHandle			DrawExtendFormatStringFToHandle
 #define NS_DrawExtendFormatVStringFToHandle			DrawExtendFormatVStringFToHandle
+#define NS_DrawRotaStringFToHandle					DrawRotaStringFToHandle
+#define NS_DrawRotaFormatStringFToHandle			DrawRotaFormatStringFToHandle
 
 #define NS_DrawNumberToIToHandle					DrawNumberToIToHandle
 #define NS_DrawNumberToFToHandle					DrawNumberToFToHandle
@@ -3502,6 +3774,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DrawExtendVStringToHandleToZBuffer		DrawExtendVStringToHandleToZBuffer
 #define NS_DrawExtendFormatStringToHandleToZBuffer	DrawExtendFormatStringToHandleToZBuffer
 #define NS_DrawExtendFormatVStringToHandleToZBuffer	DrawExtendFormatVStringToHandleToZBuffer
+#define NS_DrawRotaStringToHandleToZBuffer			DrawRotaStringToHandleToZBuffer
+#define NS_DrawRotaFormatStringToHandleToZBuffer	DrawRotaFormatStringToHandleToZBuffer
 
 #endif // DX_NON_FONT
 
@@ -3532,6 +3806,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_CreateGraphImageOrDIBGraph			CreateGraphImageOrDIBGraph
 #define NS_CreateGraphImageType2				CreateGraphImageType2
 #define NS_CreateBmpInfo						CreateBmpInfo
+#define NS_GetImageSize_File					GetImageSize_File
+#define NS_GetImageSize_Mem						GetImageSize_Mem
 #define NS_GetGraphImageFullColorCode			GetGraphImageFullColorCode
 #define NS_CreateGraphImage_plus_Alpha			CreateGraphImage_plus_Alpha
 #define NS_ReverseGraphImage					ReverseGraphImage
@@ -3564,6 +3840,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_CreateGraphImage						CreateGraphImage
 #define NS_CreateBaseImageToFile				CreateBaseImageToFile
 #define NS_CreateBaseImageToMem					CreateBaseImageToMem
+#define NS_CreateARGBF32ColorBaseImage			CreateARGBF32ColorBaseImage
+#define NS_CreateARGBF16ColorBaseImage			CreateARGBF16ColorBaseImage
 #define NS_CreateARGB8ColorBaseImage			CreateARGB8ColorBaseImage
 #define NS_CreateXRGB8ColorBaseImage			CreateXRGB8ColorBaseImage
 #define NS_CreateRGB8ColorBaseImage				CreateRGB8ColorBaseImage
@@ -3596,7 +3874,9 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_SetPixelPalCodeBaseImage				SetPixelPalCodeBaseImage
 #define NS_GetPixelPalCodeBaseImage				GetPixelPalCodeBaseImage
 #define NS_SetPixelBaseImage					SetPixelBaseImage
+#define NS_SetPixelBaseImageF					SetPixelBaseImageF
 #define NS_GetPixelBaseImage					GetPixelBaseImage
+#define NS_GetPixelBaseImageF					GetPixelBaseImageF
 #define NS_DrawLineBaseImage					DrawLineBaseImage
 #define NS_BltBaseImage							BltBaseImage
 #define NS_BltBaseImage							BltBaseImage
@@ -3640,6 +3920,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetColor4							GetColor4
 #define NS_GetColor5							GetColor5
 #define NS_CreatePaletteColorData				CreatePaletteColorData
+#define NS_CreateARGBF32ColorData				CreateARGBF32ColorData
+#define NS_CreateARGBF16ColorData				CreateARGBF16ColorData
 #define NS_CreateXRGB8ColorData					CreateXRGB8ColorData
 #define NS_CreateARGB8ColorData					CreateARGB8ColorData
 #define NS_CreateARGB4ColorData					CreateARGB4ColorData
@@ -3666,6 +3948,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_LoadSoftImage						LoadSoftImage
 #define NS_LoadSoftImageToMem					LoadSoftImageToMem
 #define NS_MakeSoftImage						MakeSoftImage
+#define NS_MakeARGBF32ColorSoftImage			MakeARGBF32ColorSoftImage
+#define NS_MakeARGBF16ColorSoftImage			MakeARGBF16ColorSoftImage
 #define NS_MakeARGB8ColorSoftImage				MakeARGB8ColorSoftImage
 #define NS_MakeXRGB8ColorSoftImage				MakeXRGB8ColorSoftImage
 #define NS_MakeARGB4ColorSoftImage				MakeARGB4ColorSoftImage
@@ -3696,9 +3980,11 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetImageAddressSoftImage				GetImageAddressSoftImage
 #define NS_GetPitchSoftImage					GetPitchSoftImage
 #define NS_DrawPixelSoftImage					DrawPixelSoftImage
+#define NS_DrawPixelSoftImageF					DrawPixelSoftImageF
 #define NS_DrawPixelSoftImage_Unsafe_XRGB8		DrawPixelSoftImage_Unsafe_XRGB8
 #define NS_DrawPixelSoftImage_Unsafe_ARGB8		DrawPixelSoftImage_Unsafe_ARGB8
 #define NS_GetPixelSoftImage					GetPixelSoftImage
+#define NS_GetPixelSoftImageF					GetPixelSoftImageF
 #define NS_GetPixelSoftImage_Unsafe_XRGB8		GetPixelSoftImage_Unsafe_XRGB8
 #define NS_GetPixelSoftImage_Unsafe_ARGB8		GetPixelSoftImage_Unsafe_ARGB8
 #define NS_DrawLineSoftImage					DrawLineSoftImage
@@ -3747,9 +4033,9 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 
 #ifndef DX_NON_SOUND
 
-// DxSound.cpp函数原型声明
+// DxSound.cpp関数プロトタイプ宣言
 
-// 音频数据管理类函数
+// サウンドデータ管理系関数
 #define NS_InitSoundMem							InitSoundMem
 
 #define NS_AddSoundData							AddSoundData
@@ -3861,17 +4147,17 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_SetCreate3DSoundFlag					SetCreate3DSoundFlag
 #define NS_Set3DSoundOneMetre					Set3DSoundOneMetre
 #define NS_Set3DSoundListenerPosAndFrontPos_UpVecY	Set3DSoundListenerPosAndFrontPos_UpVecY
-#define NS_Set3DSoundListenerPosAndFrontPos		Set3DSoundListenerPosAndFrontPos
+#define NS_Set3DSoundListenerPosAndFrontPosAndUpVec		Set3DSoundListenerPosAndFrontPosAndUpVec
 #define NS_Set3DSoundListenerVelocity			Set3DSoundListenerVelocity
 #define NS_Set3DSoundListenerConeAngle			Set3DSoundListenerConeAngle
 #define NS_Set3DSoundListenerConeVolume			Set3DSoundListenerConeVolume
 
 
-// 信息采集系函数
+// 情報取得系関数
 #define NS_GetDSoundObj							GetDSoundObj
 
 #ifndef DX_NON_BEEP
-// BEEP音播放用命令
+// BEEP音再生用命令
 #define NS_SetBeepFrequency						SetBeepFrequency
 #define NS_PlayBeep								PlayBeep
 #define NS_StopBeep								StopBeep
@@ -3887,7 +4173,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_SetVolumeSoundFile					SetVolumeSoundFile
 #define NS_SetVolumeSound						SetVolumeSound
 
-// 控制SoftWave的音频类函数
+// ソフトウエア制御サウンド系関数
 #define NS_InitSoftSound						InitSoftSound
 #define NS_LoadSoftSound						LoadSoftSound
 #define NS_LoadSoftSoundFromMemImage			LoadSoftSoundFromMemImage
@@ -3935,7 +4221,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_CheckSoftSoundPlayerNoneData			CheckSoftSoundPlayerNoneData
 
 
-// ＭＩＤＩ控制函数
+// ＭＩＤＩ制御関数
 #define NS_DeleteMusicMem						DeleteMusicMem
 #define NS_LoadMusicMem							LoadMusicMem
 #define NS_LoadMusicMemByMemImage				LoadMusicMemByMemImage
@@ -4004,9 +4290,13 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 
 
 
-#endif
+#endif  // DX_THREAD_SAFE
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif
 

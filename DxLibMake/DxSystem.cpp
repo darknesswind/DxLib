@@ -2,23 +2,28 @@
 // 
 // 		ＤＸライブラリ		システムプログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxSystem.h"
 #include "DxBaseFunc.h"
+#include "DxUseCLib.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
+
+// 構造体定義 --------------------------------------------------------------------
 
 // テーブル-----------------------------------------------------------------------
 
@@ -77,22 +82,41 @@ extern int NS_DxLib_IsInit( void )
 // エラー処理関数
 
 // 書式付きライブラリのエラー処理を行う
-extern int DxLib_FmtError( const TCHAR *FormatString , ... )
+extern int DxLib_FmtError( const wchar_t *FormatString , ... )
 {
 	va_list VaList ;
-	TCHAR String[ 1024 ];
+	wchar_t String[ 1024 ];
 
 	// ログ出力用のリストをセットする
 	va_start( VaList , FormatString ) ;
 
-	// 編集語の文字列を取得する
-	_TVSPRINTF( String , FormatString , VaList ) ;
+	// 編集後の文字列を取得する
+	_VSWPRINTF( String , FormatString , VaList ) ;
 
 	// 可変長リストのポインタをリセットする
 	va_end( VaList ) ;
 
 	// エラー処理にまわす
 	return DxLib_Error( String ) ;
+}
+
+// 書式付きライブラリのエラー処理を行う
+extern int DxLib_FmtErrorUTF16LE( const char *FormatString , ... )
+{
+	va_list VaList ;
+	char String[ 2048 ];
+
+	// ログ出力用のリストをセットする
+	va_start( VaList , FormatString ) ;
+
+	// 編集後の文字列を取得する
+	CL_vsprintf( DX_CODEPAGE_UTF16LE, TRUE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, String, FormatString, VaList ) ;
+
+	// 可変長リストのポインタをリセットする
+	va_end( VaList ) ;
+
+	// エラー処理にまわす
+	return DxLib_ErrorUTF16LE( String ) ;
 }
 
 
@@ -155,7 +179,11 @@ extern int NS_SetNotInputFlag( int Flag )
 }
 
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 
 

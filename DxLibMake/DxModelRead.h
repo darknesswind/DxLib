@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ読み込みヘッダ
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -18,8 +18,12 @@
 #include "DxStatic.h"
 #include "DxModel.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 -----------------------------------
 
@@ -27,7 +31,7 @@ namespace DxLib
 #define MV1_READ_MAX_MESH_MATERIAL_NUM			(256)			// 一つのメッシュで使用できるマテリアルの最大数
 #define MV1_READ_MAX_MESH_SKINWEIGHT_NUM		(4096)			// 一つのメッシュで使用できるスキンウエイトの最大数
 
-// データ宣言 -----------------------------------
+// データ型定義 ---------------------------------
 
 // ライト構造体
 struct MV1_LIGHT_R
@@ -35,7 +39,10 @@ struct MV1_LIGHT_R
 	MV1_LIGHT_R				*DataPrev ;						// (読み取り専用)データ的に前のライト
 	MV1_LIGHT_R				*DataNext ;						// (読み取り専用)データ的に次のライト
 	int						Index ;							// (読み取り専用)インデックス
-	char					*Name ;							// (読み取り専用)名前
+#ifndef UNICODE
+	char					*NameA ;						// (読み取り専用)名前
+#endif
+	wchar_t					*NameW ;						// (読み取り専用)名前
 
 	int						FrameIndex ;					// ライトを持っているフレームのインデックス
 	int						Type ;							// ライトタイプ( MV1_LIGHT_TYPE_POINT 等 )
@@ -96,7 +103,6 @@ struct MV1_ANIM_R
 	MV1_ANIM_R				*DataNext ;						// (読み取り専用)データ的に一つ先のアニメーション
 	int						Index ;							// (読み取り専用)インデックス
 
-	char					*TargetFrameName ;				// 対象となるノードの名前
 	int						TargetFrameIndex ;				// 対象となるノードのインデックス
 	float					MaxTime ;						// 各キーセットの中で一番長いキーセットの時間値
 	int						RotateOrder ;					// 回転オーダー( MV1_ROTATE_ORDER_XYZ 等 )
@@ -115,7 +121,10 @@ struct MV1_ANIMSET_R
 	MV1_ANIMSET_R			*DataPrev ;						// (読み取り専用)データ的に一つ前のアニメーションセット
 	MV1_ANIMSET_R			*DataNext ;						// (読み取り専用)データ的に一つ先のアニメーションセット
 	int						Index ;							// (読み取り専用)インデックス
-	const char				*Name ;							// (読み取り専用)名前
+#ifndef UNICODE
+	const char				*NameA ;						// (読み取り専用)名前
+#endif
+	const wchar_t			*NameW ;						// (読み取り専用)名前
 
 	float					StartTime ;						// 開始時間
 	float					EndTime ;						// 終了時間
@@ -132,17 +141,28 @@ struct MV1_TEXTURE_R
 {
 	MV1_TEXTURE_R			*DataPrev ;						// (読み取り専用)データ的に前のテクスチャ
 	MV1_TEXTURE_R			*DataNext ;						// (読み取り専用)データ的に次のテクスチャ
-	DWORD					Index ;							// (読み取り専用)インデックス
-	const char				*Name ;							// (読み取り専用)オブジェクトネーム
+	int						Index ;							// (読み取り専用)インデックス
+#ifndef UNICODE
+	const char				*NameA ;						// (読み取り専用)オブジェクトネーム
+#endif
+	const wchar_t			*NameW ;						// (読み取り専用)オブジェクトネーム
 
 	void					*UserData ;						// ユーザーデータ
 
 	int						AddressModeU ;					// アドレスモード( MV1_TEXTURE_ADDRESS_MODE_WRAP 等 )
 	int						AddressModeV ;					// アドレスモード( MV1_TEXTURE_ADDRESS_MODE_WRAP 等 )
+	float					ScaleU ;						// Ｕ座標のスケーリング値
+	float					ScaleV ;						// Ｖ座標のスケーリング値
 	int						FilterMode ;					// フィルタリングモード( MV1_TEXTURE_FILTER_MODE_POINT 等 )
 
-	char					*ColorFileName ;				// (読み取り専用)ディフューズテクスチャファイル名
-	char					*AlphaFileName ;				// (読み取り専用)アルファチャンネル用テクスチャファイル名
+#ifndef UNICODE
+	char					*ColorFileNameA ;				// (読み取り専用)ディフューズテクスチャファイル名
+#endif
+	wchar_t					*ColorFileNameW ;				// (読み取り専用)ディフューズテクスチャファイル名
+#ifndef UNICODE
+	char					*AlphaFileNameA ;				// (読み取り専用)アルファチャンネル用テクスチャファイル名
+#endif
+	wchar_t					*AlphaFileNameW ;				// (読み取り専用)アルファチャンネル用テクスチャファイル名
 	int						BumpMapFlag ;					// (読み取り専用)カラーチャンネルがバンプマップかどうか( TRUE:バンプマップ  FALSE:違う )
 	float					BumpMapNextPixelLength ;		// (読み取り専用)カラーチャンネルがバンプマップだった場合の、隣のピクセルとの距離
 	int						BlendType ;						// ブレンドタイプ( MV1_LAYERBLEND_TYPE_TRANSLUCENT 等 )
@@ -156,8 +176,12 @@ struct MV1_MATERIAL_R
 {
 	MV1_MATERIAL_R			*DataPrev ;						// (読み取り専用)データ的に前のマテリアル
 	MV1_MATERIAL_R			*DataNext ;						// (読み取り専用)データ的に次のマテリアル
-	DWORD					Index ;							// (読み取り専用)インデックス
-	const char				*Name ;							// (読み取り専用)名前
+	int						Index ;							// (読み取り専用)インデックス
+#ifndef UNICODE
+	const char				*NameA ;						// (読み取り専用)名前
+#endif
+	const wchar_t			*NameW ;						// (読み取り専用)名前
+	const char				*SubName ;						// 読み込み処理時の名前検索処理等に使用する名前
 
 	void					*UserData ;						// ユーザーデータ
 
@@ -214,7 +238,7 @@ struct MV1_MESHFACE_R
 struct MV1_TRIANGLELIST_R
 {
 	int						UseBoneNum ;						// 使用しているボーンの数
-	unsigned short			UseBone[ DX_VS_CONSTF_WORLD_MAT_NUM ] ;	// ボーンのリスト( Mesh.SkinWeights 配列のインデックス )
+	unsigned short			UseBone[ MV1_TRIANGLE_LIST_USE_BONE_MAX_NUM ] ;	// ボーンのリスト( Mesh.SkinWeights 配列のインデックス )
 	int						PolyNum ;							// ポリゴンの数
 } ;
 
@@ -255,7 +279,7 @@ struct MV1_MESH_R
 {
 	MV1_MESH_R				*DataPrev ;											// (読み取り専用)データ的に前のメッシュ
 	MV1_MESH_R				*DataNext ;											// (読み取り専用)データ的に次のメッシュ
-	DWORD					Index ;												// (読み取り専用)インデックス
+	int						Index ;												// (読み取り専用)インデックス
 
 	void					*UserData ;											// ユーザーデータ
 
@@ -271,13 +295,14 @@ struct MV1_MESH_R
 	DWORD					NormalNum ;											// 法線情報の数
 	VECTOR					*Normals ;											// 法線情報配列
 	BYTE					*NormalSetFlag ;									// 法線情報セットフラグ( 法線自動算出処理用 )
+	VECTOR					*Binormals ;										// 従法線情報配列
+	VECTOR					*Tangents ;											// 接線情報配列
 
 	DWORD					VertexColorNum ;									// 頂点カラーの数
 	COLOR_F					*VertexColors ;										// 頂点カラー配列
 
 	DWORD					UVNum[ MV1_READ_MAX_UV_NUM ] ;						// ＵＶ情報の数
 	FLOAT4					*UVs[ MV1_READ_MAX_UV_NUM ] ;						// ＵＶ情報配列( x=u y=v )
-	const char				*UVSetName[ MV1_READ_MAX_UV_NUM ] ;					// ＵＶセット名
 
 	DWORD					MaterialNum ;										// マテリアルの数
 	MV1_MATERIAL_R			*Materials[ MV1_READ_MAX_MESH_MATERIAL_NUM ] ;		// マテリアルの情報へのポインタの配列
@@ -303,8 +328,8 @@ struct MV1_MESH_R
 	WORD					*FaceUseTriangleList ;								// (読み取り専用)各フェイスが使用するトライアングルリスト番号
 	MV1_MATERIAL_POLY_R		*MaterialPolyList ;									// (読み取り専用)マテリアル毎のポリゴン情報
 
-	VECTOR					*Binormals ;										// (読み取り専用)従法線配列
-	VECTOR					*Tangents ;											// (読み取り専用)接線配列
+//	VECTOR					*Binormals ;										// (読み取り専用)従法線配列
+//	VECTOR					*Tangents ;											// (読み取り専用)接線配列
 
 	DWORD					IsShapeMesh ;										// (読み取り専用)シェイプメッシュかどうか
 
@@ -326,8 +351,11 @@ struct MV1_SHAPE_R
 {
 	MV1_SHAPE_R				*DataPrev ;						// (読み取り専用)データ的に前のフレーム
 	MV1_SHAPE_R				*DataNext ;						// (読み取り専用)データ的に次のフレーム
-	DWORD					Index ;							// (読み取り専用)インデックス
-	const char				*Name ;							// (読み取り専用)名前
+	int						Index ;							// (読み取り専用)インデックス
+#ifndef UNICODE
+	const char				*NameA ;						// (読み取り専用)名前
+#endif
+	const wchar_t			*NameW ;						// (読み取り専用)名前
 
 	MV1_MESH_R				*TargetMesh ;					// 対象メッシュ
 	int						ValidVertexNormal ;				// 頂点データの法線が有効かどうか( TRUE:有効  FALSE:無効 )
@@ -345,8 +373,11 @@ struct MV1_PHYSICS_RIGIDBODY_R
 {
 	MV1_PHYSICS_RIGIDBODY_R	*DataPrev ;						// (読み取り専用)データ的に前の剛体データ
 	MV1_PHYSICS_RIGIDBODY_R	*DataNext ;						// (読み取り専用)データ的に次の剛体データ
-	DWORD					Index ;							// (読み取り専用)インデックス
-	const char				*Name ;							// (読み取り専用)名前
+	int						Index ;							// (読み取り専用)インデックス
+#ifndef UNICODE
+	const char				*NameA ;						// (読み取り専用)名前
+#endif
+	const wchar_t			*NameW ;						// (読み取り専用)名前
 
 	struct MV1_FRAME_R		*TargetFrame ;					// (読み取り専用)対象となるフレーム
 
@@ -372,8 +403,11 @@ struct MV1_PHYSICS_JOINT_R
 {
 	MV1_PHYSICS_JOINT_R		*DataPrev ;						// (読み取り専用)データ的に前の剛体ジョイントデータ
 	MV1_PHYSICS_JOINT_R		*DataNext ;						// (読み取り専用)データ的に次の剛体ジョイントデータ
-	DWORD					Index ;							// (読み取り専用)インデックス
-	const char				*Name ;							// (読み取り専用)名前
+	int						Index ;							// (読み取り専用)インデックス
+#ifndef UNICODE
+	const char				*NameA ;						// (読み取り専用)名前
+#endif
+	const wchar_t			*NameW ;						// (読み取り専用)名前
 
 	DWORD					RigidBodyA ;					// 接続先剛体Ａのデータインデックス
 	DWORD					RigidBodyB ;					// 接続先剛体Ｂのデータインデックス
@@ -392,8 +426,11 @@ struct MV1_FRAME_R
 {
 	MV1_FRAME_R				*DataPrev ;						// (読み取り専用)データ的に前のフレーム
 	MV1_FRAME_R				*DataNext ;						// (読み取り専用)データ的に次のフレーム
-	DWORD					Index ;							// (読み取り専用)インデックス(ノードを追加すると値が変化する可能性有り)
-	const char				*Name ;							// (読み取り専用)名前
+	int						Index ;							// (読み取り専用)インデックス(ノードを追加すると値が変化する可能性有り)
+#ifndef UNICODE
+	const char				*NameA ;						// (読み取り専用)名前
+#endif
+	const wchar_t			*NameW ;						// (読み取り専用)名前
 
 	int						TotalMeshNum ;					// (読み取り専用)自分の下層にあるメッシュの総数
 	int						TotalChildNum ;					// (読み取り専用)自分の下層にあるフレームの数
@@ -445,8 +482,9 @@ struct MV1_MODEL_R
 {
 	MEMINFO					*Mem ;							// (読み取り専用)メモリアドレス保存データへのポインタ
 
-	TCHAR					*FilePath ;						// ファイルパスへのポインタ( この文字列は MV1RAddString を使用してはいけない )
-	TCHAR					*Name ;							// 名前へのポインタ( この文字列は MV1RAddString を使用してはいけない )
+	int						CodePage ;						// char版のオブジェクト追加関数が呼ばれた際に想定する文字コードページ
+	wchar_t					*FilePath ;						// ファイルパスへのポインタ( この文字列は MV1RAddString を使用してはいけない )
+	wchar_t					*Name ;							// 名前へのポインタ( この文字列は MV1RAddString を使用してはいけない )
 	int						MeshFaceRightHand ;				// 面情報が右手系の並びになっているかどうか( TRUE:なっている  FALSE:なっていない )
 	int						AutoCreateNormal ;				// 法線の自動生成を使用するかどうか( TRUE:使用する  FALSE:使用しない )
 	DWORD					AnimKeyDataSize ;				// アニメーションキーデータのサイズ
@@ -520,7 +558,8 @@ struct MV1_MODEL_R
 	int						MeshVertexSize ;				// (読み取り専用)メッシュ頂点情報のデータサイズ
 	int						MeshFaceNum ;					// (読み取り専用)メッシュ面情報の数
 	DWORD					MeshVertexIndexNum ;			// (読み取り専用)メッシュ頂点データインデックスの総数
-	DWORD					StringSize ;					// (読み取り専用)文字列データのサイズ
+	DWORD					StringSizeA ;					// (読み取り専用)文字列データのサイズ
+	DWORD					StringSizeW ;					// (読み取り専用)文字列データのサイズ
 	DWORD					ShapeMeshNum ;					// (読み取り専用)シェイプメッシュの数
 	DWORD					ShapeVertexNum ;				// (読み取り専用)シェイプ頂点データの数
 
@@ -532,31 +571,49 @@ struct MV1_MODEL_R
 extern	int					MV1InitReadModel( MV1_MODEL_R *ReadModel ) ;							// 読み込み処理用モデル構造体の初期化
 extern	int					MV1TermReadModel( MV1_MODEL_R *ReadModel ) ;							// 読み込み処理用モデル構造体の後始末
 
-extern	char				*MV1RAddString(					MV1_MODEL_R *ReadModel, const char *String ) ;								// 文字列の追加
-extern	wchar_t				*MV1RAddStringW(				MV1_MODEL_R *ReadModel, const wchar_t *StringW ) ;							// 文字列の追加
-extern	MV1_FRAME_R			*MV1RAddFrame(					MV1_MODEL_R *ReadModel, const char *Name, MV1_FRAME_R *Parent ) ;			// フレームの追加
+#ifndef UNICODE
+extern	char				*MV1RAddString(					MV1_MODEL_R *ReadModel, const char    *String ) ;							// 文字列の追加
+#endif
+extern	wchar_t				*MV1RAddStringW(				MV1_MODEL_R *ReadModel, const wchar_t *String ) ;							// 文字列の追加
+#ifndef UNICODE
+extern	char				*MV1RAddStringWToA(				MV1_MODEL_R *ReadModel, const wchar_t *String ) ;							// 文字列の追加
+#endif
+extern	wchar_t				*MV1RAddStringAToW(				MV1_MODEL_R *ReadModel, const char    *String ) ;							// 文字列の追加
+extern	MV1_FRAME_R			*MV1RAddFrame(					MV1_MODEL_R *ReadModel, const char    *Name, MV1_FRAME_R *Parent ) ;		// フレームの追加
+extern	MV1_FRAME_R			*MV1RAddFrameW(					MV1_MODEL_R *ReadModel, const wchar_t *Name, MV1_FRAME_R *Parent ) ;		// フレームの追加
 extern	MV1_MESH_R			*MV1RAddMesh(					MV1_MODEL_R *ReadModel, MV1_FRAME_R *Frame ) ;								// メッシュの追加
 extern	void				MV1RSubMesh(					MV1_MODEL_R *ReadModel, MV1_FRAME_R *Frame, MV1_MESH_R *Mesh ) ;			// メッシュの削除
 extern	int					MV1RSetupMeshFaceBuffer(		MV1_MODEL_R *ReadModel, MV1_MESH_R *Mesh, int FaceNum, int MaxIndexNum ) ;	// メッシュの面用のバッファをセットアップする
-extern	MV1_SHAPE_R			*MV1RAddShape(					MV1_MODEL_R *ReadModel, const char *Name, MV1_FRAME_R *Frame ) ;			// シェイプデータの追加
-extern	MV1_PHYSICS_RIGIDBODY_R *MV1RAddPhysicsRididBody(	MV1_MODEL_R *ReadModel, const char *Name, MV1_FRAME_R *TargetFrame ) ;		// 物理演算用剛体データの追加
-extern	MV1_PHYSICS_JOINT_R *MV1RAddPhysicsJoint(			MV1_MODEL_R *ReadModel, const char *Name ) ;								// 物理演算用剛体ジョイントデータの追加
-extern	MV1_MATERIAL_R		*MV1RAddMaterial(				MV1_MODEL_R *ReadModel, const char *Name ) ;								// マテリアルの追加
+extern	MV1_SHAPE_R			*MV1RAddShape(					MV1_MODEL_R *ReadModel, const char    *Name, MV1_FRAME_R *Frame ) ;			// シェイプデータの追加
+extern	MV1_SHAPE_R			*MV1RAddShapeW(					MV1_MODEL_R *ReadModel, const wchar_t *Name, MV1_FRAME_R *Frame ) ;			// シェイプデータの追加
+extern	MV1_PHYSICS_RIGIDBODY_R *MV1RAddPhysicsRididBody(	MV1_MODEL_R *ReadModel, const char    *Name, MV1_FRAME_R *TargetFrame ) ;	// 物理演算用剛体データの追加
+extern	MV1_PHYSICS_RIGIDBODY_R *MV1RAddPhysicsRididBodyW(	MV1_MODEL_R *ReadModel, const wchar_t *Name, MV1_FRAME_R *TargetFrame ) ;	// 物理演算用剛体データの追加
+extern	MV1_PHYSICS_JOINT_R *MV1RAddPhysicsJoint(			MV1_MODEL_R *ReadModel, const char    *Name ) ;								// 物理演算用剛体ジョイントデータの追加
+extern	MV1_PHYSICS_JOINT_R *MV1RAddPhysicsJointW(			MV1_MODEL_R *ReadModel, const wchar_t *Name ) ;								// 物理演算用剛体ジョイントデータの追加
+extern	MV1_MATERIAL_R		*MV1RAddMaterial(				MV1_MODEL_R *ReadModel, const char    *Name ) ;								// マテリアルの追加
+extern	MV1_MATERIAL_R		*MV1RAddMaterialW(				MV1_MODEL_R *ReadModel, const wchar_t *Name ) ;								// マテリアルの追加
 extern	MV1_MATERIAL_R		*MV1RGetMaterial(				MV1_MODEL_R *ReadModel, int Index ) ;										// 指定インデックスのマテリアルを取得する
-extern	MV1_TEXTURE_R		*MV1RAddTexture(				MV1_MODEL_R *ReadModel, const char *Name, const char *ColorFilePath, const char *AlphaFilePath = NULL, int BumpMapFlag = FALSE, float BumpMapNextPixelLength = 0.1f, bool FilePathDoubleCancel = true, bool ReverseFlag = false, bool Bmp32AllZeroAlphaToXRGB8Flag = true ) ;	// テクスチャの追加
+extern	MV1_TEXTURE_R		*MV1RAddTexture(				MV1_MODEL_R *ReadModel, const char    *Name, const char    *ColorFilePath, const char    *AlphaFilePath = NULL, int BumpMapFlag = FALSE, float BumpMapNextPixelLength = 0.1f, bool FilePathDoubleCancel = true, bool ReverseFlag = false, bool Bmp32AllZeroAlphaToXRGB8Flag = true ) ;	// テクスチャの追加
+extern	MV1_TEXTURE_R		*MV1RAddTextureW(				MV1_MODEL_R *ReadModel, const wchar_t *Name, const wchar_t *ColorFilePath, const wchar_t *AlphaFilePath = NULL, int BumpMapFlag = FALSE, float BumpMapNextPixelLength = 0.1f, bool FilePathDoubleCancel = true, bool ReverseFlag = false, bool Bmp32AllZeroAlphaToXRGB8Flag = true ) ;	// テクスチャの追加
 extern	MV1_SKIN_WEIGHT_R	*MV1RAddSkinWeight( 			MV1_MODEL_R *ReadModel ) ;													// スキン情報の追加
-extern	MV1_ANIMSET_R		*MV1RAddAnimSet(				MV1_MODEL_R *ReadModel, const char *Name ) ;								// アニメーションセットの追加
+extern	MV1_ANIMSET_R		*MV1RAddAnimSet(				MV1_MODEL_R *ReadModel, const char    *Name ) ;								// アニメーションセットの追加
+extern	MV1_ANIMSET_R		*MV1RAddAnimSetW(				MV1_MODEL_R *ReadModel, const wchar_t *Name ) ;								// アニメーションセットの追加
 extern	MV1_ANIM_R			*MV1RAddAnim(					MV1_MODEL_R *ReadModel, MV1_ANIMSET_R *AnimSet ) ;							// アニメーションの追加
 extern	MV1_ANIMKEYSET_R	*MV1RAddAnimKeySet(				MV1_MODEL_R *ReadModel, MV1_ANIM_R *Anim ) ;								// アニメーションキーセットの追加
-extern	MV1_LIGHT_R			*MV1RAddLight(					MV1_MODEL_R *ReadModel, const char *Name ) ;								// ライトの追加
+extern	MV1_LIGHT_R			*MV1RAddLight(					MV1_MODEL_R *ReadModel, const char    *Name ) ;								// ライトの追加
+extern	MV1_LIGHT_R			*MV1RAddLightW(					MV1_MODEL_R *ReadModel, const wchar_t *Name ) ;								// ライトの追加
 extern	int					MV1GetFrameIndex(				MV1_MODEL_R *ReadModel, DWORD UserID ) ;									// 指定のフレームＩＤを持つノードのインデックスを得る
-extern	int					MV1RLoadFile( const char *FilePath, void **FileImage, int *FileSize ) ;									// ファイルを丸ごと読み込む( -1:読み込み失敗 )
-extern	int					MV1RLoadFileW( const wchar_t *FilePathW, void **FileImage, int *FileSize ) ;							// ファイルを丸ごと読み込む( -1:読み込み失敗 )
+extern	int					MV1RLoadFile(  const char    *FilePath, void **FileImage, int *FileSize ) ;									// ファイルを丸ごと読み込む( -1:読み込み失敗 )
+extern	int					MV1RLoadFileW( const wchar_t *FilePath, void **FileImage, int *FileSize ) ;									// ファイルを丸ごと読み込む( -1:読み込み失敗 )
 extern	int					MV1RMakeMatrix( VECTOR *PreRotate, VECTOR *Rotate, VECTOR *PostRotate, VECTOR *Scale, VECTOR *Translate, VECTOR *MatrixRXYZ, MATRIX *DestBuffer, int RotateOrder = MV1_ROTATE_ORDER_XYZ ) ;	// 座標変換行列の作成
 
-extern	int					MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL_R *ReadModel, const TCHAR *CurrentDir, const MV1_FILE_READ_FUNC *ReadFunc, int ASyncThread ) ;	// 読み込み処理用モデルから基本モデルデータを作成する
+extern	int					MV1LoadModelToReadModel( const MV1LOADMODEL_GPARAM *GParam, MV1_MODEL_R *ReadModel, const wchar_t *CurrentDir, const MV1_FILE_READ_FUNC *ReadFunc, int ASyncThread ) ;	// 読み込み処理用モデルから基本モデルデータを作成する
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif	// DX_NON_MODEL
 

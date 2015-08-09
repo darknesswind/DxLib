@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		通信プログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -14,10 +14,14 @@
 #include "DxLib.h"
 #include "DxThread.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
+
+// マクロ定義 --------------------------------------------------------------------
 
 // ＤＸアーカイブ関連
 
@@ -46,7 +50,7 @@ namespace DxLib
 #define DXA_KEYSTR_LENGTH			(12)				// 鍵文字列の長さ
 #define DXA_MAXDRIVENUM				(64)				// 対応するドライブの最大数
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // アーカイブデータの最初のヘッダ
 struct DXARC_HEAD
@@ -152,7 +156,7 @@ struct DXARC_DIRECTORY_VER5
 // ファイル名検索用データ構造体
 struct DXARC_SEARCHDATA
 {
-	BYTE						FileName[1024] ;				// ファイル名
+	BYTE						FileName[ 1024 ] ;				// ファイル名
 	WORD						Parity ;						// パリティ情報
 	WORD						PackNum ;						// 文字列の長さ÷４
 } ;
@@ -175,7 +179,7 @@ struct DXARC
 		DXARC_HEAD				Head ;							// アーカイブのヘッダ
 		DXARC_HEAD_VER5			HeadV5 ;						// アーカイブのヘッダ(Ver5以前)
 	};
-	int							CharSet ;						// 文字列判定用キャラセット
+	int							CodePage ;						// コードページ
 	DWORD_PTR					WinFilePointer__ ;				// アーカイブファイルのポインタ	
 	void						*MemoryImage ;					// メモリイメージを開いた場合のアドレス
 	DXARC_TABLE					Table ;							// 各テーブルへの先頭アドレスが格納された構造体
@@ -185,7 +189,7 @@ struct DXARC
 		DXARC_DIRECTORY_VER5	*CurrentDirectoryV5 ;			// カレントディレクトリデータへのポインタ(Ver5以前)
 	};
 
-	TCHAR						FilePath[1024] ;				// ファイルパス
+	wchar_t						FilePath[ 1024 ] ;				// ファイルパス
 	unsigned char				Key[DXA_KEYSTR_LENGTH] ;		// 鍵文字列
 	int							MemoryOpenFlag ;				// メモリ上のファイルを開いているか、フラグ
 	int							UserMemoryImageFlag ;			// ユーザーが展開したメモリイメージを使用しているか、フラグ
@@ -233,7 +237,7 @@ struct DXARC_DIR_ARCHIVE
 {
 	int							UseCounter ;					// このアーカイブファイルが使用されている数
 	DXARC						Archive ;						// アーカイブファイルデータ
-	TCHAR						Path[256] ;						// アーカイブファイルのパス
+	wchar_t						Path[ 520 ] ;					// アーカイブファイルのパス
 } ;
 
 // アーカイブファイルをディレクトリに見立てる処理用の開いているアーカイブファイル中のファイルの情報
@@ -253,18 +257,18 @@ struct DXARC_DIR
 
 	DXARC_DIR_ARCHIVE			*Archive[DXA_DIR_MAXARCHIVENUM] ;	// 使用しているアーカイブファイルのデータ
 	DXARC_DIR_FILE				*File[DXA_DIR_MAXFILENUM] ;		// 開いているファイルのデータ
-	TCHAR						ArchiveExtension[64] ;			// アーカイブファイルの拡張子
+	wchar_t						ArchiveExtension[ 64 ] ;		// アーカイブファイルの拡張子
 	int							ArchiveExtensionLength ;		// アーカイブファイルの拡張子の長さ
 	int							DXAPriority ;					// ＤＸアーカイブファイルの優先度( 1:フォルダ優先 0:DXアーカイブ優先 )
 
-	int							ValidKeyString ;					// KeyString が有効かどうか
-	char						KeyString[DXA_KEYSTR_LENGTH + 1 ] ;	// 鍵文字列
+	int							ValidKeyString ;						// KeyString が有効かどうか
+	char						KeyString[ DXA_KEYSTR_LENGTH + 1 ] ;	// 鍵文字列
 
 	int							ArchiveNum ;					// 使用しているアーカイブファイルの数
 	int							FileNum ;						// 開いているファイルの数
 
 	int							BackUseArchiveIndex ;			// 前回使用したアーカイブのインデックス
-	TCHAR						BackUseDirectory[256] ;			// 前回使用したディレクトリパス
+	wchar_t						BackUseDirectory[ 256 ] ;		// 前回使用したディレクトリパス
 	int							BackUseDirectoryPathLength ;	// 前回使用したディレクトリパスの長さ
 } ;
 
@@ -278,22 +282,22 @@ struct DXARC_DIR
 
 extern	int			DXA_Initialize(					DXARC *DXA ) ;													// アーカイブファイルを扱う為の構造体を初期化する
 extern	int			DXA_Terminate(					DXARC *DXA ) ;													// アーカイブファイルを扱う為の構造体の後始末をする
-extern	int			DXA_OpenArchiveFromFile(		DXARC *DXA, const TCHAR *ArchivePath, const char *KeyString = NULL ) ;							// アーカイブファイルを開く( 0:成功  -1:失敗 )
-extern	int			DXA_OpenArchiveFromFileUseMem(	DXARC *DXA, const TCHAR *ArchivePath, const char *KeyString = NULL , int ASync = FALSE ) ;		// アーカイブファイルを開き最初にすべてメモリ上に読み込んでから処理する( 0:成功  -1:失敗 )
-extern	int			DXA_OpenArchiveFromMem(			DXARC *DXA, void *ArchiveImage, int ArchiveSize, int ArchiveImageCopyFlag, int ArchiveImageReadOnlyFlag, const char *KeyString = NULL, const TCHAR *EmulateArchivePath = NULL) ;				// メモリ上にあるアーカイブファイルイメージを開く( 0:成功  -1:失敗 )
+extern	int			DXA_OpenArchiveFromFile(		DXARC *DXA, const wchar_t *ArchivePath, const char *KeyString = NULL ) ;							// アーカイブファイルを開く( 0:成功  -1:失敗 )
+extern	int			DXA_OpenArchiveFromFileUseMem(	DXARC *DXA, const wchar_t *ArchivePath, const char *KeyString = NULL , int ASync = FALSE ) ;		// アーカイブファイルを開き最初にすべてメモリ上に読み込んでから処理する( 0:成功  -1:失敗 )
+extern	int			DXA_OpenArchiveFromMem(			DXARC *DXA, void *ArchiveImage, int ArchiveSize, int ArchiveImageCopyFlag, int ArchiveImageReadOnlyFlag, const char *KeyString = NULL, const wchar_t *EmulateArchivePath = NULL ) ;				// メモリ上にあるアーカイブファイルイメージを開く( 0:成功  -1:失敗 )
 extern	int			DXA_CheckIdle(					DXARC *DXA ) ;													// アーカイブファイルを扱う準備が整ったかを得る( TRUE:整っている  FALSE:整っていない )
 extern	int			DXA_CloseArchive(				DXARC *DXA ) ;													// アーカイブファイルを閉じる
 
-extern	int			DXA_LoadFile(					DXARC *DXA, const char *FilePath, void *Buffer, ULONGLONG BufferSize ) ;	// アーカイブファイル中の指定のファイルをメモリに読み込む( -1:エラー 0以上:ファイルサイズ )
+//extern int		DXA_LoadFile(					DXARC *DXA, const char *FilePath, void *Buffer, ULONGLONG BufferSize ) ;	// アーカイブファイル中の指定のファイルをメモリに読み込む( -1:エラー 0以上:ファイルサイズ )
 extern	void *		DXA_GetFileImage(				DXARC *DXA ) ;													// アーカイブファイルをメモリに読み込んだ場合のファイルイメージが格納されている先頭アドレスを取得する( DXA_OpenArchiveFromFileUseMem 若しくは DXA_OpenArchiveFromMem で開いた場合に有効、データが圧縮されている場合は注意 )
-extern	int			DXA_GetFileInfo(				DXARC *DXA, const char *FilePath, int *Position, int *Size ) ;	// アーカイブファイル中の指定のファイルのファイル内の位置とファイルの大きさを得る( -1:エラー )
-extern	int			DXA_ChangeCurrentDir(			DXARC *DXA, const char *DirPath ) ;								// アーカイブ内のカレントディレクトリを変更する( 0:成功  -1:失敗 )
-extern	int			DXA_GetCurrentDir(				DXARC *DXA, char *DirPathBuffer, int BufferSize ) ;				// アーカイブ内のカレントディレクトリを取得する
-extern	DWORD_PTR	DXA_FindFirst(					DXARC *DXA, const char *FilePath, FILEINFO *Buffer ) ;			// アーカイブ内のオブジェクトを検索する( -1:エラー -1以外:DXA検索ハンドル )
-extern	int			DXA_FindNext(					DWORD_PTR DxaFindHandle, FILEINFO *Buffer ) ;					// アーカイブ内のオブジェクトを検索する( -1:エラー 0:成功 )
+extern	int			DXA_GetFileInfo(				DXARC *DXA, int CodePage, const char *FilePath, int *Position, int *Size ) ;	// アーカイブファイル中の指定のファイルのファイル内の位置とファイルの大きさを得る( -1:エラー )
+extern	int			DXA_ChangeCurrentDir(			DXARC *DXA, int CodePage, const char *DirPath ) ;								// アーカイブ内のカレントディレクトリを変更する( 0:成功  -1:失敗 )
+//extern int		DXA_GetCurrentDir(				DXARC *DXA, int CodePage, char *DirPathBuffer, int BufferSize ) ;				// アーカイブ内のカレントディレクトリを取得する
+extern	DWORD_PTR	DXA_FindFirst(					DXARC *DXA, const BYTE *FilePath, FILEINFOW *Buffer ) ;			// アーカイブ内のオブジェクトを検索する( -1:エラー -1以外:DXA検索ハンドル )
+extern	int			DXA_FindNext(					DWORD_PTR DxaFindHandle, FILEINFOW *Buffer ) ;					// アーカイブ内のオブジェクトを検索する( -1:エラー 0:成功 )
 extern	int			DXA_FindClose(					DWORD_PTR DxaFindHandle ) ;										// アーカイブ内のオブジェクト検索を終了する
 
-extern	int			DXA_STREAM_Initialize(			DXARC_STREAM *DXAStream, DXARC *DXA, const char *FilePath, int UseASyncReadFlag ) ;	// アーカイブファイル内のファイルを開く
+extern	int			DXA_STREAM_Initialize(			DXARC_STREAM *DXAStream, DXARC *DXA, const BYTE *FilePath, int UseASyncReadFlag ) ;	// アーカイブファイル内のファイルを開く
 extern	int			DXA_STREAM_Terminate(			DXARC_STREAM *DXAStream ) ;										// アーカイブファイル内のファイルを閉じる
 extern	int			DXA_STREAM_Read(				DXARC_STREAM *DXAStream, void *Buffer, size_t ReadLength ) ;	// ファイルの内容を読み込む
 extern	int			DXA_STREAM_Seek(				DXARC_STREAM *DXAStream, LONGLONG SeekPoint, int SeekMode ) ;	// ファイルポインタを変更する
@@ -305,22 +309,22 @@ extern	LONGLONG	DXA_STREAM_Size(				DXARC_STREAM *DXAStream ) ;										// フ�
 
 extern	int			DXA_DIR_Initialize(				void ) ;														// アーカイブをディレクトリに見立てる処理の初期化
 extern	int			DXA_DIR_Terminate(				void ) ;														// アーカイブをディレクトリに見立てる処理の後始末
-extern	int			DXA_DIR_SetArchiveExtension(	const TCHAR *Extension = NULL ) ;								// アーカイブファイルの拡張子を設定する
+extern	int			DXA_DIR_SetArchiveExtension(	const wchar_t *Extension = NULL ) ;								// アーカイブファイルの拡張子を設定する
 extern	int			DXA_DIR_SetDXArchivePriority(	int Priority = 0 ) ;											// アーカイブファイルと通常のフォルダのどちらも存在した場合、どちらを優先させるかを設定する( 1:フォルダを優先 0:ＤＸアーカイブファイルを優先(デフォルト) )
 extern	int			DXA_DIR_SetKeyString(			const char *KeyString = NULL ) ;								// アーカイブファイルの鍵文字列を設定する
-extern	LONGLONG	DXA_DIR_LoadFile(				const TCHAR *FilePath, void *Buffer, int BufferSize ) ;			// ファイルを丸ごと読み込む関数
+extern	LONGLONG	DXA_DIR_LoadFile(				const wchar_t *FilePath, void *Buffer, int BufferSize ) ;			// ファイルを丸ごと読み込む関数
 
-extern	DWORD_PTR	DXA_DIR_Open(					const TCHAR *FilePath, int UseCacheFlag = FALSE, int BlockReadFlag = TRUE, int UseASyncReadFlag = FALSE ) ;	// ファイルを開く( エラー：-1  成功：ハンドル )
+extern	DWORD_PTR	DXA_DIR_Open(					const wchar_t *FilePath, int UseCacheFlag = FALSE, int BlockReadFlag = TRUE, int UseASyncReadFlag = FALSE ) ;	// ファイルを開く( エラー：-1  成功：ハンドル )
 extern	int			DXA_DIR_Close(					DWORD_PTR Handle ) ;											// ファイルを閉じる
 extern	LONGLONG	DXA_DIR_Tell(					DWORD_PTR Handle ) ;											// ファイルポインタの位置を取得する
 extern	int			DXA_DIR_Seek(					DWORD_PTR Handle, LONGLONG SeekPoint, int SeekType ) ;			// ファイルポインタの位置を変更する
 extern	size_t		DXA_DIR_Read(					void *Buffer, size_t BlockSize, size_t BlockNum, DWORD_PTR Handle ) ; // ファイルからデータを読み込む
 extern	int			DXA_DIR_Eof(					DWORD_PTR Handle ) ;											// ファイルの終端を調べる
-extern	int			DXA_DIR_ChDir(					const TCHAR *Path ) ;
-extern	int			DXA_DIR_GetDir(					TCHAR *Buffer ) ;
+extern	int			DXA_DIR_ChDir(					const wchar_t *Path ) ;
+extern	int			DXA_DIR_GetDir(					wchar_t *Buffer ) ;
 extern	int			DXA_DIR_IdleCheck(				DWORD_PTR Handle ) ;
-extern	DWORD_PTR	DXA_DIR_FindFirst(				const TCHAR *FilePath, FILEINFO *Buffer ) ;						// 戻り値: -1=エラー  -1以外=FindHandle
-extern	int			DXA_DIR_FindNext(				DWORD_PTR FindHandle, FILEINFO *Buffer ) ;						// 戻り値: -1=エラー  0=成功
+extern	DWORD_PTR	DXA_DIR_FindFirst(				const wchar_t *FilePath, FILEINFOW *Buffer ) ;					// 戻り値: -1=エラー  -1以外=FindHandle
+extern	int			DXA_DIR_FindNext(				DWORD_PTR FindHandle, FILEINFOW *Buffer ) ;						// 戻り値: -1=エラー  0=成功
 extern	int			DXA_DIR_FindClose(				DWORD_PTR FindHandle ) ;										// 戻り値: -1=エラー  0=成功
 
 #endif
@@ -328,6 +332,13 @@ extern	int			DXA_DIR_FindClose(				DWORD_PTR FindHandle ) ;										// 戻り�
 extern	int			DXA_Encode(						void *Src, DWORD SrcSize, void *Dest ) ;						// データを圧縮する( 戻り値:圧縮後のデータサイズ )
 extern	int			DXA_Decode(						void *Src, void *Dest ) ;										// データを解凍する( 戻り値:解凍後のデータサイズ )
 
+extern	DWORD		BinToChar128(					void *Src, DWORD SrcSize, void *Dest ) ;						// バイナリデータを半角文字列に変換する( 戻り値:変換後のデータサイズ )
+extern	DWORD		Char128ToBin(					void *Src, void *Dest ) ;										// 半角文字列をバイナリデータに変換する( 戻り値:変換後のデータサイズ )
+
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // __DXARCHIVE_H__

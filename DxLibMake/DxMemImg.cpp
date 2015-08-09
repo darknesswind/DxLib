@@ -2,11 +2,11 @@
 // 
 // 		ＤＸライブラリ		メモリイメージ制御用プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 // インクルード----------------------------------------------------------------
@@ -14,11 +14,15 @@
 #include "DxLib.h"
 #include "DxStatic.h"
 #include "DxBaseFunc.h"
+#include "DxBaseImage.h"
 #include "DxMemory.h"
-#include "DxGraphicsBase.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義------------------------------------------------------------------
 
@@ -50,7 +54,7 @@ extern int InitializeMemImgManage( void )
 			k = 0 ;
 			for( j = 0 ; j < 256 ; j ++, k += i )
 			{
-				MemImgManage.RateTable[i][j] = k / 255 ;
+				MemImgManage.RateTable[i][j] = ( DWORD )( k / 255 ) ;
 			}
 		}
 
@@ -141,13 +145,14 @@ extern	void	SetBlendGraphParamMemImg( int BorderParam, int BorderRange )
 // メモリ画像データを処理する関数
 
 // (補助関数)MEMIMG 構造体に画像を読み込む( これを呼んだ場合 InitializeMemImg は必要なし )( 戻り値: -1=失敗  0=成功 )
-extern int LoadImageToMemImg( const TCHAR *FilePath, MEMIMG *MemImg, int TransColor, int ColorType, int UsePaletteFormat )
+extern int LoadImageToMemImg( const wchar_t *FilePath, MEMIMG *MemImg, DWORD TransColor, int ColorType, int UsePaletteFormat )
 {
 	BASEIMAGE BaseImage ;
-	int Res, UseAlpha, UsePalette, lTransColor ;
+	int Res, UseAlpha, UsePalette ;
+	DWORD lTransColor ;
 
 	// ファイルの読み込み
-	Res = CreateGraphImage_plus_Alpha( FilePath, NULL, 0, LOADIMAGE_TYPE_FILE,
+	Res = CreateGraphImage_plus_Alpha_WCHAR_T( FilePath, NULL, 0, LOADIMAGE_TYPE_FILE,
 										 NULL, 0, LOADIMAGE_TYPE_FILE,
 										 &BaseImage, NULL, FALSE ) ;
 	if( Res == -1 ) return -1 ;
@@ -169,9 +174,9 @@ extern int LoadImageToMemImg( const TCHAR *FilePath, MEMIMG *MemImg, int TransCo
 	else
 	{
 		lTransColor = NS_GetColor3( GetMemImgColorData( ColorType, UseAlpha, UsePalette ),
-									( TransColor >> 16 ) & 0xff,
-									( TransColor >> 8  ) & 0xff,
-									( TransColor >> 0  ) & 0xff ) ;
+									( int )( ( TransColor >> 16 ) & 0xff ),
+									( int )( ( TransColor >> 8  ) & 0xff ),
+									( int )( ( TransColor >> 0  ) & 0xff ) ) ;
 	}
 
 	// メモリイメージデータの初期化
@@ -223,15 +228,15 @@ extern void BltMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT *SrcRec
 		SrcRect = &srcrect ;
 		srcrect.left   = 0 ;
 		srcrect.top    = 0 ;
-		srcrect.right  = SrcImg->Width ;
-		srcrect.bottom = SrcImg->Height ;
+		srcrect.right  = ( LONG )SrcImg->Width ;
+		srcrect.bottom = ( LONG )SrcImg->Height ;
 	}
 	
 	DestPos.x = DestX ;
 	DestPos.y = DestY ;
 
-	NS_GraphColorMatchBltVer2( DestImg->UseImage, DestImg->Base->Pitch, DestImg->Base->ColorDataP,
-								SrcImg->UseImage, SrcImg->Base->Pitch, SrcImg->Base->ColorDataP,
+	NS_GraphColorMatchBltVer2( DestImg->UseImage, ( int )DestImg->Base->Pitch, DestImg->Base->ColorDataP,
+								SrcImg->UseImage, ( int )SrcImg->Base->Pitch,  SrcImg->Base->ColorDataP,
 								NULL, 0, NULL,
 								DestPos, SrcRect, FALSE,
 								FALSE, 0,
@@ -241,7 +246,7 @@ extern void BltMemImg( MEMIMG *DestImg, const MEMIMG *SrcImg, const RECT *SrcRec
 // ある MEMIMG の一部を使用する MEMIMG の情報を作成する(派生元が無効になったら派生 MEMIMG も使用不可になる)
 extern void DerivationMemImg( MEMIMG *DestImg, MEMIMG *SrcImg, int SrcX, int SrcY, int Width, int Height )
 {
-	int Addr ;
+	unsigned int Addr ;
 
 	// 範囲から外れていたらエラー
 	if( SrcX < 0 ||
@@ -253,8 +258,8 @@ extern void DerivationMemImg( MEMIMG *DestImg, MEMIMG *SrcImg, int SrcX, int Src
 	DestImg->InitializeCheck = MEMIMG_INITIALIZECODE ;
 
 	// サイズをセット
-	DestImg->Width  = Width ;
-	DestImg->Height = Height ;
+	DestImg->Width  = ( unsigned int )Width ;
+	DestImg->Height = ( unsigned int )Height ;
 
 	// 使用するイメージのアドレスをセット
 	Addr = SrcX * SrcImg->Base->ColorDataP->PixelByte + SrcY * SrcImg->Base->Pitch ;
@@ -278,7 +283,7 @@ extern void DerivationMemImg( MEMIMG *DestImg, MEMIMG *SrcImg, int SrcX, int Src
 }
 
 // メモリ画像を初期化する、ゼロ初期化されている必要がある( 戻り値: -1=失敗  0=成功 )
-extern int InitializeMemImg( MEMIMG *Img, int Width, int Height, int Pitch, int TransColor, int ColorType, int UsePalette, int UseAlpha, int AnalysisFlag, const void *UserImage )
+extern int InitializeMemImg( MEMIMG *Img, int Width, int Height, int Pitch, DWORD TransColor, int ColorType, int UsePalette, int UseAlpha, int AnalysisFlag, const void *UserImage )
 {
 	int PixelByte, Pow2n, ShftNum, DefPitch ;
 	MEMIMGBASE *Base ;
@@ -350,12 +355,12 @@ extern int InitializeMemImg( MEMIMG *Img, int Width, int Height, int Pitch, int 
 		// ピッチのセット(ピッチは指定が無ければ１６の倍数にする)
 		if( Pitch != -1 )
 		{
-			Base->Pitch = Pitch ;
+			Base->Pitch = ( unsigned int )Pitch ;
 		}
 		else
 		{
 //			Base->Pitch = Pitch == -1 ? Pow2n : Pitch ;
-			Base->Pitch = PixelByte * Width ;
+			Base->Pitch = ( unsigned int )( PixelByte * Width ) ;
 			Base->Pitch = ( Base->Pitch + 15 ) / 16 * 16 ;
 		}
 
@@ -427,14 +432,14 @@ extern int InitializeMemImg( MEMIMG *Img, int Width, int Height, int Pitch, int 
 	if( Base->ColorType != 2 && Base->AnalysisData == NULL && AnalysisFlag != FALSE )
 	{
 		// 最大のデータ量が収まるサイズを確保する
-		Base->AnalysisData = ( unsigned char * )DXALLOC( Base->BaseHeight * ( Base->BaseWidth + 5 ) ) ;
+		Base->AnalysisData = ( unsigned char * )DXALLOC( ( size_t )( Base->BaseHeight * ( Base->BaseWidth + 5 ) ) ) ;
 		if( Base->AnalysisData == NULL ) return -1 ;
 	}
 
 	// 派生データをセット
 	Img->InitializeCheck = MEMIMG_INITIALIZECODE ;
-	Img->Width           = Width ;
-	Img->Height          = Height ;
+	Img->Width           = ( unsigned int )Width ;
+	Img->Height          = ( unsigned int )Height ;
 	Img->UseImage        = Base->Image ;
 	Img->UseAlphaImage   = Base->AlphaImage ;
 
@@ -488,7 +493,7 @@ extern void TerminateMemImg( MEMIMG *Img )
 }
 
 // BASEIMAGE イメージから MEMIMG イメージに画像データを転送する
-extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *AlphaImage, MEMIMG *MemImg,
+extern void BltBaseImageToMemImg( const BASEIMAGE *RgbBaseImage, const BASEIMAGE *AlphaBaseImage, MEMIMG *MemImg,
 								 int SrcX, int SrcY,
 								 int Width, int Height,
 								 int DestX, int DestY, int UseTransColorConvAlpha )
@@ -518,13 +523,13 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 	SrcRect.right = SrcX + Width ;
 	SrcRect.bottom = SrcY + Height ;
 
-	// 传送
+	// 転送
 	
 	if( MemImg->Base->ColorType == 3 || MemImg->Base->ColorType == 2 )
 	// Ｚバッファかブレンド用画像の場合
 	{
-		NS_GraphColorMatchBltVer2( MemImg->UseImage, MemImg->Base->Pitch, MemImg->Base->ColorDataP,
-									RgbImage->GraphData, RgbImage->Pitch, &RgbImage->ColorData,
+		NS_GraphColorMatchBltVer2(  MemImg->UseImage,        ( int )MemImg->Base->Pitch, MemImg->Base->ColorDataP,
+									RgbBaseImage->GraphData, ( int )RgbBaseImage->Pitch, &RgbBaseImage->ColorData,
 									NULL, 0, NULL,
 									DestPos, &SrcRect, FALSE,
 									FALSE, 0,
@@ -534,11 +539,11 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 	// それ以外の場合
 	{
 		// αチャンネルのデータが別になっている場合は処理を分岐
-		if( AlphaImage != NULL )
+		if( AlphaBaseImage != NULL )
 		{
-			if( NS_GraphColorMatchBltVer2( MemImg->UseImage, MemImg->Base->Pitch, MemImg->Base->ColorDataP,
-											RgbImage->GraphData, RgbImage->Pitch, &RgbImage->ColorData,
-											AlphaImage->GraphData, AlphaImage->Pitch, &AlphaImage->ColorData,
+			if( NS_GraphColorMatchBltVer2(  MemImg->UseImage,        ( int )MemImg->Base->Pitch, MemImg->Base->ColorDataP,
+											RgbBaseImage->GraphData, ( int )RgbBaseImage->Pitch, &RgbBaseImage->ColorData,
+											AlphaBaseImage->GraphData, AlphaBaseImage->Pitch, &AlphaBaseImage->ColorData,
 											DestPos, &SrcRect, FALSE,
 											UseTransColorConvAlpha, MemImg->Base->TransColor,
 											0, FALSE, FALSE ) < 0 ) return ;
@@ -547,12 +552,12 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 		{
 			int Result ;
 
-			Result = NS_GraphColorMatchBltVer2( MemImg->UseImage, MemImg->Base->Pitch, MemImg->Base->ColorDataP,
-											RgbImage->GraphData, RgbImage->Pitch, &RgbImage->ColorData,
-											NULL, 0, NULL,
-											DestPos, &SrcRect, FALSE,
-											UseTransColorConvAlpha, MemImg->Base->TransColor,
-											0, FALSE, FALSE ) ;
+			Result = NS_GraphColorMatchBltVer2( MemImg->UseImage,        ( int )MemImg->Base->Pitch, MemImg->Base->ColorDataP,
+												RgbBaseImage->GraphData, ( int )RgbBaseImage->Pitch, &RgbBaseImage->ColorData,
+												NULL, 0, NULL,
+												DestPos, &SrcRect, FALSE,
+												UseTransColorConvAlpha, MemImg->Base->TransColor,
+												0, FALSE, FALSE ) ;
 			if( Result < 0 ) return ;
 
 			// パレットモードの場合はパレットの数を保存
@@ -564,7 +569,7 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 	// パレットがある場合はパレットをコピーする
 	if( MemImg->Base->UsePalette == 1 )
 	{
-		const COLORPALETTEDATA *SrcColor = RgbImage->ColorData.Palette ;
+		const COLORPALETTEDATA *SrcColor = RgbBaseImage->ColorData.Palette ;
 		DestBP = (BYTE *)MemImg->Base->Palette ;
 
 		if( MemImg->Base->ColorType == 0 )
@@ -572,9 +577,9 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 		{
 			for( i = 0 ; i < 256 ; i ++, SrcColor ++ )
 			{
-				*( DestWP ++ ) = ( ( SrcColor->Red   >> 3 ) << 11 ) |
-								 ( ( SrcColor->Green >> 2 ) << 5  ) |
-								   ( SrcColor->Blue  >> 3 ) ;
+				*( DestWP ++ ) = ( WORD )( ( ( SrcColor->Red   >> 3 ) << 11 ) |
+								           ( ( SrcColor->Green >> 2 ) << 5  ) |
+								           (   SrcColor->Blue  >> 3 )         );
 			}
 			_MEMCPY( MemImg->Base->OriginalPalette, MemImg->Base->Palette, 256 * 2 );
 		}
@@ -583,9 +588,9 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 		{
 			for( i = 0 ; i < 256 ; i ++, SrcColor ++ )
 			{
-				*( DestDP ++ ) = ( SrcColor->Red   << 16 ) |
-								 ( SrcColor->Green << 8  ) |
-								   SrcColor->Blue  ;
+				*( DestDP ++ ) = ( DWORD )( ( SrcColor->Red   << 16 ) |
+								            ( SrcColor->Green << 8  ) |
+								              SrcColor->Blue          ) ;
 			}
 			_MEMCPY( MemImg->Base->OriginalPalette, MemImg->Base->Palette, 256 * 4 );
 		}
@@ -606,20 +611,20 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 		{
 			MemImg->Base->AlphaImageValid = 1 ;
 
-			DestBP = MemImg->UseAlphaImage ;
-			SrcBP = MemImg->UseImage ;
-			AddPitch = MemImg->Base->Pitch - MemImg->Width * 4 ;
+			DestBP   = MemImg->UseAlphaImage ;
+			SrcBP    = MemImg->UseImage ;
+			AddPitch = ( int )( MemImg->Base->Pitch - MemImg->Width * 4 ) ;
 
 			if( MemImg->Base->ColorType == 0 )
 			// 16bit タイプの場合
 			{
-				i = MemImg->Height ;
+				i = ( int )MemImg->Height ;
 				do{
 					j = Width ;
 					do{
-						*DestDP =  (((( *SrcWP & 0xf800 ) * SrcBP[2]) >> 8) & 0xf800) |
-								   (((( *SrcWP & 0x7e0  ) * SrcBP[2]) >> 8) & 0x7e0 ) |
-								   (((( *SrcWP & 0x1f   ) * SrcBP[2]) >> 8) & 0x1f  ) ;
+						*DestDP = ( DWORD )( (((( *SrcWP & 0xf800 ) * SrcBP[2]) >> 8) & 0xf800) |
+								             (((( *SrcWP & 0x7e0  ) * SrcBP[2]) >> 8) & 0x7e0 ) |
+								             (((( *SrcWP & 0x1f   ) * SrcBP[2]) >> 8) & 0x1f  ) ) ;
 						DestBP[2] = SrcBP[2] ;
 
 						SrcDP ++ ;
@@ -632,13 +637,13 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 			else
 			// 32bit タイプの場合
 			{
-				i = MemImg->Height ;
+				i = ( int )MemImg->Height ;
 				do{
 					j = Width ;
 					do{
-						DestBP[0] = ( SrcBP[0] * SrcBP[3] ) >> 8 ;
-						DestBP[1] = ( SrcBP[1] * SrcBP[3] ) >> 8 ;
-						DestBP[2] = ( SrcBP[2] * SrcBP[3] ) >> 8 ;
+						DestBP[0] = ( BYTE )( ( SrcBP[0] * SrcBP[3] ) >> 8 ) ;
+						DestBP[1] = ( BYTE )( ( SrcBP[1] * SrcBP[3] ) >> 8 ) ;
+						DestBP[2] = ( BYTE )( ( SrcBP[2] * SrcBP[3] ) >> 8 ) ;
 						DestBP[3] = SrcBP[2] ;
 
 						SrcDP ++ ;
@@ -650,14 +655,14 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 			}
 		}
 
-		DestBP = MemImg->Base->AnalysisData ;
-		SrcBP = MemImg->UseImage ;
-		AddPitch = MemImg->Base->Pitch - MemImg->Base->ColorDataP->PixelByte * MemImg->Width ;
+		DestBP   = MemImg->Base->AnalysisData ;
+		SrcBP    = MemImg->UseImage ;
+		AddPitch = ( int )( MemImg->Base->Pitch - MemImg->Base->ColorDataP->PixelByte * MemImg->Width ) ;
 
 		if( MemImg->Base->UsePalette == 1 )
 		// パレットを使用している場合の解析
 		{
-			i = MemImg->Height ;
+			i = ( int )MemImg->Height ;
 			do{
 				j = Width ;
 				do{
@@ -686,7 +691,7 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 				if( MemImg->Base->ColorType == 0 )
 				// 16ビットの場合
 				{
-					i = MemImg->Height ;
+					i = ( int )MemImg->Height ;
 					do{
 						j = Width ;
 						do{
@@ -710,7 +715,7 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 				else
 				// 32ビットの場合
 				{
-					i = MemImg->Height ;
+					i = ( int )MemImg->Height ;
 					do{
 						j = Width ;
 						do{
@@ -740,7 +745,7 @@ extern void BltBaseImageToMemImg( const BASEIMAGE *RgbImage, const BASEIMAGE *Al
 				// α値として参照するアドレスをセット
 				Alpha = MemImg->Base->ColorType == 0 ? 2 : 3 ;
 
-				i = MemImg->Height ;
+				i = ( int )MemImg->Height ;
 				do{
 					j = Width ;
 					do{
@@ -827,7 +832,6 @@ extern COLORDATA *GetMemImgColorData( int ColorType, int UseAlpha, int UsePalett
 				return &ColorData ;
 			}
 		}
-		break ;
 
 	case 1 :
 		if( UseAlpha ){
@@ -871,7 +875,6 @@ extern COLORDATA *GetMemImgColorData( int ColorType, int UseAlpha, int UsePalett
 				return &ColorData ;
 			}
 		}
-		break ;
 
 	case 2 :
 		{
@@ -893,7 +896,6 @@ extern COLORDATA *GetMemImgColorData( int ColorType, int UseAlpha, int UsePalett
 			}
 			return &ColorData ;
 		}
-		break ;
 
 	case 3 :
 		{
@@ -915,14 +917,31 @@ extern COLORDATA *GetMemImgColorData( int ColorType, int UseAlpha, int UsePalett
 			}
 			return &ColorData ;
 		}
-		break ;
 	}
 	
 	// ここに来たら対応していないカラーフォーマットということ
 	return NULL ;
 }
 
+/*
 #ifdef __WINDOWS__
+
+// DDPIXELFORMATデータを作成する
+extern int CreatePixelFormat( D_DDPIXELFORMAT *PixelFormatBuf, int ColorBitDepth,
+								 DWORD RedMask, DWORD GreenMask, DWORD BlueMask, DWORD AlphaMask )
+{
+	_MEMSET( PixelFormatBuf, 0, sizeof( D_DDPIXELFORMAT ) ) ;
+	PixelFormatBuf->dwFlags				= D_DDPF_RGB ;
+	PixelFormatBuf->dwSize				= sizeof( D_DDPIXELFORMAT ) ;
+	PixelFormatBuf->dwRGBBitCount		= ( DWORD )ColorBitDepth ;
+	PixelFormatBuf->dwRBitMask			= RedMask ;
+	PixelFormatBuf->dwGBitMask			= GreenMask ;
+	PixelFormatBuf->dwBBitMask			= BlueMask ;
+	PixelFormatBuf->dwRGBAlphaBitMask = AlphaMask ;
+
+	// 終了
+	return 0 ;
+}
 
 // 指定のフォーマットのカラーデータを得る
 extern D_DDPIXELFORMAT *GetMemImgPixelFormat( int ColorType, int UseAlpha, int UsePalette )
@@ -1063,9 +1082,10 @@ extern D_DDPIXELFORMAT *GetMemImgPixelFormat( int ColorType, int UseAlpha, int U
 }
 
 #endif // __WINDOWS__
+*/
 
 // MEMIMG イメージから BASEIMAGE イメージに画像データを転送する
-extern void BltMemImgToBaseImage( BASEIMAGE *BaseImage, const MEMIMG *MemImg, int SrcX, int SrcY, int Width, int Height, int DestX, int DestY, int TransColor, int TransFlag )
+extern void BltMemImgToBaseImage( BASEIMAGE *BaseImage, const MEMIMG *MemImg, int SrcX, int SrcY, int Width, int Height, int DestX, int DestY, DWORD TransColor, int TransFlag )
 {
 	POINT DestPos ;
 	RECT SrcRect ;
@@ -1084,9 +1104,9 @@ extern void BltMemImgToBaseImage( BASEIMAGE *BaseImage, const MEMIMG *MemImg, in
 	SrcRect.right  = SrcX + Width ;
 	SrcRect.bottom = SrcY + Height ;
 	
-	// 传送
-	NS_GraphColorMatchBltVer2( 	BaseImage->GraphData, BaseImage->Pitch, &BaseImage->ColorData,
-								MemImg->UseImage, MemImg->Base->Pitch, MemImg->Base->ColorDataP,
+	// 転送
+	NS_GraphColorMatchBltVer2( 	BaseImage->GraphData, BaseImage->Pitch,           &BaseImage->ColorData,
+								MemImg->UseImage,     ( int )MemImg->Base->Pitch, MemImg->Base->ColorDataP,
 								NULL, 0, NULL,
 								DestPos, &SrcRect, FALSE,
 								FALSE, TransColor,
@@ -1095,7 +1115,7 @@ extern void BltMemImgToBaseImage( BASEIMAGE *BaseImage, const MEMIMG *MemImg, in
 }
 
 // イメージを初期化する
-extern void ClearMemImg( MEMIMG *MemImg, const RECT *FillArea, DWORD Color )
+extern void ClearMemImg( MEMIMG *MemImg, const RECT *FillArea, unsigned int Color )
 {
 	int wtemp, Width, Height, AddPitch ;
 	RECT ClipRect, FArea ;
@@ -1110,15 +1130,15 @@ extern void ClearMemImg( MEMIMG *MemImg, const RECT *FillArea, DWORD Color )
 	{
 		FArea.left   = 0 ;
 		FArea.top    = 0 ;
-		FArea.right  = MemImg->Width ;
-		FArea.bottom = MemImg->Height ;
+		FArea.right  = ( LONG )MemImg->Width ;
+		FArea.bottom = ( LONG )MemImg->Height ;
 	}
 	else
 	{
 		ClipRect.left   = 0 ;
 		ClipRect.top    = 0 ;
-		ClipRect.right  = MemImg->Width ;
-		ClipRect.bottom = MemImg->Height ;
+		ClipRect.right  = ( LONG )MemImg->Width ;
+		ClipRect.bottom = ( LONG )MemImg->Height ;
 		FArea = *FillArea ;
 		RectClipping( &FArea, &ClipRect ) ;
 	}
@@ -1126,7 +1146,12 @@ extern void ClearMemImg( MEMIMG *MemImg, const RECT *FillArea, DWORD Color )
 	Width    = FArea.right  - FArea.left ;
 	Height   = FArea.bottom - FArea.top  ;
 	DestBP   = MemImg->UseImage + FArea.left * MemImg->Base->ColorDataP->PixelByte + FArea.top * MemImg->Base->Pitch ;
-	AddPitch = MemImg->Base->Pitch - Width   * MemImg->Base->ColorDataP->PixelByte ;
+	AddPitch =( int )(  MemImg->Base->Pitch - Width   * MemImg->Base->ColorDataP->PixelByte ) ;
+
+	if( Width == 0 || Height == 0 )
+	{
+		return ;
+	}
 
 	switch( MemImg->Base->ColorDataP->PixelByte )
 	{
@@ -1163,7 +1188,7 @@ extern void ClearMemImg( MEMIMG *MemImg, const RECT *FillArea, DWORD Color )
 }
 
 // イメージ中の指定座標の色を取得
-extern int GetPixelColorMemImg( const MEMIMG *MemImg, int x, int y )
+extern DWORD GetPixelColorMemImg( const MEMIMG *MemImg, int x, int y )
 {
 	switch( MemImg->Base->ColorDataP->PixelByte )
 	{
@@ -1174,5 +1199,9 @@ extern int GetPixelColorMemImg( const MEMIMG *MemImg, int x, int y )
 	return 0 ;
 }
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 

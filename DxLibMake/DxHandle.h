@@ -2,21 +2,25 @@
 // 
 // 		ＤＸライブラリ		ハンドル管理プログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 #ifndef __DXHANDLE_H__
 #define __DXHANDLE_H__
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxCompileConfig.h"
 #include "DxThread.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
+
+// マクロ定義 --------------------------------------------------------------------
 
 // ハンドルの内訳
 #define DX_HANDLEINDEX_MASK							(0x0000ffff)		// ハンドル配列インデックスマスク
@@ -52,6 +56,7 @@ namespace DxLib
 #define DX_HANDLETYPE_INDEX_BUFFER					(16)				// インデックスバッファハンドル
 #define DX_HANDLETYPE_FILE							(17)				// ファイルハンドル
 #define DX_HANDLETYPE_SHADOWMAP						(18)				// シャドウマップハンドル
+#define DX_HANDLETYPE_SHADER_CONSTANT_BUFFER		(19)				// シェーダー用定数バッファハンドル
 
 #define DX_HANDLETYPE_MASK_GRAPH					(DX_HANDLETYPE_GRAPH         << DX_HANDLETYPE_ADDRESS)		// グラフィックハンドル
 #define DX_HANDLETYPE_MASK_SOFTIMAGE				(DX_HANDLETYPE_SOFTIMAGE     << DX_HANDLETYPE_ADDRESS)		// ソフトウエアで扱うイメージハンドル
@@ -95,7 +100,7 @@ namespace DxLib
 
 #else // DX_NON_ASYNCLOAD
 
-	#define HANDLECHKFULL( MANAGE, HANDLE, INFO )		HANDLECHK_ASYNC( MANAGE, HANDLE, INFO )
+	#define HANDLECHKFULL( MANAGE, HANDLE, INFO )		HANDLECHKFULL_ASYNC( MANAGE, HANDLE, INFO )
 
 #endif // DX_NON_ASYNCLOAD
 
@@ -125,7 +130,7 @@ namespace DxLib
 
 #endif // DX_NON_HANDLE_ERROR_CHECK
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // ハンドルリスト構造体
 struct HANDLELIST
@@ -167,7 +172,8 @@ struct HANDLEMANAGE
 	DX_CRITICAL_SECTION		CriticalSection ;					// データアクセス時用クリティカルセクション
 	int						( *InitializeFunction )( HANDLEINFO *HandleInfo ) ;	// ハンドルの初期化をする関数へのポインタ
 	int						( *TerminateFunction )( HANDLEINFO *HandleInfo ) ;	// ハンドルの後始末をする関数へのポインタ
-	const TCHAR				*Name ;								// ハンドル名
+	const wchar_t			*Name ;								// ハンドル名
+	char					NameUTF16LE[ 128 ] ;				// ハンドル名( UTF16LE )
 } ;
 
 // 内部大域変数宣言 --------------------------------------------------------------
@@ -177,17 +183,18 @@ extern HANDLEMANAGE HandleManageArray[ DX_HANDLETYPE_MAX ] ;
 // 関数プロトタイプ宣言-----------------------------------------------------------
 
 // ハンドル共通関係
-extern	int		InitializeHandleManage( int HandleType, int OneSize, int MaxNum, int ( *InitializeFunction )( HANDLEINFO *HandleInfo ), int ( *TerminateFunction )( HANDLEINFO *HandleInfo ), const TCHAR *Name ) ;	// ハンドル管理情報を初期化する( InitializeFlag には FALSE が入っている必要がある )
+extern	int		InitializeHandleManage( int HandleType, int OneSize, int MaxNum, int ( *InitializeFunction )( HANDLEINFO *HandleInfo ), int ( *TerminateFunction )( HANDLEINFO *HandleInfo ), const wchar_t *Name ) ;	// ハンドル管理情報を初期化する( InitializeFlag には FALSE が入っている必要がある )
 extern	int		TerminateHandleManage( int HandleType ) ;																		// ハンドル管理情報の後始末を行う
 
-extern	int		AddHandle( int HandleType, int Handle = -1 ) ;										// ハンドルを追加する
+extern	int		AddHandle( int HandleType, int ASyncThread, int Handle /* = -1 */ ) ;										// ハンドルを追加する
 extern	int		SubHandle( int Handle ) ;															// ハンドルを削除する
-extern	int		ReallocHandle( int Handle, int NewSize ) ;											// ハンドルの情報を格納するメモリ領域のサイズを変更する、非同期読み込み中でないことが前提
+extern	int		ReallocHandle( int Handle, size_t NewSize ) ;										// ハンドルの情報を格納するメモリ領域のサイズを変更する、非同期読み込み中でないことが前提
 extern	HANDLEINFO *GetHandleInfo( int Handle ) ;													// ハンドルの情報を取得する
 extern	int		AllHandleSub( int HandleType, int (*DeleteCancelCheckFunction)( HANDLEINFO *HandleInfo ) = NULL ) ;	// ハンドル管理情報に登録されているすべてのハンドルを削除
 #ifndef DX_NON_ASYNCLOAD
 extern	int		IncASyncLoadCount( int Handle, int ASyncDataNumber ) ;								// ハンドルの非同期読み込み中カウントをインクリメントする
 extern	int		DecASyncLoadCount( int Handle ) ;													// ハンドルの非同期読み込み中カウントをデクリメントする
+extern	int		WaitASyncLoad( int Handle ) ;														// ハンドルが非同期読み込み中だった場合、非同期読み込みが完了するまで待つ
 #endif // DX_NON_ASYNCLOAD
 
 
@@ -197,6 +204,10 @@ extern	int		AddHandleList( HANDLELIST *First, HANDLELIST *List, int Handle, void
 extern	int		SubHandleList( HANDLELIST *List ) ;												// リストから要素を外す
 extern	int		NewMemoryHandleList( HANDLELIST *List, void *Data ) ;							// リストが存在するメモリが変更された場合にリストの前後を更新する
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // __DXHANDLE_H__

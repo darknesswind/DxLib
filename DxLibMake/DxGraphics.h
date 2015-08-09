@@ -2,36 +2,84 @@
 // 
 // 		ＤＸライブラリ		描画プログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 #ifndef __DXGRAPHICS_H__
 #define __DXGRAPHICS_H__
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxCompileConfig.h"
-#include "DxGraphicsBase.h"
 #include "DxLib.h"
 #include "DxStatic.h"
 #include "DxHandle.h"
 #include "DxMemImg.h"
-#include "DxGraphicsAPI.h"
+#include "DxMovie.h"
 #include "DxArchive_.h"
+#include "DxBaseImage.h"
 #include <stdarg.h>
 
-#if !defined( __ANDROID )
-#include "Windows/DxGraphicsWin.h"
-#endif
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-#define GRA2						GraphicsManage2
-#define GRH							GraphicsManage2.Hard
-#define GRS							GraphicsManage2.Soft
+// マクロ定義 --------------------------------------------------------------------
+
+#define GSYS						GraphicsSysData
+#define MASKD						MaskManageData
+
+// 記録しておく有効になっているライトのインデックスの数
+#define MAX_HARDWAREENABLELIGHTINDEX_NUM	(256)
+
+// 同時に描画できるレンダリングターゲットの最大数
+#define DX_RENDERTARGET_COUNT				(8)
+
+// 使用するテクスチャステージの最大数
+#define USE_TEXTURESTAGE_NUM				(16)
+
+// 同時に適用できるシャドウマップの最大数
+#define MAX_USE_SHADOWMAP_NUM				(3)
+
+// 共有バッファの数
+#define COMMON_BUFFER_NUM					(3)
+
+// 頂点タイプ
+#define VERTEXTYPE_NOTEX					(0)			// テクスチャを使用しない
+#define VERTEXTYPE_TEX						(1)			// テクスチャを一つ使用する
+#define VERTEXTYPE_BLENDTEX					(2)			// ブレンドテクスチャを使用する
+#define VERTEXTYPE_NUM						(3)
+
+// グラフィックハンドルの有効性チェック
+#define GRAPHCHKFULL( HAND, GPOINT )			HANDLECHKFULL(       DX_HANDLETYPE_GRAPH, HAND, *( ( HANDLEINFO ** )&GPOINT ) )
+#define GRAPHCHKFULL_ASYNC( HAND, GPOINT )		HANDLECHKFULL_ASYNC( DX_HANDLETYPE_GRAPH, HAND, *( ( HANDLEINFO ** )&GPOINT ) )
+#define GRAPHCHK( HAND, GPOINT )				HANDLECHK(           DX_HANDLETYPE_GRAPH, HAND, *( ( HANDLEINFO ** )&GPOINT ) )
+#define GRAPHCHK_ASYNC( HAND, GPOINT )			HANDLECHK_ASYNC(     DX_HANDLETYPE_GRAPH, HAND, *( ( HANDLEINFO ** )&GPOINT ) )
+
+// シャドウマップハンドルの有効性チェック
+#define SHADOWMAPCHKFULL( HAND, SPOINT )		HANDLECHKFULL(       DX_HANDLETYPE_SHADOWMAP, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+#define SHADOWMAPCHKFULL_ASYNC( HAND, SPOINT )	HANDLECHKFULL_ASYNC( DX_HANDLETYPE_SHADOWMAP, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+#define SHADOWMAPCHK( HAND, SPOINT )			HANDLECHK(           DX_HANDLETYPE_SHADOWMAP, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+#define SHADOWMAPCHK_ASYNC( HAND, SPOINT )		HANDLECHK_ASYNC(     DX_HANDLETYPE_SHADOWMAP, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+
+// シェーダーハンドルの有効性チェック
+#define SHADERCHK( HAND, SPOINT )				HANDLECHK(       DX_HANDLETYPE_SHADER, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+#define SHADERCHK_ASYNC( HAND, SPOINT )			HANDLECHK_ASYNC( DX_HANDLETYPE_SHADER, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+
+// シェーダー用定数バッファハンドルの有効性チェック
+#define SHADERCONSTANTBUFFERCHK( HAND, SPOINT )				HANDLECHK(       DX_HANDLETYPE_SHADER_CONSTANT_BUFFER, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+#define SHADERCONSTANTBUFFERCHK_ASYNC( HAND, SPOINT )		HANDLECHK_ASYNC( DX_HANDLETYPE_SHADER_CONSTANT_BUFFER, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+
+// 頂点バッファハンドルの有効性チェック
+#define VERTEXBUFFERCHK( HAND, SPOINT )			HANDLECHK(       DX_HANDLETYPE_VERTEX_BUFFER, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+#define VERTEXBUFFERCHK_ASYNC( HAND, SPOINT )	HANDLECHK_ASYNC( DX_HANDLETYPE_VERTEX_BUFFER, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+
+// インデックスバッファハンドルの有効性チェック
+#define INDEXBUFFERCHK( HAND, SPOINT )			HANDLECHK(       DX_HANDLETYPE_INDEX_BUFFER, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+#define INDEXBUFFERCHK_ASYNC( HAND, SPOINT )	HANDLECHK_ASYNC( DX_HANDLETYPE_INDEX_BUFFER, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
 
 // Ｚバッファフォーマット
 #define ZBUFFER_FORMAT_16BIT		(0)
@@ -39,30 +87,29 @@ namespace DxLib
 #define ZBUFFER_FORMAT_32BIT		(2)
 #define ZBUFFER_FORMAT_NUM			(3)
 
-// DrawPreparation 関数に渡すフラグ
-#define DRAWPREP_TRANS				(0x00001)
-#define DRAWPREP_VECTORINT			(0x00002)
-#define DRAWPREP_GOURAUDSHADE		(0x00008)
-#define DRAWPREP_PERSPECTIVE		(0x00010)
-#define DRAWPREP_DIFFUSERGB			(0x00020)
-#define DRAWPREP_DIFFUSEALPHA		(0x00040)
-#define DRAWPREP_FOG				(0x00080)
-#define DRAWPREP_NOBLENDSETTING		(0x00100)
-#define DRAWPREP_LIGHTING			(0x00200)
-#define DRAWPREP_SPECULAR			(0x00400)
-#define DRAWPREP_3D					(0x00800)
-#define DRAWPREP_TEXADDRESS			(0x01000)
-#define DRAWPREP_NOTSHADERRESET		(0x02000)
-#define DRAWPREP_CULLING			(0x04000)
-#define DRAWPREP_TEXALPHACH			(0x08000)
-#define DRAWPREP_TEXALPHATEST		(0x10000)
-#define DRAWPREP_EDGEFONT			(0x20000)
+// 描画設定タイプ
+#define DX_DRAWSETTING_2D			(0)			// 通常の２Ｄ描画用の設定
+#define DX_DRAWSETTING_SHADER		(1)			// シェーダーを使った描画用の設定
+#define DX_DRAWSETTING_MASK			(2)			// マスク処理用の設定
+#define DX_DRAWSETTING_TOONOUTLINE	(3)			// トゥーンレンダリングモデルの輪郭線描画用の設定
+#define DX_DRAWSETTING_MODEL		(4)			// モデル描画用の設定
+#define DX_DRAWSETTING_NUM			(5)			// 描画設定タイプの数
 
-// 頂点タイプ
-#define VERTEXTYPE_NOTEX			(0)				// テクスチャを使用しない
-#define VERTEXTYPE_TEX				(1)				// テクスチャを一つ使用する
-#define VERTEXTYPE_BLENDTEX			(2)				// ブレンドテクスチャを使用する
-#define VERTEXTYPE_NUM				(3)
+// シェーダー定数セット
+#define DX_SHADERCONSTANTSET_LIB			0
+#define DX_SHADERCONSTANTSET_LIB_SUB		1
+#define DX_SHADERCONSTANTSET_MV1			2
+#define DX_SHADERCONSTANTSET_USER			3
+#define DX_SHADERCONSTANTSET_NUM			4
+
+// シェーダー定数タイプ
+#define DX_SHADERCONSTANTTYPE_VS_FLOAT		0
+#define DX_SHADERCONSTANTTYPE_VS_INT		1
+#define DX_SHADERCONSTANTTYPE_VS_BOOL		2
+#define DX_SHADERCONSTANTTYPE_PS_FLOAT		3
+#define DX_SHADERCONSTANTTYPE_PS_INT		4
+#define DX_SHADERCONSTANTTYPE_PS_BOOL		5
+#define DX_SHADERCONSTANTTYPE_NUM			6
 
 // マスク定型処理
 #ifdef DX_NON_MASK
@@ -72,10 +119,10 @@ namespace DxLib
 	if( MASKD.FullScreenMaskUpdateFlag )			\
 	{												\
 		RECT MaskRect ;								\
-		MaskRect.left   = GBASE.DrawArea.left ;		\
-		MaskRect.right  = GBASE.DrawArea.right ;	\
-		MaskRect.top    = GBASE.DrawArea.top ;		\
-		MaskRect.bottom = GBASE.DrawArea.bottom ;	\
+		MaskRect.left   = GSYS.DrawSetting.DrawArea.left ;		\
+		MaskRect.right  = GSYS.DrawSetting.DrawArea.right ;	\
+		MaskRect.top    = GSYS.DrawSetting.DrawArea.top ;		\
+		MaskRect.bottom = GSYS.DrawSetting.DrawArea.bottom ;	\
 		MASK_END( MaskRect )						\
 		MASKD.FullScreenMaskUpdateFlag = FALSE ;	\
 	}
@@ -83,37 +130,37 @@ namespace DxLib
 
 // 描画範囲に入っているかどうかの判定( 0 だったら描画領域に入っていない部分がある )
 #define IN_DRAWAREA_CHECK( x1, y1, x2, y2 )	\
-		( (DWORD)( ( (x2) - ( GBASE.DrawArea.right  + 1 ) ) & ( GBASE.DrawArea.left - ( (x1) + 1 ) ) &					\
-		           ( (y2) - ( GBASE.DrawArea.bottom + 1 ) ) & ( GBASE.DrawArea.top  - ( (y1) + 1 ) ) ) & 0x80000000 )
+		( (DWORD)( ( (x2) - ( GSYS.DrawSetting.DrawArea.right  + 1 ) ) & ( GSYS.DrawSetting.DrawArea.left - ( (x1) + 1 ) ) &					\
+		           ( (y2) - ( GSYS.DrawSetting.DrawArea.bottom + 1 ) ) & ( GSYS.DrawSetting.DrawArea.top  - ( (y1) + 1 ) ) ) & 0x80000000 )
 
 // 描画範囲から完全に外れているかどうかの判定( 0 じゃなかったら完全にはずれている )
 #define OUT_DRAWAREA_CHECK( x1, y1, x2, y2 ) \
-		( (DWORD)( ( GBASE.DrawArea.right  - ( (x1) + 1 ) ) & ( (x2) - ( GBASE.DrawArea.left + 1 ) ) &		\
-		           ( GBASE.DrawArea.bottom - ( (y1) + 1 ) ) & ( (y2) - ( GBASE.DrawArea.top  + 1 ) ) ) & 0x80000000 )
+		( (DWORD)( ( GSYS.DrawSetting.DrawArea.right  - ( (x1) + 1 ) ) & ( (x2) - ( GSYS.DrawSetting.DrawArea.left + 1 ) ) &		\
+		           ( GSYS.DrawSetting.DrawArea.bottom - ( (y1) + 1 ) ) & ( (y2) - ( GSYS.DrawSetting.DrawArea.top  + 1 ) ) ) & 0x80000000 )
 
 #define DRAWRECT_DRAWAREA_CLIP\
-		if( IN_DRAWAREA_CHECK( GRH.DrawRect.left, GRH.DrawRect.top, GRH.DrawRect.right, GRH.DrawRect.bottom ) == 0 )\
+		if( IN_DRAWAREA_CHECK( DrawRect.left, DrawRect.top, DrawRect.right, DrawRect.bottom ) == 0 )\
 		{\
-			if( GRH.DrawRect.left   < GBASE.DrawArea.left   ) GRH.DrawRect.left   = GBASE.DrawArea.left   ;\
-			if( GRH.DrawRect.right  < GBASE.DrawArea.left   ) GRH.DrawRect.right  = GBASE.DrawArea.left   ;\
-			if( GRH.DrawRect.left   > GBASE.DrawArea.right  ) GRH.DrawRect.left   = GBASE.DrawArea.right  ;\
-			if( GRH.DrawRect.right  > GBASE.DrawArea.right  ) GRH.DrawRect.right  = GBASE.DrawArea.right  ;\
-			if( GRH.DrawRect.top    < GBASE.DrawArea.top    ) GRH.DrawRect.top    = GBASE.DrawArea.top    ;\
-			if( GRH.DrawRect.bottom < GBASE.DrawArea.top    ) GRH.DrawRect.bottom = GBASE.DrawArea.top    ;\
-			if( GRH.DrawRect.top    > GBASE.DrawArea.bottom ) GRH.DrawRect.top    = GBASE.DrawArea.bottom ;\
-			if( GRH.DrawRect.bottom > GBASE.DrawArea.bottom ) GRH.DrawRect.bottom = GBASE.DrawArea.bottom ;\
+			if( DrawRect.left   < GSYS.DrawSetting.DrawArea.left   ) DrawRect.left   = GSYS.DrawSetting.DrawArea.left   ;\
+			if( DrawRect.right  < GSYS.DrawSetting.DrawArea.left   ) DrawRect.right  = GSYS.DrawSetting.DrawArea.left   ;\
+			if( DrawRect.left   > GSYS.DrawSetting.DrawArea.right  ) DrawRect.left   = GSYS.DrawSetting.DrawArea.right  ;\
+			if( DrawRect.right  > GSYS.DrawSetting.DrawArea.right  ) DrawRect.right  = GSYS.DrawSetting.DrawArea.right  ;\
+			if( DrawRect.top    < GSYS.DrawSetting.DrawArea.top    ) DrawRect.top    = GSYS.DrawSetting.DrawArea.top    ;\
+			if( DrawRect.bottom < GSYS.DrawSetting.DrawArea.top    ) DrawRect.bottom = GSYS.DrawSetting.DrawArea.top    ;\
+			if( DrawRect.top    > GSYS.DrawSetting.DrawArea.bottom ) DrawRect.top    = GSYS.DrawSetting.DrawArea.bottom ;\
+			if( DrawRect.bottom > GSYS.DrawSetting.DrawArea.bottom ) DrawRect.bottom = GSYS.DrawSetting.DrawArea.bottom ;\
 		}
 
 #ifdef DX_NON_MASK
 #define MASK_BEGIN( RECT )
 #else
-#define MASK_BEGIN( RECT )		if( MASKD.MaskValidFlag ) MaskDrawBeginFunction( (RECT) ) ;
+#define MASK_BEGIN( RECT )		if( MASKD.MaskValidFlag ) Mask_DrawBeginFunction( (RECT) ) ;
 #endif
 
 #ifdef DX_NON_MASK
 #define MASK_END( RECT )
 #else
-#define MASK_END( RECT )		if( MASKD.MaskValidFlag ) MaskDrawAfterFunction( (RECT) ) ;
+#define MASK_END( RECT )		if( MASKD.MaskValidFlag ) Mask_DrawAfterFunction( (RECT) ) ;
 #endif
 
 // 描画定型処理
@@ -121,17 +168,13 @@ namespace DxLib
 	#ifdef DX_NON_MASK
 		#define DRAW_DEF( FUNC3D, FUNC2D, SETRECT, RET, USE3DFLAG )\
 			{\
-				RECT Rect ;\
-				if( ( GBASE.BlendMode == DX_BLENDMODE_SUB && GRH.ValidDestBlendOp == FALSE ) || GBASE.AlphaChDrawMode )\
+				if( GSYS.DrawSetting.BlendMode == DX_BLENDMODE_SUB && GSYS.HardInfo.ValidSubBlend == FALSE )\
 				{\
+					RECT DrawRect ;\
 					SETRECT\
-					Rect = GRH.DrawRect ;\
-				}\
-				if( GBASE.BlendMode == DX_BLENDMODE_SUB && GRH.ValidDestBlendOp == FALSE )\
-				{\
-					BlendModeSub_Pre( &Rect ) ;\
+					Graphics_DrawSetting_BlendModeSub_Pre( &DrawRect ) ;\
 					RET = (FUNC3D) ;\
-					BlendModeSub_Post( &Rect ) ;\
+					Graphics_DrawSetting_BlendModeSub_Post( &DrawRect ) ;\
 				}\
 				else\
 				{\
@@ -141,28 +184,24 @@ namespace DxLib
 	#else // DX_NON_MASK
 		#define DRAW_DEF( FUNC3D, FUNC2D, SETRECT, RET, USE3DFLAG )\
 			{\
-				RECT Rect ;\
-				bool UseSubMode = GBASE.BlendMode == DX_BLENDMODE_SUB && GRH.ValidDestBlendOp == FALSE ;\
-				if( GBASE.AlphaChDrawMode || UseSubMode || MASKD.MaskValidFlag )\
-				{\
-					SETRECT\
-					Rect = GRH.DrawRect ;\
-				}\
+				bool UseSubMode = GSYS.DrawSetting.BlendMode == DX_BLENDMODE_SUB && GSYS.HardInfo.ValidSubBlend == FALSE ;\
 				if( UseSubMode || MASKD.MaskValidFlag )\
 				{\
-					MASK_BEGIN( Rect ) ;\
+					RECT DrawRect ;\
+					SETRECT\
+					MASK_BEGIN( DrawRect ) ;\
 					if( UseSubMode )\
 					{\
-						BlendModeSub_Pre( &Rect ) ;\
+						Graphics_DrawSetting_BlendModeSub_Pre( &DrawRect ) ;\
 						RET = (FUNC3D) ;\
-						BlendModeSub_Post( &Rect ) ;\
+						Graphics_DrawSetting_BlendModeSub_Post( &DrawRect ) ;\
 					}\
 					else\
 					{\
 						RET = (FUNC3D) ;\
 					}\
 					\
-					MASK_END( Rect ) ;\
+					MASK_END( DrawRect ) ;\
 				}\
 				else\
 				{\
@@ -174,17 +213,13 @@ namespace DxLib
 	#ifdef DX_NON_MASK
 		#define DRAW_DEF( FUNC3D, FUNC2D, SETRECT, RET, USE3DFLAG )\
 			{\
-				RECT Rect ;\
-				if( ( GBASE.BlendMode == DX_BLENDMODE_SUB && GRH.ValidDestBlendOp == FALSE && (USE3DFLAG) ) || GBASE.AlphaChDrawMode )\
+				if( GSYS.DrawSetting.BlendMode == DX_BLENDMODE_SUB && GSYS.HardInfo.ValidSubBlend == FALSE && (USE3DFLAG) )\
 				{\
+					RECT DrawRect ;\
 					SETRECT\
-					Rect = GRH.DrawRect ;\
-				}\
-				if( GBASE.BlendMode == DX_BLENDMODE_SUB && GRH.ValidDestBlendOp == FALSE && (USE3DFLAG) )\
-				{\
-					BlendModeSub_Pre( &Rect ) ;\
+					Graphics_DrawSetting_BlendModeSub_Pre( &DrawRect ) ;\
 					RET = (FUNC3D) ;\
-					BlendModeSub_Post( &Rect ) ;\
+					Graphics_DrawSetting_BlendModeSub_Post( &DrawRect ) ;\
 				}\
 				else\
 				{\
@@ -194,28 +229,24 @@ namespace DxLib
 	#else // DX_NON_MASK
 		#define DRAW_DEF( FUNC3D, FUNC2D, SETRECT, RET, USE3DFLAG )\
 			{\
-				RECT Rect ;\
-				bool UseSubMode = GBASE.BlendMode == DX_BLENDMODE_SUB && GRH.ValidDestBlendOp == FALSE && (USE3DFLAG) ;\
-				if( GBASE.AlphaChDrawMode || UseSubMode || MASKD.MaskValidFlag )\
-				{\
-					SETRECT\
-					Rect = GRH.DrawRect ;\
-				}\
+				bool UseSubMode = GSYS.DrawSetting.BlendMode == DX_BLENDMODE_SUB && GSYS.HardInfo.ValidSubBlend == FALSE && (USE3DFLAG) ;\
 				if( UseSubMode || MASKD.MaskValidFlag )\
 				{\
-					MASK_BEGIN( Rect ) ;\
+					RECT DrawRect ;\
+					SETRECT\
+					MASK_BEGIN( DrawRect ) ;\
 					if( UseSubMode )\
 					{\
-						BlendModeSub_Pre( &Rect ) ;\
+						Graphics_DrawSetting_BlendModeSub_Pre( &DrawRect ) ;\
 						RET = (FUNC3D) ;\
-						BlendModeSub_Post( &Rect ) ;\
+						Graphics_DrawSetting_BlendModeSub_Post( &DrawRect ) ;\
 					}\
 					else\
 					{\
 						RET = (USE3DFLAG) ? (FUNC3D) : (FUNC2D) ;\
 					}\
 					\
-					MASK_END( Rect ) ;\
+					MASK_END( DrawRect ) ;\
 				}\
 				else\
 				{\
@@ -225,262 +256,64 @@ namespace DxLib
 	#endif // DX_NON_MASK
 #endif // DX_NON_2DDRAW
 
+// 描画待機している頂点やモデルを描画する
+#ifndef DX_NON_MODEL
+	#define MV1DRAWPACKDRAWMODEL		if( MV1Man.PackDrawModel != NULL ) MV1DrawPackDrawModel() ;
+#else	// DX_NON_MODEL
+	#define MV1DRAWPACKDRAWMODEL
+#endif	// DX_NON_MODEL
 
-// 頂点フォーマット
-#define VERTEXFVF_2D_USER			( D_D3DFVF_XYZRHW | D_D3DFVF_DIFFUSE | D_D3DFVF_TEX1 )										// トランスフォーム済み頂点フォーマット
-#define VERTEXFVF_NOTEX_2D			( D_D3DFVF_XYZRHW | D_D3DFVF_DIFFUSE | D_D3DFVF_TEX1 )										// ライン、ボックス描画用頂点フォーマット
-#define VERTEXFVF_2D				( D_D3DFVF_XYZRHW | D_D3DFVF_DIFFUSE | D_D3DFVF_TEX2 )										// トランスフォーム済み頂点フォーマット
-#define VERTEXFVF_BLENDTEX_2D		( D_D3DFVF_XYZRHW | D_D3DFVF_DIFFUSE | D_D3DFVF_SPECULAR | D_D3DFVF_TEX3 )					// αブレンドテクスチャ付きトランスフォーム済み頂点フォーマット
-#define VERTEXFVF_SHADER_2D			( D_D3DFVF_XYZRHW | D_D3DFVF_DIFFUSE | D_D3DFVF_SPECULAR | D_D3DFVF_TEX2 )					// シェーダー描画用頂点フォーマット
-#define VERTEXFVF_NOTEX_3D			( D_D3DFVF_XYZ | D_D3DFVF_DIFFUSE /*| D_D3DFVF_SPECULAR*/ )									// ライン、ボックス描画用頂点フォーマット、３Ｄ用( 旧バージョン用 )
-#define VERTEXFVF_3D				( D_D3DFVF_XYZ | D_D3DFVF_DIFFUSE /*| D_D3DFVF_SPECULAR*/ | D_D3DFVF_TEX1 )					// グラフィックス描画用頂点フォーマット、３Ｄ用( 旧バージョン用 )
-#define VERTEXFVF_3D_LIGHT			( D_D3DFVF_XYZ | D_D3DFVF_NORMAL | D_D3DFVF_DIFFUSE | D_D3DFVF_SPECULAR | D_D3DFVF_TEX2 )	// グラフィックス描画用頂点フォーマット
-#define VERTEXFVF_SHADER_3D			( D_D3DFVF_XYZ | D_D3DFVF_NORMAL | D_D3DFVF_DIFFUSE | D_D3DFVF_SPECULAR | D_D3DFVF_TEX2 )	// シェーダー描画用頂点フォーマット
+#define DRAWSTOCKINFO_ASYNC( ASYNCFLAG )	\
+	Graphics_Hardware_RenderVertex( ASYNCFLAG ) ;	\
+	MV1DRAWPACKDRAWMODEL
 
-// 頂点バッファのサイズ
-#define D3DDEV_NOTEX_VERTBUFFERSIZE		(63 * 1024)		// 63KB
-#define D3DDEV_TEX_VERTBUFFERSIZE		(64 * 1024)		// 64KB
-#define D3DDEV_BLENDTEX_VERTBUFFERSIZE	(64 * 1024)		// 64KB
-#define D3DDEV_NOTEX_3D_VERTBUFFERSIZE	(64 * 1024)		// 64KB
-#define D3DDEV_TEX_3D_VERTBUFFERSIZE	(64 * 1024)		// 64KB
-#define D3DDEV_NOTEX_VERTMAXNUM			(D3DDEV_NOTEX_VERTBUFFERSIZE     / sizeof( VERTEX_NOTEX_2D    ))
-#define D3DDEV_TEX_VERTMAXNUM			(D3DDEV_TEX_VERTBUFFERSIZE       / sizeof( VERTEX_2D          ))
-#define D3DDEV_BLENDTEX_VERTMAXNUM		(D3DDEV_BLENDTEX_VERTBUFFERSIZE  / sizeof( VERTEX_BLENDTEX_2D ))
-#define D3DDEV_NOTEX_3D_VERTMAXNUM		(D3DDEV_NOTEX_3D_VERTBUFFERSIZE  / sizeof( VERTEX_NOTEX_3D    ))
-#define D3DDEV_TEX_3D_VERTMAXNUM		(D3DDEV_TEX_3D_VERTBUFFERSIZE    / sizeof( VERTEX_3D          ))
-
-// 頂点インデックスバッファのサイズ
-#define D3DDEV_INDEX_NUM			( D3DDEV_NOTEX_VERTMAXNUM / 4 * 6 )
-
-// フィルタータイプ定義
-#define DX_D3DTEXF_NONE				D_D3DTEXF_NONE
-#define DX_D3DTEXF_POINT			D_D3DTEXF_POINT
-#define DX_D3DTEXF_LINEAR			D_D3DTEXF_LINEAR
-#define DX_D3DTEXF_ANISOTROPIC		D_D3DTEXF_ANISOTROPIC
-#define DX_D3DTEXF_PYRAMIDALQUAD	D_D3DTEXF_PYRAMIDALQUAD
-#define DX_D3DTEXF_GAUSSIANQUAD		D_D3DTEXF_GAUSSIANQUAD
-
-// フィルターターゲット定義
-#define DX_D3DSAMP_MAGFILTER		D_D3DTSS_MAGFILTER
-#define DX_D3DSAMP_MINFILTER		D_D3DTSS_MINFILTER
-#define DX_D3DSAMP_MIPFILTER		D_D3DTSS_MIPFILTER
-
-// シェーダー定数セット
-#define DX_SHADERCONSTANTSET_LIB		0
-#define DX_SHADERCONSTANTSET_LIB_SUB	1
-#define DX_SHADERCONSTANTSET_MV1		2
-#define DX_SHADERCONSTANTSET_USER		3
-#define DX_SHADERCONSTANTSET_NUM		4
-
-// シェーダー定数セットマスク
-#define DX_SHADERCONSTANTSET_MASK_LIB		0x0001
-#define DX_SHADERCONSTANTSET_MASK_LIB_SUB	0x0002
-#define DX_SHADERCONSTANTSET_MASK_MV1		0x0004
-#define DX_SHADERCONSTANTSET_MASK_USER		0x0008
-
-// シェーダー定数タイプ
-#define DX_SHADERCONSTANTTYPE_VS_FLOAT		0
-#define DX_SHADERCONSTANTTYPE_VS_INT		1
-#define DX_SHADERCONSTANTTYPE_VS_BOOL		2
-#define DX_SHADERCONSTANTTYPE_PS_FLOAT		3
-#define DX_SHADERCONSTANTTYPE_PS_INT		4
-#define DX_SHADERCONSTANTTYPE_PS_BOOL		5
-#define DX_SHADERCONSTANTTYPE_NUM			6
-
-// ピクセル単位ライティングタイプの頂点シェーダー識別コード作成用マクロ
-#define PIXELLIGHTING_VERTEXSHADER_SHADOWMAP( use )			( ( use )  * 3 * 2 * 4 )
-#define PIXELLIGHTING_VERTEXSHADER_SKINMESH( use )			( ( use )  * 2 * 4 )
-#define PIXELLIGHTING_VERTEXSHADER_BUMPMAP( use )			( ( use )  * 4 )
-#define PIXELLIGHTING_VERTEXSHADER_FOGMODE( mode )			( ( mode ) )
-
-// ピクセル単位ライティングタイプの頂点シェーダー識別コードから各要素を取得するためのマクロ
-#define PIXELLIGHTING_VERTEXSHADER_GET_SHADOWMAP( index )	( ( index ) / ( 3 * 2 * 4 ) % 2 )
-#define PIXELLIGHTING_VERTEXSHADER_GET_SKINMESH( index )	( ( index ) / ( 2 * 4 ) % 3 )
-#define PIXELLIGHTING_VERTEXSHADER_GET_BUMPMAP( index )		( ( index ) / ( 4 ) % 2 )
-#define PIXELLIGHTING_VERTEXSHADER_GET_FOGMODE( index )		( ( index ) % 4 )
-
-// ピクセル単位ライティングタイプのピクセルシェーダータイプ
-#define PIXELLIGHTING_PIXELSHADER_TYPE_NORMAL				0	
-#define PIXELLIGHTING_PIXELSHADER_TYPE_TOON					1
-
-// ピクセル単位ライティングタイプのピクセルシェーダー識別コード作成用マクロ
-#define PIXELLIGHTING_PIXELSHADER_TYPE( type )				( ( type  ) * 2 * 5 * 2 * 3 * 2 * 2 * 2 * 2 * 84 * 2 )
-#define PIXELLIGHTING_PIXELSHADER_SHADOWMAP( use )			( ( use   ) * 5 * 2 * 3 * 2 * 2 * 2 * 2 * 84 * 2 )
-#define PIXELLIGHTING_PIXELSHADER_MULTITEX( type )			( ( type  ) * 2 * 3 * 2 * 2 * 2 * 2 * 84 * 2 )
-#define PIXELLIGHTING_PIXELSHADER_TOONTYPE( type )			( ( type  ) * 3 * 2 * 2 * 2 * 2 * 84 * 2 )
-#define PIXELLIGHTING_PIXELSHADER_TOONSPHEREOP( type )		( ( type  ) * 2 * 2 * 2 * 2 * 84 * 2 )
-#define PIXELLIGHTING_PIXELSHADER_TOONDIFBLDOP( type )		( ( type  ) * 2 * 2 * 2 * 84 * 2 )
-#define PIXELLIGHTING_PIXELSHADER_TOONSPCBLDOP( type )		( ( type  ) * 2 * 2 * 84 * 2 )
-#define PIXELLIGHTING_PIXELSHADER_SPECULARMAP( use )		( ( use   ) * 2 * 84 * 2 )
-#define PIXELLIGHTING_PIXELSHADER_BUMPMAP( use )			( ( use   ) * 84 * 2 )
-#define PIXELLIGHTING_PIXELSHADER_LIGHTINDEX( index )		( ( index ) * 2 )
-#define PIXELLIGHTING_PIXELSHADER_SPECULAR( use )			( ( use   ) )
-
-// ピクセル単位ライティングタイプのピクセルシェーダー識別コードから各要素を取得するためのマクロ
-#define PIXELLIGHTING_PIXELSHADER_GET_TYPE( index )			( ( index ) / ( 2 * 5 * 2 * 3 * 2 * 2 * 2 * 2 * 84 * 2 ) % 2 )
-#define PIXELLIGHTING_PIXELSHADER_GET_SHADOWMAP( index )	( ( index ) / ( 5 * 2 * 3 * 2 * 2 * 2 * 2 * 84 * 2 ) % 2 )
-#define PIXELLIGHTING_PIXELSHADER_GET_MULTITEX( index )		( ( index ) / ( 2 * 3 * 2 * 2 * 2 * 2 * 84 * 2 ) % 5 )
-#define PIXELLIGHTING_PIXELSHADER_GET_TOONTYPE( index )		( ( index ) / ( 3 * 2 * 2 * 2 * 2 * 84 * 2 ) % 2 )
-#define PIXELLIGHTING_PIXELSHADER_GET_TOONSPHEREOP( index )	( ( index ) / ( 2 * 2 * 2 * 2 * 84 * 2 ) % 3 )
-#define PIXELLIGHTING_PIXELSHADER_GET_TOONDIFBLDOP( index )	( ( index ) / ( 2 * 2 * 2 * 84 * 2 ) % 2 )
-#define PIXELLIGHTING_PIXELSHADER_GET_TOONSPCBLDOP( index )	( ( index ) / ( 2 * 2 * 84 * 2 ) % 2 )
-#define PIXELLIGHTING_PIXELSHADER_GET_SPECULARMAP( index )	( ( index ) / ( 2 * 84 * 2 ) % 2 )
-#define PIXELLIGHTING_PIXELSHADER_GET_BUMPMAP( index )		( ( index ) / ( 84 * 2 ) % 2 )
-#define PIXELLIGHTING_PIXELSHADER_GET_LIGHTINDEX( index )	( ( index ) / ( 2 ) % 84 )
-#define PIXELLIGHTING_PIXELSHADER_GET_SPECULAR( index )		( ( index ) % 2 )
+#define DRAWSTOCKINFO			\
+	Graphics_Hardware_RenderVertex() ;	\
+	MV1DRAWPACKDRAWMODEL
 
 
+// 構造体定義 --------------------------------------------------------------------
 
-
-
-// 頂点シェーダータイプ
-#define VERTEXSHADER_TYPE_NORMAL					0
-#define VERTEXSHADER_TYPE_DRAW_SHADOWMAP			1
-#define VERTEXSHADER_TYPE_TOON_OUTLINE				2
-
-// 頂点シェーダー識別コード作成用マクロ
-#define VERTEXSHADER_TYPE( type )					( ( type  ) * 2 * 2 * 3 * 2 * 4 * 20 * 2 )
-#define VERTEXSHADER_SHADERMODEL( ver )				( ( ver   ) * 2 * 3 * 2 * 4 * 20 * 2 )
-#define VERTEXSHADER_SHADOWMAP( use )				( ( use   ) * 3 * 2 * 4 * 20 * 2 )
-#define VERTEXSHADER_MESHTYPE( type )				( ( type  ) * 2 * 4 * 20 * 2 )
-#define VERTEXSHADER_BUMPMAP( use )					( ( use   ) * 4 * 20 * 2 )
-#define VERTEXSHADER_FOGMODE( mode )				( ( mode  ) * 20 * 2 )
-#define VERTEXSHADER_LIGHTINDEX( index )			( ( index ) * 2 )
-#define VERTEXSHADER_SPECULAR( use )				( ( use   ) )
-
-// 頂点シェーダー識別コードから各要素を取得するためのマクロ
-#define VERTEXSHADER_GET_TYPE( index )				( ( index ) / ( 2 * 2 * 3 * 2 * 4 * 20 * 2 ) % 3 )
-#define VERTEXSHADER_GET_SHADERMODEL( index )		( ( index ) / ( 2 * 3 * 2 * 4 * 20 * 2 ) % 2 )
-#define VERTEXSHADER_GET_SHADOWMAP( index )			( ( index ) / ( 3 * 2 * 4 * 20 * 2 ) % 2 )
-#define VERTEXSHADER_GET_MESHTYPE( index )			( ( index ) / ( 2 * 4 * 20 * 2 ) % 3 )
-#define VERTEXSHADER_GET_BUMPMAP( index )			( ( index ) / ( 4 * 20 * 2 ) % 2 )
-#define VERTEXSHADER_GET_FOGMODE( index )			( ( index ) / ( 20 * 2 ) % 4 )
-#define VERTEXSHADER_GET_LIGHTINDEX( index )		( ( index ) / ( 2 ) % 20 )
-#define VERTEXSHADER_GET_SPECULAR( index )			( ( index ) % 2 )
-
-// ピクセルシェーダータイプ
-#define PIXELSHADER_TYPE_NORMAL						0
-#define PIXELSHADER_TYPE_DRAW_SHADOWMAP				1
-#define PIXELSHADER_TYPE_TOON_OUTLINE				2
-
-// ピクセルシェーダー識別コード作成用マクロ
-#define PIXELSHADER_TYPE( type )					( ( type  ) * 2 * 2 * 5 * 2 * 2 * 3 * 2 * 2 * 2 * 2 * 10 * 2 )
-#define PIXELSHADER_SHADERMODEL( ver )				( ( ver   ) * 2 * 5 * 2 * 2 * 3 * 2 * 2 * 2 * 2 * 10 * 2 )
-#define PIXELSHADER_SHADOWMAP( use )				( ( use   ) * 5 * 2 * 2 * 3 * 2 * 2 * 2 * 2 * 10 * 2 )
-#define PIXELSHADER_MULTITEX( type )				( ( type  ) * 2 * 2 * 3 * 2 * 2 * 2 * 2 * 10 * 2 )
-#define PIXELSHADER_TOON( use )						( ( use   ) * 2 * 3 * 2 * 2 * 2 * 2 * 10 * 2 )
-#define PIXELSHADER_TOONTYPE( type )				( ( type  ) * 3 * 2 * 2 * 2 * 2 * 10 * 2 )
-#define PIXELSHADER_TOONSPHEREOP( type )			( ( type  ) * 2 * 2 * 2 * 2 * 10 * 2 )
-#define PIXELSHADER_TOONDIFBLDOP( type )			( ( type  ) * 2 * 2 * 2 * 10 * 2 )
-#define PIXELSHADER_TOONSPCBLDOP( type )			( ( type  ) * 2 * 2 * 10 * 2 )
-#define PIXELSHADER_SPECULARMAP( use )				( ( use   ) * 2 * 10 * 2 )
-#define PIXELSHADER_BUMPMAP( use )					( ( use   ) * 10 * 2 )
-#define PIXELSHADER_LIGHTINDEX( index )				( ( index ) * 2 )
-#define PIXELSHADER_SPECULAR( use )					( ( use ) )
-
-// ピクセルシェーダー識別コードから各要素を取得するためのマクロ
-#define PIXELSHADER_GET_TYPE( index )				( ( index ) / ( 2 * 2 * 5 * 2 * 2 * 3 * 2 * 2 * 2 * 2 * 10 * 2 ) % 3 )
-#define PIXELSHADER_GET_SHADERMODEL( index )		( ( index ) / ( 2 * 5 * 2 * 2 * 3 * 2 * 2 * 2 * 2 * 10 * 2 ) % 2 )
-#define PIXELSHADER_GET_SHADOWMAP( index )			( ( index ) / ( 5 * 2 * 2 * 3 * 2 * 2 * 2 * 2 * 10 * 2 ) % 2 )
-#define PIXELSHADER_GET_MULTITEX( index )			( ( index ) / ( 2 * 2 * 3 * 2 * 2 * 2 * 2 * 10 * 2 ) % 5 )
-#define PIXELSHADER_GET_TOON( index )				( ( index ) / ( 2 * 3 * 2 * 2 * 2 * 2 * 10 * 2 ) % 2 )
-#define PIXELSHADER_GET_TOONTYPE( index )			( ( index ) / ( 3 * 2 * 2 * 2 * 2 * 10 * 2 ) % 2 )
-#define PIXELSHADER_GET_TOONSPHEREOP( index )		( ( index ) / ( 2 * 2 * 2 * 2 * 10 * 2 ) % 3 )
-#define PIXELSHADER_GET_TOONDIFBLDOP( index )		( ( index ) / ( 2 * 2 * 2 * 10 * 2 ) % 2 )
-#define PIXELSHADER_GET_TOONSPCBLDOP( index )		( ( index ) / ( 2 * 2 * 10 * 2 ) % 2 )
-#define PIXELSHADER_GET_SPECULARMAP( index )		( ( index ) / ( 2 * 10 * 2 ) % 2 )
-#define PIXELSHADER_GET_BUMPMAP( index )			( ( index ) / ( 10 * 2 ) % 2 )
-#define PIXELSHADER_GET_LIGHTINDEX( index )			( ( index ) / ( 2 ) % 10 )
-#define PIXELSHADER_GET_SPECULAR( index )			( ( index ) % 2 )
-
-/*
-// 頂点シェーダー配列インデックス作成用マクロ
-#define VS_MULTITEX( use )					( ( use )  * 2 * 2 * 3 * 2 * 2 * 4 * 20 * 2 )
-#define VS_TOONOUTLINE( use )				( ( use )  * 2 * 3 * 2 * 2 * 4 * 20 * 2 )
-#define VS_LIGHTUSE( use )					( ( use )  * 3 * 2 * 2 * 4 * 20 * 2 )
-#define VS_SKINMESH( use )					( ( use )  * 2 * 2 * 4 * 20 * 2 )
-#define VS_PHONG( use )						( ( use )  * 2 * 4 * 20 * 2 )
-#define VS_BUMPMAP( use )					( ( use )  * 4 * 20 * 2 )
-#define VS_FOGMODE( mode )					( ( mode ) * 20 * 2 )
-#define VS_LIGHTINDEX( type )				( ( type ) * 2 )
-#define VS_SPECULAR( use )					( ( use ) )
-
-// 頂点シェーダー配列インデックスから各要素を取得するためのマクロ
-#define VS_GET_MULTITEX( index )			( ( index ) / ( 2 * 2 * 3 * 2 * 2 * 4 * 20 * 2 ) % 2 )
-#define VS_GET_TOONOUTLINE( index )			( ( index ) / ( 2 * 3 * 2 * 2 * 4 * 20 * 2 ) % 2 )
-#define VS_GET_LIGHTUSE( index )			( ( index ) / ( 3 * 2 * 2 * 4 * 20 * 2 ) % 2 )
-#define VS_GET_SKINMESH( index )			( ( index ) / ( 2 * 2 * 4 * 20 * 2 ) % 3 )
-#define VS_GET_PHONG( index )				( ( index ) / ( 2 * 4 * 20 * 2 ) % 2 )
-#define VS_GET_BUMPMAP( index )				( ( index ) / ( 4 * 20 * 2 ) % 2 )
-#define VS_GET_FOGMODE( index )				( ( index ) / ( 20 * 2 ) % 4 )
-#define VS_GET_LIGHTINDEX( index )			( ( index ) / ( 2 ) % 20 )
-#define VS_GET_SPECULAR( index )			( ( index ) % 2 )
-
-// ピクセルシェーダー配列インデックス作成用マクロ
-#define PS_MULTITEX( use )					( ( use )  * 3 * 3 * 2 * 2 * 2 * 2 * 2 * 2 * 3 * 3 * 3 * 2 )
-#define PS_TOON( use )						( ( use )  * 3 * 2 * 2 * 2 * 2 * 2 * 2 * 3 * 3 * 3 * 2 )
-#define PS_TOONSPHEREOP( type )				( ( type ) * 2 * 2 * 2 * 2 * 2 * 2 * 3 * 3 * 3 * 2 )
-#define PS_TOONDIFBLDOP( type )				( ( type ) * 2 * 2 * 2 * 2 * 2 * 3 * 3 * 3 * 2 )
-#define PS_TOONSPCBLDOP( type )				( ( type ) * 2 * 2 * 2 * 2 * 3 * 3 * 3 * 2 )
-#define PS_LIGHTUSE( use )					( ( use )  * 2 * 2 * 2 * 3 * 3 * 3 * 2 )
-#define PS_SPECULARMAP( use )				( ( use )  * 2 * 2 * 3 * 3 * 3 * 2 )
-#define PS_PHONG( use )						( ( use )  * 2 * 3 * 3 * 3 * 2 )
-#define PS_BUMPMAP( use )					( ( use )  * 3 * 3 * 3 * 2 )
-#define PS_LIGHT0TYPE( type )				( ( type ) * 3 * 3 * 2 )
-#define PS_LIGHT1TYPE( type )				( ( type ) * 3 * 2 )
-#define PS_LIGHT2TYPE( type )				( ( type ) * 2 )
-#define PS_SPECULAR( use )					( ( use ) )
-
-// ピクセルシェーダー配列インデックスから各要素を取得するためのマクロ
-#define PS_GET_MULTITEX( index )			( ( index ) / ( 3 * 3 * 2 * 2 * 2 * 2 * 2 * 2 * 3 * 3 * 3 * 2 ) % 5 )
-#define PS_GET_TOON( index )				( ( index ) / ( 3 * 2 * 2 * 2 * 2 * 2 * 2 * 3 * 3 * 3 * 2 ) % 3 )
-#define PS_GET_TOONSPHEREOP( index )		( ( index ) / ( 2 * 2 * 2 * 2 * 2 * 2 * 3 * 3 * 3 * 2 ) % 3 )
-#define PS_GET_TOONDIFBLDOP( index )		( ( index ) / ( 2 * 2 * 2 * 2 * 2 * 3 * 3 * 3 * 2 ) % 2 )
-#define PS_GET_TOONSPCBLDOP( index )		( ( index ) / ( 2 * 2 * 2 * 2 * 3 * 3 * 3 * 2 ) % 2 )
-#define PS_GET_LIGHTUSE( index )			( ( index ) / ( 2 * 2 * 2 * 3 * 3 * 3 * 2 ) % 2 )
-#define PS_GET_SPECULARMAP( index )			( ( index ) / ( 2 * 2 * 3 * 3 * 3 * 2 ) % 2 )
-#define PS_GET_PHONG( index )				( ( index ) / ( 2 * 3 * 3 * 3 * 2 ) % 2 )
-#define PS_GET_BUMPMAP( index )				( ( index ) / ( 3 * 3 * 3 * 2 ) % 2 )
-#define PS_GET_LIGHT0TYPE( index )			( ( index ) / ( 3 * 3 * 2 ) % 3 )
-#define PS_GET_LIGHT1TYPE( index )			( ( index ) / ( 3 * 2 ) % 3 )
-#define PS_GET_LIGHT2TYPE( index )			( ( index ) / ( 2 ) % 3 )
-#define PS_GET_SPECULAR( index )			( ( index ) % 2 )
-*/
-
-// フィルタータイプ定義
-#define DX_D3DTEXFILTER_TYPE		D_D3DTEXTUREFILTERTYPE
-
-// 各データへのアクセス記述簡略化用マクロ
-#define GSYSTEM						DX_GraphicsSystemData
-
-// デバイス列挙の最大数
-#define MAX_DEVICE_LISTUP					(32)
-
-// 非管理テクスチャへのデータ転送用システムメモリ配置テクスチャの数
-#define SYSMEMTEXTURE_NUM					(2048)
-
-// 非管理テクスチャへのデータ転送用システムメモリ配置サーフェスの数
-#define SYSMEMSURFACE_NUM					(2048)
-
-// 共有バッファの数
-#define COMMON_BUFFER_NUM					(3)
-
-
-// 结构体定义 --------------------------------------------------------------------
-
-// 浮動小数点型色構造体
-struct COLOR
+// ライブラリ内部で描画対象を変更する際のカメラなどの設定を保存しておくための構造体
+typedef struct tagSCREENDRAWSETTINGINFO
 {
-	float					r, g, b, a ;
-} ;
+	int						Use3DFlag ;
+	int						UseSysMemFlag ;
+	int						DrawMode ;
+	int						WaitVSync ;
+	int						DrawScreen ;
+	MATRIX_D				ViewMatrix ;
+	MATRIX_D				ProjectionMatrix ;
+	MATRIX_D				ViewportMatrix ;
+	MATRIX_D				WorldMatrix ;
+	int						ProjectionMatrixMode ;
+	double					ProjFov ;
+	double					ProjSize ;
+	double					ProjNear ;
+	double					ProjFar ;
+	double					ProjDotAspect ;
+	MATRIX_D				ProjMatrix ;
+	RECT					DrawRect ;
+} SCREENDRAWSETTINGINFO ;
+
+// Graphics_Draw_DrawSimpleTwoTriangleGraphF 用構造体
+typedef struct tagGRAPHICS_DRAW_DRAWSIMPLETWOTRIANGLEGRAPHF_VERTEX
+{
+	float					x, y, u, v ;
+} GRAPHICS_DRAW_DRAWSIMPLETWOTRIANGLEGRAPHF_VERTEX ;
+typedef struct tagGRAPHICS_DRAW_DRAWSIMPLETWOTRIANGLEGRAPHF_PARAM
+{
+	GRAPHICS_DRAW_DRAWSIMPLETWOTRIANGLEGRAPHF_VERTEX Vertex[ 4 ] ;
+	int						GraphHandle ;
+	int						TransFlag ;
+} GRAPHICS_DRAW_DRAWSIMPLETWOTRIANGLEGRAPHF_PARAM ;
 
 // ２Ｄ描画用頂点構造体(テクスチャ無し)
 typedef struct tagVERTEX_NOTEX_2D
 {
 	VECTOR					pos ;
 	float					rhw ;
-	int						color ;
-	float					sc_u, sc_v ;
+	unsigned int			color ;
 } VERTEX_NOTEX_2D, *LPVERTEX_NOTEX_2D ; 
 
 // 主に２Ｄ描画に使用する頂点データ型
@@ -488,9 +321,8 @@ typedef struct tagVERTEX_2D
 {
 	VECTOR					pos ;
 	float					rhw ;
-	int						color ;
+	unsigned int			color ;
 	float					u, v ;
-	float					sc_u, sc_v ;
 } VERTEX_2D, *LPVERTEX_2D ; 
 
 // ブレンド画像付き２Ｄ画像描画用頂点構造体
@@ -498,134 +330,45 @@ struct VERTEX_BLENDTEX_2D
 {
 	VECTOR					pos ;
 	float					rhw ;
-	int						color ;
+	unsigned int			color ;
 	unsigned int			specular ;
 	float					u1, v1 ;
 	float					u2, v2 ;
-	float					sc_u, sc_v ;
 } ;
 
-// マテリアル構造体
-struct MATERIAL
+// ３Ｄ描画に使用する頂点データ型( テクスチャなし )( 旧バージョンのもの )
+typedef struct tagVERTEX_NOTEX_3D
 {
-	COLOR					Diffuse ;		// ディフューズ色
-	COLOR					Ambient ;		// アンビエント色
-	COLOR					Specular ;		// スペキュラー色
-	COLOR					Emissive ;		// エミッション色
-	float					Power ;			// パワー
-} ;
-
-// ライト構造体
-struct LIGHT
-{
-	int						Type ;
-	COLOR					Diffuse ;
-	COLOR					Specular ;
-	COLOR					Ambient ;
-	VECTOR					Position ;
-	VECTOR					Direction ;
-	float					Range ;
-	float					Falloff ;
-	float					Attenuation0 ;
-	float					Attenuation1 ;
-	float					Attenuation2 ;
-	float					Theta ;
-	float					Phi ;
-} ;
-
-
-// テクスチャステージの情報
-struct DIRECT3DTEXTURESTAGEINFO
-{
-	void					*Texture ;							// ステージにセットされているテクスチャサーフェス
-	int						TextureCoordIndex ;					// 使用するテクスチャ座標インデックス
-	int						ResultTempARG ;						// 出力先レジスタをテンポラリにするかどうか
-	short					AlphaARG1, AlphaARG2, AlphaOP ;		// Direct3DDevice の D3DTSS_ALPHAOP と D3DTSS_ALPHAARG1 と D3DTSS_ALPHAARG2 の設定値
-	short					ColorARG1, ColorARG2, ColorOP ;		// Direct3DDevice の D3DTSS_COLOROP と D3DTSS_COLORARG1 と D3DTSS_COLORARG2 の設定値
-} ;
-
-// Ｄｉｒｅｃｔ３Ｄ のブレンド設定に関る設定の情報
-struct DIRECT3DBLENDINFO
-{
-	int						AlphaTestEnable ;					// Direct3DDevice の D3DRENDERSTATE_ALPHATESTENABLE の設定値
-	int						AlphaRef ;							// Direct3DDevice の D3DRENDERSTATE_ALPHAREF の設定値
-	int						AlphaFunc ;							// Direct3DDevice の D3DRENDERSTATE_ALPHAFUNC の設定値
-	int						AlphaBlendEnable ;					// Direct3DDevice の D3DRENDERSTATE_ALPHABLENDENABLE の設定値
-	int						SeparateAlphaBlendEnable ;			// Direct3DDevice の D3DRENDERSTATE_SEPARATEALPHABLENDENABLE の設定値
-
-	DWORD					FactorColor ;						// Direct3DDevice の D3DRENDERSTATE_TEXTUREFACTOR の設定値
-	int						SrcBlend, DestBlend ;				// Direct3DDevice の D3DRENDERSTATE_DESTBLEND と D3DRENDERSTATE_SRCBLEND の設定値
-	int						BlendOp ;							// Direct3DDevice の D3DRENDERSTATE_BLENDOP の設定値
-	int						SrcBlendAlpha, DestBlendAlpha ;		// Direct3DDevice の D3DRENDERSTATE_DESTBLENDALPHA と D3DRENDERSTATE_SRCBLENDALPHA の設定値
-	int						BlendOpAlpha ;						// Direct3DDevice の D3DRENDERSTATE_BLENDOPALPHA の設定値
-	int						UseTextureStageNum ;				// 使用しているテクスチャステージの数
-	DIRECT3DTEXTURESTAGEINFO TextureStageInfo[USE_TEXTURESTAGE_NUM] ;	// Direct3DDevice のテクスチャステージ設定値( Direct3DDevice にこれから適応する予定の設定値 )
-} ;
-
+	VECTOR					pos ;
+	unsigned char			b, g, r, a ;
+} VERTEX_NOTEX_3D, *LPVERTEX_NOTEX_3D ;
 
 // ソフトウエアレンダリング用オリジナル画像情報
-struct IMAGEDATA2_ORIG_SOFT
+struct IMAGEDATA_ORIG_SOFT
 {
 	MEMIMG					MemImg ;						// MEMIMG
 	MEMIMG					*ZBuffer ;						// ZBuffer
 } ;
 
-// 非管理テクスチャへのデータ転送用システムメモリ配置テクスチャの情報
-struct IMAGEDATA2_SYSMEMTEXTURE
-{
-	unsigned char			InitializeFlag ;				// 使用可能な状態かどうかのフラグ
-	unsigned char			UseFlag ;						// 使用中かどうかのフラグ
-	unsigned char			CubeMap ;						// キューブマップかどうか( 1:キューブマップテクスチャ  0:通常テクスチャ )
-	unsigned char			MipMapCount ;					// ミップマップの数
-	short					Width ;							// 幅
-	short					Height ;						// 高さ
-	D_D3DFORMAT				Format ;						// フォーマット
-	unsigned int			UseCount ;						// 使用回数
-	int						UseTime ;						// 最後に使用した時間
-	DX_DIRECT3DBASETEXTURE9	*MemTexture ;					// システムメモリテクスチャ
-} ;
-
-// 非管理テクスチャへのデータ転送用システムメモリ配置サーフェスの情報
-struct IMAGEDATA2_SYSMEMSURFACE
-{
-	unsigned char			InitializeFlag ;				// 使用可能な状態かどうかのフラグ
-	unsigned char			UseFlag ;						// 使用中かどうかのフラグ
-	short					Width ;							// 幅
-	short					Height ;						// 高さ
-	D_D3DFORMAT				Format ;						// フォーマット
-	unsigned int			UseCount ;						// 使用回数
-	int						UseTime ;						// 最後に使用した時間
-	DX_DIRECT3DSURFACE9		*MemSurface ;					// システムメモリサーフェス
-} ;
-
 // ハードウエアレンダリング用オリジナル画像テクスチャ情報
-struct IMAGEDATA2_ORIG_HARD_TEX
+struct IMAGEDATA_ORIG_HARD_TEX
 {
-	union
-	{
-		DX_DIRECT3DCUBETEXTURE9	*CubeTexture ;				// キューブテクスチャ
-		DX_DIRECT3DTEXTURE9		*Texture ;					// テクスチャ
-	} ;
-//	DX_DIRECT3DTEXTURE9		*MemTexture ;					// D3DPOOL_MANAGED が使用できない画像用メモリテクスチャ
-	DX_DIRECT3DSURFACE9		*Surface[ CUBEMAP_SURFACE_NUM ] ;	// サーフェス
-	DX_DIRECT3DSURFACE9		*RenderTargetSurface ;			// レンダリングターゲットサーフェス
-	DX_DIRECT3DSURFACE9		*ZBuffer ;						// Ｚバッファ
-
+	struct IMAGEDATA_ORIG_HARD_TEX_PF	*PF ;				// 環境依存データ
 	int						OrigPosX, OrigPosY ;			// 元画像で使用している領域の左上座標
 	int						UseWidth, UseHeight ;			// 元画像で使用している領域のサイズ
 	int						TexWidth, TexHeight ;			// テクスチャ自体の幅と高さ
 } ;
 
 // ハードウエアレンダリング用オリジナル画像情報
-struct IMAGEDATA2_ORIG_HARD
+struct IMAGEDATA_ORIG_HARD
 {
 	int						MipMapCount ;					// ミップマップの数
 	int						TexNum ;						// テクスチャの数
-	IMAGEDATA2_ORIG_HARD_TEX Tex[ 4 ] ;						// テクスチャリストへのポインタ
+	IMAGEDATA_ORIG_HARD_TEX Tex[ 4 ] ;						// テクスチャリストへのポインタ
 } ;
 
 // オリジナル画像情報構造体
-struct IMAGEDATA2_ORIG
+struct IMAGEDATA_ORIG
 {
 	int						RefCount ;						// 参照されている数
 	int						ColorFormat ;					// カラーフォーマット( DX_GRAPHICSIMAGE_FORMAT_3D_RGB16 等 )
@@ -637,42 +380,42 @@ struct IMAGEDATA2_ORIG
 
 	union
 	{
-		IMAGEDATA2_ORIG_SOFT	Soft ;						// ソフトウエアレンダリング用情報
-		IMAGEDATA2_ORIG_HARD	Hard ;						// ハードウエアレンダリング用情報
+		IMAGEDATA_ORIG_SOFT	Soft ;						// ソフトウエアレンダリング用情報
+		IMAGEDATA_ORIG_HARD	Hard ;						// ハードウエアレンダリング用情報
 	} ;
 } ;
 
 // ソフトウエアレンダリング版イメージデータ構造体
-struct IMAGEDATA2_SOFT
+struct IMAGEDATA_SOFT
 {
 	MEMIMG					MemImg ;						// 描画用 MEMIMG
 } ;
 
 // ハードウエアレンダリング版座標情報構造体
-struct IMAGEDATA2_HARD_VERT
+struct IMAGEDATA_HARD_VERT
 {
 	float					x, y ;							// 位置
 	float					u, v ;							// ＵＶ位置
 } ;
 
 // ハードウエアレンダリング版描画用構造体
-struct IMAGEDATA2_HARD_DRAW
+struct IMAGEDATA_HARD_DRAW
 {
 	int						DrawPosX, DrawPosY ;			// 描画時に指定される座標からの相対座標
 	int						UsePosX, UsePosY ;				// テクスチャ内で使用している矩形の左上座標
 	int						Width, Height ;					// テクスチャ内で使用しているサイズ
 
-	IMAGEDATA2_HARD_VERT	Vertex[ 4 ] ;					// テクスチャの描画座標情報
+	IMAGEDATA_HARD_VERT		Vertex[ 4 ] ;					// テクスチャの描画座標情報
 	unsigned char			VertType[ 4 ] ;					// 頂点タイプ( TRUE=三角の半分より上　FALSE=下 )
 
-	IMAGEDATA2_ORIG_HARD_TEX *Tex ;							// 使用するテクスチャへのポインタ
+	IMAGEDATA_ORIG_HARD_TEX *Tex ;							// 使用するテクスチャへのポインタ
 } ;
 
 // ハードウエアレンダリング版イメージデータ構造体
-struct IMAGEDATA2_HARD
+struct IMAGEDATA_HARD
 {
 	int						DrawNum ;						// 描画用情報の数
-	IMAGEDATA2_HARD_DRAW	Draw[ 4 ] ;						// 描画用情報
+	IMAGEDATA_HARD_DRAW		Draw[ 4 ] ;						// 描画用情報
 } ;
 
 // イメージ元データ構造体
@@ -680,7 +423,7 @@ struct IMAGEDATA_READBASE
 {
 	int						Type ;							// タイプ( 0:ファイル 1:メモリイメージ 2:BaseImage )
 
-	TCHAR					*FileName ;						// ファイル名
+	wchar_t					*FileName ;						// ファイル名
 	BASEIMAGE				*BaseImage ;					// 基本イメージデータ
 	BASEIMAGE				*AlphaBaseImage ;				// αチャンネル用基本イメージデータ
 	void					*MemImage ;						// メモリイメージ
@@ -692,21 +435,21 @@ struct IMAGEDATA_READBASE
 	int						RefCount ;						// 参照数
 } ;
 
-// ImageData结构体
-struct IMAGEDATA2
+// イメージデータ構造体
+struct IMAGEDATA
 {
 	HANDLEINFO				HandleInfo ;					// ハンドル共通データ
 
 	int						*LostFlag ;						// 解放時に立てるフラグのポインタ
 
 #ifndef DX_NON_MOVIE
-	int						MovieHandle ;					// 动画句柄
+	int						MovieHandle ;					// 動画ハンドル
 #endif
 
-	IMAGEDATA_READBASE		*ReadBase ;						// 元数据信息
+	IMAGEDATA_READBASE		*ReadBase ;						// 元データ情報
 	int						UseBaseX, UseBaseY ;			// 元データ中で使用している範囲の左上座標
 
-	IMAGEDATA2_ORIG			*Orig ;							// オリジナル画像情報構造体へのポインタ( オリジナル画像ではない場合は NULL )
+	IMAGEDATA_ORIG			*Orig ;							// オリジナル画像情報構造体へのポインタ( オリジナル画像ではない場合は NULL )
 	int						UseOrigX, UseOrigY ;			// オリジナル画像中の使用している矩形の左上座標
 	int						Width, Height ;					// オリジナル画像中の使用している矩形の幅と高さ
 
@@ -716,12 +459,14 @@ struct IMAGEDATA2
 	BYTE					*LockImage ;					// ロック時に作成するテンポラリイメージ
 	DWORD					LockImagePitch ;				// ロックイメージのピッチ
 
+	int						NotInitGraphDelete ;			// InitGraph で削除しないかどうかのフラグ( TRUE:InitGraphでは削除しない  FALSE:InitGraphで削除する )
+
 	int						DeviceLostDeleteFlag ;			// デバイスロスト時に削除するかどうかのフラグ( TRUE:デバイスロスト時に削除する  FALSE:デバイスロスト時に削除しない )
 
 	union
 	{
-		IMAGEDATA2_SOFT		Soft ;							// ソフトウエアレンダリング用構造体へのポインタ
-		IMAGEDATA2_HARD		Hard ;							// ハードウエアレンダリング用構造体へのポインタ
+		IMAGEDATA_SOFT		Soft ;							// ソフトウエアレンダリング用構造体へのポインタ
+		IMAGEDATA_HARD		Hard ;							// ハードウエアレンダリング用構造体へのポインタ
 	} ;
 } ;
 
@@ -731,14 +476,18 @@ struct SHADERHANDLEDATA
 	HANDLEINFO				HandleInfo ;						// ハンドル共通データ
 
 	int						IsVertexShader ;					// 頂点シェーダーかどうか( TRUE:頂点シェーダー  FALSE:ピクセルシェーダー )
-	void					*FunctionCode ;						// シェーダーを作成する際に使用した中間コードを格納したメモリ領域へのポインタ
-	union
-	{
-		DX_DIRECT3DPIXELSHADER9		*PixelShader ;				// IDirect3DPixelShader9 のポインタ
-		DX_DIRECT3DVERTEXSHADER9	*VertexShader ;				// IDirect3DVertexShader9 のポインタ
-	} ;
-	int						ConstantNum ;						// 定数の数
-	D_D3DXSHADER_CONSTANTINFO	*ConstantInfo ;					// 定数情報配列の先頭アドレス
+	void					*FunctionCode ;						// シェーダーコードを格納したメモリ領域へのポインタ
+	int						FunctionCodeSize ;					// シェーダーコードのサイズ
+
+	struct SHADERHANDLEDATA_PF 	*PF ;							// 環境依存データ
+} ;
+
+// シェーダー用定数バッファハンドルで使用する情報の構造体
+struct SHADERCONSTANTBUFFERHANDLEDATA
+{
+	HANDLEINFO				HandleInfo ;						// ハンドル共通データ
+
+	struct SHADERCONSTANTBUFFERHANDLEDATA_PF 	*PF ;					// 環境依存データ
 } ;
 
 // 頂点バッファハンドルで使用する情報の構造体
@@ -750,7 +499,8 @@ struct VERTEXBUFFERHANDLEDATA
 	int						UnitSize ;							// 頂点データ一つ辺りのバイト数
 	int						Num ;								// 頂点の数
 	void					*Buffer ;							// システムメモリに確保されたバッファ
-	DX_DIRECT3DVERTEXBUFFER9	*Direct3DBuffer ;				// IDirect3DVertexBuffer9 のポインタ
+
+	struct VERTEXBUFFERHANDLEDATA_PF *PF ;						// 環境依存データ
 } ;
 
 // インデックスバッファハンドルで使用する情報の構造体
@@ -762,90 +512,8 @@ struct INDEXBUFFERHANDLEDATA
 	int						UnitSize ;							// インデックスデータ一つ辺りのバイト数
 	int						Num ;								// インデックスの数
 	void					*Buffer ;							// システムメモリに確保されたバッファ
-	DX_DIRECT3DINDEXBUFFER9	*Direct3DBuffer ;					// IDirect3DIndexBuffer9 のポインタ
-} ;
 
-#ifndef DX_NON_FILTER
-
-// シェーダーコードハンドル
-struct SHADERCODE_HANDLE
-{
-	int						Gauss_PS[ 3 ] ;							// ガウスフィルタのピクセルシェーダー
-	int						BrightClipPS[ 2 ][ 2 ] ;				// 明るさでクリップするフィルタのピクセルシェーダー( [ 1:一定以上クリップ  0:一定以下クリップ ][ 1:クリップ塗りつぶしあり 0:塗りつぶしなし ] )
-	int						DownScalePS[ 3 ] ;						// 縮小フィルター( 0:X2 1:X4 2:X8 )
-	int						HsbPS[ 3 ] ;							// ＨＳＢフィルター( 0:RGB to HSI  1:HSI to RGB  2:HSB の HLock )
-	int						MonoPS ;								// モノトーンフィルター
-	int						InvertPS ;								// 階調反転フィルター
-	int						LevelPS ;								// レベル補正フィルター
-	int						GammaTex ;								// ガンマ補正に使用する画像
-	float					PrevGamma ;								// 前回のガンマフィルタの際のガンマ値
-	int						TwoColorPS ;							// ２値化フィルター
-	int						GradientMapPS[ 2 ] ;					// グラデーションマップフィルター
-	int						PreMulAlphaPS ;							// 通常画像から乗算済みアルファ画像を作成する為のフィルター
-	int						InterpAlphaPS ;							// 乗算済みアルファ画像から通常画像を作成する為のフィルター
-
-	int						BasicBlendPS[ 14 ] ;					// 基本的なブレンドフィルター
-	int						RgbaMixBasePS ;							// RGBAMixブレンド基本
-	int						RgbaMixSRGBB[ 4 ] ;						// RGBAMixブレンドの A だけ BRGBA の４つ
-	int						RgbaMixSRRRB[ 4 ][ 4 ] ;				// RGBAMixブレンドの SYYY BX の１６こ [ Y ][ X ]
-	int						RgbaMixS[ 4 ][ 4 ][ 4 ][ 4 ] ;			// RGBAMixブレンドの S だけの組み合わせ256個[ R ][ G ][ B ][ A ]
-} ;
-
-#endif // DX_NON_FILTER
-
-
-// シェーダー定数の一つの使用領域情報構造体
-struct SHADERCONST_ONE_USEAREA
-{
-	WORD					Start ;									// 使用領域の開始番号
-	WORD					EndPlusOne ;							// 使用領域の終了番号＋１
-} ;
-
-// シェーダー定数使用領域情報構造体
-struct SHADERCONSTANT_USEAREA
-{
-	SHADERCONST_ONE_USEAREA	AreaInfo[ 256 ] ;						// 使用領域情報
-	int						AreaInfoNum ;							// 使用領域情報の数
-	int						TotalSize ;								// 管理する領域のサイズ
-} ;
-
-// シェーダー定数情報構造体
-struct SHADERCONSTANTINFO
-{
-	SHADERCONSTANT_USEAREA	UseArea ;								// ユーザー用頂点シェーダー定数の使用領域情報
-	int						UnitSize ;								// データ一つあたりのサイズ
-
-	union
-	{
-		BYTE					Data[ 256 * 16 ] ;					// サイズ保証用データ
-
-		FLOAT4					Float4[ 256 ] ;						// ユーザー用頂点シェーダー float 型定数
-		INT4					Int4[ 16 ] ;						// ユーザー用頂点シェーダー int 型定数
-		BOOL					Bool[ 16 ] ;						// ユーザー用頂点シェーダー BOOL 型定数
-	} ;
-} ;
-
-// シェーダー定数情報セット構造体
-struct SHADERCONSTANTINFOSET
-{
-	int						IsApply[ DX_SHADERCONSTANTSET_NUM ] ;			// 定数情報を適用するかどうか( TRUE:適用する  FALSE:適用しない )
-	int						ApplyMask ;										// 適用マスク( DX_SHADERCONSTANTSET_MASK_LIB | DX_SHADERCONSTANTSET_MASK_LIB_SUB 等 )
-	SHADERCONSTANTINFO		Info[ DX_SHADERCONSTANTTYPE_NUM ][ DX_SHADERCONSTANTSET_NUM ] ;				// 定数情報実体
-	BYTE					UseMap[ DX_SHADERCONSTANTTYPE_NUM ][ DX_SHADERCONSTANTSET_NUM ][ 256 ] ;	// 定数使用マップ
-
-	SHADERCONSTANTINFO		FixInfo[ DX_SHADERCONSTANTTYPE_NUM ] ;			// 実際にシェーダーに適用されている定数情報
-
-	BYTE					SetMap[ DX_SHADERCONSTANTTYPE_NUM ][ 256 ] ;	// シェーダー定数の使用中セットマップ( DX_SHADERCONSTANTSET_LIB 等、0xff 未使用 )
-} ;
-
-// ユーザーの描画設定情報構造体
-struct USERRENDERINFO
-{
-	int						SetTextureGraphHandle[ 20 ] ;			// ユーザー設定の各ステージのテクスチャ
-	int						SetRenderTargetGraphHandle[ 4 ] ;		// ユーザー設定の各レンダリングターゲット
-
-	int						SetVertexShaderHandle ;					// ユーザー設定で使用する頂点シェーダー
-	int						SetPixelShaderHandle ;					// ユーザー設定で使用するピクセルシェーダー
+	struct INDEXBUFFERHANDLEDATA_PF *PF ;						// 環境依存データ
 } ;
 
 // シャドウマップデータ構造体
@@ -874,6 +542,7 @@ struct SHADOWMAPDATA
 
 	MATRIX					ShadowMapViewMatrix ;			// シャドウマップを描画した際のビュー行列
 	MATRIX					ShadowMapProjectionMatrix ;		// シャドウマップを描画した際の射影行列
+	MATRIX					ShadowMapViewProjectionMatrix ; // シャドウマップを描画した際のビュー行列と射影行列を乗算したもの
 
 	float					AdjustDepth ;					// シャドウマップを使用した描画時の深度補正値
 	int						BlurParam ;						// シャドウマップに適用するぼかしフィルターの値
@@ -887,746 +556,1191 @@ struct SHADOWMAPDATA
 	VECTOR					LightDirection ;				// シャドウマップが想定するライトの方向
 	MATRIX					LightMatrix ;					// シャドウマップが想定するライトの行列
 
-	VECTOR					RenderCameraPosition ;			// レンダリングを行う際のカメラの位置
-	VECTOR					RenderCameraTarget ;			// レンダリングを行う際のカメラの注視点
-	VECTOR					RenderCameraUp ;				// レンダリングを行う際のカメラのアップベクトル
-	float					RenderCameraHRotate ;			// レンダリングを行う際のカメラの水平角度
-	float					RenderCameraVRotate ;			// レンダリングを行う際のカメラの垂直角度
-	float					RenderCameraTRotate ;			// レンダリングを行う際のカメラの捻り角度
-	MATRIX					RenderCameraMatrix ;			// レンダリングを行う際のビュー行列
-	float					RenderCameraScreenCenterX ;		// レンダリングを行う際のカメラの消失点
-	float					RenderCameraScreenCenterY ;
+	VECTOR_D				RenderCameraPosition ;			// レンダリングを行う際のカメラの位置
+	VECTOR_D				RenderCameraTarget ;			// レンダリングを行う際のカメラの注視点
+	VECTOR_D				RenderCameraUp ;				// レンダリングを行う際のカメラのアップベクトル
+	double					RenderCameraHRotate ;			// レンダリングを行う際のカメラの水平角度
+	double					RenderCameraVRotate ;			// レンダリングを行う際のカメラの垂直角度
+	double					RenderCameraTRotate ;			// レンダリングを行う際のカメラの捻り角度
+	MATRIX_D				RenderCameraMatrix ;			// レンダリングを行う際のビュー行列
+	double					RenderCameraScreenCenterX ;		// レンダリングを行う際のカメラの消失点
+	double					RenderCameraScreenCenterY ;
 
 	int						RenderProjectionMatrixMode ;	// レンダリングを行う際の射影行列作成モード
-	float					RenderProjNear ;				// レンダリングを行う際のカメラの Nearクリップ面
-	float					RenderProjFar ;					// レンダリングを行う際のカメラの Farクリップ面
-	float					RenderProjDotAspect ;			// レンダリングを行う際のドットアスペクト比( 縦 / 横 )
-	float					RenderProjFov ;					// レンダリングを行う際の遠近法時の視野角
-	float					RenderProjSize ;				// レンダリングを行う際の正射影時のサイズ
-	MATRIX					RenderProjMatrix ;				// レンダリングを行う際の射影行列
+	double					RenderProjNear ;				// レンダリングを行う際のカメラの Nearクリップ面
+	double					RenderProjFar ;					// レンダリングを行う際のカメラの Farクリップ面
+	double					RenderProjDotAspect ;			// レンダリングを行う際のドットアスペクト比( 縦 / 横 )
+	double					RenderProjFov ;					// レンダリングを行う際の遠近法時の視野角
+	double					RenderProjSize ;				// レンダリングを行う際の正射影時のサイズ
+	MATRIX_D				RenderProjMatrix ;				// レンダリングを行う際の射影行列
 
-	DX_DIRECT3DTEXTURE9		*Texture ;						// テクスチャ
-
-	DX_DIRECT3DSURFACE9		*Surface ;						// サーフェス
-	DX_DIRECT3DSURFACE9		*ZBufferSurface ;				// Ｚバッファサーフェス
+	struct SHADOWMAPDATA_PF	*PF ;							// 環境依存データ
 } ;
 
-// ハードウエアアクセラレータを使用するグラフィックス処理で使用する情報の構造体
-struct GRAPHICS_HARDDATA
+
+// 浮動小数点型の RECT 構造体
+struct RECTF
 {
-	int						NotUseDirect3D9Ex ;						// Direct3D9Ex を使用しないかどうか
-	int						UseMultiThread ;						// マルチスレッド対応フラグを使うかどうか
-	int						ValidAdapterNumber ;					// UseAdapterNumber が有効かどうか( TRUE:有効  FALSE:無効 )
-	int						UseAdapterNumber ;						// 使用するデバイスアダプタ番号
-	int						NonUseVertexHardwareProcess ;			// 強制的に頂点演算をハードウエアで処理しないかどうか( TRUE:処理しない  FALSE:処理する )
-	int						UsePixelLightingShader ;				// ピクセル単位でライティングを行うタイプのシェーダーを使用するかどうか( TRUE:使用する  FALSE:使用しない )
-	int						VertexHardwareProcess ;					// 頂点演算をハードウエアで処理するかどうか( TRUE:処理する  FALSE:処理しない )
-	int						ValidVertexShader ;						// 頂点シェーダーが使用可能かどうか( TRUE:使用可能  FALSE:不可能 )
-	int						ValidPixelShader ;						// ピクセルシェーダーが使用可能かどうか( TRUE:使用可能  FALSE:不可能 )
-	int						ValidVertexShader_SM3 ;					// Shader Model 3.0 の頂点シェーダーが使用可能かどうか( TRUE:使用可能  FALSE:不可能 )
-	int						ValidPixelShader_SM3 ;					// Shader Model 3.0 のピクセルシェーダーが使用可能かどうか( TRUE:使用可能  FALSE:不可能 )
-	int						DisableAeroFlag ;						// Aero を無効にするかどうかのフラグ( TRUE:無効にする  FALSE:無効にしない )
-	DWORD					NativeVertexShaderVersion ;				// エミュレーション無しの頂点シェーダーのバージョン
+	float left, top ;
+	float right, bottom ;
+} ;
 
-	int						UseBaseVertexShaderIndex ;				// 使用する頂点シェーダーのライト・フォグ・フォンシェーディングの有無のみ設定した値
-	int						UseBasePixelShaderIndex ;				// 使用するピクセルシェーダーのライト・フォンシェーディングの有無のみ設定した値
-	int						UseBaseVertexShaderIndex_PL ;			// ピクセル単位ライティングタイプで使用する頂点シェーダーのライト・フォグ・フォンシェーディングの有無のみ設定した値
-	int						UseBasePixelShaderIndex_PL ;			// ピクセル単位ライティングタイプで使用するピクセルシェーダーのライト・フォンシェーディングの有無のみ設定した値
-	int						UseOnlyPixelLightingTypeCode ;			// ピクセル単位ライティングタイプのシェーダーコードを使用する指定になっているかどうか
+// グラフィックハンドルのセットアップに必要なグローバルデータを纏めた構造体
+struct SETUP_GRAPHHANDLE_GPARAM
+{
+	DWORD					TransColor ;							// 透過色
 
-	D_D3DMULTISAMPLE_TYPE	FSAAMultiSampleType ;					// FSAA用マルチサンプリングタイプ
-	int						FSAAMultiSampleQuality ;				// FSAA用マルチサンプリングクオリティ
+	int						CreateImageColorBitDepth ;				// 作成する画像の色深度
+	int						CreateImageChannelBitDepth ;			// 作成する画像の１チャンネル辺りのビット深度( こちらが設定されている場合は CreateImageColorBitDepth より優先される )
+	int						AlphaTestImageCreateFlag ;				// αテスト付き画像作成指定フラグ( AlphaGraphCreateFlag の方が優先度が高い )( テクスチャサーフェスのみ )
+	int						AlphaChannelImageCreateFlag ;			// αチャンネル付き画像作成指定フラグ( DrawValidGraphCreateFlag の方が優先度が高い )
+	int						CubeMapTextureCreateFlag ;				// キューブマップテクスチャ作成指定フラグ( 1:キューブマップテクスチャを作成する  0:通常テクスチャを作成する )
+	int						BlendImageCreateFlag ;					// ブレンド処理用画像作成指定フラグ
+	int						UseManagedTextureFlag ;					// マネージドテクスチャを使用するか、フラグ( 1:使用する  0:使用しない )
+
+	int						DrawValidImageCreateFlag ;				// 描画可能画像作成指定フラグ( テクスチャサーフェスのみ )
+	int						DrawValidAlphaImageCreateFlag ;			// 描画可能なαチャンネル付き画像作成指定フラグ( テクスチャサーフェスのみ )
+	int						DrawValidFloatTypeGraphCreateFlag ;		// 描画可能なFloat型画像作成指定フラグ( テクスチャサーフェスのみ )
+	int						DrawValidGraphCreateZBufferFlag ;		// 描画可能画像を作成する際に専用のＺバッファも作成するかどうか
+	int						CreateDrawValidGraphChannelNum ;		// 描画可能画像のチャンネル数( テクスチャサーフェスのみ )
+	int						CreateDrawValidGraphZBufferBitDepth ;	// 描画可能画像のＺバッファのビット深度( テクスチャサーフェスのみ )
+	int						DrawValidMSSamples ;					// 描画可能な画像のマルチサンプリング数
+	int						DrawValidMSQuality ;					// 描画可能な画像のマルチサンプリングクオリティ
+
 	int						MipMapCount ;							// 自動で作成するミップマップの数( -1:最大レベルまで作成する )
-	int						FullScreenEmulation320x240 ;			// フルスクリーンモードで 320x240 を指定されているかどうか( TRUE:指定されている  FALSE:指定されていない )
-	int						UseRenderTargetLock ;					// 描画先サーフェスのロックを行うかどうか( TRUE:行う  FALSE:行わない )
-
-	int						ValidAdapterInfo ;						// アダプタの情報が有効かどうか( TRUE:有効  FALSE:無効 )
-	int						AdapterInfoNum ;						// アダプタ情報の数
-	D_D3DADAPTER_IDENTIFIER9	AdapterInfo[ MAX_DEVICE_LISTUP ] ;	// アダプタの情報
-
-	D_D3DFORMAT				ScreenFormat ;										// 画面カラーフォーマット
-	D_D3DFORMAT				TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_NUM ] ;	// テクスチャフォーマット
-	D_D3DFORMAT				MaskColorFormat ;									// マスクカラーバッファ用フォーマット
-	D_D3DFORMAT				MaskAlphaFormat ;									// マスクアルファチャンネル用フォーマット
-	D_D3DFORMAT				ZBufferFormat[ ZBUFFER_FORMAT_NUM ] ;				// Ｚバッファフォーマット
-
-	IMAGEDATA2_SYSMEMTEXTURE SysMemTexture[ SYSMEMTEXTURE_NUM ] ;	// 非管理テクスチャへのデータ転送用システムメモリ配置テクスチャ
-	int						SysMemTextureInitNum ;					// 初期化済みのシステムメモリテクスチャの数
-
-	IMAGEDATA2_SYSMEMSURFACE SysMemSurface[ SYSMEMSURFACE_NUM ] ;	// 非管理テクスチャへのデータ転送用システムメモリ配置サーフェス
-	int						SysMemSurfaceInitNum ;					// 初期化済みのシステムメモリサーフェスの数
-
 	int						UserMaxTextureSize ;					// ユーザー指定のテクスチャ最大サイズ
 	int						NotUseDivFlag ;							// 画像分割を行わないかどうか( TRUE:行わない  FALSE:行う )
-	int						UseOldDrawModiGraphCodeFlag ;			// 以前の DrawModiGraph 関数コードを使用するかどうかのフラグ
+	int						NotUseAlphaImageLoadFlag ;				// _a が付いたアルファチャンネル用の画像ファイルを追加で読み込む処理を行わないかどうか( TRUE:行わない  FALSE:行う )
+	int						NotInitGraphDelete ;					// InitGraph で削除しないかどうかのフラグ( TRUE:InitGraphでは削除しない  FALSE:InitGraphで削除する )
+} ;
 
-	int						FlipRunScanline[ 2 ] ;					// ScreenFlip を実行したときのスキャンライン値
-	DWORD					FlipRunTime[ 2 ] ;						// ScreenFlip を実行したときの timeGetTime の値
-	int						FlipSkipFlag ;							// Flipスキップ中か、フラグ( TRUE:スキップ中  FALSE:スキップ中ではない )
+// シャドウマップハンドルのセットアップに必要なグローバルデータを纏めた構造体
+struct SETUP_SHADOWMAPHANDLE_GPARAM
+{
+	int						Dummy ;
+} ;
 
-	int						ValidTexTempRegFlag ;					// テクスチャステージのテンポラリレジスタが使用できるかどうかのフラグ
+// 画像データからグラフィックハンドルの作成・画像データの転送に必要なグローバルデータを纏めたもの
+struct CREATE_GRAPHHANDLE_AND_BLTGRAPHIMAGE_GPARAM
+{
+	SETUP_GRAPHHANDLE_GPARAM InitHandleGParam ;						// グラフィックハンドルのセットアップに必要なグローバルデータ
 
-	DX_DIRECT3DSURFACE9		*BackBufferSurface ;					// デバイスが持つバックバッファサーフェス
-	DX_DIRECT3DSURFACE9		*SubBackBufferSurface ;					// ScreenCopy や GetDrawScreen を実現するために使用する描画可能サーフェス
-	DX_DIRECT3DSURFACE9		*ZBufferSurface ;						// メインで使用するＺバッファ
-	int						ZBufferSizeX, ZBufferSizeY ;			// Ｚバッファサーフェスのサイズ
-	int						UserZBufferSizeSet ;					// 外部からＺバッファサイズの指定があったかどうか
-	int						ZBufferBitDepth ;						// Ｚバッファサーフェスのビット深度
-	int						UserZBufferBitDepthSet ;				// 会部からＺバッファのビット深度指定があったかどうか
+	int						NotUseTransColor;						// 透過色を使用しないかどうかフラグ(TRUE:使用しない  FALSE:使用する)
+	int						UseTransColorGraphCreateFlag ;			// 透過色とそうでない部分の境界部分を滑らかにするか、フラグ
+	int						LeftUpColorIsTransColorFlag ;			// 画像左上のピクセル色を透過色にするかどうかのフラグ
+} ;
 
-	IMAGEFORMATDESC			*DrawPrepFormat ;						// 前回 DrawPreparation に入ったときの Format パラメータ
-	DX_DIRECT3DTEXTURE9		*DrawPrepTexture ;						// 前回 DrawPreparation に入ったときの Texture パラメータ
-	int						DrawPrepParamFlag ;						// 前回 DrawPreparation に入ったときの ParamFlag パラメータ
-	int						DrawPrepAlwaysFlag ;					// 必ず DrawPreparation を行うかどうかのフラグ
+// 画像の元データの情報に必要なグローバルデータを纏めたもの
+struct SETGRAPHBASEINFO_GPARAM
+{
+	int						NotGraphBaseDataBackupFlag ;			// グラフィックハンドルを作成した際に使用した画像データをバックアップしないかどうかのフラグ( TRUE:バックアップしない  FALSE:バックアップする )
+} ;
 
-	D_D3DCAPS9				DeviceCaps ;							// デバイス情報
-	int						TextureSizePow2 ;						// テクスチャのサイズが２のｎ乗である必要があるかどうか
-	int						TextureSizeNonPow2Conditional ;			// 条件付でテクスチャのサイズが２のｎ乗でなくても大丈夫かどうか
-	int						MaxTextureSize ;						// 最大テクスチャサイズ
-	int						ValidDestBlendOp ;						// D3DBLENDOP_ADD 以外が使用可能かどうか( TRUE:使用可能  FALSE:使用不可能 )
-	int						WhiteTexHandle ;						// 8x8の白いテクスチャのハンドル
-	int						MaxPrimitiveCount ;						// 一度に描画できるプリミティブの最大数
+// ファイルからグラフィックハンドルを作成する処理に必要なグローバルデータを纏めたもの
+struct LOADGRAPH_GPARAM
+{
+	LOADBASEIMAGE_GPARAM	LoadBaseImageGParam ;					// 画像データの読み込みに必要なグローバルデータ
+#ifndef DX_NON_MOVIE
+	OPENMOVIE_GPARAM		OpenMovieGParam ;						// ムービーファイルのオープンに必要なグローバルデータ
+#endif
+	CREATE_GRAPHHANDLE_AND_BLTGRAPHIMAGE_GPARAM CreateGraphGParam ;	// グラフィックハンドルの作成・初期化に必要なグローバルデータ
+	SETGRAPHBASEINFO_GPARAM	SetGraphBaseInfoGParam ;				// 画像の元データの情報の保存に必要なグローバルデータ
+} ;
 
-	DX_DIRECT3DSURFACE9		*TargetSurface[DX_RENDERTARGET_COUNT] ;	// 描画対象のサーフェス
-	int						RenderTargetNum ;						// 同時に設定できるレンダリングターゲットの数
+// グラフィックデータ読み込み引数を纏めたもの
+struct LOADGRAPH_PARAM
+{
+	LOADGRAPH_GPARAM		GParam ;
+	int						ReCreateFlag ;
+	int						GrHandle ;
+	int						BaseHandle ;
 
-	D_D3DVIEWPORT9			Viewport ;								// ビューポート情報
-	RECT					ScissorRect ;							// シザー矩形
-	int						ScissorTestEnable ;						// シザー矩形の有効、無効( TRUE:有効 FALSE:無効 )
+	const wchar_t *			FileName ;
+	const void *			RgbMemImage ;
+	int						RgbMemImageSize ;
+	const void *			AlphaMemImage ;
+	int						AlphaMemImageSize ;
+	const BITMAPINFO *		RgbBmpInfo ;
+	void *					RgbBmpImage ;
+	const BITMAPINFO *		AlphaBmpInfo ;
+	void *					AlphaBmpImage ;
+	BASEIMAGE *				RgbBaseImage ;
+	BASEIMAGE *				AlphaBaseImage ;
 
-	BYTE					*VertexBufferPoint[2][3] ;				// 各頂点バッファへのポインタ( [ ３Ｄ頂点かどうか ][ 頂点タイプ ] )
-	int						Use3DVertex ;							// ３Ｄ頂点を使用しているかどうか( 1:使用している  0:使用していない )
-	int						VertexNum ; 							// 頂点バッファに格納されている頂点の数
-	int						VertexType ;							// 頂点バッファに格納されている頂点データ( 0:テクスチャなし  1:テクスチャあり  2:ブレンドテクスチャあり )
-	D_D3DPRIMITIVETYPE		PrimitiveType ;							// 頂点バッファに格納されている頂点データのプリミティブタイプ
+	int						AllNum ;
+	int						XNum ;
+	int						YNum ;
+	int						SizeX ;
+	int						SizeY ;
+	int *					HandleBuf ;
+	int						TextureFlag ;
+	int						ReverseFlag ;
+	int						SurfaceMode ;
+} ;
 
-	float					BlendTextureWidth ;						// ブレンドテクスチャの幅
-	float					BlendTextureHeight ;					// ブレンドテクスチャの高さ
-	float					InvBlendTextureWidth ;					// ブレンドテクスチャの幅の逆数
-	float					InvBlendTextureHeight ;					// ブレンドテクスチャの高さの逆数
-	DWORD					DiffuseColor ;							// ディフューズカラー
+// ライトハンドル構造体
+struct LIGHT_HANDLE
+{
+	unsigned int			ID ;												// エラーチェック用のＩＤ
+	int						Handle ;											// 自身のハンドル値
 
-	int						GaussPass1_VS ;							// ガウスフィルタシェーダーの１パス目の頂点シェーダー
-	int						GaussPass1_PS ;							// ガウスフィルタシェーダーの１パス目のピクセルシェーダー
-	int						GaussPass2_VS ;							// ガウスフィルタシェーダーの２パス目の頂点シェーダー
-	int						GaussPass2_PS ;							// ガウスフィルタシェーダーの２パス目のピクセルシェーダー
+	LIGHTPARAM				Param ;												// ライトのパラメータ
+	int						SetHardwareIndex ;									// ハードウェアアクセラレータ上のセットされているインデックス( -1:セットされていない )
+	int						EnableFlag ;										// 有効フラグ
+	int						HardwareChangeFlag ;								// ハードウェアアクセラレータに反映していない設定があるかどうかのフラグ( TRUE:ある  FALSE:ない )
+	int						ShadowMapSlotDisableFlag[ MAX_USE_SHADOWMAP_NUM ] ;	// シャドウマップを使用しないかどうかのフラグ( TRUE:使用しない  FALSE:使用する )
+} ;
 
-	BYTE					*VertexBufferNextAddress ;				// 次のデータを格納すべき頂点バッファ内のアドレス
-	BYTE					NoTexVertexBuffer[     D3DDEV_NOTEX_VERTBUFFERSIZE     ] ;	// テクスチャを使用しない頂点バッファ
-	BYTE					TexVertexBuffer[       D3DDEV_TEX_VERTBUFFERSIZE       ] ;	// テクスチャを使用する頂点バッファ
-	BYTE					BlendTexVertexBuffer[  D3DDEV_BLENDTEX_VERTBUFFERSIZE  ] ;	// ブレンドテクスチャを使用する頂点バッファ
-	BYTE					Vertex3DBuffer[	       D3DDEV_NOTEX_3D_VERTBUFFERSIZE  ] ;	// ３Ｄ用頂点バッファ
+// ライト関係情報の構造体
+struct GRAPHICSSYS_LIGHTATA
+{
+	int						ProcessDisable ;						// ライト処理を無効にするかどうか
+	int						ChangeMaterial ;						// ライト計算用マテリアルが変更したかどうかのフラグ
+	MATERIALPARAM			Material ;								// ライト計算用マテリアル
+	int						MaterialNotUseVertexDiffuseColor ;		// ライト計算に頂点のディフューズカラーを使用しないかどうか
+	int						MaterialNotUseVertexSpecularColor;		// ライト計算に頂点のスペキュラカラーを使用しないかどうか
+	LIGHT_HANDLE			*Data[ MAX_LIGHT_NUM ] ;				// ライト情報へのポインタ
+	int						Num ;									// ライトの数
+	int						Area ;									// 有効なライトがある範囲
+	int						HandleID ;								// ライトに割り当てるＩＤ
+	int						EnableNum ;								// 有効になっているライトの数
+	int						MaxHardwareEnableIndex ;				// ハードウェアアクセラレータに対して有効になっているライトで一番大きな値のインデックス
+	int						EnableHardwareIndex[ MAX_HARDWAREENABLELIGHTINDEX_NUM ] ;	// ハードウェアアクセラレータに対して有効にしているライトのリスト
+	int						HardwareChange ;						// ハードウェアアクセラレータ側への反映が必要な変更があったかどうかのフラグ
+	int						HardwareRefresh ;						// ハードウェアアクセラレータ側への全項目の反映が必要かどうかのフラグ
+	int						DefaultHandle ;							// デフォルトライト用ハンドル
+} ;
+
+// カメラ関係情報の構造体
+struct GRAPHICSSYS_CAMERA
+{
+	VECTOR_D				Position ;								// カメラの位置
+	VECTOR_D				Target ;								// カメラの注視点
+	VECTOR_D				Up ;									// カメラのアップベクトル
+	double					HRotate ;								// カメラの水平角度
+	double					VRotate ;								// カメラの垂直角度
+	double					TRotate ;								// カメラの捻り角度
+	MATRIX_D				Matrix ;								// ビュー行列
+	double					ScreenCenterX ;							// カメラの消失点
+	double					ScreenCenterY ;
+} ;
+
+// ユーザーの描画設定情報構造体
+struct GRAPHICSSYS_USERRENDERINFO
+{
+	int						SetTextureGraphHandle[ 20 ] ;			// ユーザー設定の各ステージのテクスチャ
+	int						SetRenderTargetGraphHandle[ 4 ] ;		// ユーザー設定の各レンダリングターゲット
+
+	int						SetVertexShaderHandle ;					// ユーザー設定で使用する頂点シェーダー
+	int						SetPixelShaderHandle ;					// ユーザー設定で使用するピクセルシェーダー
+} ;
+
+// 描画設定関係情報の構造体
+struct GRAPHICSSYS_DRAWSETTINGDATA
+{
+	int						EnableZBufferFlag2D ;					// Ｚバッファの有効フラグ
+	int						WriteZBufferFlag2D ;					// Ｚバッファの更新を行うか、フラグ
+	int						ZBufferCmpType2D ;						// Ｚ値の比較モード
+	int						ZBias2D ;								// Ｚバイアス
+
+	int						EnableZBufferFlag3D ;					// Ｚバッファの有効フラグ
+	int						WriteZBufferFlag3D ;					// Ｚバッファの更新を行うか、フラグ
+	int						ZBufferCmpType3D ;						// Ｚ値の比較モード
+	int						ZBias3D ;								// Ｚバイアス
+
+	int						NotDrawFlagInSetDrawArea ;				// 描画不可能フラグ（SetDrawArea用）
+	int						UseNoBlendModeParam ;					// DX_BLENDMODE_NOBLEND 時でも Param の値を使用するかどうかのフラグ( TRUE:使用する  FALSE:使用しない )
+
+//	int						NotUseBasicGraphDraw3DDeviceMethodFlag ;// 単純図形の描画に３Ｄデバイスの機能を使用しないかどうかのフラグ
+
+	int						FillMode ;								// フィルモード( DX_FILL_SOLID など )
+	int						CullMode ;								// カリングモード( DX_CULLING_LEFT など )
+
+	int						TexAddressModeU[ USE_TEXTURESTAGE_NUM ] ;	// テクスチャアドレスモードＵ
+	int						TexAddressModeV[ USE_TEXTURESTAGE_NUM ] ;	// テクスチャアドレスモードＶ
+	int						TexAddressModeW[ USE_TEXTURESTAGE_NUM ] ;	// テクスチャアドレスモードＷ
+
+	int						FogEnable ;								// フォグが有効かどうか( TRUE:有効  FALSE:無効 )
+	int						FogMode ;								// フォグモード
+	DWORD					FogColor ;								// フォグカラー
+	float					FogStart, FogEnd ;						// フォグ開始アドレスと終了アドレス
+	float					FogDensity ;							// フォグ密度
+
+	float					DrawZ;									// ２Ｄ描画時にＺバッファに書き込むＺ値
+	int						DrawMode ;								// 描画モード
+
+	int						MaxAnisotropy ;							// 最大異方性
+	int						Large3DPositionSupport ;				// ３Ｄ描画で使用する座標値が 10000000.0f などの大きな値になっても描画の崩れを小さく抑える処理を使用するかどうかを設定する( TRUE:描画の崩れを抑える処理を使用する( CPU負荷が上がります )　　FALSE:描画の崩れを抑える処理は使用しない( デフォルト ) )
+
+	int						AlphaChDrawMode ;						// 描画先に正しいα値を書き込むかどうか( TRUE:正しい値を書き込む  FALSE:通常モード )
+
+	int						BlendMode ;								// ブレンドモード
+	int						BlendParam ;							// ブレンドパラメータ
+
+	int						BlendGraph ;							// ブレンドグラフィックハンドル
+//	int						BlendGraphType ;						// ブレンドグラフィックタイプ
+//	int						BlendGraphFadeRatio ;					// ブレンドグラフィックのフェードパラメータ
+	int						BlendGraphBorderParam ;					// ブレンドグラフィックハンドルのブレンド境界値(0～255)
+	int						BlendGraphBorderRange ;					// ブレンドグラフィックハンドルの境界部分の幅(0～255)
+	int						BlendGraphX, BlendGraphY ;				// ブレンドグラフィックの起点座標
+
+	int						AlphaTestMode ;							// アルファテストモード
+	int						AlphaTestParam ;						// アルファテストパラメータ
+
+	int						NotUseSpecular ;						// スペキュラを使用しないかどうか
+	int						ShadowMap[ MAX_USE_SHADOWMAP_NUM ] ;	// 使用するシャドウマップグラフィックハンドル
+	int						UseShadowMapNum ;						// 有効なシャドウマップの設定数
+
+	int						ShadowMapDrawSetupRequest ;				// シャドウマップに対する描画準備リクエスト
+	int						ShadowMapDraw ;							// シャドウマップに対する描画かどうかのフラグ
+	int						ShadowMapDrawHandle ;					// シャドウマップに対する描画の際の、シャドウマップハンドル
+
+	union
+	{
+		RGBCOLOR			DrawBright ;							// 描画輝度
+		DWORD				bDrawBright ;
+	} ;
+
+	int						IgnoreGraphColorFlag ;					// 描画する画像の色成分を無視するかどうかのフラグ
+
+	int						TargetScreen[ DX_RENDERTARGET_COUNT ] ;	// 描画先グラフィック識別値
+	int						TargetScreenSurface[ DX_RENDERTARGET_COUNT ] ; // 描画先グラフィック内サーフェスインデックス
+//	int						TargetScreenVramFlag ;					// 描画先グラフィックがＶＲＡＭに存在するか否か
+	int						TargetZBuffer ;							// 描画先Ｚバッファ識別値
+//	RECT					WindowDrawRect ;						// デスクトップのあるサーフェスに描画処理を行う
+																	// 場合ウインドウのクライアント領域の矩形データが入っている
+
+	RECT					OriginalDrawRect ;						// ウインドウの位置によって改変される前の使用者が意図する正しい描画矩形
+	RECT					DrawArea ;								// 描画可能矩形
+	RECTF					DrawAreaF ;								// 描画可能矩形浮動小数点型
+	int						DrawSizeX, DrawSizeY ;					// 描画対象のサイズ
+	float					Draw3DScale ;							// ３Ｄ描画処理のスケール
+
+	int						MatchHardwareMatrix ;					// ３Ｄデバイスに設定されている行列と本構造体中の行列が一致しているかどうか( TRUE:一致している  FALSE:一致していない )
+
+	int						MatchHardwareWorldMatrix ;				// ３Ｄデバイスに設定されているワールド変換行列と本構造体中のワールド変換行列が一致しているかどうか( TRUE:一致している  FALSE:一致していない )
+	MATRIX_D				WorldMatrix ;							// ワールド変換行列
+	MATRIX					WorldMatrixF ;							// ワールド変換行列
+
+	int						MatchHardwareViewMatrix ;				// ３Ｄデバイスに設定されているビュー変換行列と本構造体中のビュー変換行列が一致しているかどうか( TRUE:一致している  FALSE:一致していない )
+	MATRIX_D				ViewMatrix ;							// ビュー変換行列
+	MATRIX					ViewMatrixF ;							// ビュー変換行列
+
+	int						MatchHardwareProjectionMatrix ;			// ３Ｄデバイスに設定されている射影変換行列と本構造体中の射影変換行列が一致しているかどうか( TRUE:一致している  FALSE:一致していない )
+	MATRIX_D				ProjectionMatrix ;						// 射影変換行列
+	MATRIX					ProjectionMatrixF ;						// 射影変換行列
+
+	int						ProjectionMatrixMode ;					// 射影行列モード( 0:遠近法  1:正射影  2:行列指定 )
+	double					ProjNear, ProjFar ;						// Ｚクリッピングの Near面と Far面
+	double					ProjDotAspect ;							// ドットアスペクト比( 縦 / 横 )
+	double					ProjFov ;								// 遠近法時の視野角
+	double					ProjSize ;								// 正射影時のサイズ
+	MATRIX_D				ProjMatrix ;							// 射影行列
+
+	MATRIX_D				Direct3DViewportMatrix ;				// Ｄｉｒｅｃｔ３Ｄ 的なビューポート行列
+	MATRIX					Direct3DViewportMatrixF ;				// Ｄｉｒｅｃｔ３Ｄ 的なビューポート行列
+	MATRIX_D				Direct3DViewportMatrixAnti ;			// Ｄｉｒｅｃｔ３Ｄ 的なビューポート行列を無効にする行列
+	MATRIX					Direct3DViewportMatrixAntiF ;			// Ｄｉｒｅｃｔ３Ｄ 的なビューポート行列を無効にする行列
+	MATRIX_D				ViewportMatrix ;						// ビューポート行列
+	MATRIX					ViewportMatrixF ;						// ビューポート行列
+//	MATRIX					ViewportMatrix2D ;						// ２Ｄ描画用ビューポート行列
+//	MATRIX					ProjectionMatrix2D ;					// ２Ｄ描画用射影行列
+//	int						UseProjectionMatrix2D ;					// ２Ｄ描画用射影行列を使用する設定になっているかどうか( TRUE:使用する  FALSE:使用しない )
+
+	int						ValidBlendMatrix ;						// BlendMatrix, ViewProjectionMatrix, BillboardMatrix が有効かどうか( TRUE:有効  FALSE:無効 )
+	MATRIX_D				BlendMatrix ;							// ワールド変換、ビュー変換、射影変換、ビューポート変換行列を掛け合わせたもの
+	MATRIX					BlendMatrixF ;							// float型の BlendMatrix
+	int						ValidInverseBlendMatrix ;				// BlendMatrix の逆行列が有効かどうか( TRUE:有効  FALSE:無効 )
+	MATRIX_D				InverseBlendMatrix ;					// BlendMatrix の逆行列
+	MATRIX					InverseBlendMatrixF ;					// float型の InverseBlendMatrix
+	MATRIX_D				WorldViewMatrix ;						// ワールド行列とビュー行列を掛け合わせたもの
+	MATRIX_D				ViewProjectionViewportMatrix ;			// ビュー行列と射影行列とビューポート行列を掛け合わせたもの
+	MATRIX_D				BillboardMatrix ;						// ビルボード用の行列
+	MATRIX					BillboardMatrixF ;						// ビルボード用の行列
+	VECTOR_D				ViewClipPos[ 2 ][ 2 ][ 2 ] ;			// 視錐台頂点( [ 0:z+ 1:z- ][ 0:top 1:bottom ][ 0:left 1:right ] )
+	DOUBLE4					ClippingPlane[ 6 ] ;					// クリッピング平面( 0:-x 1:+x 2:-y 3:+y 4:-z 5:+z )
+	int						ValidConvScreenPosToWorldPosMatrix ;	// 画面座標からスクリーン座標に変換する際に使用する行列が有効かどうか( TRUE:有効  FALSE:無効 )
+	MATRIX_D				ConvScreenPosToWorldPosMatrix ;			// 画面座標からスクリーン座標に変換する際に使用する行列
+
+	int						TextureAddressTransformUse ;			// テクスチャ座標変換処理を行うかどうか( TRUE:行う  FALSE:行わない )
+//	float					TextureTransX ;							// テクスチャ平行移動
+//	float					TextureTransY ;
+//	float					TextureScaleX ;							// テクスチャ拡大率
+//	float					TextureScaleY ;
+//	float					TextureRotateCenterX ;					// テクスチャ回転の中心座標
+//	float					TextureRotateCenterY ;
+//	float					TextureRotate ;							// テクスチャ回転値
+//	int						TextureMatrixValid ;					// TextureMatrix が有効かどうか( TRUE:有効  FALSE:無効 )
+//	MATRIX					TextureMatrix ;							// TextureTransX や TextureScaleY などを使用しないで設定する行列
+	int						MatchHardwareTextureAddressTransformMatrix ;	// ３Ｄデバイスに設定されているテクスチャ座標変換行列と本構造体中のテクスチャ座標変換行列が一致しているかどうか( TRUE:一致している  FALSE:一致していない )
+	MATRIX					TextureAddressTransformMatrix ;			// テクスチャ座標変換行列
+
+	GRAPHICSSYS_USERRENDERINFO	UserShaderRenderInfo ;				// SetUseTextureToShader で設定された各ステージのテクスチャ情報や、ユーザー設定のシェーダー定数情報など
+} ;
+
+// 画像作成に関係する情報の構造体
+struct GRAPHICSSYS_CREATEIMAGEDATA
+{
+	int						ColorBitDepth ;							// 作成する画像の色深度
+	int						ChannelBitDepth ;						// 作成する画像の１チャンネル辺りのビット深度( こちらが設定されている場合は CreateImageColorBitDepth より優先される )
+//	int						TextureImageCreateFlag ;				// テクスチャ画像作成フラグ
+	int						AlphaChannelFlag ;						// αチャンネル付き画像作成指定フラグ( DrawValidGraphCreateFlag の方が優先度が高い )
+	int						AlphaTestFlag ;							// αテスト付き画像作成指定フラグ( AlphaGraphCreateFlag の方が優先度が高い )( テクスチャサーフェスのみ )
+	int						CubeMapFlag ;							// キューブマップテクスチャ作成指定フラグ( 1:キューブマップテクスチャを作成する  0:通常テクスチャを作成する )
+//	int						SystemMemImageCreateFlag ;				// システムメモリを使用する画像作成指定フラグ( 標準サーフェスのみ )
+	int						BlendImageFlag ;						// ブレンド処理用画像作成指定フラグ
+	int						NotUseManagedTextureFlag ;				// マネージドテクスチャを使用しないか、フラグ( 1:使用しない  0:使用する )
+
+	int						DrawValidFlag ;							// 描画可能画像作成指定フラグ( テクスチャサーフェスのみ )
+	int						DrawValidAlphaFlag ;					// 描画可能なαチャンネル付き画像作成指定フラグ( テクスチャサーフェスのみ )
+	int						DrawValidFloatTypeFlag ;				// 描画可能なFloat型画像作成指定フラグ( テクスチャサーフェスのみ )
+	int						NotDrawValidCreateZBufferFlag ;			// 描画可能画像を作成する際に専用のＺバッファは作成しないかどうか
+	int						DrawValidChannelNum ;					// 描画可能画像のチャンネル数( テクスチャサーフェスのみ )
+	int						DrawValidZBufferBitDepth ;				// 描画可能画像のＺバッファのビット深度( テクスチャサーフェスのみ )
+	int						DrawValidMSSamples ;					// 描画可能な画像のマルチサンプリング数
+	int						DrawValidMSQuality ;					// 描画可能な画像のマルチサンプリングクオリティ
+
+	int						NotGraphBaseDataBackupFlag ;			// グラフィックハンドルを作成した際に使用した画像データをバックアップしないかどうかのフラグ( TRUE:バックアップしない  FALSE:バックアップする )
+	int						LeftUpColorIsTransColorFlag ;			// 画像左上のピクセル色を透過色にするかどうかのフラグ
+	int						UseTransColorFlag ;						// 透過色とそうでない部分の境界部分を滑らかにするか、フラグ
+	DWORD					TransColor ;							// 透過色
+	int						NotUseTransColor;						// 透過色を使用しないかどうかフラグ(TRUE:使用しない  FALSE:使用する)
+	int						NotUseDivFlag ;							// 画像分割を行わないかどうか( TRUE:行わない  FALSE:行う )
+	int						MipMapCount ;							// 自動で作成するミップマップの数( -1:最大レベルまで作成する )
+	int						UserMaxTextureSize ;					// ユーザー指定のテクスチャ最大サイズ
+	int						NotUseAlphaImageLoadFlag ;				// _a が付いたアルファチャンネル用の画像ファイルを追加で読み込む処理を行わないかどうか( TRUE:行わない  FALSE:行う )
+} ;
+
+// ディスプレイ一つあたりの情報
+struct GRAPHICSSYS_DISPLAYINFO
+{
+	RECT					DesktopRect ;							// デスクトップ上でのモニタ領域
+	int						DesktopSizeX ;							// デスクトップ上での幅
+	int						DesktopSizeY ;							// デスクトップ上での高さ
+	int						DesktopColorBitDepth ;					// デスクトップ上でのカラービット深度
+	int						DesktopRefreshRate ;					// デスクトップ上でのリフレッシュレート
+	wchar_t					Name[ 128 ] ;							// 名前
+
+	int						ModeNum ;								// 変更可能なディスプレイモードの数
+	DISPLAYMODEDATA			*ModeData ;								// ディスプレイモードリスト
+} ;
+
+// 画面関係の情報の構造体
+struct GRAPHICSSYS_SCREENDATA
+{
+	int						MainScreenSizeX ;						// メイン画面のサイズ
+	int						MainScreenSizeY ;
+	int						MainScreenSizeX_Result ;				// GetDrawScreenSize の返り値になるサイズ
+	int						MainScreenSizeY_Result ;
+	int						MainScreenColorBitDepth ;				// メイン画面のカラービット深度
+	int						MainScreenRefreshRate ;					// メイン画面のリフレッシュレート
+
+	int						Emulation320x240Flag ;					// 640x480 の画面に 320x240 の画面を出力するかどうかのフラグ
+
+	int						FullScreenResolutionMode ;				// フルスクリーン解像度モード( DX_FSRESOLUTIONMODE_NATIVE 等 )
+	int						FullScreenResolutionModeAct ;			// 実際に使用されているフルスクリーン解像度モード( 例えば FullScreenMode が DX_FSRESOLUTIONMODE_NATIVE でも指定の解像度にモニタが対応していない場合はこの変数は DX_FSRESOLUTIONMODE_MAXIMUM になる )
+	int						FullScreenScalingMode ;					// フルスクリーンスケーリングモード( DX_FSSCALINGMODE_NEAREST 等 )
+	DISPLAYMODEDATA			FullScreenUseDispModeData ;				// フルスクリーンモードで使用しているディスプレイモードの情報
+	RECT					FullScreenScalingDestRect ;				// DX_FSRESOLUTIONMODE_NATIVE 以外でフルスクリーンモード時に使用する転送先矩形
+	RECT					FullScreenDesktopRect ;					// フルスクリーンモードでの使用しているデスクトップ上の矩形
+
+//	int						PreSetWaitVSyncFlag ;					// DxLib_Init が呼ばれる前に SetWaitVSyncFlag( TRUE ) ; が実行されたかどうかのフラグ( TRUE:実行された  FALSE:実行されていない )
+	int						NotWaitVSyncFlag ;						// ＶＳＹＮＣ待ちをしないかどうかのフラグ（TRUE：しない FALSE：する）
+
+	int						ValidGraphDisplayArea ;					// GraphDisplayArea に有効な値が入っているかどうか
+	RECT					GraphDisplayArea ;						// 表画面に転送する裏画面の領域
+
+	int						EnableBackgroundColor ;					// バックグラウンド塗り潰し用カラーが有効かどうかのフラグ
+	int						BackgroundRed ;							// バックグラウンド塗り潰し用カラー
+	int						BackgroundGreen ;
+	int						BackgroundBlue ;
+
+	int						ScreenFlipFlag ;						// ScreenFlip関数を呼びだし中フラグ
+	int						Graphics_Screen_ChangeModeFlag ;		// Graphics_Screen_ChangeMode を実行中かどうかのフラグ
+
+//	int						DisplayModeNum ;						// 変更可能なディスプレイモードの数
+//	DISPLAYMODEDATA			*DisplayMode ;							// ディスプレイモードリスト
+	int						ValidUseDisplayIndex ;					// UseDisplayIndex が有効かどうか( TRUE:有効  FALSE:無効 )
+	int						UseDisplayIndex ;						// 使用するディスプレイ番号
+
+	int						DisplayNum ;							// ディスプレイの数
+	GRAPHICSSYS_DISPLAYINFO	*DisplayInfo ;							// ディスプレイの情報
+
+	int						DrawScreenBufferLockFlag ;				// バックバッファをロックしているかどうかフラグ
+} ;
+
+// 設定関係情報の構造体
+struct GRAPHICSSYS_SETTINGDATA
+{
+	void					( *GraphRestoreShred )( void ) ;		// グラフィック復元関数のポインタ 
+
+	int						ValidHardware ;							// ハードウエア描画が可能かどうか( TRUE:可能  FALSE:不可能 )
+	int						NotUseHardware ;						// ハードウエア描画の機能を使用しないかどうか( TRUE:使用しない  FALSE:使用する )
+	int						ChangeScreenModeNotGraphicsSystemFlag ;	// 画面モードの変更時に画像ハンドルを削除しないかどうか( TRUE:しない  FALSE:する )
+} ;
+
+// 処理実行用リソース関係の構造体
+struct GRAPHICSSYS_RESOURCE
+{
+	int						TempVertexBufferSize ;					// 一時的に頂点データを格納するためのバッファのサイズ
+	void					*TempVertexBuffer ;						// 一時的に頂点データを格納するためのバッファ
 
 	void					*CommonBuffer[ COMMON_BUFFER_NUM ] ;	// 汎用バッファ
 	DWORD					CommonBufferSize[ COMMON_BUFFER_NUM ] ;	// 汎用バッファのメモリ確保サイズ
 
-	RECT					DrawRect ;							// 描画範囲
+	int						WhiteTexHandle ;						// 8x8の白いテクスチャのハンドル
+} ;
 
-	DX_DIRECT3DTEXTURE9		*RenderTexture ;					// 描画時に使用するテクスチャー
-	DX_DIRECT3DTEXTURE9		*BlendTexture ;						// 描画時に描画テクスチャーとブレンドするαチャンネルテクスチャー
-	DX_DIRECT3DTEXTURE9		*RenderTargetTexture ;				// 描画対象となっているテクスチャー
-	DX_DIRECT3DSURFACE9		*RenderTargetSurface ;				// 描画対象となっているテクスチャーのサーフェス
-	DX_DIRECT3DSURFACE9		*RenderTargetCopySurface ;			// 描画対象となっているテクスチャーのコピーサーフェス
-	float					RenderTargetTextureInvWidth ;		// 描画対象となっているテクスチャーの幅で1.0fを割ったもの
-	float					RenderTargetTextureInvHeight ;		// 描画対象となっているテクスチャーの高さで1.0fを割ったもの
-#ifndef DX_NON_MODEL
-	DX_DIRECT3DVOLUMETEXTURE9	*RGBtoVMaxRGBVolumeTexture ;	// RGBカラーを輝度を最大にしたRGB値に変換するためのボリュームテクスチャ
-#endif // DX_NON_MODEL
-
-	DIRECT3DBLENDINFO		BlendInfo ;							// Direct3DDevice のブレンドに関係する設定値
-	float					FactorColorPSConstantF[ 4 ] ;		// ピクセルシェーダーを使ったＤＸライブラリ標準処理用の FactorColor の値
-	DIRECT3DBLENDINFO		UserBlendInfo ;						// Direct3D 管理プログラム外から設定されるブレンドに関係する設定値
-	int						UserBlendInfoFlag ;					// UserBlendInfo が有効かどうかフラグ( TRUE:有効  FALSE:無効 )
-	int						UserBlendInfoTextureStageIsTextureAndTextureCoordOnlyFlag ;	// UserBlendInfo.TextureStageInfo の中で有効なパラメータが Texture と TextureCoordIndex だけかどうか( TRUE:その通り  FALSE:違う )
-
-	int						DrawMode ;							// 描画モード
-	int						MaxAnisotropy ;						// 最大異方性
-	int						MaxAnisotropyDim[ 8 ] ;				// 各サンプラの最大異方性
-	DX_D3DTEXFILTER_TYPE	MagFilter[ 8 ] ;					// 各サンプラの拡大フィルタ
-	DX_D3DTEXFILTER_TYPE	MinFilter[ 8 ] ;					// 各サンプラの縮小フィルタ
-	DX_D3DTEXFILTER_TYPE	MipFilter[ 8 ] ;					// 各サンプラのミップマップフィルタ
-	int						EnableZBufferFlag ;					// Ｚバッファの有効フラグ
-	int						WriteZBufferFlag ;					// Ｚバッファの更新を行うか、フラグ
-	int						ZBufferCmpType ;					// Ｚ値の比較モード
-	int						ZBias ;								// Ｚバイアス
-	int						TextureTransformUse[ 8 ] ;				// テクスチャ座標変換行列を使用するかどうか( TRUE:使用する  FALSE:使用しない )
-	MATRIX					TextureTransformMatrix[ 8 ] ;			// テクスチャ座標変換行列
-	int						TextureTransformMatrixDirectChange ;	// テクスチャ座標変換行列を直接変更されたかどうか( TRUE:された  FALSE:されてない )
-
-	int						ShadowMapDrawSetupRequest ;			// シャドウマップに対する描画準備リクエスト
-	int						ShadowMapDraw ;						// シャドウマップに対する描画かどうかのフラグ
-	int						ShadowMapDrawHandle ;				// シャドウマップに対する描画の際の、シャドウマップハンドル
-	int						NormalizeNormals ;					// 法線自動正規化を行うかどうか
-	int						ShadeMode ;							// シェーディングモード
-	int						FillMode ;							// フィルモード
-	int						CullMode ;							// カリングモード
-	int						TexAddressModeU[ USE_TEXTURESTAGE_NUM ] ;	// テクスチャアドレスモードＵ
-	int						TexAddressModeV[ USE_TEXTURESTAGE_NUM ] ;	// テクスチャアドレスモードＶ
-	int						TexAddressModeW[ USE_TEXTURESTAGE_NUM ] ;	// テクスチャアドレスモードＷ
-	int						FogEnable ;							// フォグが有効かどうか( TRUE:有効  FALSE:無効 )
-	int						FogMode ;							// フォグモード
-	DWORD					FogColor ;							// フォグカラー
-	float					FogStart, FogEnd ;					// フォグ開始アドレスと終了アドレス
-	float					FogDensity ;						// フォグ密度
-	int						PerspectiveFlag ;					// パースペクティブ補正有効フラグ
-
-	int						LightFlag ;							// ライトを使用するかフラグ
-	int						LightEnableMaxIndex ;				// 有効なライトの最大インデックス
-	int						LightEnableFlag[ 256 ] ;			// ライトが有効かどうかフラグ( TRUE:有効  FALSE:無効 )
-	LIGHT					LightParam[ 256 ] ;					// ライトのパラメータ
-
-	COLOR					GlobalAmbientLightColor ;			// グローバルアンビエントライトカラー
-	MATERIAL				Material ;							// デバイスにセットされているマテリアル
-	int						MaterialUseVertexDiffuseColor ;		// 頂点のディフューズカラーをマテリアルのディフューズカラーとして使用するかどうか
-	int						MaterialUseVertexSpecularColor ;	// 頂点のスペキュラカラーをマテリアルのスペキュラカラーとして使用するかどうか
-	int						UseSpecular ;						// スペキュラを使用するかどうか
-
-	int						UseDiffuseRGBColor ;				// ディフューズカラーのＲＧＢ値を使用するか、フラグ
-	int						UseDiffuseAlphaColor ;				// ディフューズカラーのα値を使用するか、フラグ
-	int						BeginSceneFlag ;					// BeginScene を実行してあるかどうか
-
-	int						IgnoreGraphColorFlag ;				// 描画する画像の色成分を無視するかどうかのフラグ
-
-	int						UseAlphaChDrawShader ;				// 描画先に正しいα値を書き込む為のシェーダーを使用するかどうか( TRUE:使用する  FALSE:使用しない )
-	int						BlendMode ;							// ブレンドモード
-	int						BlendGraphType ;					// ブレンド画像タイプ
-	int						BlendGraphFadeRatio ;				// ブレンド画像のフェードパラメータ
-	int						BlendGraphBorderParam ;				// ブレンド画像の境界パラメータ(０(ブレンド画像の影響０)　←　(ブレンド画像の影響少ない)　←　１２８(ブレンド画像の影響１００％)　→　(ブレンド画像の影響を超えて非描画部分が増える)　→２５５(全く描画されない) )
-	int						BlendGraphBorderRange ;				// ブレンド画像の境界幅(０～２５５　狭い～広い　しかし４段階)
-	int						AlphaChannelValidFlag ;				// αチャンネル有効フラグ
-
-	int						AlphaTestMode ;						// アルファテストモード
-	int						AlphaTestParam ;					// アルファテストパラメータ
-
-	int						AlphaTestValidFlag ;				// αテスト有効フラグ( Func は必ず D_D3DCMP_GREATEREQUAL )
-	int						ChangeBlendParamFlag ;				// ブレンド設定に関わる部分の変更があったか、フラグ
-	int						ChangeTextureFlag ;					// テクスチャが変更されたか、フラグ
-	int						BlendMaxNotDrawFlag ;				// ブレンド値が最大であることにより描画を行わないかどうか、フラグ
-	int						EdgeFontDrawFlag ;					// 縁付きフォントを描画するかどうかのフラグ
-
-
-	int						DrawScreenBufferLockFlag ;			// バックバッファをロックしているかどうかフラグ
-	DX_DIRECT3DSURFACE9		*DrawScreenBufferLockSMSurface ;	// バックバッファをロックした際に直接ロックできない場合に使用するサーフェスのポインタ
-	int						DrawScreenBufferLockSMSurfaceIndex ;// バックバッファをロックした際に直接ロックできない場合に使用するサーフェスキャッシュのインデックス
-	DX_DIRECT3DSURFACE9		*DrawScreenBufferLockSurface ;		// ロックしたバックバッファ
-
-	void					(*DeviceRestoreCallbackFunction)( void *Data ) ;	// デバイスロストから復帰したときに呼ぶ関数
-	void					*DeviceRestoreCallbackData ;		// デバイスロストから復帰したときに呼ぶ関数に渡すポインタ
-
-	void					(*DeviceLostCallbackFunction)( void *Data ) ;	// デバイスロストから復帰する前に呼ぶ関数
-	void					*DeviceLostCallbackData ;			// デバイスロストから復帰する前に呼ぶ関数に渡すポインタ
-
-	int						UseShader ;							// プログラマブルシェーダーを使用するかどうか( TRUE:使用する  FALSE:使用しない )
-	int						NormalDraw_NotUseShader ;			// 通常描画にシェーダーを使用しないかどうか( TRUE:使用しない  FALSE:使用する )
-#ifndef DX_NON_FILTER
-	int						ValidRenderTargetInputTexture ;		// 描画先を入力テクスチャとして使用できるかどうか( TRUE:使用できる  FALSE:使用できない )
-#endif // DX_NON_FILTER
-
-	DX_DIRECT3DVERTEXSHADER9		*SetVS ;					// 現在 Direct3DDevice9 にセットしてある頂点シェーダー
-	DX_DIRECT3DPIXELSHADER9			*SetPS ;					// 現在 Direct3DDevice9 にセットしてあるピクセルシェーダー
-	int								NormalPS ;					// 通常描画用ピクセルシェーダーがセットされているかどうか
-	DX_DIRECT3DVERTEXDECLARATION9	*SetVD ;					// 現在 Direct3DDevice9 にセットしてある頂点シェーダ宣言
-	DWORD							SetFVF ;					// 現在 Direct3DDevice9 にセットしてある FVF コード
-	DX_DIRECT3DVERTEXBUFFER9		*SetVB ;					// 現在 Direct3DDevice9 にセットしてある頂点バッファ
-	DX_DIRECT3DINDEXBUFFER9			*SetIB ;					// 現在 Direct3DDevice9 にセットしてあるインデックスバッファ
-
-	// 固定機能パイプライン互換のシェーダー( テクスチャなし )
-	// [ 特殊効果( 0:通常描画  1:乗算描画  2:RGB反転  3:描画輝度４倍  4:乗算済みαブレンドモードの通常描画  5:乗算済みαブレンドモードのRGB反転  6:乗算済みαブレンドモードの描画輝度4倍 ) ]
-	// [ αチャンネル考慮版かどうか( 0:考慮しない  1:考慮する ) ]
-	// [ 乗算済みαブレンド用かどうか( 0:乗算済みαブレンド用ではない  1:乗算済みαブレンド用 ) ]
-	DX_DIRECT3DPIXELSHADER9          *BaseNoneTexPixelShader[ 7 ][ 2 ] ;
-
-	// 固定機能パイプライン互換のシェーダー( テクスチャあり )
-	// [ ブレンド画像とのブレンドタイプ( 0:なし  1:DX_BLENDGRAPHTYPE_NORMAL  2:DX_BLENDGRAPHTYPE_WIPE  3:DX_BLENDGRAPHTYPE_ALPHA ) ]
-	// [ 特殊効果( 0:通常描画  1:乗算描画  2:RGB反転  3:描画輝度４倍  4:乗算済みαブレンドモードの通常描画  5:乗算済みαブレンドモードのRGB反転  6:乗算済みαブレンドモードの描画輝度4倍 ) ]
-	// [ テクスチャRGB無視( 0:無視しない  1:無視する ) ]
-	// [ テクスチャAlpha無視( 0:無視しない  1:無視する ) ]
-	// [ αチャンネル考慮版かどうか( 0:考慮しない  1:考慮する ) ]
-	DX_DIRECT3DPIXELSHADER9          *BaseUseTexPixelShader[ 4 ][ 7 ][ 2 ][ 2 ][ 2 ] ;
-
-	// マスク処理用のシェーダー
-	DX_DIRECT3DPIXELSHADER9          *MaskEffectPixelShader ;
-
-#ifndef DX_NON_MODEL
-	// モデル描画用ピクセル単位ライティングタイプの頂点シェーダー( リストは配列の左から )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ メッシュタイプ( 0:剛体メッシュ 1:4ボーン内スキニングメッシュ 2:8ボーン内スキニングメッシュ ) ]
-	// [ バンプマップの有無( 0:無し 1:有り ) ]
-	// [ フォグタイプ ]
-	DX_DIRECT3DVERTEXSHADER9         *MV1_PixelLighting_VertexShader[ 2 ][ 3 ][ 2 ][ 4 ] ;
-
-	// モデル描画用ピクセル単位ライティングタイプのトゥーン用ピクセルシェーダー( リストは配列の左から )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ トゥーンレンダリングタイプ( 0:トゥーンレンダリング type 1   1:トゥーンレンダリング Type 2 ) ]
-	// [ トゥーンレンダリングのスフィアマップの有無とブレンドタイプ( 0:スフィアマップは無い   1:MV1_LAYERBLEND_TYPE_MODULATE  2:MV1_LAYERBLEND_TYPE_ADDITIVE ) ]
-	// [ トゥーンレンダリングのディフューズグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT  1:MV1_LAYERBLEND_TYPE_MODULATE ) ]
-	// [ トゥーンレンダリングのスペキュラグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT  1:MV1_LAYERBLEND_TYPE_ADDITIVE ) ]
-	// [ スペキュラマップ ( 0:無い 1:ある ) ]
-	// [ バンプマップ ( 0:なし 1:あり ) ]
-	// [ ライトインデックス ]
-	// [ スペキュラの有無( 0:無し 1:有り ) ]
-	DX_DIRECT3DPIXELSHADER9         *MV1_PixelLighting_ToonPixelShader[ 2 ][ 2 ][ 3 ][ 2 ][ 2 ][ 2 ][ 2 ][ 84 ][ 2 ] ;
-
-	// モデル描画用ピクセル単位ライティングタイプのピクセルシェーダー( リストは配列の左から )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ マルチテクスチャのブレンドモード、MV1_LAYERBLEND_TYPE_TRANSLUCENT などに +1 したもの ( 0:マルチテクスチャ無し  1:αブレンド  2:加算ブレンド  3:乗算ブレンド  4:乗算ブレンド×2 ) ]
-	// [ スペキュラマップ ( 0:無い 1:ある ) ]
-	// [ バンプマップ ( 0:なし 1:あり ) ]
-	// [ ライトインデックス ]
-	// [ スペキュラの有無( 0:無し 1:有り ) ]
-	DX_DIRECT3DPIXELSHADER9         *MV1_PixelLighting_PixelShader[ 2 ][ 5 ][ 2 ][ 2 ][ 84 ][ 2 ] ;
-
-
-
-
-
-	// モデル描画用のトゥーンレンダリングの輪郭線描画用頂点シェーダー
-	// [ メッシュタイプ( 0:剛体メッシュ 1:4ボーン内スキニングメッシュ  2:8ボーン内スキニングメッシュ ) ]
-	// [ フォグタイプ ]
-	DX_DIRECT3DVERTEXSHADER9         *MV1_ToonOutLineVertexShader[ 3 ][ 4 ] ;
-
-	// モデル描画用のシャドウマップへのレンダリング用頂点シェーダー
-	// [ メッシュタイプ( 0:剛体メッシュ 1:4ボーン内スキニングメッシュ  2:8ボーン内スキニングメッシュ ) ]
-	DX_DIRECT3DVERTEXSHADER9         *MV1_ShadowMapVertexShader[ 3 ] ;
-
-	// モデル描画用のライティングなし頂点シェーダー
-	// [ メッシュタイプ( 0:剛体メッシュ 1:4ボーン内スキニングメッシュ  2:8ボーン内スキニングメッシュ ) ]
-	// [ フォグタイプ ]
-	DX_DIRECT3DVERTEXSHADER9         *MV1_NoLightingVertexShader[ 3 ][ 4 ] ;
-
-	// モデル描画用のライティングあり頂点シェーダー
-	// [ シェーダーモデル( 0:SM2  1:SM3 )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ メッシュタイプ( 0:剛体メッシュ 1:4ボーン内スキニングメッシュ  2:8ボーン内スキニングメッシュ ) ]
-	// [ バンプマップの有無( 0:無し 1:有り ) ]
-	// [ フォグタイプ ]
-	// [ ライトインデックス ]
-	// [ スペキュラの有無( 0:無し 1:有り ) ]
-	DX_DIRECT3DVERTEXSHADER9         *MV1_LightingVertexShader[ 2 ][ 2 ][ 3 ][ 2 ][ 4 ][ 20 ][ 2 ] ;
-
-
-	// モデル描画用のトゥーンレンダリングの輪郭線描画用ピクセルシェーダー
-	DX_DIRECT3DPIXELSHADER9         *MV1_ToonOutLinePixelShader ;
-
-	// モデル描画用のシャドウマップへのトゥーンレンダリング用ピクセルシェーダー
-	// [ トゥーンレンダリングタイプ( 0:トゥーンレンダリング type 1   1:トゥーンレンダリング type 2 ) ]
-	// [ トゥーンレンダリングのスフィアマップの有無とブレンドタイプ( 0:スフィアマップは無い   1:MV1_LAYERBLEND_TYPE_MODULATE  2:MV1_LAYERBLEND_TYPE_ADDITIVE ) ]
-	// [ トゥーンレンダリングのディフューズグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT  1:MV1_LAYERBLEND_TYPE_MODULATE ) ]
-	DX_DIRECT3DPIXELSHADER9         *MV1_ShadowMapToonPixelShader[ 2 ][ 3 ][ 2 ] ;
-
-	// モデル描画用のシャドウマップへのレンダリング用ピクセルシェーダー
-	DX_DIRECT3DPIXELSHADER9         *MV1_ShadowMapPixelShader ;
-
-	// モデル描画用のライティングなしトゥーン用ピクセルシェーダー( リストは配列の左から )
-	// [ トゥーンレンダリングタイプ( 0:トゥーンレンダリング type 1   1:トゥーンレンダリング type 2 ) ]
-	// [ トゥーンレンダリングのディフューズグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT  1:MV1_LAYERBLEND_TYPE_MODULATE ) ]
-	DX_DIRECT3DPIXELSHADER9         *MV1_ToonNoLightingPixelShader[ 2 ][ 2 ] ;
-
-	// モデル描画用のライティングなしピクセルシェーダー
-	// [ マルチテクスチャのブレンドモード、MV1_LAYERBLEND_TYPE_TRANSLUCENT などに +1 したもの ( 0:マルチテクスチャ無し  1:αブレンド  2:加算ブレンド  3:乗算ブレンド  4:乗算ブレンド×2 ) ]
-	DX_DIRECT3DPIXELSHADER9         *MV1_NoLightingPixelShader[ 5 ] ;
-
-	// モデル描画用のライティングありトゥーン用ピクセルシェーダー
-	// [ シェーダーモデル( 0:SM2  1:SM3 )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ トゥーンレンダリングタイプ( 0:トゥーンレンダリング type 1   1:トゥーンレンダリング type 2 ) ]
-	// [ トゥーンレンダリングのスフィアマップの有無とブレンドタイプ( 0:スフィアマップは無い   1:MV1_LAYERBLEND_TYPE_MODULATE  2:MV1_LAYERBLEND_TYPE_ADDITIVE ) ]
-	// [ トゥーンレンダリングのディフューズグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT  1:MV1_LAYERBLEND_TYPE_MODULATE ) ]
-	// [ トゥーンレンダリングのスペキュラグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT  1:MV1_LAYERBLEND_TYPE_ADDITIVE ) ]
-	// [ スペキュラマップ ( 0:無い 1:ある ) ]
-	// [ バンプマップ ( 0:なし 1:あり ) ]
-	// [ ライトインデックス ]
-	// [ スペキュラの有無( 0:無し 1:有り ) ]
-	DX_DIRECT3DPIXELSHADER9         *MV1_ToonLightingPixelShader[ 2 ][ 2 ][ 2 ][ 3 ][ 2 ][ 2 ][ 2 ][ 2 ][ 10 ][ 2 ] ;
-
-	// モデル描画用のライティングありピクセルシェーダー
-	// [ シェーダーモデル( 0:SM2  1:SM3 )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ マルチテクスチャのブレンドモード、MV1_LAYERBLEND_TYPE_TRANSLUCENT などに +1 したもの ( 0:マルチテクスチャ無し  1:αブレンド  2:加算ブレンド  3:乗算ブレンド  4:乗算ブレンド×2 ) ]
-	// [ スペキュラマップ ( 0:無い 1:ある ) ]
-	// [ バンプマップ ( 0:なし 1:あり ) ]
-	// [ ライトインデックス ]
-	// [ スペキュラの有無( 0:無し 1:有り ) ]
-	DX_DIRECT3DPIXELSHADER9         *MV1_LightingPixelShader[ 2 ][ 2 ][ 5 ][ 2 ][ 2 ][ 10 ][ 2 ] ;
-
-
-
-
-	// 頂点シェーダ宣言( リストは配列の左から )
-	// [ バンプマップ情報付きかどうか( 1:バンプマップ付き 0:付いてない ) ]
-	// [ スキニングメッシュかどうか( 0:剛体メッシュ 1:4ボーン内スキニングメッシュ 2:8ボーン内スキニングメッシュ ) ]
-	// [ UVの数 ]
-	DX_DIRECT3DVERTEXDECLARATION9    *DefaultVertexDeclaration[ 2 ][ 3 ][ 9 ] ;
-
-#endif // DX_NON_MODEL
-
-	int						InitializeFlag ;					// このフラグが立っている時は現在のステータスと変更
-																// 指定のステータスが同じでも必ず実行される
-	int						DisplayModeNum ;					// 変更可能なディスプレイモードの数
-	DISPLAYMODEDATA			*DisplayMode ;						// ディスプレイモードリスト
-
-	SHADERCONSTANTINFOSET	ShaderConstantInfo ;				// シェーダーの定数情報
-
-	DX_DIRECT3DVERTEXDECLARATION9	*UserShaderDeclaration[ DX_VERTEX_TYPE_NUM ] ;	// ユーザーシェーダモードで使用する頂点データフォーマット
-
-	USERRENDERINFO			UserShaderRenderInfo ;				// SetUseTextureToShader で設定された各ステージのテクスチャ情報や、ユーザー設定のシェーダー定数情報など
-
-	int						WorkDrawValidGrHandle[ 2 ][ 16 ][ 2 ] ;	// フィルター処理作業用描画可能テクスチャ[ 0:整数テクスチャ 1:浮動小数点テクスチャ ][ ２のｎ乗 ][ 作業用２枚 ]
-#ifndef DX_NON_FILTER
-	SHADERCODE_HANDLE		ShaderCode ;						// ライブラリが用意するシェーダーコード
-#endif // DX_NON_FILTER
+// ハードウェアアクセラレータ情報関係の構造体
+struct GRAPHICSSYS_HARDWAREINFO
+{
+	int						ValidSubBlend ;							// 減算ブレンドが可能かどうか( TRUE:可能  FALSE:不可能 )
+	int						TextureSquareOnly ;						// 正方形テクスチャのみ作成可能かどうか( TRUE:正方形テクスチャのみ  FALSE:正方形テクスチャ以外も可能 )
+	int						RenderTargetNum ;						// 同時にレンダリングできるレンダーターゲットの数
+	int						TextureSizeNonPow2Conditional ;			// 条件付でテクスチャのサイズが２のｎ乗でなくても大丈夫かどうか
+	int						TextureSizePow2 ;						// テクスチャのサイズが２のｎ乗である必要があるかどうか
+	int						MaxTextureSize ;						// 最大テクスチャサイズ
+	int						MaxTextureWidth ;						// 最大テクスチャ幅
+	int						MaxTextureHeight ;						// 最大テクスチャ高さ
+	int						MaxPrimitiveCount ;						// 一度に描画できるプリミティブの最大数
+	int						MaxVertexIndex ;						// 一度の使用することの出来る最大頂点数
+	int						UseShader ;								// プログラマブルシェーダーを使用するかどうか( TRUE:使用する  FALSE:使用しない )
+	int						UseVertexColorBGRAFormat ;				// BGRAカラータイプの頂点カラーを使用するかどうか( TRUE:使用する  FALSE:使用しない )
+	int						DrawFloatCoordType ;					// DrawGraphF 等の浮動小数点値で座標を指定する関数における座標タイプ( DX_DRAWFLOATCOORDTYPE_DIRECT3D9 など )
 } ;
 
 // ソフトウエアレンダリングで使用する情報の構造体
-struct GRAPHICS_SOFTDATA
+struct GRAPHICSSYS_SOFTRENDERDATA
 {
 	MEMIMG					MainBufferMemImg ;					// メイン画面用 MEMIMG
+	MEMIMG					SubBufferMemImg ;					// 補助画面用 MEMIMG
 	MEMIMG					FontScreenMemImgNormal ;			// 半透明描画などの時に使うフォント用 MEMIMG ( アルファなし )
 	MEMIMG					FontScreenMemImgAlpha ;				// 半透明描画などの時に使うフォント用 MEMIMG ( アルファつき )
 	MEMIMG					*TargetMemImg ;						// 描画対象の MEMIMG
 	MEMIMG					*BlendMemImg ;						// ブレンド描画用 MEMIMG
 } ;
 
-// グラフィック処理管理データ構造体
-struct GRAPHICSMANAGE2
+// グラフィクスシステム用データ構造体
+struct GRAPHICSSYSTEMDATA
 {
-	int						InitializeFlag ;						// 初期化フラグ
+	int								InitializeFlag ;						// 初期化フラグ
 
-	int						MainScreenSizeX, MainScreenSizeY ;		// メイン画面のサイズ
-	int						MainScreenSizeX_Result, MainScreenSizeY_Result ;	// GetDrawScreenSize の返り値になるサイズ
-	int						MainScreenColorBitDepth ;				// メイン画面のカラービット深度
-	int						MainScreenRefreshRate ;					// メイン画面のリフレッシュレート
-	RECT					OriginalDrawRect ;						// ウインドウの位置によって改変される前の使用者が意図する正しい描画矩形
-	int						UseChangeDisplaySettings ;				// ChangeDisplaySettings を使用して画面モードを変更したかどうか( TRUE:ChangeDisplaySettings を使用した  FALSE:ChangeDisplaySettings は使用していない )
-	int						ChangeGraphModeFlag ;					// ChangeGraphMode を実行中かどうかのフラグ
+//	int								NotDrawFlag ;							// 描画不可能フラグ
 
-	int						ValidGraphDisplayArea ;					// GraphDisplayArea に有効な値が入っているかどうか
-	RECT					GraphDisplayArea ;						// 表画面に転送する裏画面の領域
-	RECT					LastCopySrcRect ;						// 最後にフィット転送したときのコピー元矩形
-	RECT					LastCopyDestRect ;						// 最後にフィット転送したときのコピー先矩形
-	int						EnableBackgroundColor;					// バックグラウンド塗り潰し用カラーが有効かどうかのフラグ
-	int						BackgroundRed, BackgroundGreen, BackgroundBlue;	// バックグラウンド塗り潰し用カラー
+//	int								Screen3DWidth ;							// ３Ｄ描画を行う際の想定するスクリーンのサイズ
+//	int								Screen3DHeight ;
+//	int								Screen3DCenterX ;						// ３Ｄ描画を行う際の想定するスクリーンの中心座標
+//	int								Screen3DCenterY ;
+//	LONGLONG						FrameCounter ;							// フレームカウンター
 
-	LONGLONG				VSyncWaitTime ;							// 前回ＶＳＹＮＣ待ちをしてから次にチェックするまでに待つ時間
-	LONGLONG				VSyncTime ;								// 前回ＶＳＹＮＣ待ちをした時間
+	GRAPHICSSYS_SETTINGDATA			Setting ;								// 設定関係の情報
 
-	int						ValidHardWare ;							// ハードウエア描画が可能かどうか( TRUE:可能  FALSE:不可能 )
-	int						NotUseHardWare ;						// ハードウエア描画の機能を使用しないかどうか( TRUE:使用しない  FALSE:使用する )
-	int						ChangeScreenModeNotGraphicsSystemFlag ;	// 画面モードの変更時に画像ハンドルを削除しないかどうか( TRUE:しない  FALSE:する )
+	GRAPHICSSYS_HARDWAREINFO		HardInfo ;								// ハードウェアアクセラレータ関係の情報
 
+	GRAPHICSSYS_SOFTRENDERDATA		SoftRender ;							// ソフトウエアレンダリングで使用する情報
 
-	int						ShaderInitializeFlag ;					// シェーダーバイナリのセットアップが完了しているかどうかのフラグ( TRUE:完了している  FALSE:完了していない )
+	GRAPHICSSYS_SCREENDATA			Screen ;								// 画面関係の情報
 
-	DXARC					BaseShaderBinDxa ;						// 基本シェーダーオブジェクトファイルＤＸＡ構造体
-	void					*BaseShaderBinDxaImage ;				// 基本シェーダーオブジェクトファイルＤＸＡのバイナリイメージ
+	GRAPHICSSYS_CREATEIMAGEDATA		CreateImage ;							// 画像作成関係の情報
 
-#ifndef DX_NON_FILTER
-	DXARC					FilterShaderBinDxa ;					// フィルターシェーダーオブジェクトファイルＤＸＡ構造体
-	void					*FilterShaderBinDxaImage ;				// フィルターシェーダーオブジェクトファイルＤＸＡのバイナリイメージ
+	GRAPHICSSYS_RESOURCE			Resource ;								// 処理実行用リソース関係の構造体
 
-	void					*RGBAMixS_ShaderPackImage ;				// RGBAMix の S だけの組み合わせ２５６個のシェーダーパッケージバイナリイメージ
+	GRAPHICSSYS_DRAWSETTINGDATA		DrawSetting ;							// 描画設定関係の情報
 
-	// RGBAMix の S だけの組み合わせ２５６個のシェーダー[ R ][ G ][ B ][ A ]
-	void					*RGBAMixS_ShaderAddress[ 4 ][ 4 ][ 4 ][ 4 ] ;
-	short					RGBAMixS_ShaderSize[ 4 ][ 4 ][ 4 ][ 4 ] ;
-#endif // DX_NON_FILTER
+	GRAPHICSSYS_LIGHTATA			Light ;									// ライト関係の情報
 
-	// ライトインデックスリスト
-	short					LightIndexList84[ 4 ][ 4 ][ 4 ][ 4 ][ 4 ][ 4 ] ;
-	short					LightIndexList20[ 4 ][ 4 ][ 4 ] ;
+	GRAPHICSSYS_CAMERA				Camera ;								// カメラ関係の情報
 
-	short					LightIndexList10[ 3 ][ 3 ][ 3 ] ;
-
-#ifndef DX_NON_MODEL
-	void					*ModelShaderPackImage ;					// ３Ｄモデル用シェーダーパッケージバイナリイメージ
-
-	// モデル描画用ピクセル単位ライティングタイプの頂点シェーダー( リストは配列の左から )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ メッシュタイプ( 0:剛体メッシュ 1:4ボーン内スキニングメッシュ 2:8ボーン内スキニングメッシュ ) ]
-	// [ バンプマップの有無( 0:無し 1:有り ) ]
-	// [ フォグタイプ ]
-	void					*MV1_PixelLighting_VertexShaderAddress[ 2 ][ 3 ][ 2 ][ 4 ] ;
-
-	// モデル描画用ピクセル単位ライティングタイプのトゥーン用ピクセルシェーダー( リストは配列の左から )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ トゥーンレンダリングかどうか( 0:トゥーンレンダリング type 1   1:トゥーンレンダリング Type 2 ) ]
-	// [ トゥーンレンダリングのスフィアマップの有無とブレンドタイプ( 0:スフィアマップは無い   1:MV1_LAYERBLEND_TYPE_MODULATE  2:MV1_LAYERBLEND_TYPE_ADDITIVE ) ]
-	// [ トゥーンレンダリングのディフューズグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT  1:MV1_LAYERBLEND_TYPE_MODULATE ) ]
-	// [ トゥーンレンダリングのスペキュラグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT  1:MV1_LAYERBLEND_TYPE_ADDITIVE ) ]
-	// [ スペキュラマップ ( 0:無い 1:ある ) ]
-	// [ バンプマップ ( 0:なし 1:あり ) ]
-	// [ ライトインデックス ]
-	// [ スペキュラの有無( 0:無し 1:有り ) ]
-	void					*MV1_PixelLighting_ToonPixelShaderAddress[ 2 ][ 2 ][ 3 ][ 2 ][ 2 ][ 2 ][ 2 ][ 84 ][ 2 ] ;
-
-	// モデル描画用ピクセル単位ライティングタイプのピクセルシェーダー( リストは配列の左から )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ マルチテクスチャのブレンドモード、MV1_LAYERBLEND_TYPE_TRANSLUCENT などに +1 したもの ( 0:マルチテクスチャ無し  1:αブレンド  2:加算ブレンド  3:乗算ブレンド  4:乗算ブレンド×2 ) ]
-	// [ スペキュラマップ ( 0:無い 1:ある ) ]
-	// [ バンプマップ ( 0:なし 1:あり ) ]
-	// [ ライトインデックス ]
-	// [ スペキュラの有無( 0:無し 1:有り ) ]
-	void					*MV1_PixelLighting_PixelShaderAddress[ 2 ][ 5 ][ 2 ][ 2 ][ 84 ][ 2 ] ;
-
-
-
-
-
-
-	// モデル描画用のトゥーンレンダリングの輪郭線描画用頂点シェーダー
-	// [ メッシュタイプ( 0:剛体メッシュ 1:4ボーン内スキニングメッシュ  2:8ボーン内スキニングメッシュ ) ]
-	// [ フォグタイプ ]
-	void					*MV1_ToonOutLineVertexShaderAddress[ 3 ][ 4 ] ;
-
-	// モデル描画用のシャドウマップへのレンダリング用頂点シェーダー
-	// [ メッシュタイプ( 0:剛体メッシュ 1:4ボーン内スキニングメッシュ  2:8ボーン内スキニングメッシュ ) ]
-	void					*MV1_ShadowMapVertexShaderAddress[ 3 ] ;
-
-	// モデル描画用のライティングなし頂点シェーダー
-	// [ メッシュタイプ( 0:剛体メッシュ 1:4ボーン内スキニングメッシュ  2:8ボーン内スキニングメッシュ ) ]
-	// [ フォグタイプ ]
-	void					*MV1_NoLightingVertexShaderAddress[ 3 ][ 4 ] ;
-
-	// モデル描画用のライティングあり頂点シェーダー
-	// [ シェーダーモデル( 0:SM2  1:SM3 )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ メッシュタイプ( 0:剛体メッシュ 1:4ボーン内スキニングメッシュ  2:8ボーン内スキニングメッシュ ) ]
-	// [ バンプマップの有無( 0:無し 1:有り ) ]
-	// [ フォグタイプ ]
-	// [ ライトインデックス ]
-	// [ スペキュラの有無( 0:無し 1:有り ) ]
-	void					*MV1_LightingVertexShaderAddress[ 2 ][ 2 ][ 3 ][ 2 ][ 4 ][ 20 ][ 2 ] ;
-
-
-	// モデル描画用のトゥーンレンダリングの輪郭線描画用ピクセルシェーダー
-	void					*MV1_ToonOutLinePixelShaderAddress ;
-
-	// モデル描画用のシャドウマップへのトゥーンレンダリング用ピクセルシェーダー
-	// [ トゥーンレンダリングタイプ( 0:トゥーンレンダリング type 1   1:トゥーンレンダリング type 2 ) ]
-	// [ トゥーンレンダリングのスフィアマップの有無とブレンドタイプ( 0:スフィアマップは無い   1:MV1_LAYERBLEND_TYPE_MODULATE  2:MV1_LAYERBLEND_TYPE_ADDITIVE ) ]
-	// [ トゥーンレンダリングのディフューズグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT  1:MV1_LAYERBLEND_TYPE_MODULATE ) ]
-	void					*MV1_ShadowMapToonPixelShaderAddress[ 2 ][ 3 ][ 2 ] ;
-
-	// モデル描画用のシャドウマップへのレンダリング用ピクセルシェーダー
-	void					*MV1_ShadowMapPixelShaderAddress ;
-
-	// モデル描画用のライティングなしトゥーン用ピクセルシェーダー( リストは配列の左から )
-	// [ トゥーンレンダリングタイプ( 0:トゥーンレンダリング type 1   1:トゥーンレンダリング type 2 ) ]
-	// [ トゥーンレンダリングのディフューズグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT or トゥーンレンダリングではない  1:MV1_LAYERBLEND_TYPE_MODULATE ) ]
-	void					*MV1_ToonNoLightingPixelShaderAddress[ 2 ][ 2 ] ;
-
-	// モデル描画用のライティングなしピクセルシェーダー
-	// [ マルチテクスチャのブレンドモード、MV1_LAYERBLEND_TYPE_TRANSLUCENT などに +1 したもの ( 0:マルチテクスチャ無し  1:αブレンド  2:加算ブレンド  3:乗算ブレンド  4:乗算ブレンド×2 ) ]
-	void					*MV1_NoLightingPixelShaderAddress[ 5 ] ;
-
-	// モデル描画用のライティングありトゥーン用ピクセルシェーダー
-	// [ シェーダーモデル( 0:SM2  1:SM3 )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ トゥーンレンダリングタイプ( 0:トゥーンレンダリング type 1   1:トゥーンレンダリング type 2 ) ]
-	// [ トゥーンレンダリングのスフィアマップの有無とブレンドタイプ( 0:スフィアマップは無い   1:MV1_LAYERBLEND_TYPE_MODULATE  2:MV1_LAYERBLEND_TYPE_ADDITIVE ) ]
-	// [ トゥーンレンダリングのディフューズグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT  1:MV1_LAYERBLEND_TYPE_MODULATE ) ]
-	// [ トゥーンレンダリングのスペキュラグラデーションのブレンドタイプ( 0:MV1_LAYERBLEND_TYPE_TRANSLUCENT  1:MV1_LAYERBLEND_TYPE_ADDITIVE ) ]
-	// [ スペキュラマップ ( 0:無い 1:ある ) ]
-	// [ バンプマップ ( 0:なし 1:あり ) ]
-	// [ ライトインデックス ]
-	// [ スペキュラの有無( 0:無し 1:有り ) ]
-	void					*MV1_ToonLightingPixelShaderAddress[ 2 ][ 2 ][ 2 ][ 3 ][ 2 ][ 2 ][ 2 ][ 2 ][ 10 ][ 2 ] ;
-
-	// モデル描画用のライティングありピクセルシェーダー
-	// [ シェーダーモデル( 0:SM2  1:SM3 )
-	// [ シャドウマップの有無( 0:無し 1:有り ) ]
-	// [ マルチテクスチャのブレンドモード、MV1_LAYERBLEND_TYPE_TRANSLUCENT などに +1 したもの ( 0:マルチテクスチャ無し  1:αブレンド  2:加算ブレンド  3:乗算ブレンド  4:乗算ブレンド×2 ) ]
-	// [ スペキュラマップ ( 0:無い 1:ある ) ]
-	// [ バンプマップ ( 0:なし 1:あり ) ]
-	// [ ライトインデックス ]
-	// [ スペキュラの有無( 0:無し 1:有り ) ]
-	void					*MV1_LightingPixelShaderAddress[ 2 ][ 2 ][ 5 ][ 2 ][ 2 ][ 10 ][ 2 ] ;
-
-#endif // DX_NON_MODEL
-
-	GRAPHICS_HARDDATA		Hard ;									// ハードウェアアクセラレータを使用する処理に必要な情報
-	GRAPHICS_SOFTDATA		Soft ;									// ソフトウエアレンダリングを使用する際に必要な情報
+	int								ChangeSettingFlag ;						// 設定が変更されたかどうか
 } ;
 
 // 内部大域変数宣言---------------------------------------------------------------
 
-// グラフィックス管理データ構造体
-extern GRAPHICSMANAGE2 GraphicsManage2 ;
+// 描画周りの基本的な情報
+extern GRAPHICSSYSTEMDATA GraphicsSysData ;
 
 // 関数プロトタイプ宣言-----------------------------------------------------------
 
 // グラフィック関連の初期化と後始末
-extern	int		InitializeGraphics2( void ) ;
-extern	int		TerminateGraphics2( void ) ;
-
-extern	int		SetZBufferMode( int ZBufferSizeX, int ZBufferSizeY, int ZBufferBitDepth ) ;	// メイン画面のＺバッファの設定を変更する
-extern	void	SetMainScreenSize( int SizeX, int SizeY ) ;									// メイン画面のサイズ値を変更する
-extern	void	ReleaseDirectXObject( void ) ;												// DirectX のオブジェクトを解放する
-extern	void	BeginScene( void ) ;														// ビギンシーンを行う	
-extern	void	EndScene( void ) ;															// エンドシーンを行う	
-extern	int		RenderVertexHardware( int ASyncThread = FALSE ) ;							// 頂点バッファに溜まった頂点データをレンダリングする
-extern	int		SetRenderTargetHardware( DX_DIRECT3DSURFACE9 *TargetSurface, int TargetIndex = 0 ) ;	// 描画対象の変更
-extern	int		SetViewportHardwareEasy( int x1, int y1, int x2, int y2 ) ;					// ビューポートをセットする( 簡易版 )
-extern	int		SetupUseZBuffer( void ) ;													// 設定に基づいて使用するＺバッファをセットする
-extern	int		CreateSubBackBufferSurface( void ) ;										// ScreenCopy や GetDrawScreen を実現するために使用するテンポラリバッファの作成( 0:成功  -1:失敗 )
-extern COLORDATA *GetD3DFormatColorData( D_D3DFORMAT Format ) ;								// D3DFORMAT のフォーマットに合わせたカラーフォーマット情報を取得する
-extern	void FASTCALL SetDrawBrightToOneParam( DWORD Bright ) ;								// SetDrawBright の引数が一つ版
-extern	void FASTCALL BlendModeSub_Pre( RECT *DrawRect ) ;
-extern	void FASTCALL BlendModeSub_Post( RECT *DrawRect ) ;
-extern	void FASTCALL AlphaChDraw_Pre( RECT *DrawRect ) ;
-extern	int		GetWorkTexture( int IsFloatType, DWORD TexSizeW, DWORD TexSizeH, DWORD HandleIndex ) ;
-extern	int		SetUseAutoMipMap( int UseFlag, int MaxLevel = -1 ) ;
-extern	int		ChangeGraphMode( int ScreenSizeX, int ScreenSizeY, int ColorBitDepth, int ChangeWindowFlag, int RefreshRate ) ;				// 画面モードの変更２
-extern	int		SetD3DDialogBoxMode( int Flag ) ;
-#ifndef DX_NON_MODEL
-extern	int		SetupShader( int VertexShaderIndex, int VertexShaderIndex_SM3, int PixelShaderIndex, int PixelShaderIndex_SM3 ) ;	// 指定のシェーダーをセットアップする( TRUE:成功  FALSE:失敗 )
-extern	int		SetupVertexDeclaration( int BumpMap, int SkinMesh, int UVNum ) ;											// 指定の頂点データ定義をセットアップ
-#endif // DX_NON_MODEL
-extern	int		SetDeviceVertexShaderToHandle( int ShaderHandle ) ;															// 指定の頂点シェーダーをデバイスにセットする
-extern	int		SetDevicePixelShaderToHandle( int ShaderHandle ) ;															// 指定のピクセルシェーダーをデバイスにセットする
-extern	int		LockDrawScreenBuffer( RECT *LockRect, BASEIMAGE *BaseImage, int TargetScreen/* = -1*/, int TargetScreenSurface/* = -1*/, int ReadOnly/* = TRUE*/, int TargetScreenTextureNo/* = 0*/ ) ;	// 描画先バッファをロックする
-extern	int		UnlockDrawScreenBuffer( void ) ;																			// 描画先バッファをアンロックする
-extern	int		SetBlendGraphParamBase( int BlendGraph, int BlendType, va_list ParamList ) ;								// SetBlendGraphParam の可変長引数パラメータ付き
-extern	int		GraphFilterRectBltBase( int IsBlend, int SrcGrHandle, int BlendGrHandle, int DestGrHandle, int BlendRatio, int FilterOrBlendType, int SrcX1, int SrcY1, int SrcX2, int SrcY2, int BlendX, int BlendY, int BlendPosEnable, int DestX, int DestY, va_list ParamList ) ;		// 画像のフィルター付き転送を行う( 可変引数情報付き )
-
-extern	int		SysMemTextureProcess( void ) ;																				// 管理テクスチャへの転送用のシステムメモリテクスチャの定期処理を行う
-extern	int		SysMemSurfaceProcess( void ) ;																				// 管理テクスチャへの転送用のシステムメモリサーフェスの定期処理を行う
-
-extern	int		CreateShaderHandle( void ) ;																				// シェーダーハンドルを作成する
-extern	int		CreateShader_UseGParam( int IsVertexShader, void *Image, int ImageSize, int ImageAfterFree, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;		// シェーダーハンドルを作成する
-extern	int		LoadShader_UseGParam( int IsVertexShader, const TCHAR *FileName, int ASyncLoadFlag = FALSE ) ;				// シェーダーバイナリをファイルから読み込む
-
-extern	int		InitializeShaderHandle( HANDLEINFO *HandleInfo ) ;															// シェーダーハンドルの初期化
-extern	int		TerminateShaderHandle( HANDLEINFO *HandleInfo ) ;															// シェーダーハンドルの後始末
-
-extern	int		SetupVertexBufferHandle( int VertexBufHandle, int VertexNum, int VertexType /* DX_VERTEX_TYPE_NORMAL_3D 等 */ ) ;	// 頂点バッファハンドルのセットアップを行う
-extern	int		InitializeVertexBufferHandle( HANDLEINFO *HandleInfo ) ;													// 頂点バッファハンドルの初期化
-extern	int		TerminateVertexBufferHandle( HANDLEINFO *HandleInfo ) ;														// 頂点バッファハンドルの後始末
-
-extern	int		SetupIndexBufferHandle( int IndexBufHandle, int IndexNum, int IndexType /* DX_INDEX_TYPE_16BIT 等 */ ) ;	// インデックスバッファハンドルのセットアップを行う
-extern	int		InitializeIndexBufferHandle( HANDLEINFO *HandleInfo ) ;														// インデックスバッファハンドルの初期化
-extern	int		TerminateIndexBufferHandle( HANDLEINFO *HandleInfo ) ;														// インデックスバッファハンドルの後始末
-
-// DirectX 関連関数
-extern	int		InitializeDirectX() ;									// DirectX 関連の初期化( 0:成功  -1:失敗 )
-extern	int		TerminateDirectX() ;									// DirectX 関連の後始末
-
-extern	int		CreateDirect3D9DeviceObject() ;							// Direct3DDevice9 オブジェクトの作成( 0:成功  -1:失敗 )
-
-extern	int		SetupDirect3D9Shader() ;								// Direct3D9 のシェーダーのセットアップを行う( 0:成功  -1:失敗 )
-extern	int		TerminateDirect3D9Shader() ;							// Direct3D9 のシェーダーの後始末をする( 0:成功  -1:失敗 )
-
-extern	int		CreateDirect3D9VertexDeclaration() ;					// Direct3DVertexDeclaration9 オブジェクトの作成( 0:成功  -1:失敗 )
-extern	int		TerminateDirect3D9VertexDeclaration() ;					// Direct3DVertexDeclaration9 オブジェクトの削除( 0:成功  -1:失敗 )
-
-#ifndef DX_NON_MODEL
-extern	int		CreateRGBtoVMaxRGBVolumeTexture() ;						// RGBカラーを輝度を最大にしたRGB値に変換するためのボリュームテクスチャを作成する( 0:成功  -1:失敗 )
-#endif // DX_NON_MODEL
-
-extern	int		CreateDirect3D9ZBufferObject() ;						// Ｚバッファオブジェクトの作成( 0:成功  -1:失敗 )
-
-
-// ハードウエア設定関係関数
-extern	void	ApplyLibMatrixToHardware( void ) ;						// 基本データに設定されている行列をハードウエアに反映する
-extern	void	ApplyLigFogToHardware( void ) ;							// 基本データに設定されているフォグ情報をハードウエアに反映する
-
-extern	int		D_SetVertexBlend( int WeightNum ) ;					// 行列ブレンドの数を設定する( DrawGraph などを呼ぶ前に 0 を引数にして呼び出さないとその後の描画が正常に行われなくなります )
-extern	int		D_DrawIndexedPrimitive( void *VertexBuffer9, DWORD VertexStride, DWORD FVFFlag, void *IndexBuffer9, int PrimitiveType, int BaseVertexIndex, DWORD MinIndex, DWORD NumVertices, DWORD StartIndex, DWORD PrimitiveCount ) ;						// Direct3DDevice9->DrawIndexedPrimitive のラッピング関数
-extern	int		D_DrawIndexedPrimitiveUP( DWORD FVFFlag, int PrimitiveType, DWORD MinVertexIndex, DWORD NumVertexIndices, DWORD PrimitiveCount, void *pIndexData, D_D3DFORMAT IndexDataFormat, void *pVertexStreamZeroData, DWORD VertexStreamZeroStride ) ;		// Direct3DDevice9->DrawIndexedPrimitiveUP のラッピング関数
-extern	int		D_SetLightEnable( int Flag ) ;											// ライトを有効にするかどうかをセットする
-extern	int		D_SetLightParam( int No, int EnableFlag, LIGHTPARAM *Param = NULL ) ;	// ライトのパラメータをセットする
-extern	int		D_SetAmbientLight( int r, int g, int b ) ;								// アンビエントライトを設定する
-extern	int		D_SetUseSpecular( int UseFlag ) ;										// スペキュラを使用するかどうかを設定する
-extern	int		D_SetMaterial( MATERIALPARAM *Param ) ;									// マテリアルパラメータをセットする
-extern	int		D_SetMaterialUseVertexDiffuseColor( int UseFlag ) ;						// 頂点ディフューズカラーをマテリアルのディフューズカラーとして使用するかどうかを設定する
-extern	int		D_SetMaterialUseVertexSpecularColor( int UseFlag ) ;						// 頂点スペキュラカラーをマテリアルのスペキュラカラーとして使用するかどうかを設定する
-extern	int		D_SetShadeMode( int ShadeMode ) ;										// シェードモードをセットする
-extern	int		D_GetShadeMode( void ) ;													// シェードモードを取得する
-extern	int		D_SetMaxAnisotropy( int TexStage, int MaxAnisotropy ) ;					// 最大異方性をセットする
-extern	int		D_SetUseCullingFlag( int Flag ) ;										// ポリゴンカリングの有効、無効をセットする
-extern	int		D_SetupZBuffer3D( void ) ;												// ３Ｄ描画用のＺバッファ設定をハードに反映する
-extern	int		D_SetupUseVertColor( void ) ;											// 頂点カラーを使用するかどうかの設定をハードに反映する
-extern	int		D_SetUseZBufferFlag( int Flag ) ;										// Ｚバッファを有効にするか、フラグをセットする
-extern	int		D_SetWriteZBufferFlag( int Flag ) ;										// Ｚバッファに書き込みを行うか、フラグをセットする
-extern	int		D_SetDrawAlphaTest( int TestMode, int TestParam ) ;						// 描画時のアルファテストのモードをセットする
-extern	int		D_SetZBufferCmpType( int CmpType /* DX_CMP_NEVER 等 */ )	;				// Ｚ値の比較モードをセットする
-extern	int		D_SetZBias( int Bias ) ;													// Ｚバイアスをセットする
-extern	int		D_SetFillMode( int FillMode ) ;												// フィルモードをセットする
-extern	int		D_SetTextureAddressMode( int Mode /* DX_TEXADDRESS_WRAP 等 */, int Stage = -1 ) ;	// テクスチャアドレスモードを設定する
-extern	int		D_SetTextureAddressModeUVW( int ModeU, int ModeV, int ModeW, int Stage ) ;			// テクスチャアドレスモードを設定する
-extern	int		D_SetTextureAddressTransformMatrix( int Use, MATRIX *Matrix, int Stage = -1 ) ;		// テクスチャ座標変換行列をセットする
-extern	int		D_SetTransformToWorld( MATRIX *Matrix ) ;								// ローカル→ワールド行列を変更する
-extern	int		D_SetTransformToView( MATRIX *Matrix ) ;									// ビュー変換用行列をセットする
-extern	int		D_SetTransformToProjection( MATRIX *Matrix ) ;							// 投影変換用行列をセットする
-extern	int		D_ResetTextureCoord( void ) ;											// 各ステージが使用するテクスチャアドレスをステージ番号と同じにする
-extern	int		_SetTransformToProjection( const MATRIX *Matrix ) ;						// 投影変換用行列をセットする
-//extern	int		RenderVertexBuffer( void ) ;										// 頂点バッファに溜まった頂点データを吐き出す
-extern	void	_DrawPreparation( int GrHandle = -1 , int ParamFlag = 0 ) ;										// 描画準備を行う( ParamFlag は DRAWPREP_TRANS 等 )
+extern	int		Graphics_Initialize( void ) ;					// グラフィックスシステムの初期化
+extern	int		Graphics_Terminate( void ) ;					// グラフィックシステムの後始末
+extern	int		Graphics_RestoreOrChangeSetupGraphSystem( int Change, int ScreenSizeX = -1, int ScreenSizeY = -1, int ColorBitDepth = -1, int RefreshRate = -1 ) ;		// グラフィックスシステムの復帰、又は変更付きの再セットアップを行う
 
 
 
-extern	int		AddGraphHandle( void ) ;																						// 新しいグラフィックハンドルを確保する
-extern	int		SetupGraphHandle_UseGParam( SETUP_GRAPHHANDLE_GPARAM *GParam, int GrHandle, int Width, int Height, int TextureFlag, int AlphaValidFlag, int UsePaletteFlag, int BaseFormat/* = DX_BASEIMAGE_FORMAT_NORMAL*/, int MipMapCount, int ASyncThread ) ;							// SetupGraphHandle のグローバル変数にアクセスしないバージョン
 
-extern	int		InitializeGraphHandle( HANDLEINFO *HandleInfo ) ;																// グラフィックハンドルの初期化
-extern	int		TerminateGraphHandle( HANDLEINFO *HandleInfo ) ;																// グラフィックハンドルの後始末
 
-extern	int		AddShadowMapHandle( void ) ;																						// 新しいシャドウマップハンドルを確保する
-extern	int		SetupShadowMapHandle_UseGParam( SETUP_SHADOWMAPHANDLE_GPARAM *GParam, int SmHandle, int SizeX, int SizeY, int TexFormat_Float, int TexFormat_BitDepth, int ASyncThread ) ;	// シャドウマップハンドルのセットアップを行う
-extern	int		CreateShadowMapTexture( SHADOWMAPDATA *ShadowMap, int ASyncThread = FALSE ) ;										// シャドウマップデータに必要なテクスチャを作成する
-extern	int		ReleaseShadowMapTexture( SHADOWMAPDATA *ShadowMap ) ;																// シャドウマップデータに必要なテクスチャを解放する
-extern	SHADOWMAPDATA	*GetShadowMapData( int SmHandle, int ASyncThread = FALSE ) ;												// シャドウマップデータをハンドル値から取り出す
-extern	void	RefreshShadowMapVSParam( void ) ;																					// 頂点シェーダーに設定するシャドウマップの情報を更新する
-extern	void	RefreshShadowMapPSParam( void ) ;																					// ピクセルシェーダーに設定するシャドウマップの情報を更新する
 
-extern	int		InitializeShadowMapHandle( HANDLEINFO *HandleInfo ) ;																// シャドウマップハンドルの初期化
-extern	int		TerminateShadowMapHandle( HANDLEINFO *HandleInfo ) ;																// シャドウマップハンドルの後始末
 
-extern	int		AllocCommonBuffer( int Index, DWORD Size ) ;																	// 共有メモリの確保
-extern	int		TerminateCommonBuffer( void ) ;																					// 共有メモリの解放
 
-extern	int		CreateDXGraph_UseGParam( SETUP_GRAPHHANDLE_GPARAM *GParam, int GrHandle, const BASEIMAGE *RgbImage, const BASEIMAGE *AlphaImage, int TextureFlag, int ASyncThread = FALSE ) ;																															// CreateDXGraph のグローバル変数にアクセスしないバージョン
-extern	int		DerivationGraph_UseGParam( int SrcX, int SrcY, int Width, int Height, int SrcGraphHandle, int ASyncThread = FALSE ) ;																																												// DerivationGraph のグローバル変数にアクセスしないバージョン
+// 画面関係関数
+extern	int		Graphics_Screen_SetupFullScreenModeInfo( void ) ;											// フルスクリーンモードのモードのチェックや使用する解像度をの決定を行う
+extern	int		Graphics_Screen_SetupFullScreenScalingDestRect( void ) ;									// GSYS.Screen.FullScreenScalingDestRect の値をセットアップする
+extern	int		Graphics_Screen_ScreenPosConvSubBackbufferPos( int ScreenPosX, int ScreenPosY, int *BackBufferPosX, int *BackBufferPosY ) ;	// スクリーン座標をサブバックバッファー座標に変換する
+extern	int		Graphics_Screen_SubBackbufferPosConvScreenPos( int BackBufferPosX, int BackBufferPosY, int *ScreenPosX, int *ScreenPosY ) ;	// サブバックバッファー座標をスクリーン座標に変換する
+extern	int		Graphics_Screen_SetZBufferMode( int ZBufferSizeX, int ZBufferSizeY, int ZBufferBitDepth ) ;	// メイン画面のＺバッファの設定を変更する
+extern	int		Graphics_Screen_SetupUseZBuffer( void ) ;													// 設定に基づいて使用するＺバッファをセットする
+extern	void	Graphics_Screen_SetMainScreenSize( int SizeX, int SizeY ) ;									// メイン画面のサイズ値を変更する
+extern	int		Graphics_Screen_ChangeMode( int ScreenSizeX, int ScreenSizeY, int ColorBitDepth, int ChangeWindowFlag, int RefreshRate ) ;				// 画面モードの変更２
+extern	int		Graphics_Screen_LockDrawScreen( RECT *LockRect, BASEIMAGE *BaseImage, int TargetScreen/* = -1*/, int TargetScreenSurface/* = -1*/, int ReadOnly/* = TRUE*/, int TargetScreenTextureNo/* = 0*/ ) ;	// 描画先バッファをロックする
+extern	int		Graphics_Screen_UnlockDrawScreen( void ) ;													// 描画先バッファをアンロックする
+extern	int		Graphics_Screen_FlipBase( void ) ;															// ScreenFlip のベース関数
+extern	int		Graphics_Screen_ScreenCopyBase( int DrawTargetFrontScreenMode_Copy ) ;						// ScreenCopy のベース関数
+
+
+
+
+
+
+
+
+// 画像関係関数
+extern	int		Graphics_Image_SetupFormatDesc( IMAGEFORMATDESC *Format, SETUP_GRAPHHANDLE_GPARAM *GParam, int Width, int Height, int AlphaValidFlag, int UsePaletteFlag, int BaseFormat, int MipMapCount ) ; // グラフィックハンドルに画像データを転送するための関数
+extern	int		Graphics_Image_DeleteDeviceLostDelete( void ) ;						// デバイスロスト発生時に削除するフラグが立っているグラフィックを削除する
+extern	int		Graphics_Image_CheckMultiSampleDrawValid( int GrHandle ) ;			// ＭＳＡＡを使用する描画可能画像かどうかを調べる( TRUE:MSAA画像  FALSE:MSAA画像ではない )
+extern	int		Graphics_Image_AddHandle( int ASyncThread ) ;																			// 新しいグラフィックハンドルを確保する
+extern	int		Graphics_Image_SetupHandle_UseGParam( SETUP_GRAPHHANDLE_GPARAM *GParam, int GrHandle, int Width, int Height, int TextureFlag, int AlphaValidFlag, int UsePaletteFlag, int BaseFormat/* = DX_BASEIMAGE_FORMAT_NORMAL*/, int MipMapCount, int ASyncThread ) ;							// SetupGraphHandle のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_ListUpTexSize( int Size, short *SizeList, int NotDivFlag, int Pow2Flag, int MaxTextureSize ) ;			// 指定のテクスチャーサイズを上手く分割する
+extern	int		Graphics_Image_InitializeHandle( HANDLEINFO *HandleInfo ) ;																// グラフィックハンドルの初期化
+extern	int		Graphics_Image_TerminateHandle( HANDLEINFO *HandleInfo ) ;																// グラフィックハンドルの後始末
+extern	int		Graphics_Image_InitializeDerivationHandle( int GrHandle, int SrcX, int SrcY, int Width, int Height, int SrcGrHandle, int ASyncThread = FALSE ) ;			// 指定部分だけを抜き出したグラフィックハンドルを初期化する
+extern	int		Graphics_Image_InitializeDrawInfo( int GrHandle, int ASyncThread = FALSE ) ;			// グラフィックハンドルの描画情報を初期化する
+extern	int		Graphics_Image_IsValidHandle( int GrHandle ) ;															// グラフィックハンドルが有効かどうかを調べる( TRUE:有効  FALSE:無効 )
+extern	int		Graphics_Image_CreateDXGraph_UseGParam( SETUP_GRAPHHANDLE_GPARAM *GParam, int GrHandle, const BASEIMAGE *RgbBaseImage, const BASEIMAGE *AlphaBaseImage, int TextureFlag, int ASyncThread = FALSE ) ;																															// CreateDXGraph のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_DerivationGraph_UseGParam( int SrcX, int SrcY, int Width, int Height, int SrcGraphHandle, int ASyncThread = FALSE ) ;																																												// DerivationGraph のグローバル変数にアクセスしないバージョン
 #ifndef DX_NON_MOVIE
-extern	int		LoadBmpToGraph_OpenMovie_UseGParam( LOADGRAPH_GPARAM *GParam, int GrHandle, const TCHAR *GraphName, int TextureFlag, int SurfaceMode = DX_MOVIESURFACE_NORMAL, int ASyncThread = FALSE ) ;
+extern	int		Graphics_Image_OpenMovie_UseGParam( LOADGRAPH_GPARAM *GParam, int GrHandle, const wchar_t *GraphName, int TextureFlag, int SurfaceMode = DX_MOVIESURFACE_NORMAL, int ASyncThread = FALSE ) ;
+#endif
+extern	int		Graphics_Image_DerivationGraphBase( int GrHandle, int SrcX, int SrcY, int Width, int Height, int SrcGraphHandle, int ASyncThread = FALSE ) ;																																								// グラフィックハンドルを作成しない DerivationGraph
+extern	int		Graphics_Image_SetBaseInfo_UseGParam( SETGRAPHBASEINFO_GPARAM *GParam, int GrHandle, const wchar_t *FileName, const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, const void *MemImage, int MemImageSize,
+										   const void *AlphaMemImage, int AlphaMemImageSize, const BASEIMAGE *BaseImage, const BASEIMAGE *AlphaBaseImage, int ReverseFlag, int UnionGrHandle, int ASyncThread ) ;																														// SetGraphBaseInfo のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_SetGraphBaseInfo( int GrHandle, const wchar_t *FileName, const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, const void *MemImage, int MemImageSize, const void *AlphaMemImage, int AlphaMemImageSize, const BASEIMAGE *BaseImage, const BASEIMAGE *AlphaBaseImage, int ReverseFlag, int UnionGrHandle, int ASyncThread ) ;		// 画像の元データの情報を保存する
+extern	int		Graphics_Image_SetName( int Handle, const wchar_t *GraphName, int ReverseFlag, int UnionGrHandle, int ASyncThread ) ;	// 特定のファイルから画像を読み込んだ場合のファイルパスをセットする
+extern	int		Graphics_Image_FillGraph_UseGParam( int GrHandle, int Red, int Green, int Blue, int Alpha, int ASyncThread ) ;																																																// FillGraph のグローバル変数にアクセスしないバージョン
+#ifndef DX_NON_MOVIE
+extern	void	Graphics_Image_UpdateGraphMovie( MOVIEGRAPH *Movie, DWORD_PTR GrHandle ) ;				// ムービー画像を更新する
 #endif
 
-extern	int		DerivationGraphBase( int GrHandle, int SrcX, int SrcY, int Width, int Height, int SrcGraphHandle, int ASyncThread = FALSE ) ;																																								// グラフィックハンドルを作成しない DerivationGraph
-extern	int		SetGraphBaseInfo_UseGParam( SETGRAPHBASEINFO_GPARAM *GParam, int GrHandle, const TCHAR *FileName, const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, const void *MemImage, int MemImageSize,
-										   const void *AlphaMemImage, int AlphaMemImageSize, const BASEIMAGE *Image, const BASEIMAGE *AlphaImage, int ReverseFlag, int UnionGrHandle, int ASyncThread ) ;																														// SetGraphBaseInfo のグローバル変数にアクセスしないバージョン
-extern	int		SetGraphName_UseGParam( SETGRAPHBASEINFO_GPARAM *GParam, int Handle, const TCHAR *GraphName, int ReverseFlag, int UnionGrHandle, int ASyncThread ) ;																																		// SetGraphName のグローバル変数にアクセスしないバージョン
+// BltBmpOrGraphImageToGraph の内部関数
+extern	int		Graphics_Image_BltBmpOrGraphImageToGraphBase(
+	const BASEIMAGE	*RgbBaseImage,
+	const BASEIMAGE	*AlphaBaseImage,
+	      int		CopyPointX,
+	      int		CopyPointY,
+	      int		GrHandle,
+	      int		UseTransColorConvAlpha = TRUE,
+	      int		ASyncThread = FALSE
+) ;
 
-extern	int		FillGraph_UseGParam( int GrHandle, int Red, int Green, int Blue, int Alpha, int ASyncThread ) ;																																																// FillGraph のグローバル変数にアクセスしないバージョン
+// BltBmpOrGraphImageToGraph2 の内部関数
+extern	int		Graphics_Image_BltBmpOrGraphImageToGraph2Base(
+	const BASEIMAGE	*RgbBaseImage,
+	const BASEIMAGE	*AlphaBaseImage,
+	const RECT		*SrcRect,
+	      int		DestX,
+	      int		DestY,
+	      int		GrHandle,
+	      int		UseTransColorConvAlpha = TRUE,
+	      int		ASyncThread = FALSE
+) ;
 
-extern	int		SetGraphName( int Handle, const TCHAR *GraphName, int ReverseFlag, int UnionGrHandle, int ASyncThread ) ;	// 特定のファイルから画像を読み込んだ場合のファイルパスをセットする
-extern	int		IsValidGraphHandle( int GrHandle ) ;															// グラフィックハンドルが有効かどうかを調べる( TRUE:有効  FALSE:無効 )
+// BltBmpOrGraphImageToDivGraph の内部関数
+extern	int		Graphics_Image_BltBmpOrGraphImageToDivGraphBase(
+	const BASEIMAGE	*RgbBaseImage,
+	const BASEIMAGE	*AlphaBaseImage,
+	      int		AllNum,
+	      int		XNum,
+	      int		YNum,
+	      int		Width,
+	      int		Height,
+	const int		*GrHandle,
+	      int		ReverseFlag,
+	      int		UseTransColorConvAlpha = TRUE,
+	      int		ASyncThread = FALSE
+) ;
+
+// グラフィックハンドルに画像データを転送するための関数
+extern	int		Graphics_Image_BltBmpOrBaseImageToGraph3(
+	const RECT		*SrcRect,
+	      int		DestX,
+	      int		DestY,
+	      int		GrHandle,
+	const BASEIMAGE	*RgbBaseImage,
+	const BASEIMAGE	*AlphaBaseImage,
+	      int		RedIsAlphaFlag = FALSE,
+	      int		UseTransColorConvAlpha = TRUE,
+	      int		TargetOrig = FALSE,
+	      int		ASyncThread = FALSE
+) ;
+
+// 指定のオリジナル画像情報に転送する矩形情報を作成する
+// 戻り値  -1:範囲外   0:正常終了
+extern	int		Graphics_Image_BltBmpOrBaseImageToGraph3_Make_OrigTex_MoveRect(
+	const IMAGEDATA_ORIG_HARD_TEX	*OrigTex,
+	const RECT						*SrcRect,
+		  int						SrcWidth,
+		  int						SrcHeight,
+	      int						DestX,
+	      int						DestY,
+	      RECT						*DestRect,
+	      RECT						*MoveRect
+) ;
+
+// 指定の描画用画像情報に転送する矩形情報を作成する
+// 戻り値  -1:範囲外   0:正常終了
+extern	int		Graphics_Image_BltBmpOrBaseImageToGraph3_Make_DrawTex_MoveRect(
+	const IMAGEDATA_HARD_DRAW		*DrawTex,
+	const RECT						*SrcRect,
+		  int						SrcWidth,
+		  int						SrcHeight,
+	      int						DestX,
+	      int						DestY,
+	      RECT						*DestRect,
+	      RECT						*MoveRect
+) ;
+
+// 描画可能画像やバックバッファから指定領域のグラフィックを取得する
+extern	int			Graphics_Image_GetDrawScreenGraphBase( int TargetScreen, int TargetScreenSurface, int x1, int y1, int x2, int y2, int destX, int destY, int GrHandle ) ;
+extern	IMAGEDATA *	Graphics_Image_GetData( int GrHandle, int ASyncThread = FALSE ) ;				// グラフィックのデータをインデックス値から取り出す
+extern	int			Graphics_Image_GetWhiteTexHandle( void ) ;										// 真っ白のテクスチャのハンドルを取得する
+
+extern	int		Graphics_Image_MakeGraph_UseGParam( SETUP_GRAPHHANDLE_GPARAM *GParam, int SizeX, int SizeY, int NotUse3DFlag, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																																											// 空のグラフィックハンドルを作成する関数
+extern	int		Graphics_Image_CreateGraph_UseGParam(                  LOADGRAPH_PARAM *Param, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																																																			// 画像データからグラフィックハンドルを作成する関数
+extern	int		Graphics_Image_CreateDivGraph_UseGParam(               LOADGRAPH_PARAM *Param, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																																																			// 画像データを分割してグラフィックハンドルを作成する関数
+extern	int		Graphics_Image_LoadBmpToGraph_UseGParam(               LOADGRAPH_GPARAM *GParam, int ReCreateFlag, int GrHandle, const wchar_t *GraphName, int TextureFlag, int ReverseFlag, int SurfaceMode = DX_MOVIESURFACE_NORMAL, int ASyncLoadFlag = FALSE ) ;																								// LoadBmpToGraph のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_LoadDivBmpToGraph_UseGParam(            LOADGRAPH_GPARAM *GParam, int ReCreateFlag, const wchar_t *FileName, int AllNum, int XNum, int YNum, int SizeX, int SizeY, int *HandleBuf, int TextureFlag, int ReverseFlag, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																	// LoadDivBmpToGraph のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_CreateGraphFromMem_UseGParam(           LOADGRAPH_GPARAM *GParam, int ReCreateFlag, int GrHandle, const void *MemImage, int MemImageSize, const void *AlphaImage = NULL, int AlphaImageSize = 0, int TextureFlag = TRUE, int ReverseFlag = FALSE, int ASyncLoadFlag = FALSE ) ;																// CreateGraphFromMem のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_CreateDivGraphFromMem_UseGParam(        LOADGRAPH_GPARAM *GParam, int ReCreateFlag, const void *MemImage, int MemImageSize, int AllNum, int XNum, int YNum, int SizeX, int SizeY, int *HandleBuf,int TextureFlag, int ReverseFlag, const void *AlphaImage, int AlphaImageSize, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;		// CreateDivGraphFromMem のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_CreateGraphFromBmp_UseGParam(           LOADGRAPH_GPARAM *GParam, int ReCreateFlag, int GrHandle, const BITMAPINFO *BmpInfo, const void *GraphData, const BITMAPINFO *AlphaInfo = NULL, const void *AlphaData = NULL, int TextureFlag = TRUE, int ReverseFlag = FALSE, int ASyncLoadFlag = FALSE ) ;											// CreateGraphFromBmp のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_CreateDivGraphFromBmp_UseGParam(        LOADGRAPH_GPARAM *GParam, int ReCreateFlag, const BITMAPINFO *BmpInfo, const void *GraphData, int AllNum, int XNum, int YNum, int SizeX, int SizeY, int *HandleBuf,int TextureFlag, int ReverseFlag, const BITMAPINFO *AlphaInfo, const void *AlphaData, int ASyncLoadFlag = FALSE ) ;	// CreateDivGraphFromBmp のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_CreateGraphFromGraphImage_UseGParam(    LOADGRAPH_GPARAM *GParam, int ReCreateFlag, int GrHandle, const BASEIMAGE *Image, const BASEIMAGE *AlphaImage, int TextureFlag = TRUE , int ReverseFlag = FALSE, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																	// CreateGraphFromGraphImage のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_CreateDivGraphFromGraphImage_UseGParam( LOADGRAPH_GPARAM *GParam, int ReCreateFlag, const BASEIMAGE *Image, const BASEIMAGE *AlphaImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY, int *HandleBuf, int TextureFlag = TRUE , int ReverseFlag = FALSE, int ASyncLoadFlag = FALSE ) ;									// CreateDivGraphFromGraphImage のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_CreateGraphFromGraphImageBase_UseGParam(    CREATE_GRAPHHANDLE_AND_BLTGRAPHIMAGE_GPARAM *GParam, int ReCreateFlag, int GrHandle,   BASEIMAGE *Image, const BASEIMAGE *AlphaImage, int TextureFlag, int ASyncThread = FALSE ) ;																							// Graphics_Image_CreateGraphFromGraphImageBase のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_CreateDivGraphFromGraphImageBase_UseGParam( CREATE_GRAPHHANDLE_AND_BLTGRAPHIMAGE_GPARAM *GParam, int ReCreateFlag, int BaseHandle, BASEIMAGE *Image, const BASEIMAGE *AlphaImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY, int *HandleBuf, int TextureFlag, int ReverseFlag, int ASyncThread = FALSE ) ;		// Graphics_Image_CreateDivGraphFromGraphImageBase のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_CreateGraphFromGraphImageBase(      BASEIMAGE *Image, const BASEIMAGE *AlphaImage, int TextureFlag, int ASyncThread ) ;																								// CreateGraphFromGraphImage の内部関数
+extern	int		Graphics_Image_CreateDivGraphFromGraphImageBase(   BASEIMAGE *Image, const BASEIMAGE *AlphaImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY, int *HandleBuf, int TextureFlag, int ReverseFlag ) ;						// CreateDivGraphFromGraphImage の内部関数
+extern	int		Graphics_Image_ReCreateGraphFromGraphImageBase(    BASEIMAGE *Image, const BASEIMAGE *AlphaImage, int GrHandle, int TextureFlag ) ;																									// ReCreateGraphFromGraphImage の内部関数
+extern	int		Graphics_Image_ReCreateDivGraphFromGraphImageBase( BASEIMAGE *Image, const BASEIMAGE *AlphaImage, int AllNum, int XNum, int YNum, int SizeX, int SizeY, int *HandleBuf, int TextureFlag , int ReverseFlag ) ;						// ReCreateDivGraphFromGraphImage の内部関数
+extern	void	Graphics_Image_InitCreateGraphHandleAndBltGraphImageGParam( CREATE_GRAPHHANDLE_AND_BLTGRAPHIMAGE_GPARAM *GParam ) ;			// CREATE_GRAPHHANDLE_AND_BLTGRAPHIMAGE_GPARAM のデータをセットする
+extern	void	Graphics_Image_InitSetupGraphHandleGParam( SETUP_GRAPHHANDLE_GPARAM *GParam ) ;												// SETUP_GRAPHHANDLE_GPARAM のデータをセットする
+extern	void	Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( SETUP_GRAPHHANDLE_GPARAM *GParam, int BitDepth = 32, int AlphaChannel = TRUE, int AlphaTest = FALSE ) ;
+extern	void	Graphics_Image_InitSetupGraphHandleGParam_Normal_DrawValid_NoneZBuffer( SETUP_GRAPHHANDLE_GPARAM *GParam, int BitDepth = 32, int AlphaChannel = TRUE ) ;
+extern	void	Graphics_Image_InitSetGraphBaseInfoGParam( SETGRAPHBASEINFO_GPARAM *GParam ) ;													// SETGRAPHBASEINFO_GPARAM のデータをセットする
+extern	void	Graphics_Image_InitLoadGraphGParam( LOADGRAPH_GPARAM *GParam ) ;																// LOADGRAPH_GPARAM のデータをセットする
+#ifndef DX_NON_DSHOW_MOVIE
+#ifndef DX_NON_MOVIE
+extern	void	Graphics_Image_InitOpenMovieGParam( OPENMOVIE_GPARAM *GParam ) ;																// OPENMOVIE_GPARAM のデータをセットする
+#endif
+#endif
 
 
-extern	int		ScreenFlipBase( RECT *CopyRect ) ;											// ScreenFlip のベース関数
-extern	int		SetGraphBaseInfo( int GrHandle, const TCHAR *FileName, const COLORDATA *BmpColorData, HBITMAP RgbBmp, HBITMAP AlphaBmp, const void *MemImage, int MemImageSize, const void *AlphaMemImage, int AlphaMemImageSize, const BASEIMAGE *Image, const BASEIMAGE *AlphaImage, int ReverseFlag, int UnionGrHandle, int ASyncThread ) ;		// 画像の元データの情報を保存する
 
-extern	int		BltBmpOrGraphImageToGraphBase(    const COLORDATA *SrcColorData, HBITMAP Bmp, HBITMAP AlphaMask, int BmpFlag, const BASEIMAGE *RgbImage, const BASEIMAGE *AlphaImage, int CopyPointX, int CopyPointY, int GrHandle, int UseTransColorConvAlpha = TRUE, int ASyncThread = FALSE ) ;											// BltBmpOrGraphImageToGraph の内部関数
-extern	int		BltBmpOrGraphImageToGraph2Base(   const COLORDATA *SrcColorData, HBITMAP Bmp, HBITMAP AlphaMask, int BmpFlag, const BASEIMAGE *RgbImage, const BASEIMAGE *AlphaImage, const RECT *SrcRect, int DestX, int DestY, int GrHandle ) ;																							// BltBmpOrGraphImageToGraph2 の内部関数
-extern	int		BltBmpOrGraphImageToDivGraphBase( const COLORDATA *SrcColor,     HBITMAP Bmp, HBITMAP AlphaMask, int BmpFlag, const BASEIMAGE *RgbImage, const BASEIMAGE *AlphaImage, int AllNum, int XNum, int YNum, int Width, int Height, const int *GrHandle, int ReverseFlag, int UseTransColorConvAlpha = TRUE, int ASyncThread = FALSE ) ;	// BltBmpOrGraphImageToDivGraph の内部関数
 
-extern	int		SetUserBlendInfo( DIRECT3DBLENDINFO *BlendInfo, int TextureStageIsTextureAndTextureCoordOnlyFlag = FALSE ) ;	// テクスチャステージステートを直接指定する( NULL で無効 )
-extern	int		D_SetSampleFilterMode( int TexStage, int SetTarget, DX_D3DTEXFILTER_TYPE FilterType ) ;	// テクスチャフィルタリングモードを設定する
-extern	DX_D3DTEXFILTER_TYPE D_GetSampleFilterMode( int TexStage, int SetTarget ) ;		// テクスチャフィルタリングモードを取得する
-extern	int		D_SetUserBlendInfo( DIRECT3DBLENDINFO *BlendInfo, int TextureStageIsTextureAndTextureCoordOnlyFlag, int TextureIsGraphHandleFlag = TRUE ) ;	// ユーザーのブレンドインフォを適応する
-extern IMAGEDATA2 *GetGraphData2( int GrHandle, int ASyncThread = FALSE ) ;					// グラフィックのデータをインデックス値から取り出す
-extern	D_D3DXSHADER_CONSTANTINFO *GetShaderConstInfo( SHADERHANDLEDATA *Shader, const TCHAR *ConstantName ) ;				// シェーダーの定数情報を得る
 
-extern	int		InitializeShaderConstantUseArea( SHADERCONSTANT_USEAREA *UseArea, int TotalSize ) ;							// シェーダー定数使用領域情報を初期化する
-extern	int		SetShaderConstantUseArea( SHADERCONSTANT_USEAREA *UseArea, int IsUse, int Index, int Num ) ;				// シェーダー定数使用領域情報を変更する
-extern	int		CreateUseAreaMap( SHADERCONSTANT_USEAREA *UseArea, BYTE *Map, BYTE SetNumber ) ;							// シェーダー定数使用領域情報から使用マップを作成する
 
-extern	int		InitializeShaderConstantInfoSet( SHADERCONSTANTINFOSET *ConstInfoSet ) ;																	// シェーダー定数情報の初期化
-extern	int		SetUseShaderContantInfoState( SHADERCONSTANTINFOSET *ConstInfoSet, int ApplyMask ) ;														// 指定のシェーダー定数セットを適用するかどうかを設定する DX_SHADERCONSTANTSET_MASK_LIB | DX_SHADERCONSTANTSET_MASK_LIB_SUB 等
-extern	int		SetShaderConstantSet(   SHADERCONSTANTINFOSET *ConstInfoSet, int TypeIndex, int SetIndex, int ConstantIndex, const void *Param, int ParamNum, int UpdateUseArea ) ;	// シェーダー定数情報を設定する
-extern	int		ResetShaderConstantSet( SHADERCONSTANTINFOSET *ConstInfoSet, int TypeIndex, int SetIndex, int ConstantIndex, int ParamNum ) ;										// 指定領域のシェーダー定数情報をリセットする
 
+// 描画設定関係関数
+extern	int				Graphics_DrawSetting_Initialize( void ) ;															// グラフィック描画設定関係の情報を初期化
+extern	void FASTCALL	Graphics_DrawSetting_SetDrawBrightToOneParam( DWORD Bright ) ;										// SetDrawBright の引数が一つ版
+extern	void FASTCALL	Graphics_DrawSetting_BlendModeSub_Pre( RECT *DrawRect ) ;
+extern	void FASTCALL	Graphics_DrawSetting_BlendModeSub_Post( RECT *DrawRect ) ;
+extern	int				Graphics_DrawSetting_SetBlendGraphParamBase( int BlendGraph, int BlendType, va_list ParamList ) ;	// SetBlendGraphParam の可変長引数パラメータ付き
+extern	int				Graphics_DrawSetting_RefreshAlphaChDrawMode( void ) ;												// 描画先に正しいα値を書き込むかどうかのフラグを更新する
+extern	void			Graphics_DrawSetting_ApplyLibMatrixToHardware( void ) ;												// 基本データに設定されている行列をハードウエアに反映する
+extern	void			Graphics_DrawSetting_ApplyLibFogToHardware( void ) ;												// 基本データに設定されているフォグ情報をハードウエアに反映する
+extern	int				Graphics_DrawSetting_SetTextureAddressTransformMatrix_Direct( int Use, MATRIX *Matrix, int Stage = -1 ) ;		// テクスチャ座標変換行列をセットする
+extern	int				Graphics_DrawSetting_SetTransformToWorld_Direct( MATRIX *Matrix ) ;									// ローカル→ワールド行列を変更する
+extern	int				Graphics_DrawSetting_SetTransformToProjection_Direct( const MATRIX_D *Matrix ) ;					// 投影変換用行列をセットする
+extern	void			Graphics_DrawSetting_RefreshProjectionMatrix( void ) ;												// 射影行列パラメータに基づいて射影行列を構築する
+extern	void			Graphics_DrawSetting_RefreshBlendTransformMatrix( void ) ;											// 頂点変換行列を掛け合わせた行列を更新する
+//extern	void		Graphics_DrawSetting_SetUse2DProjectionMatrix( int Use2DProjectionMatrix ) ;						// 使用する射影行列を３Ｄ用にするか２Ｄ用にするかを設定する
+extern	int				Graphics_DrawSetting_GetScreenDrawSettingInfo(       SCREENDRAWSETTINGINFO *ScreenDrawSettingInfo ) ;	// ＤＸライブラリ内部で SetDrawScreen を使用して描画先を変更する際の、元のカメラ設定や描画領域を復元する為の情報を取得する処理を行う
+extern	int				Graphics_DrawSetting_SetScreenDrawSettingInfo( const SCREENDRAWSETTINGINFO *ScreenDrawSettingInfo ) ;	// ＤＸライブラリ内部で SetDrawScreen を使用して描画先を変更する際の、元のカメラ設定や描画領域を復元する処理を行う
+
+
+
+
+
+
+
+
+// 描画関係関数
+extern	int		Graphics_Draw_GetCircle_ThicknessDrawPosition( int x, int y, int r, int Thickness, short ( *CirclePos )[ 5 ] ) ;		// 線の幅付き円の描画用頂点を取得する関数
+extern	int		Graphics_Draw_GetOval_ThicknessDrawPosition( int x, int y, int rx, int ry, int Thickness, short ( *CirclePos )[ 5 ] ) ;	// 線の幅付き楕円の描画用頂点を取得する関数
+extern	int		Graphics_Draw_DrawSimpleTwoTriangleGraphF( const GRAPHICS_DRAW_DRAWSIMPLETWOTRIANGLEGRAPHF_PARAM *Param ) ;				// 座標補正を行わない２ポリゴン描画を行う( １テクスチャ画像のみ有効 )
+
+
+
+
+
+
+
+
+// カメラ関係関数
+extern	int		Graphics_Camera_CheckCameraViewClip_Box_PosDim(  VECTOR   *CheckBoxPos ) ;					// ８座標で形作るボックスがカメラの視界に入っているかどうかを判定する( 戻り値 TRUE:視界に入っていない  FALSE:視界に入っている )( CheckPosは VECTOR 8個分の配列の先頭アドレス、配列の各要素番号の内容 0:+x +y +z   1:-x +y +z   2:-x -y +z   3:+x -y +z   4:+x -y -z   5:+x +y -z   6:-x +y -z   7:-x -y -z )
+extern	int		Graphics_Camera_CheckCameraViewClip_Box_PosDimD( VECTOR_D *CheckBoxPos ) ;					// ８座標で形作るボックスがカメラの視界に入っているかどうかを判定する( 戻り値 TRUE:視界に入っていない  FALSE:視界に入っている )( CheckPosは VECTOR 8個分の配列の先頭アドレス、配列の各要素番号の内容 0:+x +y +z   1:-x +y +z   2:-x -y +z   3:+x -y +z   4:+x -y -z   5:+x +y -z   6:-x +y -z   7:-x -y -z )
+extern	void	Graphics_Camera_CalcCameraRollViewMatrix( void ) ;											// ビュー行列から水平、垂直、捻り角度を算出する
+
+
+
+
+
+
+
+
+// ライト関係関数
+extern	int		Graphics_Light_AddHandle( void ) ;														// ライトハンドルの追加
+extern	int		Graphics_Light_RefreshState( void ) ;													// ライトの変更を反映する
+
+
+
+
+
+
+
+
+// シェーダー関係関数
+extern	int		Graphics_Shader_CreateHandle( int ASyncThread ) ;																	// シェーダーハンドルを作成する
+extern	int		Graphics_Shader_CreateHandle_UseGParam( int IsVertexShader, void *Image, int ImageSize, int ImageAfterFree, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;		// シェーダーハンドルを作成する
+extern	int		Graphics_Shader_LoadShader_UseGParam( int IsVertexShader, const wchar_t *FileName, int ASyncLoadFlag = FALSE ) ;	// シェーダーバイナリをファイルから読み込む
+extern	int		Graphics_Shader_InitializeHandle( HANDLEINFO *HandleInfo ) ;														// シェーダーハンドルの初期化
+extern	int		Graphics_Shader_TerminateHandle( HANDLEINFO *HandleInfo ) ;															// シェーダーハンドルの後始末
+extern	SHADERHANDLEDATA *Graphics_Shader_GetData( int ShaderHandle, int ASyncThread = FALSE ) ;									// シェーダーデータをハンドル値から取り出す
+
+
+
+
+
+
+
+// 定数バッファ関係関数
+extern	int		Graphics_ShaderConstantBuffer_CreateHandle( int ASyncThread ) ;																// シェーダー用定数バッファハンドルを作成する
+extern	int		Graphics_ShaderConstantBuffer_Create( int BufferSize, int ASyncLoadFlag = FALSE,  int ASyncThread = FALSE ) ;				// シェーダー用定数バッファハンドルを作成する
+extern	int		Graphics_ShaderConstantBuffer_InitializeHandle( HANDLEINFO *HandleInfo ) ;													// シェーダー用定数バッファハンドルの初期化
+extern	int		Graphics_ShaderConstantBuffer_TerminateHandle( HANDLEINFO *HandleInfo ) ;													// シェーダー用定数バッファハンドルの後始末
+
+
+
+
+
+
+
+
+// 頂点バッファ・インデックスバッファ関係関数
+extern	int		Graphics_VertexBuffer_Create( int VertexNum, int VertexType /* DX_VERTEX_TYPE_NORMAL_3D 等 */, int ASyncThread ) ;			// 頂点バッファを作成する
+extern	int		Graphics_VertexBuffer_SetupHandle( int VertexBufHandle, int VertexNum, int VertexType /* DX_VERTEX_TYPE_NORMAL_3D 等 */ ) ;	// 頂点バッファハンドルのセットアップを行う
+extern	int		Graphics_VertexBuffer_InitializeHandle( HANDLEINFO *HandleInfo ) ;															// 頂点バッファハンドルの初期化
+extern	int		Graphics_VertexBuffer_TerminateHandle( HANDLEINFO *HandleInfo ) ;															// 頂点バッファハンドルの後始末
+
+extern	int		Graphics_IndexBuffer_Create( int IndexNum, int IndexType /* DX_INDEX_TYPE_16BIT 等 */, int ASyncThread ) ;					// インデックスバッファを作成する
+extern	int		Graphics_IndexBuffer_SetupHandle( int IndexBufHandle, int IndexNum, int IndexType /* DX_INDEX_TYPE_16BIT 等 */ ) ;			// インデックスバッファハンドルのセットアップを行う
+extern	int		Graphics_IndexBuffer_InitializeHandle( HANDLEINFO *HandleInfo ) ;															// インデックスバッファハンドルの初期化
+extern	int		Graphics_IndexBuffer_TerminateHandle( HANDLEINFO *HandleInfo ) ;															// インデックスバッファハンドルの後始末
+
+
+
+
+
+
+
+
+// シャドウマップ関係関数
+extern	int		Graphics_ShadowMap_MakeShadowMap_UseGParam( SETUP_SHADOWMAPHANDLE_GPARAM *GParam, int SizeX, int SizeY, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																																														// シャドウマップハンドルを作成する
+extern	int		Graphics_ShadowMap_AddHandle( int ASyncThread ) ;																			// 新しいシャドウマップハンドルを確保する
+extern	int		Graphics_ShadowMap_SetupHandle_UseGParam( SETUP_SHADOWMAPHANDLE_GPARAM *GParam, int SmHandle, int SizeX, int SizeY, int TexFormat_Float, int TexFormat_BitDepth, int ASyncThread ) ;	// シャドウマップハンドルのセットアップを行う
+extern	int		Graphics_ShadowMap_CreateTexture( SHADOWMAPDATA *ShadowMap, int ASyncThread = FALSE ) ;										// シャドウマップデータに必要なテクスチャを作成する
+extern	int		Graphics_ShadowMap_ReleaseTexture( SHADOWMAPDATA *ShadowMap ) ;																// シャドウマップデータに必要なテクスチャを解放する
+extern	SHADOWMAPDATA	*Graphics_ShadowMap_GetData( int SmHandle, int ASyncThread = FALSE ) ;												// シャドウマップデータをハンドル値から取り出す
+extern	void	Graphics_ShadowMap_RefreshVSParam( void ) ;																					// 頂点シェーダーに設定するシャドウマップの情報を更新する
+extern	void	Graphics_ShadowMap_RefreshPSParam( void ) ;																					// ピクセルシェーダーに設定するシャドウマップの情報を更新する
+extern	int		Graphics_ShadowMap_RefreshMatrix( SHADOWMAPDATA *ShadowMap ) ;							// シャドウマップへのレンダリングで使用する行列の情報を更新する
+
+extern	int		Graphics_ShadowMap_InitializeHandle( HANDLEINFO *HandleInfo ) ;																// シャドウマップハンドルの初期化
+extern	int		Graphics_ShadowMap_TerminateHandle( HANDLEINFO *HandleInfo ) ;																// シャドウマップハンドルの後始末
+
+
+
+
+
+
+
+
+// 補助関係関数
+extern	int		Graphics_Other_AllocCommonBuffer( int Index, DWORD Size ) ;						// 共有メモリの確保
+extern	int		Graphics_Other_TerminateCommonBuffer( void ) ;									// 共有メモリの解放
+
+
+
+
+
+
+
+
+// 環境依存初期化関係
+extern	int		Graphics_Initialize_Timing0_PF( void ) ;										// 描画処理の環境依存部分の初期化を行う関数( 実行箇所区別０ )
+extern	int		Graphics_Initialize_Timing1_PF( void ) ;										// 描画処理の環境依存部分の初期化を行う関数( 実行箇所区別２ )
+extern	int		Graphics_Hardware_Initialize_PF( void ) ;										// ハードウエアアクセラレータを使用する場合の環境依存の初期化処理を行う
+extern	int		Graphics_Terminate_PF( void ) ;													// 描画処理の環境依存部分の後始末を行う関数
+extern	int		Graphics_RestoreOrChangeSetupGraphSystem_PF( int Change, int ScreenSizeX = -1, int ScreenSizeY = -1, int ColorBitDepth = -1, int RefreshRate = -1 ) ;		// グラフィックスシステムの復帰、又は変更付きの再セットアップを行う
+extern	int		Graphics_Hardware_CheckValid_PF( void ) ;										// 描画用デバイスが有効かどうかを取得する( 戻り値  TRUE:有効  FALSE:無効 )
+
+
+
+
+
+
+
+// 環境依存描画設定関係
+extern	int		Graphics_Hardware_SetRenderTargetToShader_PF( int TargetIndex, int DrawScreen, int SurfaceIndex ) ;		// シェーダー描画での描画先を設定する
+extern	int		Graphics_Hardware_SetBackgroundColor_PF( int Red, int Green, int Blue ) ;								// メインウインドウの背景色を設定する( Red,Green,Blue:それぞれ ０～２５５ )
+extern	int		Graphics_Hardware_SetDrawBrightToOneParam_PF( DWORD Bright ) ;											// SetDrawBright の引数が一つ版
+extern	int		Graphics_Hardware_SetDrawBlendMode_PF( int BlendMode, int BlendParam ) ;								// 描画ブレンドモードをセットする
+extern	int		Graphics_Hardware_SetDrawAlphaTest_PF( int TestMode, int TestParam ) ;									// 描画時のアルファテストの設定を行う( TestMode:DX_CMP_GREATER等( -1:デフォルト動作に戻す )  TestParam:描画アルファ値との比較に使用する値 )
+extern	int		Graphics_Hardware_SetDrawMode_PF( int DrawMode ) ;														// 描画モードをセットする
+extern	int		Graphics_Hardware_SetDrawBright_PF( int RedBright, int GreenBright, int BlueBright ) ;					// 描画輝度をセット
+extern	int		Graphics_Hardware_SetBlendGraphParamBase_PF( IMAGEDATA *BlendImage, int BlendType, int *Param ) ;		// SetBlendGraphParam の可変長引数パラメータ付き
+extern	int		Graphics_Hardware_SetMaxAnisotropy_PF( int MaxAnisotropy ) ;											// 最大異方性の値をセットする
+extern	int		Graphics_Hardware_SetTransformToWorld_PF( const MATRIX *Matrix ) ;										// ワールド変換用行列をセットする
+extern	int		Graphics_Hardware_SetTransformToView_PF( const MATRIX *Matrix ) ;										// ビュー変換用行列をセットする
+extern	int		Graphics_Hardware_SetTransformToProjection_PF( const MATRIX *Matrix ) ;									// 投影変換用行列をセットする
+extern	int		Graphics_Hardware_SetTransformToViewport_PF( const MATRIX *Matrix ) ;									// ビューポート行列をセットする
+extern	int		Graphics_Hardware_SetTextureAddressMode_PF( int Mode /* DX_TEXADDRESS_WRAP 等 */, int Stage ) ;			// テクスチャアドレスモードを設定する
+extern	int		Graphics_Hardware_SetTextureAddressModeUV_PF( int ModeU, int ModeV, int Stage ) ;						// テクスチャアドレスモードを設定する
+extern	int		Graphics_Hardware_SetTextureAddressTransformMatrix_PF( int UseFlag, MATRIX *Matrix, int Sampler = -1 ) ;// テクスチャ座標変換行列をセットする
+extern	int		Graphics_Hardware_SetFogEnable_PF( int Flag ) ;															// フォグを有効にするかどうかを設定する( TRUE:有効  FALSE:無効 )
+extern	int		Graphics_Hardware_SetFogMode_PF( int Mode /* DX_FOGMODE_NONE 等 */ ) ;									// フォグモードを設定する
+extern	int		Graphics_Hardware_SetFogColor_PF( DWORD FogColor ) ;													// フォグカラーを変更する
+extern	int		Graphics_Hardware_SetFogStartEnd_PF( float start, float end ) ;											// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
+extern	int		Graphics_Hardware_SetFogDensity_PF( float density ) ;													// フォグの密度を設定する( 0.0f ～ 1.0f )
+extern	int		Graphics_Hardware_DeviceDirect_SetWorldMatrix_PF( const MATRIX *Matrix ) ;								// ワールド変換用行列をセットする
+extern	int		Graphics_Hardware_DeviceDirect_SetViewMatrix_PF( const MATRIX *Matrix ) ;								// ビュー変換用行列をセットする
+extern	int		Graphics_Hardware_DeviceDirect_SetProjectionMatrix_PF( const MATRIX *Matrix ) ;							// 投影変換用行列をセットする
+extern	int		Graphics_Hardware_ApplyLigFogToHardware_PF( void ) ;													// 基本データに設定されているフォグ情報をハードウェアに反映する
+extern	int		Graphics_Hardware_SetUseOldDrawModiGraphCodeFlag_PF( int Flag ) ;										// 以前の DrawModiGraph 関数のコードを使用するかどうかのフラグをセットする
+extern	int		Graphics_Hardware_RefreshAlphaChDrawMode_PF( void ) ;													// 描画先に正しいα値を書き込むかどうかのフラグを更新する
+//extern	void	Graphics_Hardware_SetUse2DProjectionMatrix_PF( int Use2DProjectionMatrix ) ;							// 使用する射影行列を３Ｄ用にするか２Ｄ用にするかを設定する
+
+
+
+
+
+
+
+
+
+// 環境依存設定関係
+extern	int		Graphics_Hardware_SetUseHardwareVertexProcessing_PF( int Flag ) ;						// ハードウエアの頂点演算処理機能を使用するかどうかを設定する
+extern	int		Graphics_Hardware_SetUsePixelLighting_PF( int Flag ) ;									// ピクセル単位でライティングを行うかどうかを設定する、要 ShaderModel 3.0( TRUE:ピクセル単位のライティングを行う  FALSE:頂点単位のライティングを行う( デフォルト ) )
+extern	int		Graphics_Hardware_SetGraphicsDeviceRestoreCallbackFunction_PF( void (* Callback )( void *Data ), void *CallbackData ) ;			// グラフィックスデバイスがロストから復帰した際に呼ばれるコールバック関数を設定する
+extern	int		Graphics_Hardware_SetGraphicsDeviceLostCallbackFunction_PF( void (* Callback )( void *Data ), void *CallbackData ) ;			// グラフィックスデバイスがロストから復帰する前に呼ばれるコールバック関数を設定する
+extern	int		Graphics_Hardware_SetUseNormalDrawShader_PF( int Flag ) ;								// 通常描画にプログラマブルシェーダーを使用するかどうかを設定する( TRUE:使用する( デフォルト )  FALSE:使用しない )
+extern	int		Graphics_Hardware_GetVideoMemorySize_PF( int *AllSize, int *FreeSize ) ;				// ビデオメモリの容量を得る
+extern	int		Graphics_SetAeroDisableFlag_PF( int Flag ) ;											// Vista以降の Windows Aero を無効にするかどうかをセットする、TRUE:無効にする  FALSE:有効にする( DxLib_Init の前に呼ぶ必要があります )
+
+
+
+
+
+
+
+
+
+
+
+
+// 環境依存画面関係
+extern	int		Graphics_Hardware_SetupUseZBuffer_PF( void ) ;															// 設定に基づいて使用するＺバッファをセットする
+extern	int		Graphics_Hardware_ClearDrawScreenZBuffer_PF( const RECT *ClearRect ) ;									// 画面のＺバッファの状態を初期化する
+extern	int		Graphics_Hardware_ClearDrawScreen_PF( const RECT *ClearRect ) ;											// 画面の状態を初期化する
+extern	int		Graphics_Hardware_SetDrawScreen_PF( int DrawScreen, int OldScreenSurface, IMAGEDATA *NewTargetImage, IMAGEDATA *OldTargetImage, SHADOWMAPDATA *NewTargetShadowMap, SHADOWMAPDATA *OldTargetShadowMap ) ;					// 描画先画面のセット
+extern	int		Graphics_Hardware_SetDrawScreen_Post_PF( int DrawScreen ) ;												// SetDrawScreen の最後で呼ばれる関数
+extern	int		Graphics_Hardware_SetDrawArea_PF( int x1, int y1, int x2, int y2 ) ;									// 描画可能領域のセット
+extern	int		Graphics_Hardware_LockDrawScreenBuffer_PF( RECT *LockRect, BASEIMAGE *BaseImage, int TargetScreen, IMAGEDATA *TargetImage, int TargetScreenSurface, int ReadOnly, int TargetScreenTextureNo ) ;	// 描画先バッファをロックする
+extern	int		Graphics_Hardware_UnlockDrawScreenBuffer_PF( void ) ;													// 描画先バッファをアンロックする
+extern	int		Graphics_Hardware_ScreenCopy_PF( int DrawTargetFrontScreenMode_Copy ) ;									// 裏画面の内容を表画面に描画する
+extern	int		Graphics_SetupDisplayInfo_PF( void ) ;																	// ディスプレイの情報をセットアップする
+extern	int		Graphics_Hardware_WaitVSync_PF( int SyncNum ) ;															// 垂直同期信号を待つ
+extern	int		Graphics_ScreenFlipBase_PF( void ) ;																	// 裏画面と表画面を交換する
+#ifdef __WINDOWS__
+extern	int		Graphics_BltRectBackScreenToWindow_PF( HWND Window, RECT BackScreenRect, RECT WindowClientRect ) ;		// 裏画面の指定の領域をウインドウのクライアント領域の指定の領域に転送する
+extern	int		Graphics_SetScreenFlipTargetWindow_PF( HWND TargetWindow ) ;											// ScreenFlip で画像を転送する先のウインドウを設定する( NULL を指定すると設定解除 )
+#endif // __WINDOWS__
+extern	int		Graphics_Hardware_SetZBufferMode_PF( int ZBufferSizeX, int ZBufferSizeY, int ZBufferBitDepth ) ;			// メイン画面のＺバッファの設定を変更する
+extern	int		Graphics_Hardware_SetFullSceneAntiAliasingMode_PF( int Samples, int Quality ) ;							// 画面のフルシーンアンチエイリアスモードの設定をする
+extern	int		Graphics_Hardware_SetDrawZBuffer_PF( int DrawScreen, IMAGEDATA *Image ) ;									// 描画先Ｚバッファのセット
+extern	int		Graphics_GetRefreshRate_PF( void ) ;																	// 現在の画面のリフレッシュレートを取得する
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 環境依存情報取得関係
+extern	const COLORDATA *	Graphics_Hardware_GetMainColorData_PF( void ) ;				// GetColor や GetColor2 で使用するカラーデータを取得する
+extern	const COLORDATA *	Graphics_Hardware_GetDispColorData_PF( void ) ;				// ディスプレーのカラーデータポインタを得る
+extern	DWORD				Graphics_Hardware_GetPixel_PF( int x, int y ) ;				// 指定座標の色を取得する
+
+
+
+
+
+
+
+
+
+
+
+// 環境依存画像関係
+extern	int		Graphics_Hardware_UpdateGraphMovie_TheoraYUV_PF( struct MOVIEGRAPH *Movie, IMAGEDATA *Image ) ;							// YUVサーフェスを使った Theora 動画の内容をグラフィックスハンドルのテクスチャに転送する
+extern	int		Graphics_Hardware_GraphLock_PF( IMAGEDATA *Image, COLORDATA **ColorDataP, int WriteOnly ) ;								// グラフィックメモリ領域のロック
+extern	int		Graphics_Hardware_GraphUnlock_PF( IMAGEDATA *Image ) ;																	// グラフィックメモリ領域のロック解除
+extern	int		Graphics_Hardware_CopyGraphZBufferImage_PF( IMAGEDATA *DestImage, IMAGEDATA *SrcImage ) ;								// グラフィックのＺバッファの状態を別のグラフィックのＺバッファにコピーする( DestGrHandle も SrcGrHandle もＺバッファを持っている描画可能画像で、且つアンチエイリアス画像ではないことが条件 )
+extern	int		Graphics_Hardware_InitGraph_PF( void ) ;																				// 画像データの初期化
+extern	int		Graphics_Hardware_FillGraph_PF( IMAGEDATA *Image, int Red, int Green, int Blue, int Alpha, int ASyncThread ) ;			// グラフィックを特定の色で塗りつぶす
+extern	int		Graphics_Hardware_GetDrawScreenGraphBase_PF( IMAGEDATA *Image, IMAGEDATA *TargetImage, int TargetScreen, int TargetScreenSurface, int TargetScreenWidth, int TargetScreenHeight, int x1, int y1, int x2, int y2, int destX, int destY ) ;		// 描画可能画像やバックバッファから指定領域のグラフィックを取得する
+
+// Graphics_Image_BltBmpOrBaseImageToGraph3 の機種依存部分用関数
+extern	int		Graphics_Hardware_BltBmpOrBaseImageToGraph3_PF(
+	const RECT		*SrcRect,
+	      int		DestX,
+	      int		DestY,
+	      int		GrHandle,
+	const BASEIMAGE	*RgbBaseImage,
+	const BASEIMAGE	*AlphaBaseImage,
+	      int		RedIsAlphaFlag,
+	      int		UseTransColorConvAlpha,
+	      int		TargetOrig,
+	      int		ASyncThread
+) ;
+
+// 基本イメージのフォーマットを DX_BASEIMAGE_FORMAT_NORMAL に変換する必要があるかどうかをチェックする
+// ( RequiredRgbBaseImageConvFlag と RequiredAlphaBaseImageConvFlag に入る値  TRUE:変換する必要がある  FALSE:変換する必要は無い )
+extern	int		Graphics_CheckRequiredNormalImageConv_BaseImageFormat_PF(
+	IMAGEDATA_ORIG *Orig,
+	int             RgbBaseImageFormat,
+	int            *RequiredRgbBaseImageConvFlag,
+	int             AlphaBaseImageFormat = -1,
+	int            *RequiredAlphaBaseImageConvFlag = NULL
+) ;
+
+extern	int		Graphics_Hardware_CreateOrigTexture_PF(  IMAGEDATA_ORIG *Orig, int ASyncThread = FALSE ) ;			// オリジナル画像情報中のテクスチャを作成する( 0:成功  -1:失敗 )
+extern	int		Graphics_Hardware_ReleaseOrigTexture_PF( IMAGEDATA_ORIG *Orig ) ;									// オリジナル画像情報中のテクスチャを解放する
+extern	int		Graphics_Hardware_GetMultiSampleQuality_PF( int Samples ) ;											// 指定のマルチサンプル数で使用できる最大クオリティ値を取得する
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 環境依存頂点バッファ・インデックスバッファ関係
+extern	int		Graphics_Hardware_VertexBuffer_Create_PF(    VERTEXBUFFERHANDLEDATA *VertexBuffer ) ;															// 頂点バッファハンドルの頂点バッファを作成する
+extern	int		Graphics_Hardware_VertexBuffer_Terminate_PF( VERTEXBUFFERHANDLEDATA *VertexBuffer ) ;															// 頂点バッファハンドルの後始末
+extern	int		Graphics_Hardware_VertexBuffer_SetData_PF(   VERTEXBUFFERHANDLEDATA *VertexBuffer, int SetIndex, const void *VertexData, int VertexNum ) ;		// 頂点バッファに頂点データを転送する
+extern	int		Graphics_Hardware_IndexBuffer_Create_PF(     INDEXBUFFERHANDLEDATA *IndexBuffer ) ;																// インデックスバッファハンドルのセットアップを行う
+extern	int		Graphics_Hardware_IndexBuffer_Terminate_PF(  INDEXBUFFERHANDLEDATA *IndexBuffer ) ;																// インデックスバッファハンドルの後始末
+extern	int		Graphics_Hardware_IndexBuffer_SetData_PF(    INDEXBUFFERHANDLEDATA *IndexBuffer, int SetIndex, const void *IndexData, int IndexNum ) ;			// インデックスバッファにインデックスデータを転送する
+
+
+
+
+
+
+
+
+
+
+
+// 環境依存ライト関係
+extern	int		Graphics_Hardware_Light_SetUse_PF( int Flag ) ;															// ライティングを行うかどうかを設定する
+extern	int		Graphics_Hardware_Light_GlobalAmbient_PF( COLOR_F *Color ) ;											// グローバルアンビエントライトカラーを設定する
+extern	int		Graphics_Hardware_Light_SetState_PF( int LightNumber, LIGHTPARAM *LightParam ) ;						// ライトパラメータをセット
+extern	int		Graphics_Hardware_Light_SetEnable_PF( int LightNumber, int EnableState ) ;								// ライトの有効、無効を変更
+
+
+
+
+
+
+
+
+
+
+
+
+// 環境依存シャドウマップ関係
+extern	int		Graphics_Hardware_ShadowMap_CreateTexture_PF( SHADOWMAPDATA *ShadowMap, int ASyncThread = FALSE ) ;		// シャドウマップデータに必要なテクスチャを作成する
+extern	int		Graphics_Hardware_ShadowMap_ReleaseTexture_PF( SHADOWMAPDATA *ShadowMap ) ;								// シャドウマップデータに必要なテクスチャを解放する
+extern	void	Graphics_Hardware_ShadowMap_RefreshVSParam_PF( void ) ;													// 頂点シェーダーに設定するシャドウマップの情報を更新する
+extern	void	Graphics_Hardware_ShadowMap_RefreshPSParam_PF( void ) ;													// ピクセルシェーダーに設定するシャドウマップの情報を更新する
+extern	int		Graphics_Hardware_ShadowMap_DrawSetup_PF( SHADOWMAPDATA *ShadowMap ) ;									// シャドウマップへの描画の準備を行う
+extern	int		Graphics_Hardware_ShadowMap_DrawEnd_PF( SHADOWMAPDATA *ShadowMap ) ;									// シャドウマップへの描画を終了する
+extern	int		Graphics_Hardware_ShadowMap_SetUse_PF( int SlotIndex, SHADOWMAPDATA *ShadowMap ) ;						// 描画で使用するシャドウマップを指定する、スロットは０か１かを指定可能　
+
+
+
+
+
+
+
+
+
+
+// 環境依存シェーダー関係
+extern	int		Graphics_Hardware_Shader_Create_PF( int ShaderHandle, int IsVertexShader, void *Image, int ImageSize, int ImageAfterFree, int ASyncThread ) ;		// シェーダーハンドルを初期化する
+extern	int		Graphics_Hardware_Shader_TerminateHandle_PF( SHADERHANDLEDATA *Shader ) ;																			// シェーダーハンドルの後始末
+extern	int		Graphics_Hardware_Shader_GetValidShaderVersion_PF( void ) ;																							// 使用できるシェーダーのバージョンを取得する( 0=使えない  200=シェーダーモデル２．０が使用可能  300=シェーダーモデル３．０が使用可能 )
+extern	int		Graphics_Hardware_Shader_GetConstIndex_PF( const wchar_t *ConstantName, SHADERHANDLEDATA *Shader ) ;													// 指定の名前を持つ定数が使用するシェーダー定数の番号を取得する
+extern	int		Graphics_Hardware_Shader_GetConstCount_PF( const wchar_t *ConstantName, SHADERHANDLEDATA *Shader ) ;													// 指定の名前を持つ定数が使用するシェーダー定数の数を取得する
+extern	const FLOAT4 *Graphics_Hardware_Shader_GetConstDefaultParamF_PF( const wchar_t *ConstantName, SHADERHANDLEDATA *Shader ) ;									// 指定の名前を持つ浮動小数点定数のデフォルトパラメータが格納されているメモリアドレスを取得する
+extern	int		Graphics_Hardware_Shader_SetConst_PF(   int TypeIndex, int SetIndex, int ConstantIndex, const void *Param, int ParamNum, int UpdateUseArea ) ;		// シェーダー定数情報を設定する
+extern	int		Graphics_Hardware_Shader_ResetConst_PF( int TypeIndex, int SetIndex, int ConstantIndex, int ParamNum ) ;											// 指定領域のシェーダー定数情報をリセットする
+#ifndef DX_NON_MODEL
+extern	int		Graphics_Hardware_Shader_ModelCode_Init_PF( void ) ;																								// ３Ｄモデル用のシェーダーコードの初期化を行う
+#endif // DX_NON_MODEL
+
+
+
+
+
+
+
+
+
+
+// 環境依存シェーダー用定数バッファ関係
+extern	int		Graphics_Hardware_ShaderConstantBuffer_Create_PF( int ShaderConstantBufferHandle, int BufferSize, int ASyncThread ) ;												// シェーダー用定数バッファハンドルを初期化する
+extern	int		Graphics_Hardware_ShaderConstantBuffer_TerminateHandle_PF( SHADERCONSTANTBUFFERHANDLEDATA *ShaderConstantBuffer ) ;													// シェーダー用定数バッファハンドルの後始末
+extern	void *	Graphics_Hardware_ShaderConstantBuffer_GetBuffer_PF( SHADERCONSTANTBUFFERHANDLEDATA *ShaderConstantBuffer ) ;														// シェーダー用定数バッファハンドルの定数バッファのアドレスを取得する
+extern	int		Graphics_Hardware_ShaderConstantBuffer_Update_PF( SHADERCONSTANTBUFFERHANDLEDATA *ShaderConstantBuffer ) ;															// シェーダー用定数バッファハンドルの定数バッファへの変更を適用する
+extern	int		Graphics_Hardware_ShaderConstantBuffer_Set_PF( SHADERCONSTANTBUFFERHANDLEDATA *ShaderConstantBuffer, int TargetShader /* DX_SHADERTYPE_VERTEX など */, int Slot ) ;	// シェーダー用定数バッファハンドルの定数バッファを指定のシェーダーの指定のスロットにセットする
+
+
+
+
+
+
+
+
+
+
+
+// 環境依存描画関係
+extern	int		Graphics_Hardware_RenderVertex( int ASyncThread = FALSE ) ;																							// 頂点バッファに溜まった頂点データをレンダリングする
+
+extern	int		Graphics_Hardware_DrawBillboard3D_PF(     VECTOR Pos, float cx, float cy, float Size, float Angle,                                    IMAGEDATA *Image, IMAGEDATA *BlendImage, int TransFlag, int TurnFlag, int DrawFlag = TRUE, RECT *DrawArea = NULL ) ;	// ハードウエアアクセラレータ使用版 DrawBillboard3D
+extern	int		Graphics_Hardware_DrawModiBillboard3D_PF( VECTOR Pos, float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, IMAGEDATA *Image, IMAGEDATA *BlendImage, int TransFlag,               int DrawFlag = TRUE, RECT *DrawArea = NULL ) ;	// ハードウエアアクセラレータ使用版 DrawModiBillboard3D
+extern	int		Graphics_Hardware_DrawGraph_PF(           int x,  int y, float xf, float yf,                                                          IMAGEDATA *Image, IMAGEDATA *BlendImage, int TransFlag, int IntFlag ) ;				// ハードウエアアクセラレータ使用版 DrawGraph
+extern	int		Graphics_Hardware_DrawExtendGraph_PF(     int x1, int y1, int x2, int y2, float x1f, float y1f, float x2f, float y2f,                 IMAGEDATA *Image, IMAGEDATA *BlendImage, int TransFlag, int IntFlag ) ;				// ハードウエアアクセラレータ使用版 DrawExtendGraph
+extern	int		Graphics_Hardware_DrawRotaGraph_PF(       int x,  int y, float xf, float yf, double ExRate, double Angle,                             IMAGEDATA *Image, IMAGEDATA *BlendImage, int TransFlag, int TurnFlag, int IntFlag ) ;	// ハードウエアアクセラレータ使用版 DrawRotaGraph
+extern	int		Graphics_Hardware_DrawModiGraph_PF(       int   x1, int   y1, int   x2, int   y2, int   x3, int   y3, int   x4, int   y4,             IMAGEDATA *Image, IMAGEDATA *BlendImage, int TransFlag, bool SimpleDrawFlag ) ;		// ハードウエアアクセラレータ使用版 DrawModiGraph
+extern	int		Graphics_Hardware_DrawModiGraphF_PF(      float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4,             IMAGEDATA *Image, IMAGEDATA *BlendImage, int TransFlag, bool SimpleDrawFlag ) ;		// ハードウエアアクセラレータ使用版 DrawModiGraphF
+extern	int		Graphics_Hardware_DrawSimpleTwoTriangleGraphF_PF( const GRAPHICS_DRAW_DRAWSIMPLETWOTRIANGLEGRAPHF_PARAM *Param,						  IMAGEDATA *Image, IMAGEDATA *BlendImage ) ;											// ハードウエアアクセラレータ使用版 DrawSimpleTwoTriangleGraphF
+
+extern	int		Graphics_Hardware_DrawFillBox_PF(          int x1, int y1, int x2, int y2,                                 unsigned int Color ) ;																// ハードウエアアクセラレータ使用版 DrawFillBox
+extern	int		Graphics_Hardware_DrawLineBox_PF(          int x1, int y1, int x2, int y2,                                 unsigned int Color ) ;																// ハードウエアアクセラレータ使用版 DrawLineBox
+extern	int		Graphics_Hardware_DrawLine_PF(             int x1, int y1, int x2, int y2,                                 unsigned int Color ) ;																// ハードウエアアクセラレータ使用版 DrawLine
+extern	int		Graphics_Hardware_DrawLine3D_PF(           VECTOR Pos1, VECTOR Pos2,                                       unsigned int Color, int DrawFlag = TRUE, RECT *DrawArea = NULL ) ;					// ハードウエアアクセラレータ使用版 DrawLine3D
+extern	int		Graphics_Hardware_DrawCircle_Thickness_PF( int x, int y, int r,                                            unsigned int Color, int Thickness ) ;												// ハードウエアアクセラレータ使用版 DrawCircle( 太さ指定あり )
+extern	int		Graphics_Hardware_DrawOval_Thickness_PF(   int x, int y, int rx, int ry,                                   unsigned int Color, int Thickness ) ;												// ハードウエアアクセラレータ使用版 DrawOval( 太さ指定あり )
+extern	int		Graphics_Hardware_DrawCircle_PF(           int x, int y, int r,                                            unsigned int Color, int FillFlag ) ;												// ハードウエアアクセラレータ使用版 DrawCircle
+extern	int		Graphics_Hardware_DrawOval_PF(             int x, int y, int rx, int ry,                                   unsigned int Color, int FillFlag ) ;												// ハードウエアアクセラレータ使用版 DrawOval
+extern	int		Graphics_Hardware_DrawTriangle_PF(         int x1, int y1, int x2, int y2, int x3, int y3,                 unsigned int Color, int FillFlag ) ;												// ハードウエアアクセラレータ使用版 DrawTriangle
+extern	int		Graphics_Hardware_DrawTriangle3D_PF(       VECTOR Pos1, VECTOR Pos2, VECTOR Pos3,                          unsigned int Color, int FillFlag, int DrawFlag = TRUE, RECT *DrawArea = NULL ) ;	// ハードウエアアクセラレータ使用版 DrawTriangle3D
+extern	int		Graphics_Hardware_DrawQuadrangle_PF(       int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4, unsigned int Color, int FillFlag ) ;												// ハードウエアアクセラレータ使用版 DrawQuadrangle
+extern	int		Graphics_Hardware_DrawPixel_PF(            int x,  int y,                                                  unsigned int Color ) ;																// ハードウエアアクセラレータ使用版 DrawPixel
+extern	int		Graphics_Hardware_DrawPixel3D_PF(          VECTOR Pos,                                                     unsigned int Color, int DrawFlag = TRUE, RECT *DrawArea = NULL ) ;					// ハードウエアアクセラレータ使用版 DrawPixel3D
+extern	int		Graphics_Hardware_DrawPixelSet_PF(         const POINTDATA *PointData, int Num ) ;																				// ハードウエアアクセラレータ使用版 DrawPixelSet
+extern	int		Graphics_Hardware_DrawLineSet_PF(          const LINEDATA  *LineData,  int Num ) ;																				// ハードウエアアクセラレータ使用版 DrawLineSet
+
+extern	int		Graphics_Hardware_DrawPrimitive_PF(                             const VERTEX_3D *Vertex, int VertexNum,                                    int PrimitiveType, IMAGEDATA *Image, int TransFlag ) ;
+extern	int		Graphics_Hardware_DrawIndexedPrimitive_PF(                      const VERTEX_3D *Vertex, int VertexNum, const WORD *Indices, int IndexNum, int PrimitiveType, IMAGEDATA *Image, int TransFlag ) ;
+extern	int		Graphics_Hardware_DrawPrimitiveLight_PF(                        const VERTEX3D  *Vertex, int VertexNum,                                    int PrimitiveType, IMAGEDATA *Image, int TransFlag ) ;
+extern	int		Graphics_Hardware_DrawIndexedPrimitiveLight_PF(                 const VERTEX3D  *Vertex, int VertexNum, const WORD *Indices, int IndexNum, int PrimitiveType, IMAGEDATA *Image, int TransFlag ) ;
+extern	int		Graphics_Hardware_DrawPrimitiveLight_UseVertexBuffer_PF(        VERTEXBUFFERHANDLEDATA *VertexBuffer,                                      int PrimitiveType,                 int StartVertex, int UseVertexNum, IMAGEDATA *Image, int TransFlag ) ;
+extern	int		Graphics_Hardware_DrawIndexedPrimitiveLight_UseVertexBuffer_PF( VERTEXBUFFERHANDLEDATA *VertexBuffer, INDEXBUFFERHANDLEDATA *IndexBuffer,  int PrimitiveType, int BaseVertex, int StartVertex, int UseVertexNum, int StartIndex, int UseIndexNum, IMAGEDATA *Image, int TransFlag ) ;
+extern	int		Graphics_Hardware_DrawPrimitive2D_PF(                                 VERTEX_2D *Vertex, int VertexNum,                                    int PrimitiveType, IMAGEDATA *Image, int TransFlag, int BillboardFlag, int Is3D, int TurnFlag, int TextureNo ) ;
+extern	int		Graphics_Hardware_DrawPrimitive2DUser_PF(                       const VERTEX2D  *Vertex, int VertexNum,                                    int PrimitiveType, IMAGEDATA *Image, int TransFlag, int Is3D, int TurnFlag, int TextureNo ) ;
+extern	int		Graphics_Hardware_DrawIndexedPrimitive2DUser_PF(                const VERTEX2D  *Vertex, int VertexNum, const WORD *Indices, int IndexNum, int PrimitiveType, IMAGEDATA *Image, int TransFlag ) ;
+
+extern	int		Graphics_Hardware_DrawPolygon3DToShader_PF(          const VERTEX3DSHADER *Vertex, int PolygonNum ) ;																										// シェーダーを使って３Ｄポリゴンを描画する
+extern	int		Graphics_Hardware_DrawPolygonIndexed3DToShader_PF(   const VERTEX3DSHADER *Vertex, int VertexNum, const unsigned short *Indices, int PolygonNum ) ;														// シェーダーを使って３Ｄポリゴンを描画する( 頂点インデックスを使用する )
+extern	int		Graphics_Hardware_DrawPrimitive2DToShader_PF(        const VERTEX2DSHADER *Vertex, int VertexNum,                                              int PrimitiveType /* DX_PRIMTYPE_TRIANGLELIST 等 */ ) ;		// シェーダーを使って２Ｄプリミティブを描画する
+extern	int		Graphics_Hardware_DrawPrimitive3DToShader_PF(        const VERTEX3DSHADER *Vertex, int VertexNum,                                              int PrimitiveType /* DX_PRIMTYPE_TRIANGLELIST 等 */ ) ;		// シェーダーを使って３Ｄプリミティブを描画する
+extern	int		Graphics_Hardware_DrawPrimitiveIndexed2DToShader_PF( const VERTEX2DSHADER *Vertex, int VertexNum, const unsigned short *Indices, int IndexNum, int PrimitiveType /* DX_PRIMTYPE_TRIANGLELIST 等 */ ) ;		// シェーダーを使って２Ｄプリミティブを描画する( 頂点インデックスを使用する )
+extern	int		Graphics_Hardware_DrawPrimitiveIndexed3DToShader_PF( const VERTEX3DSHADER *Vertex, int VertexNum, const unsigned short *Indices, int IndexNum, int PrimitiveType /* DX_PRIMTYPE_TRIANGLELIST 等 */ ) ;		// シェーダーを使って３Ｄプリミティブを描画する( 頂点インデックスを使用する )
+
+extern	int		Graphics_Hardware_DrawPrimitive3DToShader_UseVertexBuffer2_PF(        int VertexBufHandle,                     int PrimitiveType /* DX_PRIMTYPE_TRIANGLELIST 等 */, int StartVertex, int UseVertexNum ) ;	// シェーダーを使って３Ｄプリミティブを描画する( 頂点バッファ使用版 )
+extern	int		Graphics_Hardware_DrawPrimitiveIndexed3DToShader_UseVertexBuffer2_PF( int VertexBufHandle, int IndexBufHandle, int PrimitiveType /* DX_PRIMTYPE_TRIANGLELIST 等 */, int BaseVertex, int StartVertex, int UseVertexNum, int StartIndex, int UseIndexNum ) ;	// シェーダーを使って３Ｄプリミティブを描画する( 頂点バッファとインデックスバッファ使用版 )
+
+extern	int		Graphics_Hardware_Paint_PF( int x, int y, unsigned int FillColor, ULONGLONG BoundaryColor ) ;			// 指定点から境界色があるところまで塗りつぶす
+
+
+
+
+
+
+
+
+
+
+
+// wchar_t版関数
+extern	int			LoadBmpToGraph_WCHAR_T(			const wchar_t *FileName, int TextureFlag, int ReverseFlag, int SurfaceMode = DX_MOVIESURFACE_NORMAL ) ;
+extern	int			LoadGraph_WCHAR_T(				const wchar_t *FileName, int NotUse3DFlag = FALSE ) ;
+extern	int			LoadReverseGraph_WCHAR_T(		const wchar_t *FileName, int NotUse3DFlag = FALSE ) ;
+extern	int			LoadDivGraph_WCHAR_T(			const wchar_t *FileName, int AllNum, int XNum, int YNum, int XSize, int YSize, int *HandleBuf, int NotUse3DFlag = FALSE ) ;
+extern	int			LoadDivBmpToGraph_WCHAR_T(		const wchar_t *FileName, int AllNum, int XNum, int YNum, int SizeX, int SizeY, int *HandleBuf, int TextureFlag, int ReverseFlag ) ;
+extern	int			LoadReverseDivGraph_WCHAR_T(	const wchar_t *FileName, int AllNum, int XNum, int YNum, int XSize, int YSize, int *HandleBuf, int NotUse3DFlag = FALSE ) ;
+extern	int			LoadBlendGraph_WCHAR_T(			const wchar_t *FileName ) ;
+#ifdef __WINDOWS__
+extern	int			LoadGraphToResource_WCHAR_T(	const wchar_t *ResourceName, const wchar_t *ResourceType ) ;
+extern	int			LoadDivGraphToResource_WCHAR_T(	const wchar_t *ResourceName, const wchar_t *ResourceType, int AllNum, int XNum, int YNum, int XSize, int YSize, int *HandleBuf ) ;
+#endif // __WINDOWS__
+extern	int			ReloadGraph_WCHAR_T(			const wchar_t *FileName, int GrHandle, int ReverseFlag = FALSE ) ;
+extern	int			ReloadDivGraph_WCHAR_T(			const wchar_t *FileName, int AllNum, int XNum, int YNum, int XSize, int YSize, const int *HandleBuf, int ReverseFlag = FALSE ) ;
+extern	int			ReloadReverseGraph_WCHAR_T(		const wchar_t *FileName, int GrHandle ) ;
+extern	int			ReloadReverseDivGraph_WCHAR_T(	const wchar_t *FileName, int AllNum, int XNum, int YNum, int XSize, int YSize, const int *HandleBuf ) ;
+
+extern	int			GetGraphFilePath_WCHAR_T(		int GrHandle, wchar_t *FilePathBuffer ) ;
+
+extern	int			LoadGraphScreen_WCHAR_T(        int x, int y, const wchar_t *GraphName, int TransFlag ) ;
+
+extern	int			SaveDrawScreen_WCHAR_T(			int x1, int y1, int x2, int y2, const wchar_t *FileName, int SaveType = DX_IMAGESAVETYPE_BMP , int Jpeg_Quality = 80 , int Jpeg_Sample2x1 = TRUE , int Png_CompressionLevel = -1 ) ;
+extern	int			SaveDrawScreenToBMP_WCHAR_T(	int x1, int y1, int x2, int y2, const wchar_t *FileName ) ;
+extern	int			SaveDrawScreenToJPEG_WCHAR_T(	int x1, int y1, int x2, int y2, const wchar_t *FileName, int Quality = 80 , int Sample2x1 = TRUE ) ;
+extern	int			SaveDrawScreenToPNG_WCHAR_T(	int x1, int y1, int x2, int y2, const wchar_t *FileName, int CompressionLevel = -1 ) ;
+
+extern	int			LoadVertexShader_WCHAR_T(		const wchar_t *FileName ) ;
+extern	int			LoadPixelShader_WCHAR_T(		const wchar_t *FileName ) ;
+
+extern	int			GetConstIndexToShader_WCHAR_T(           const wchar_t *ConstantName, int ShaderHandle ) ;
+extern	int			GetConstCountToShader_WCHAR_T(           const wchar_t *ConstantName, int ShaderHandle ) ;
+extern	const FLOAT4 *GetConstDefaultParamFToShader_WCHAR_T( const wchar_t *ConstantName, int ShaderHandle ) ;
+
+extern	int			PlayMovie_WCHAR_T(						const wchar_t *FileName, int ExRate, int PlayType ) ;
+extern	int			OpenMovieToGraph_WCHAR_T(				const wchar_t *FileName, int FullColor = TRUE ) ;
+
+
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // __DXGRAPHICS_H__
 

@@ -1,6 +1,6 @@
-#include "DxPixelShaderFxCode2.h"
+ï»¿#include "DxPixelShaderFxCode2.h"
 
-// mainŠÖ”
+// mainé–¢æ•°
 PS_OUTPUT main( PS_INPUT PSInput )
 {
 	PS_OUTPUT PSOutput ;
@@ -43,7 +43,7 @@ PS_OUTPUT main( PS_INPUT PSInput )
 	float4 SubTextureColor;
 #endif  // SUBTEXTUREMODE != 0
 
-	// ÚüE]–@üE–@ü‚ð³‹K‰»
+	// æŽ¥ç·šãƒ»å¾“æ³•ç·šãƒ»æ³•ç·šã‚’æ­£è¦åŒ–
 	VNrm = normalize( PSInput.VNormal ) ;
 #ifdef BUMPMAP
 	VTan = normalize( PSInput.VTan ) ;
@@ -51,59 +51,59 @@ PS_OUTPUT main( PS_INPUT PSInput )
 #endif // BUMPMAP
 
 #ifdef BUMPMAP
-	// ’¸“_À•W‚©‚çŽ‹“_‚Ö‚ÌƒxƒNƒgƒ‹‚ðÚ’ê‹óŠÔ‚É“Š‰e‚µ‚½Œã³‹K‰»‚µ‚Ä•Û‘¶
+	// é ‚ç‚¹åº§æ¨™ã‹ã‚‰è¦–ç‚¹ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã‚’æŽ¥åº•ç©ºé–“ã«æŠ•å½±ã—ãŸå¾Œæ­£è¦åŒ–ã—ã¦ä¿å­˜
 	TempF3.x = dot( VTan, -PSInput.VPosition.xyz ) ;
 	TempF3.y = dot( VBin, -PSInput.VPosition.xyz ) ;
 	TempF3.z = dot( VNrm, -PSInput.VPosition.xyz ) ;
 	V_to_Eye = normalize( TempF3 ) ;
 #else // BUMPMAP
-	// ’¸“_À•W‚©‚çŽ‹“_‚Ö‚ÌƒxƒNƒgƒ‹‚ð³‹K‰»
+	// é ‚ç‚¹åº§æ¨™ã‹ã‚‰è¦–ç‚¹ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã‚’æ­£è¦åŒ–
 	V_to_Eye = normalize( -PSInput.VPosition ) ;
 #endif // BUMPMAP
 
-	// –@ü‚Ì€”õ
+	// æ³•ç·šã®æº–å‚™
 	#if BUMPMAP
-		// –@ü‚Ì 0`1 ‚Ì’l‚ð -1.0`1.0 ‚É•ÏŠ·‚·‚é
+		// æ³•ç·šã® 0ï½ž1 ã®å€¤ã‚’ -1.0ï½ž1.0 ã«å¤‰æ›ã™ã‚‹
 		Normal = ( tex2D( NormalMapTexture, PSInput.TexCoords0_1.xy ).rgb - cfZeroHalfOneTwo.y ) * cfZeroHalfOneTwo.w ;
 	#else // BUMPMAP
 		Normal = normalize( PSInput.VNormal ) ;
 	#endif // BUMPMAP
 
-	// ƒfƒBƒtƒ…[ƒYƒeƒNƒXƒ`ƒƒƒJƒ‰[‚ðŽæ“¾
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼ã‚’å–å¾—
 	TextureDiffuseColor = tex2D( DiffuseMapTexture, PSInput.TexCoords0_1.xy ) ;
 	
 #ifdef USE_SPE
 	#ifdef USE_SPETEX
-	// ƒfƒXƒyƒLƒ…ƒ‰ƒeƒNƒXƒ`ƒƒƒJƒ‰[‚ðŽæ“¾
+	// ãƒ‡ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼ã‚’å–å¾—
 	TextureSpecularColor = tex2D( SpecularMapTexture, PSInput.TexCoords0_1.xy ) ;
 	#endif // USE_SPETEX
 #endif // USE_SPE
 
 #if SUBTEXTUREMODE != 0
-	// ƒTƒuƒeƒNƒXƒ`ƒƒƒJƒ‰[‚ðŽæ“¾
+	// ã‚µãƒ–ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼ã‚’å–å¾—
 	SubTextureColor = tex2D( SubTexture, PSInput.TexCoords0_1.zw );
 #endif  // SUBTEXTUREMODE != 0
 
-	// ƒTƒuƒeƒNƒXƒ`ƒƒƒJƒ‰[‚ÆƒfƒBƒtƒ…[ƒYƒeƒNƒXƒ`ƒƒƒJƒ‰[‚ÌŠ|‚¯‡‚í‚¹
-#if SUBTEXTUREMODE == 1  // ƒ¿ƒuƒŒƒ“ƒh( MV1_LAYERBLEND_TYPE_TRANSLUCENT + 1 )
+	// ã‚µãƒ–ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼ã¨ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼ã®æŽ›ã‘åˆã‚ã›
+#if SUBTEXTUREMODE == 1  // Î±ãƒ–ãƒ¬ãƒ³ãƒ‰( MV1_LAYERBLEND_TYPE_TRANSLUCENT + 1 )
 	TextureDiffuseColor.rgb = lerp( TextureDiffuseColor.rgb, SubTextureColor.rgb, SubTextureColor.a );
 #endif // SUBTEXTUREMODE == 1
 
-#if SUBTEXTUREMODE == 2  // ‰ÁŽZ( MV1_LAYERBLEND_TYPE_ADDITIVE + 1 )
+#if SUBTEXTUREMODE == 2  // åŠ ç®—( MV1_LAYERBLEND_TYPE_ADDITIVE + 1 )
 	TextureDiffuseColor.rgb += SubTextureColor.rgb;
 #endif // SUBTEXTUREMODE == 2
 
-#if SUBTEXTUREMODE == 3  // æŽZ( MV1_LAYERBLEND_TYPE_MODULATE + 1 )
+#if SUBTEXTUREMODE == 3  // ä¹—ç®—( MV1_LAYERBLEND_TYPE_MODULATE + 1 )
 	TextureDiffuseColor.rgb *= SubTextureColor.rgb;
 #endif // SUBTEXTUREMODE == 3
 
-#if SUBTEXTUREMODE == 4  // æŽZ~‚Q( MV1_LAYERBLEND_TYPE_MODULATE2 + 1 )
+#if SUBTEXTUREMODE == 4  // ä¹—ç®—Ã—ï¼’( MV1_LAYERBLEND_TYPE_MODULATE2 + 1 )
 	TextureDiffuseColor.rgb *= SubTextureColor.rgb * 2.0f;
 #endif // SUBTEXTUREMODE == 4
 
-	// ƒ‰ƒCƒg‚ðŽg‚¤ê‡ *******************************************************************( ŠJŽn )
+	// ãƒ©ã‚¤ãƒˆã‚’ä½¿ã†å ´åˆ *******************************************************************( é–‹å§‹ )
 
-	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ÆƒXƒyƒLƒ…ƒ‰ƒJƒ‰[‚Ì’~Ï’l‚ð‰Šú‰»
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¨ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ã‚’åˆæœŸåŒ–
 	TotalDiffuse = cfZeroHalfOneTwo.x ;
 #ifdef USE_SPE
 	TotalSpecular = cfZeroHalfOneTwo.x ;
@@ -119,7 +119,7 @@ PS_OUTPUT main( PS_INPUT PSInput )
 #endif // TOON
 
 	#if	SHADOWMAP
-		// ’¸“_‚ÌƒeƒNƒXƒ`ƒƒÀ•W’l‚ª”ÍˆÍ“à‚Ìê‡‚Ì‚Ýˆ—‚·‚é
+		// é ‚ç‚¹ã®ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™å€¤ãŒç¯„å›²å†…ã®å ´åˆã®ã¿å‡¦ç†ã™ã‚‹
 		if( PSInput.ShadowMap1Pos.x < -1.0f || PSInput.ShadowMap1Pos.x > 1.0f ||
 		    PSInput.ShadowMap1Pos.y < -1.0f || PSInput.ShadowMap1Pos.y > 1.0f ||
 		    PSInput.ShadowMap1Pos.z <  0.0f || PSInput.ShadowMap1Pos.z > 1.0f )
@@ -128,21 +128,21 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		}
 		else
 		{
-			// [“xƒeƒNƒXƒ`ƒƒ‚ÌÀ•W‚ðŽZo
-			// PSInput.ShadowMap1Pos.xy ‚Í -1.0f ` 1.0f ‚Ì’l‚È‚Ì‚ÅA‚±‚ê‚ð 0.0f ` 1.0f ‚Ì’l‚É‚·‚é
+			// æ·±åº¦ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®åº§æ¨™ã‚’ç®—å‡º
+			// PSInput.ShadowMap1Pos.xy ã¯ -1.0f ï½ž 1.0f ã®å€¤ãªã®ã§ã€ã“ã‚Œã‚’ 0.0f ï½ž 1.0f ã®å€¤ã«ã™ã‚‹
 			DepthTexCoord.x = ( PSInput.ShadowMap1Pos.x + 1.0f ) / 2.0f;
 
-			// y‚ÍX‚Éã‰º”½“]
+			// yã¯æ›´ã«ä¸Šä¸‹åè»¢
 			DepthTexCoord.y = 1.0f - ( PSInput.ShadowMap1Pos.y + 1.0f ) / 2.0f;
 
-			// [“xƒoƒbƒtƒ@ƒeƒNƒXƒ`ƒƒ‚©‚ç[“x‚ðŽæ“¾
+			// æ·±åº¦ãƒãƒƒãƒ•ã‚¡ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‹ã‚‰æ·±åº¦ã‚’å–å¾—
 			TextureDepth = tex2D( ShadowMap1Texture, DepthTexCoord );
 
-			// ƒeƒNƒXƒ`ƒƒ‚É‹L˜^‚³‚ê‚Ä‚¢‚é[“x( +•â³’l )‚æ‚è‚y’l‚ª‘å‚«‚©‚Á‚½‚ç‰œ‚É‚ ‚é‚Æ‚¢‚¤‚±‚Æ‚ÅŒ¸Š—¦‚ðÅ‘å‚É‚·‚é
+			// ãƒ†ã‚¯ã‚¹ãƒãƒ£ã«è¨˜éŒ²ã•ã‚Œã¦ã„ã‚‹æ·±åº¦( +è£œæ­£å€¤ )ã‚ˆã‚Šï¼ºå€¤ãŒå¤§ãã‹ã£ãŸã‚‰å¥¥ã«ã‚ã‚‹ã¨ã„ã†ã“ã¨ã§æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹
 			ShadowRate.x = smoothstep( PSInput.ShadowMap1Pos.z - cfShadowMap1_DAdj_Grad_Enbl0_1.y, PSInput.ShadowMap1Pos.z, TextureDepth.r + cfShadowMap1_DAdj_Grad_Enbl0_1.x ) ;
 		}
 
-		// ’¸“_‚ÌƒeƒNƒXƒ`ƒƒÀ•W’l‚ª”ÍˆÍ“à‚Ìê‡‚Ì‚Ýˆ—‚·‚é
+		// é ‚ç‚¹ã®ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™å€¤ãŒç¯„å›²å†…ã®å ´åˆã®ã¿å‡¦ç†ã™ã‚‹
 		if( PSInput.ShadowMap2Pos.x < -1.0f || PSInput.ShadowMap2Pos.x > 1.0f ||
 		    PSInput.ShadowMap2Pos.y < -1.0f || PSInput.ShadowMap2Pos.y > 1.0f ||
 		    PSInput.ShadowMap2Pos.z <  0.0f || PSInput.ShadowMap2Pos.z > 1.0f )
@@ -151,17 +151,17 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		}
 		else
 		{
-			// [“xƒeƒNƒXƒ`ƒƒ‚ÌÀ•W‚ðŽZo
-			// PSInput.ShadowMap1Pos.xy ‚Í -1.0f ` 1.0f ‚Ì’l‚È‚Ì‚ÅA‚±‚ê‚ð 0.0f ` 1.0f ‚Ì’l‚É‚·‚é
+			// æ·±åº¦ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®åº§æ¨™ã‚’ç®—å‡º
+			// PSInput.ShadowMap1Pos.xy ã¯ -1.0f ï½ž 1.0f ã®å€¤ãªã®ã§ã€ã“ã‚Œã‚’ 0.0f ï½ž 1.0f ã®å€¤ã«ã™ã‚‹
 			DepthTexCoord.x = ( PSInput.ShadowMap2Pos.x + 1.0f ) / 2.0f;
 
-			// y‚ÍX‚Éã‰º”½“]
+			// yã¯æ›´ã«ä¸Šä¸‹åè»¢
 			DepthTexCoord.y = 1.0f - ( PSInput.ShadowMap2Pos.y + 1.0f ) / 2.0f;
 
-			// [“xƒoƒbƒtƒ@ƒeƒNƒXƒ`ƒƒ‚©‚ç[“x‚ðŽæ“¾
+			// æ·±åº¦ãƒãƒƒãƒ•ã‚¡ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‹ã‚‰æ·±åº¦ã‚’å–å¾—
 			TextureDepth = tex2D( ShadowMap2Texture, DepthTexCoord );
 
-			// ƒeƒNƒXƒ`ƒƒ‚É‹L˜^‚³‚ê‚Ä‚¢‚é[“x( +•â³’l )‚æ‚è‚y’l‚ª‘å‚«‚©‚Á‚½‚ç‰œ‚É‚ ‚é‚Æ‚¢‚¤‚±‚Æ‚ÅŒ¸Š—¦‚ðÅ‘å‚É‚·‚é
+			// ãƒ†ã‚¯ã‚¹ãƒãƒ£ã«è¨˜éŒ²ã•ã‚Œã¦ã„ã‚‹æ·±åº¦( +è£œæ­£å€¤ )ã‚ˆã‚Šï¼ºå€¤ãŒå¤§ãã‹ã£ãŸã‚‰å¥¥ã«ã‚ã‚‹ã¨ã„ã†ã“ã¨ã§æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹
 			ShadowRate.y = smoothstep( PSInput.ShadowMap2Pos.z - cfShadowMap2_DAdj_Grad_Enbl0_1.y, PSInput.ShadowMap2Pos.z, TextureDepth.r + cfShadowMap2_DAdj_Grad_Enbl0_1.x ) ;
 		}
 	#else // SHADOWMAP
@@ -171,52 +171,52 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 	
-// ƒ‰ƒCƒg0‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
+// ãƒ©ã‚¤ãƒˆ0ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 #if LG0_USE
 
 	#if LG0_DIR
 
-		// ƒ‰ƒCƒg‚Ì•ûŒüŒvŽZ
+		// ãƒ©ã‚¤ãƒˆã®æ–¹å‘è¨ˆç®—
 		lLightDir = cfLight[ 0 ].Direction ;
 
 	#else  // LG0_DIR
 
-		// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		lLightDir = normalize( PSInput.VPosition.xyz - cfLight[ 0 ].Position.xyz ) ;
 
 	#endif  // LG0_DIR
 	
 
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( ŠJŽn )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( é–‹å§‹ )
 	#if LG0_SPOT || LG0_POINT
 
-		// ‹——£Œ¸ŠŒvŽZ ------------------
+		// è·é›¢æ¸›è¡°è¨ˆç®— ------------------
 
-		// ’¸“_‚Æƒ‰ƒCƒgˆÊ’u‚Æ‚Ì‹——£‚Ì“ñæ‚ð‹‚ß‚é
+		// é ‚ç‚¹ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã¨ã®è·é›¢ã®äºŒä¹—ã‚’æ±‚ã‚ã‚‹
 		lLightTemp = PSInput.VPosition.xyz - cfLight[ 0 ].Position.xyz ;
 		lLightDistancePow2 = dot( lLightTemp, lLightTemp ) ;
 
-		// Œ¸Š—¦‚ÌŒvŽZ lLightGen = 1 / ( Œ¸Š’l0 + Œ¸Š’l1 * ‹——£ + Œ¸Š’l2 * ( ‹——£ * ‹——£ ) )
+		// æ¸›è¡°çŽ‡ã®è¨ˆç®— lLightGen = 1 / ( æ¸›è¡°å€¤0 + æ¸›è¡°å€¤1 * è·é›¢ + æ¸›è¡°å€¤2 * ( è·é›¢ * è·é›¢ ) )
 		lLightGen = cfZeroHalfOneTwo.z / ( cfLight[ 0 ].Range_FallOff_AT0_AT1.z + cfLight[ 0 ].Range_FallOff_AT0_AT1.w * sqrt( lLightDistancePow2 ) + cfLight[ 0 ].AT2_SpotP0_SpotP1.x * lLightDistancePow2 ) ;
 
 		// --------------------------------
 
 
-		// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ --------
+		// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®— --------
 		#if LG0_SPOT
 
-			// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚Æƒ‰ƒCƒgˆÊ’u‚©‚ç’¸“_ˆÊ’u‚Ö‚ÌƒxƒNƒgƒ‹‚Ì“àÏ( ‘¦‚¿ Cos a )‚ðŒvŽZ 
+			// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã‹ã‚‰é ‚ç‚¹ä½ç½®ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©( å³ã¡ Cos a )ã‚’è¨ˆç®— 
 			lLightDirectionCosA = dot( lLightDir, cfLight[ 0 ].Direction ) ;
 
-			// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
+			// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®—  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
 			lLightGen *= saturate( pow( abs( max( lLightDirectionCosA - cfLight[ 0 ].AT2_SpotP0_SpotP1.y, 0.0f ) * cfLight[ 0 ].AT2_SpotP0_SpotP1.z ), cfLight[ 0 ].Range_FallOff_AT0_AT1.y ) ) ;
 
 		#endif // LG0_SPOT
 		// --------------------------------
 
 
-		// —LŒø‹——£ŠO‚¾‚Á‚½‚çŒ¸Š—¦‚ðÅ‘å‚É‚·‚éˆ—
+		// æœ‰åŠ¹è·é›¢å¤–ã ã£ãŸã‚‰æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹å‡¦ç†
 		lLightGen *= step( lLightDistancePow2, cfLight[ 0 ].Range_FallOff_AT0_AT1.x ) ;
 
 	#else // LG0_SPOT || LG0_POINT
@@ -225,31 +225,31 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		
 	#endif // LG0_SPOT || LG0_POINT
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( I—¹ )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( çµ‚äº† )
 
 	
-	// ‰e‚É‚æ‚éŒ¸Š—¦ŽZo
+	// å½±ã«ã‚ˆã‚‹æ¸›è¡°çŽ‡ç®—å‡º
 	ShadowGen = max( ShadowRate.x, SHADOWMAP1_ENABLE_LGT0 ) * max( ShadowRate.y, SHADOWMAP2_ENABLE_LGT0 ) ;
 
 
-	// ƒfƒBƒtƒ…[ƒYFŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè‰²è¨ˆç®—
 
-	// ƒfƒBƒtƒ…[ƒYŠp“xŒ¸Š—¦ŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°çŽ‡è¨ˆç®—
 	DiffuseAngleGen = saturate( dot( Normal, -lLightDir ) ) ;
 	
 	#if TOON
 		#if TOON == 1
-			// ƒgƒD[ƒ“‚Ìê‡‚Í‚±‚ÌŽž“_‚Å‚Í’¸“_orƒ}ƒeƒŠƒAƒ‹‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ÍŽg—p‚µ‚È‚¢
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ã®å ´åˆã¯ã“ã®æ™‚ç‚¹ã§ã¯é ‚ç‚¹orãƒžãƒ†ãƒªã‚¢ãƒ«ã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¯ä½¿ç”¨ã—ãªã„
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TempF4 = cfLight[ 0 ].Diffuse * DiffuseAngleGen ;
 			TotalLightDiffuse += TempF4 * lLightGen * ShadowGen ;
 			TotalDiffuse += ( TempF4 + cfLight[ 0 ].Ambient ) * lLightGen ;
 
 		#else // TOON == 1
-			// ƒgƒD[ƒ“‚Q‚Ìê‡‚ÍƒfƒBƒtƒ…[ƒYƒJƒ‰[‚Æƒ‰ƒCƒg‚ÌŠp“xŒ¸Š‚Í•ÊX‚É•Û‘¶‚µ‚Ä‚¨‚­
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ï¼’ã®å ´åˆã¯ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¨ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°ã¯åˆ¥ã€…ã«ä¿å­˜ã—ã¦ãŠã
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TotalDiffuse += cfLight[ 0 ].Diffuse ;
 
 			TotalAmbient += cfLight[ 0 ].Ambient.rgb ;
@@ -258,7 +258,7 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		#endif // TOON == 1
 	#else // TOON
 	
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 		TotalDiffuse += ( cfLight[ 0 ].Diffuse * PSInput.Diffuse * DiffuseAngleGen * ShadowGen + cfLight[ 0 ].Ambient ) * lLightGen ;
 
 	#endif // TOON
@@ -266,23 +266,23 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 
-	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ
+	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®—
 	#ifdef USE_SPE
 
-		// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		TempF3 = normalize( V_to_Eye - lLightDir ) ;
 		
 		// Temp = pow( max( 0.0f, N * H ), cfMaterial.Power.x )
 		Temp = pow( max( cfZeroHalfOneTwo.x, dot( Normal, TempF3 ) ), cfMaterial.Power.x ) ;
 
-		// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦ * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+		// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 		TotalSpecular += Temp * lLightGen * cfLight[ 0 ].Specular * ShadowGen ;
 
 	#endif // USE_SPE
 
 
 #endif // LG0_USE
-// ƒ‰ƒCƒg0‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+// ãƒ©ã‚¤ãƒˆ0ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
 
@@ -293,52 +293,52 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 	
-// ƒ‰ƒCƒg1‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
+// ãƒ©ã‚¤ãƒˆ1ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 #if LG1_USE
 
 	#if LG1_DIR
 
-		// ƒ‰ƒCƒg‚Ì•ûŒüŒvŽZ
+		// ãƒ©ã‚¤ãƒˆã®æ–¹å‘è¨ˆç®—
 		lLightDir = cfLight[ 1 ].Direction ;
 
 	#else  // LG1_DIR
 
-		// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		lLightDir = normalize( PSInput.VPosition.xyz - cfLight[ 1 ].Position.xyz ) ;
 
 	#endif  // LG1_DIR
 	
 
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( ŠJŽn )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( é–‹å§‹ )
 	#if LG1_SPOT || LG1_POINT
 
-		// ‹——£Œ¸ŠŒvŽZ ------------------
+		// è·é›¢æ¸›è¡°è¨ˆç®— ------------------
 
-		// ’¸“_‚Æƒ‰ƒCƒgˆÊ’u‚Æ‚Ì‹——£‚Ì“ñæ‚ð‹‚ß‚é
+		// é ‚ç‚¹ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã¨ã®è·é›¢ã®äºŒä¹—ã‚’æ±‚ã‚ã‚‹
 		lLightTemp = PSInput.VPosition.xyz - cfLight[ 1 ].Position.xyz ;
 		lLightDistancePow2 = dot( lLightTemp, lLightTemp ) ;
 
-		// Œ¸Š—¦‚ÌŒvŽZ lLightGen = 1 / ( Œ¸Š’l0 + Œ¸Š’l1 * ‹——£ + Œ¸Š’l2 * ( ‹——£ * ‹——£ ) )
+		// æ¸›è¡°çŽ‡ã®è¨ˆç®— lLightGen = 1 / ( æ¸›è¡°å€¤0 + æ¸›è¡°å€¤1 * è·é›¢ + æ¸›è¡°å€¤2 * ( è·é›¢ * è·é›¢ ) )
 		lLightGen = cfZeroHalfOneTwo.z / ( cfLight[ 1 ].Range_FallOff_AT0_AT1.z + cfLight[ 1 ].Range_FallOff_AT0_AT1.w * sqrt( lLightDistancePow2 ) + cfLight[ 1 ].AT2_SpotP0_SpotP1.x * lLightDistancePow2 ) ;
 
 		// --------------------------------
 
 
-		// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ --------
+		// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®— --------
 		#if LG1_SPOT
 
-			// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚Æƒ‰ƒCƒgˆÊ’u‚©‚ç’¸“_ˆÊ’u‚Ö‚ÌƒxƒNƒgƒ‹‚Ì“àÏ( ‘¦‚¿ Cos a )‚ðŒvŽZ 
+			// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã‹ã‚‰é ‚ç‚¹ä½ç½®ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©( å³ã¡ Cos a )ã‚’è¨ˆç®— 
 			lLightDirectionCosA = dot( lLightDir, cfLight[ 1 ].Direction ) ;
 
-			// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
+			// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®—  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
 			lLightGen *= saturate( pow( abs( max( lLightDirectionCosA - cfLight[ 1 ].AT2_SpotP0_SpotP1.y, 0.0f ) * cfLight[ 1 ].AT2_SpotP0_SpotP1.z ), cfLight[ 1 ].Range_FallOff_AT0_AT1.y ) ) ;
 
 		#endif // LG1_SPOT
 		// --------------------------------
 
 
-		// —LŒø‹——£ŠO‚¾‚Á‚½‚çŒ¸Š—¦‚ðÅ‘å‚É‚·‚éˆ—
+		// æœ‰åŠ¹è·é›¢å¤–ã ã£ãŸã‚‰æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹å‡¦ç†
 		lLightGen *= step( lLightDistancePow2, cfLight[ 1 ].Range_FallOff_AT0_AT1.x ) ;
 
 	#else // LG1_SPOT || LG1_POINT
@@ -347,31 +347,31 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		
 	#endif // LG1_SPOT || LG1_POINT
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( I—¹ )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( çµ‚äº† )
 
 	
-	// ‰e‚É‚æ‚éŒ¸Š—¦ŽZo
+	// å½±ã«ã‚ˆã‚‹æ¸›è¡°çŽ‡ç®—å‡º
 	ShadowGen = max( ShadowRate.x, SHADOWMAP1_ENABLE_LGT1 ) * max( ShadowRate.y, SHADOWMAP2_ENABLE_LGT1 ) ;
 
 
-	// ƒfƒBƒtƒ…[ƒYFŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè‰²è¨ˆç®—
 
-	// ƒfƒBƒtƒ…[ƒYŠp“xŒ¸Š—¦ŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°çŽ‡è¨ˆç®—
 	DiffuseAngleGen = saturate( dot( Normal, -lLightDir ) ) ;
 	
 	#if TOON
 		#if TOON == 1
-			// ƒgƒD[ƒ“‚Ìê‡‚Í‚±‚ÌŽž“_‚Å‚Í’¸“_orƒ}ƒeƒŠƒAƒ‹‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ÍŽg—p‚µ‚È‚¢
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ã®å ´åˆã¯ã“ã®æ™‚ç‚¹ã§ã¯é ‚ç‚¹orãƒžãƒ†ãƒªã‚¢ãƒ«ã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¯ä½¿ç”¨ã—ãªã„
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TempF4 = cfLight[ 1 ].Diffuse * DiffuseAngleGen ;
 			TotalLightDiffuse += TempF4 * lLightGen * ShadowGen ;
 			TotalDiffuse += ( TempF4 + cfLight[ 1 ].Ambient ) * lLightGen ;
 
 		#else // TOON == 1
-			// ƒgƒD[ƒ“‚Q‚Ìê‡‚ÍƒfƒBƒtƒ…[ƒYƒJƒ‰[‚Æƒ‰ƒCƒg‚ÌŠp“xŒ¸Š‚Í•ÊX‚É•Û‘¶‚µ‚Ä‚¨‚­
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ï¼’ã®å ´åˆã¯ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¨ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°ã¯åˆ¥ã€…ã«ä¿å­˜ã—ã¦ãŠã
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TotalDiffuse += cfLight[ 1 ].Diffuse ;
 
 			TotalAmbient += cfLight[ 1 ].Ambient.rgb ;
@@ -380,7 +380,7 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		#endif // TOON == 1
 	#else // TOON
 	
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 		TotalDiffuse += ( cfLight[ 1 ].Diffuse * PSInput.Diffuse * DiffuseAngleGen * ShadowGen + cfLight[ 1 ].Ambient ) * lLightGen ;
 
 	#endif // TOON
@@ -388,23 +388,23 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 
-	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ
+	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®—
 	#ifdef USE_SPE
 
-		// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		TempF3 = normalize( V_to_Eye - lLightDir ) ;
 		
 		// Temp = pow( max( 0.0f, N * H ), cfMaterial.Power.x )
 		Temp = pow( max( cfZeroHalfOneTwo.x, dot( Normal, TempF3 ) ), cfMaterial.Power.x ) ;
 
-		// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦ * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+		// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 		TotalSpecular += Temp * lLightGen * cfLight[ 1 ].Specular * ShadowGen ;
 
 	#endif // USE_SPE
 
 
 #endif // LG1_USE
-// ƒ‰ƒCƒg1‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+// ãƒ©ã‚¤ãƒˆ1ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
 
@@ -415,52 +415,52 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 	
-// ƒ‰ƒCƒg2‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
+// ãƒ©ã‚¤ãƒˆ2ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 #if LG2_USE
 
 	#if LG2_DIR
 
-		// ƒ‰ƒCƒg‚Ì•ûŒüŒvŽZ
+		// ãƒ©ã‚¤ãƒˆã®æ–¹å‘è¨ˆç®—
 		lLightDir = cfLight[ 2 ].Direction ;
 
 	#else  // LG2_DIR
 
-		// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		lLightDir = normalize( PSInput.VPosition.xyz - cfLight[ 2 ].Position.xyz ) ;
 
 	#endif  // LG2_DIR
 	
 
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( ŠJŽn )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( é–‹å§‹ )
 	#if LG2_SPOT || LG2_POINT
 
-		// ‹——£Œ¸ŠŒvŽZ ------------------
+		// è·é›¢æ¸›è¡°è¨ˆç®— ------------------
 
-		// ’¸“_‚Æƒ‰ƒCƒgˆÊ’u‚Æ‚Ì‹——£‚Ì“ñæ‚ð‹‚ß‚é
+		// é ‚ç‚¹ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã¨ã®è·é›¢ã®äºŒä¹—ã‚’æ±‚ã‚ã‚‹
 		lLightTemp = PSInput.VPosition.xyz - cfLight[ 2 ].Position.xyz ;
 		lLightDistancePow2 = dot( lLightTemp, lLightTemp ) ;
 
-		// Œ¸Š—¦‚ÌŒvŽZ lLightGen = 1 / ( Œ¸Š’l0 + Œ¸Š’l1 * ‹——£ + Œ¸Š’l2 * ( ‹——£ * ‹——£ ) )
+		// æ¸›è¡°çŽ‡ã®è¨ˆç®— lLightGen = 1 / ( æ¸›è¡°å€¤0 + æ¸›è¡°å€¤1 * è·é›¢ + æ¸›è¡°å€¤2 * ( è·é›¢ * è·é›¢ ) )
 		lLightGen = cfZeroHalfOneTwo.z / ( cfLight[ 2 ].Range_FallOff_AT0_AT1.z + cfLight[ 2 ].Range_FallOff_AT0_AT1.w * sqrt( lLightDistancePow2 ) + cfLight[ 2 ].AT2_SpotP0_SpotP1.x * lLightDistancePow2 ) ;
 
 		// --------------------------------
 
 
-		// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ --------
+		// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®— --------
 		#if LG2_SPOT
 
-			// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚Æƒ‰ƒCƒgˆÊ’u‚©‚ç’¸“_ˆÊ’u‚Ö‚ÌƒxƒNƒgƒ‹‚Ì“àÏ( ‘¦‚¿ Cos a )‚ðŒvŽZ 
+			// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã‹ã‚‰é ‚ç‚¹ä½ç½®ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©( å³ã¡ Cos a )ã‚’è¨ˆç®— 
 			lLightDirectionCosA = dot( lLightDir, cfLight[ 2 ].Direction ) ;
 
-			// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
+			// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®—  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
 			lLightGen *= saturate( pow( abs( max( lLightDirectionCosA - cfLight[ 2 ].AT2_SpotP0_SpotP1.y, 0.0f ) * cfLight[ 2 ].AT2_SpotP0_SpotP1.z ), cfLight[ 2 ].Range_FallOff_AT0_AT1.y ) ) ;
 
 		#endif // LG2_SPOT
 		// --------------------------------
 
 
-		// —LŒø‹——£ŠO‚¾‚Á‚½‚çŒ¸Š—¦‚ðÅ‘å‚É‚·‚éˆ—
+		// æœ‰åŠ¹è·é›¢å¤–ã ã£ãŸã‚‰æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹å‡¦ç†
 		lLightGen *= step( lLightDistancePow2, cfLight[ 2 ].Range_FallOff_AT0_AT1.x ) ;
 
 	#else // LG2_SPOT || LG2_POINT
@@ -469,31 +469,31 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		
 	#endif // LG2_SPOT || LG2_POINT
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( I—¹ )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( çµ‚äº† )
 
 	
-	// ‰e‚É‚æ‚éŒ¸Š—¦ŽZo
+	// å½±ã«ã‚ˆã‚‹æ¸›è¡°çŽ‡ç®—å‡º
 	ShadowGen = max( ShadowRate.x, SHADOWMAP1_ENABLE_LGT2 ) * max( ShadowRate.y, SHADOWMAP2_ENABLE_LGT2 ) ;
 
 
-	// ƒfƒBƒtƒ…[ƒYFŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè‰²è¨ˆç®—
 
-	// ƒfƒBƒtƒ…[ƒYŠp“xŒ¸Š—¦ŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°çŽ‡è¨ˆç®—
 	DiffuseAngleGen = saturate( dot( Normal, -lLightDir ) ) ;
 	
 	#if TOON
 		#if TOON == 1
-			// ƒgƒD[ƒ“‚Ìê‡‚Í‚±‚ÌŽž“_‚Å‚Í’¸“_orƒ}ƒeƒŠƒAƒ‹‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ÍŽg—p‚µ‚È‚¢
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ã®å ´åˆã¯ã“ã®æ™‚ç‚¹ã§ã¯é ‚ç‚¹orãƒžãƒ†ãƒªã‚¢ãƒ«ã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¯ä½¿ç”¨ã—ãªã„
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TempF4 = cfLight[ 2 ].Diffuse * DiffuseAngleGen ;
 			TotalLightDiffuse += TempF4 * lLightGen * ShadowGen ;
 			TotalDiffuse += ( TempF4 + cfLight[ 2 ].Ambient ) * lLightGen ;
 
 		#else // TOON == 1
-			// ƒgƒD[ƒ“‚Q‚Ìê‡‚ÍƒfƒBƒtƒ…[ƒYƒJƒ‰[‚Æƒ‰ƒCƒg‚ÌŠp“xŒ¸Š‚Í•ÊX‚É•Û‘¶‚µ‚Ä‚¨‚­
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ï¼’ã®å ´åˆã¯ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¨ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°ã¯åˆ¥ã€…ã«ä¿å­˜ã—ã¦ãŠã
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TotalDiffuse += cfLight[ 2 ].Diffuse ;
 
 			TotalAmbient += cfLight[ 2 ].Ambient.rgb ;
@@ -502,7 +502,7 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		#endif // TOON == 1
 	#else // TOON
 	
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 		TotalDiffuse += ( cfLight[ 2 ].Diffuse * PSInput.Diffuse * DiffuseAngleGen * ShadowGen + cfLight[ 2 ].Ambient ) * lLightGen ;
 
 	#endif // TOON
@@ -510,23 +510,23 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 
-	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ
+	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®—
 	#ifdef USE_SPE
 
-		// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		TempF3 = normalize( V_to_Eye - lLightDir ) ;
 		
 		// Temp = pow( max( 0.0f, N * H ), cfMaterial.Power.x )
 		Temp = pow( max( cfZeroHalfOneTwo.x, dot( Normal, TempF3 ) ), cfMaterial.Power.x ) ;
 
-		// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦ * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+		// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 		TotalSpecular += Temp * lLightGen * cfLight[ 2 ].Specular * ShadowGen ;
 
 	#endif // USE_SPE
 
 
 #endif // LG2_USE
-// ƒ‰ƒCƒg2‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+// ãƒ©ã‚¤ãƒˆ2ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
 
@@ -537,52 +537,52 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 	
-// ƒ‰ƒCƒg3‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
+// ãƒ©ã‚¤ãƒˆ3ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 #if LG3_USE
 
 	#if LG3_DIR
 
-		// ƒ‰ƒCƒg‚Ì•ûŒüŒvŽZ
+		// ãƒ©ã‚¤ãƒˆã®æ–¹å‘è¨ˆç®—
 		lLightDir = cfLight[ 3 ].Direction ;
 
 	#else  // LG3_DIR
 
-		// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		lLightDir = normalize( PSInput.VPosition.xyz - cfLight[ 3 ].Position.xyz ) ;
 
 	#endif  // LG3_DIR
 	
 
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( ŠJŽn )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( é–‹å§‹ )
 	#if LG3_SPOT || LG3_POINT
 
-		// ‹——£Œ¸ŠŒvŽZ ------------------
+		// è·é›¢æ¸›è¡°è¨ˆç®— ------------------
 
-		// ’¸“_‚Æƒ‰ƒCƒgˆÊ’u‚Æ‚Ì‹——£‚Ì“ñæ‚ð‹‚ß‚é
+		// é ‚ç‚¹ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã¨ã®è·é›¢ã®äºŒä¹—ã‚’æ±‚ã‚ã‚‹
 		lLightTemp = PSInput.VPosition.xyz - cfLight[ 3 ].Position.xyz ;
 		lLightDistancePow2 = dot( lLightTemp, lLightTemp ) ;
 
-		// Œ¸Š—¦‚ÌŒvŽZ lLightGen = 1 / ( Œ¸Š’l0 + Œ¸Š’l1 * ‹——£ + Œ¸Š’l2 * ( ‹——£ * ‹——£ ) )
+		// æ¸›è¡°çŽ‡ã®è¨ˆç®— lLightGen = 1 / ( æ¸›è¡°å€¤0 + æ¸›è¡°å€¤1 * è·é›¢ + æ¸›è¡°å€¤2 * ( è·é›¢ * è·é›¢ ) )
 		lLightGen = cfZeroHalfOneTwo.z / ( cfLight[ 3 ].Range_FallOff_AT0_AT1.z + cfLight[ 3 ].Range_FallOff_AT0_AT1.w * sqrt( lLightDistancePow2 ) + cfLight[ 3 ].AT2_SpotP0_SpotP1.x * lLightDistancePow2 ) ;
 
 		// --------------------------------
 
 
-		// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ --------
+		// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®— --------
 		#if LG3_SPOT
 
-			// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚Æƒ‰ƒCƒgˆÊ’u‚©‚ç’¸“_ˆÊ’u‚Ö‚ÌƒxƒNƒgƒ‹‚Ì“àÏ( ‘¦‚¿ Cos a )‚ðŒvŽZ 
+			// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã‹ã‚‰é ‚ç‚¹ä½ç½®ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©( å³ã¡ Cos a )ã‚’è¨ˆç®— 
 			lLightDirectionCosA = dot( lLightDir, cfLight[ 3 ].Direction ) ;
 
-			// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
+			// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®—  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
 			lLightGen *= saturate( pow( abs( max( lLightDirectionCosA - cfLight[ 3 ].AT2_SpotP0_SpotP1.y, 0.0f ) * cfLight[ 3 ].AT2_SpotP0_SpotP1.z ), cfLight[ 3 ].Range_FallOff_AT0_AT1.y ) ) ;
 
 		#endif // LG3_SPOT
 		// --------------------------------
 
 
-		// —LŒø‹——£ŠO‚¾‚Á‚½‚çŒ¸Š—¦‚ðÅ‘å‚É‚·‚éˆ—
+		// æœ‰åŠ¹è·é›¢å¤–ã ã£ãŸã‚‰æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹å‡¦ç†
 		lLightGen *= step( lLightDistancePow2, cfLight[ 3 ].Range_FallOff_AT0_AT1.x ) ;
 
 	#else // LG3_SPOT || LG3_POINT
@@ -591,31 +591,31 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		
 	#endif // LG3_SPOT || LG3_POINT
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( I—¹ )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( çµ‚äº† )
 
 	
-	// ‰e‚É‚æ‚éŒ¸Š—¦ŽZo
+	// å½±ã«ã‚ˆã‚‹æ¸›è¡°çŽ‡ç®—å‡º
 	ShadowGen = max( ShadowRate.x, SHADOWMAP1_ENABLE_LGT3 ) * max( ShadowRate.y, SHADOWMAP2_ENABLE_LGT3 ) ;
 
 
-	// ƒfƒBƒtƒ…[ƒYFŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè‰²è¨ˆç®—
 
-	// ƒfƒBƒtƒ…[ƒYŠp“xŒ¸Š—¦ŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°çŽ‡è¨ˆç®—
 	DiffuseAngleGen = saturate( dot( Normal, -lLightDir ) ) ;
 	
 	#if TOON
 		#if TOON == 1
-			// ƒgƒD[ƒ“‚Ìê‡‚Í‚±‚ÌŽž“_‚Å‚Í’¸“_orƒ}ƒeƒŠƒAƒ‹‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ÍŽg—p‚µ‚È‚¢
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ã®å ´åˆã¯ã“ã®æ™‚ç‚¹ã§ã¯é ‚ç‚¹orãƒžãƒ†ãƒªã‚¢ãƒ«ã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¯ä½¿ç”¨ã—ãªã„
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TempF4 = cfLight[ 3 ].Diffuse * DiffuseAngleGen ;
 			TotalLightDiffuse += TempF4 * lLightGen * ShadowGen ;
 			TotalDiffuse += ( TempF4 + cfLight[ 3 ].Ambient ) * lLightGen ;
 
 		#else // TOON == 1
-			// ƒgƒD[ƒ“‚Q‚Ìê‡‚ÍƒfƒBƒtƒ…[ƒYƒJƒ‰[‚Æƒ‰ƒCƒg‚ÌŠp“xŒ¸Š‚Í•ÊX‚É•Û‘¶‚µ‚Ä‚¨‚­
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ï¼’ã®å ´åˆã¯ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¨ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°ã¯åˆ¥ã€…ã«ä¿å­˜ã—ã¦ãŠã
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TotalDiffuse += cfLight[ 3 ].Diffuse ;
 
 			TotalAmbient += cfLight[ 3 ].Ambient.rgb ;
@@ -624,7 +624,7 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		#endif // TOON == 1
 	#else // TOON
 	
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 		TotalDiffuse += ( cfLight[ 3 ].Diffuse * PSInput.Diffuse * DiffuseAngleGen * ShadowGen + cfLight[ 3 ].Ambient ) * lLightGen ;
 
 	#endif // TOON
@@ -632,23 +632,23 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 
-	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ
+	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®—
 	#ifdef USE_SPE
 
-		// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		TempF3 = normalize( V_to_Eye - lLightDir ) ;
 		
 		// Temp = pow( max( 0.0f, N * H ), cfMaterial.Power.x )
 		Temp = pow( max( cfZeroHalfOneTwo.x, dot( Normal, TempF3 ) ), cfMaterial.Power.x ) ;
 
-		// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦ * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+		// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 		TotalSpecular += Temp * lLightGen * cfLight[ 3 ].Specular * ShadowGen ;
 
 	#endif // USE_SPE
 
 
 #endif // LG3_USE
-// ƒ‰ƒCƒg3‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+// ãƒ©ã‚¤ãƒˆ3ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
 
@@ -659,52 +659,52 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 	
-// ƒ‰ƒCƒg4‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
+// ãƒ©ã‚¤ãƒˆ4ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 #if LG4_USE
 
 	#if LG4_DIR
 
-		// ƒ‰ƒCƒg‚Ì•ûŒüŒvŽZ
+		// ãƒ©ã‚¤ãƒˆã®æ–¹å‘è¨ˆç®—
 		lLightDir = cfLight[ 4 ].Direction ;
 
 	#else  // LG4_DIR
 
-		// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		lLightDir = normalize( PSInput.VPosition.xyz - cfLight[ 4 ].Position.xyz ) ;
 
 	#endif  // LG4_DIR
 	
 
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( ŠJŽn )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( é–‹å§‹ )
 	#if LG4_SPOT || LG4_POINT
 
-		// ‹——£Œ¸ŠŒvŽZ ------------------
+		// è·é›¢æ¸›è¡°è¨ˆç®— ------------------
 
-		// ’¸“_‚Æƒ‰ƒCƒgˆÊ’u‚Æ‚Ì‹——£‚Ì“ñæ‚ð‹‚ß‚é
+		// é ‚ç‚¹ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã¨ã®è·é›¢ã®äºŒä¹—ã‚’æ±‚ã‚ã‚‹
 		lLightTemp = PSInput.VPosition.xyz - cfLight[ 4 ].Position.xyz ;
 		lLightDistancePow2 = dot( lLightTemp, lLightTemp ) ;
 
-		// Œ¸Š—¦‚ÌŒvŽZ lLightGen = 1 / ( Œ¸Š’l0 + Œ¸Š’l1 * ‹——£ + Œ¸Š’l2 * ( ‹——£ * ‹——£ ) )
+		// æ¸›è¡°çŽ‡ã®è¨ˆç®— lLightGen = 1 / ( æ¸›è¡°å€¤0 + æ¸›è¡°å€¤1 * è·é›¢ + æ¸›è¡°å€¤2 * ( è·é›¢ * è·é›¢ ) )
 		lLightGen = cfZeroHalfOneTwo.z / ( cfLight[ 4 ].Range_FallOff_AT0_AT1.z + cfLight[ 4 ].Range_FallOff_AT0_AT1.w * sqrt( lLightDistancePow2 ) + cfLight[ 4 ].AT2_SpotP0_SpotP1.x * lLightDistancePow2 ) ;
 
 		// --------------------------------
 
 
-		// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ --------
+		// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®— --------
 		#if LG4_SPOT
 
-			// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚Æƒ‰ƒCƒgˆÊ’u‚©‚ç’¸“_ˆÊ’u‚Ö‚ÌƒxƒNƒgƒ‹‚Ì“àÏ( ‘¦‚¿ Cos a )‚ðŒvŽZ 
+			// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã‹ã‚‰é ‚ç‚¹ä½ç½®ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©( å³ã¡ Cos a )ã‚’è¨ˆç®— 
 			lLightDirectionCosA = dot( lLightDir, cfLight[ 4 ].Direction ) ;
 
-			// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
+			// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®—  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
 			lLightGen *= saturate( pow( abs( max( lLightDirectionCosA - cfLight[ 4 ].AT2_SpotP0_SpotP1.y, 0.0f ) * cfLight[ 4 ].AT2_SpotP0_SpotP1.z ), cfLight[ 4 ].Range_FallOff_AT0_AT1.y ) ) ;
 
 		#endif // LG4_SPOT
 		// --------------------------------
 
 
-		// —LŒø‹——£ŠO‚¾‚Á‚½‚çŒ¸Š—¦‚ðÅ‘å‚É‚·‚éˆ—
+		// æœ‰åŠ¹è·é›¢å¤–ã ã£ãŸã‚‰æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹å‡¦ç†
 		lLightGen *= step( lLightDistancePow2, cfLight[ 4 ].Range_FallOff_AT0_AT1.x ) ;
 
 	#else // LG4_SPOT || LG4_POINT
@@ -713,31 +713,31 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		
 	#endif // LG4_SPOT || LG4_POINT
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( I—¹ )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( çµ‚äº† )
 
 	
-	// ‰e‚É‚æ‚éŒ¸Š—¦ŽZo
+	// å½±ã«ã‚ˆã‚‹æ¸›è¡°çŽ‡ç®—å‡º
 	ShadowGen = max( ShadowRate.x, SHADOWMAP1_ENABLE_LGT4 ) * max( ShadowRate.y, SHADOWMAP2_ENABLE_LGT4 ) ;
 
 
-	// ƒfƒBƒtƒ…[ƒYFŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè‰²è¨ˆç®—
 
-	// ƒfƒBƒtƒ…[ƒYŠp“xŒ¸Š—¦ŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°çŽ‡è¨ˆç®—
 	DiffuseAngleGen = saturate( dot( Normal, -lLightDir ) ) ;
 	
 	#if TOON
 		#if TOON == 1
-			// ƒgƒD[ƒ“‚Ìê‡‚Í‚±‚ÌŽž“_‚Å‚Í’¸“_orƒ}ƒeƒŠƒAƒ‹‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ÍŽg—p‚µ‚È‚¢
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ã®å ´åˆã¯ã“ã®æ™‚ç‚¹ã§ã¯é ‚ç‚¹orãƒžãƒ†ãƒªã‚¢ãƒ«ã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¯ä½¿ç”¨ã—ãªã„
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TempF4 = cfLight[ 4 ].Diffuse * DiffuseAngleGen ;
 			TotalLightDiffuse += TempF4 * lLightGen * ShadowGen ;
 			TotalDiffuse += ( TempF4 + cfLight[ 4 ].Ambient ) * lLightGen ;
 
 		#else // TOON == 1
-			// ƒgƒD[ƒ“‚Q‚Ìê‡‚ÍƒfƒBƒtƒ…[ƒYƒJƒ‰[‚Æƒ‰ƒCƒg‚ÌŠp“xŒ¸Š‚Í•ÊX‚É•Û‘¶‚µ‚Ä‚¨‚­
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ï¼’ã®å ´åˆã¯ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¨ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°ã¯åˆ¥ã€…ã«ä¿å­˜ã—ã¦ãŠã
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TotalDiffuse += cfLight[ 4 ].Diffuse ;
 
 			TotalAmbient += cfLight[ 4 ].Ambient.rgb ;
@@ -746,7 +746,7 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		#endif // TOON == 1
 	#else // TOON
 	
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 		TotalDiffuse += ( cfLight[ 4 ].Diffuse * PSInput.Diffuse * DiffuseAngleGen * ShadowGen + cfLight[ 4 ].Ambient ) * lLightGen ;
 
 	#endif // TOON
@@ -754,23 +754,23 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 
-	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ
+	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®—
 	#ifdef USE_SPE
 
-		// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		TempF3 = normalize( V_to_Eye - lLightDir ) ;
 		
 		// Temp = pow( max( 0.0f, N * H ), cfMaterial.Power.x )
 		Temp = pow( max( cfZeroHalfOneTwo.x, dot( Normal, TempF3 ) ), cfMaterial.Power.x ) ;
 
-		// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦ * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+		// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 		TotalSpecular += Temp * lLightGen * cfLight[ 4 ].Specular * ShadowGen ;
 
 	#endif // USE_SPE
 
 
 #endif // LG4_USE
-// ƒ‰ƒCƒg4‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+// ãƒ©ã‚¤ãƒˆ4ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
 
@@ -781,52 +781,52 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 	
-// ƒ‰ƒCƒg5‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
+// ãƒ©ã‚¤ãƒˆ5ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 #if LG5_USE
 
 	#if LG5_DIR
 
-		// ƒ‰ƒCƒg‚Ì•ûŒüŒvŽZ
+		// ãƒ©ã‚¤ãƒˆã®æ–¹å‘è¨ˆç®—
 		lLightDir = cfLight[ 5 ].Direction ;
 
 	#else  // LG5_DIR
 
-		// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		lLightDir = normalize( PSInput.VPosition.xyz - cfLight[ 5 ].Position.xyz ) ;
 
 	#endif  // LG5_DIR
 	
 
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( ŠJŽn )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( é–‹å§‹ )
 	#if LG5_SPOT || LG5_POINT
 
-		// ‹——£Œ¸ŠŒvŽZ ------------------
+		// è·é›¢æ¸›è¡°è¨ˆç®— ------------------
 
-		// ’¸“_‚Æƒ‰ƒCƒgˆÊ’u‚Æ‚Ì‹——£‚Ì“ñæ‚ð‹‚ß‚é
+		// é ‚ç‚¹ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã¨ã®è·é›¢ã®äºŒä¹—ã‚’æ±‚ã‚ã‚‹
 		lLightTemp = PSInput.VPosition.xyz - cfLight[ 5 ].Position.xyz ;
 		lLightDistancePow2 = dot( lLightTemp, lLightTemp ) ;
 
-		// Œ¸Š—¦‚ÌŒvŽZ lLightGen = 1 / ( Œ¸Š’l0 + Œ¸Š’l1 * ‹——£ + Œ¸Š’l2 * ( ‹——£ * ‹——£ ) )
+		// æ¸›è¡°çŽ‡ã®è¨ˆç®— lLightGen = 1 / ( æ¸›è¡°å€¤0 + æ¸›è¡°å€¤1 * è·é›¢ + æ¸›è¡°å€¤2 * ( è·é›¢ * è·é›¢ ) )
 		lLightGen = cfZeroHalfOneTwo.z / ( cfLight[ 5 ].Range_FallOff_AT0_AT1.z + cfLight[ 5 ].Range_FallOff_AT0_AT1.w * sqrt( lLightDistancePow2 ) + cfLight[ 5 ].AT2_SpotP0_SpotP1.x * lLightDistancePow2 ) ;
 
 		// --------------------------------
 
 
-		// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ --------
+		// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®— --------
 		#if LG5_SPOT
 
-			// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚Æƒ‰ƒCƒgˆÊ’u‚©‚ç’¸“_ˆÊ’u‚Ö‚ÌƒxƒNƒgƒ‹‚Ì“àÏ( ‘¦‚¿ Cos a )‚ðŒvŽZ 
+			// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã‹ã‚‰é ‚ç‚¹ä½ç½®ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©( å³ã¡ Cos a )ã‚’è¨ˆç®— 
 			lLightDirectionCosA = dot( lLightDir, cfLight[ 5 ].Direction ) ;
 
-			// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
+			// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®—  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
 			lLightGen *= saturate( pow( abs( max( lLightDirectionCosA - cfLight[ 5 ].AT2_SpotP0_SpotP1.y, 0.0f ) * cfLight[ 5 ].AT2_SpotP0_SpotP1.z ), cfLight[ 5 ].Range_FallOff_AT0_AT1.y ) ) ;
 
 		#endif // LG5_SPOT
 		// --------------------------------
 
 
-		// —LŒø‹——£ŠO‚¾‚Á‚½‚çŒ¸Š—¦‚ðÅ‘å‚É‚·‚éˆ—
+		// æœ‰åŠ¹è·é›¢å¤–ã ã£ãŸã‚‰æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹å‡¦ç†
 		lLightGen *= step( lLightDistancePow2, cfLight[ 5 ].Range_FallOff_AT0_AT1.x ) ;
 
 	#else // LG5_SPOT || LG5_POINT
@@ -835,31 +835,31 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		
 	#endif // LG5_SPOT || LG5_POINT
 	
-	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =======================================( I—¹ )
+	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =======================================( çµ‚äº† )
 
 	
-	// ‰e‚É‚æ‚éŒ¸Š—¦ŽZo
+	// å½±ã«ã‚ˆã‚‹æ¸›è¡°çŽ‡ç®—å‡º
 	ShadowGen = max( ShadowRate.x, SHADOWMAP1_ENABLE_LGT5 ) * max( ShadowRate.y, SHADOWMAP2_ENABLE_LGT5 ) ;
 
 
-	// ƒfƒBƒtƒ…[ƒYFŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè‰²è¨ˆç®—
 
-	// ƒfƒBƒtƒ…[ƒYŠp“xŒ¸Š—¦ŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°çŽ‡è¨ˆç®—
 	DiffuseAngleGen = saturate( dot( Normal, -lLightDir ) ) ;
 	
 	#if TOON
 		#if TOON == 1
-			// ƒgƒD[ƒ“‚Ìê‡‚Í‚±‚ÌŽž“_‚Å‚Í’¸“_orƒ}ƒeƒŠƒAƒ‹‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ÍŽg—p‚µ‚È‚¢
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ã®å ´åˆã¯ã“ã®æ™‚ç‚¹ã§ã¯é ‚ç‚¹orãƒžãƒ†ãƒªã‚¢ãƒ«ã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¯ä½¿ç”¨ã—ãªã„
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TempF4 = cfLight[ 5 ].Diffuse * DiffuseAngleGen ;
 			TotalLightDiffuse += TempF4 * lLightGen * ShadowGen ;
 			TotalDiffuse += ( TempF4 + cfLight[ 5 ].Ambient ) * lLightGen ;
 
 		#else // TOON == 1
-			// ƒgƒD[ƒ“‚Q‚Ìê‡‚ÍƒfƒBƒtƒ…[ƒYƒJƒ‰[‚Æƒ‰ƒCƒg‚ÌŠp“xŒ¸Š‚Í•ÊX‚É•Û‘¶‚µ‚Ä‚¨‚­
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[
-			// ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦‚Ì’~Ï’l += ƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+			// ãƒˆã‚¥ãƒ¼ãƒ³ï¼’ã®å ´åˆã¯ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¨ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°ã¯åˆ¥ã€…ã«ä¿å­˜ã—ã¦ãŠã
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼
+			// ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ã®è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 			TotalDiffuse += cfLight[ 5 ].Diffuse ;
 
 			TotalAmbient += cfLight[ 5 ].Ambient.rgb ;
@@ -868,7 +868,7 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		#endif // TOON == 1
 	#else // TOON
 	
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 		TotalDiffuse += ( cfLight[ 5 ].Diffuse * PSInput.Diffuse * DiffuseAngleGen * ShadowGen + cfLight[ 5 ].Ambient ) * lLightGen ;
 
 	#endif // TOON
@@ -876,23 +876,23 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 
-	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ
+	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®—
 	#ifdef USE_SPE
 
-		// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		TempF3 = normalize( V_to_Eye - lLightDir ) ;
 		
 		// Temp = pow( max( 0.0f, N * H ), cfMaterial.Power.x )
 		Temp = pow( max( cfZeroHalfOneTwo.x, dot( Normal, TempF3 ) ), cfMaterial.Power.x ) ;
 
-		// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦ * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+		// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 		TotalSpecular += Temp * lLightGen * cfLight[ 5 ].Specular * ShadowGen ;
 
 	#endif // USE_SPE
 
 
 #endif // LG5_USE
-// ƒ‰ƒCƒg5‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+// ãƒ©ã‚¤ãƒˆ5ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
 
@@ -908,20 +908,20 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 
 
-	// o—ÍƒJƒ‰[ŒvŽZ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
+	// å‡ºåŠ›ã‚«ãƒ©ãƒ¼è¨ˆç®— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 
 	#if TOON != 2
-		// TotalDiffuse = ƒ‰ƒCƒgƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l + ( ƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ÆƒOƒ[ƒoƒ‹ƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì‚Æƒ}ƒeƒŠƒAƒ‹ƒGƒ~ƒbƒVƒuƒJƒ‰[‚ð‰ÁŽZ‚µ‚½‚à‚Ì )
+		// TotalDiffuse = ãƒ©ã‚¤ãƒˆãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ + ( ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ã‚°ãƒ­ãƒ¼ãƒãƒ«ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã‚¨ãƒŸãƒƒã‚·ãƒ–ã‚«ãƒ©ãƒ¼ã‚’åŠ ç®—ã—ãŸã‚‚ã® )
 		TotalDiffuse += cfAmbient_Emissive ;
 	#else // TOON != 2
-		// ƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Ì’~Ï’l += ƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ÆƒOƒ[ƒoƒ‹ƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì‚Æƒ}ƒeƒŠƒAƒ‹ƒGƒ~ƒbƒVƒuƒJƒ‰[‚ð‰ÁŽZ‚µ‚½‚à‚Ì
+		// ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ += ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ã‚°ãƒ­ãƒ¼ãƒãƒ«ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã‚¨ãƒŸãƒƒã‚·ãƒ–ã‚«ãƒ©ãƒ¼ã‚’åŠ ç®—ã—ãŸã‚‚ã®
 		TotalAmbient += cfAmbient_Emissive.rgb ;
 	#endif  // TOON != 2
 
 	#ifdef USE_SPE
 		#if TOON
 			#if TOON == 1
-				// ƒgƒD[ƒ“‚P‚ÌŽž‚Ìo—ÍŒvŽZ
+				// ãƒˆã‚¥ãƒ¼ãƒ³ï¼‘ã®æ™‚ã®å‡ºåŠ›è¨ˆç®—
 				ToonSpecularGradColor = tex2D( ToonSpecularGradTexture, max( TotalSpecular.b, max( TotalSpecular.r, TotalSpecular.g ) ) ) ;
 				
 				#ifdef USE_SPETEX
@@ -957,24 +957,24 @@ PS_OUTPUT main( PS_INPUT PSInput )
 				#endif // TOON_DIFOP_MUL
 				
 			#else  // TOON == 1
-				// ƒgƒD[ƒ“‚Q‚ÌŽž‚Ìo—ÍŒvŽZ
+				// ãƒˆã‚¥ãƒ¼ãƒ³ï¼’ã®æ™‚ã®å‡ºåŠ›è¨ˆç®—
 				ToonDiffuseGradColor = tex2D( ToonDiffuseGradTexture, TotalAngleGen ) ;
 
-				// o—Í = saturate( saturate( ƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Ì’~Ï’l + ƒ}ƒeƒŠƒAƒ‹‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[‚Ì’~Ï’l ) * ƒeƒNƒXƒ`ƒƒƒOƒ‰ƒf[ƒVƒ‡ƒ“ƒJƒ‰[ + ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l * ƒ}ƒeƒŠƒAƒ‹‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ ) * ƒeƒNƒXƒ`ƒƒƒJƒ‰[
+				// å‡ºåŠ› = saturate( saturate( ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ + ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ ) * ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚°ãƒ©ãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³ã‚«ãƒ©ãƒ¼ + ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ * ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼ ) * ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼
 				PSOutput.Color0.rgb = saturate( saturate( TotalDiffuse.rgb * PSInput.Diffuse.rgb + TotalAmbient ) * ToonDiffuseGradColor.rgb + PSInput.Specular.rgb * TotalSpecular.rgb ) * TextureDiffuseColor.rgb ;
 				
 				#if TOON_SPHEREOP_MUL || TOON_SPHEREOP_ADD
-					// ƒXƒtƒBƒAƒ}ƒbƒv‚ÌF‚ðŽæ“¾
+					// ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—ã®è‰²ã‚’å–å¾—
 					TempF3 = Normal * float3( 0.5f, -0.5f, 0.0f ) + cfZeroHalfOneTwo.yyy ;
 					ToonSphereMapColor = tex2D( ToonSphereMapTexture, TempF3.xy ) ;
 					
 					#if TOON_SPHEREOP_MUL
-						// ƒXƒtƒBƒAƒ}ƒbƒv‚ÌF‚ðo—Í‚ÉæŽZ
+						// ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—ã®è‰²ã‚’å‡ºåŠ›ã«ä¹—ç®—
 						PSOutput.Color0.rgb *= ToonSphereMapColor.rgb ;
 					#endif // TOON_SPHEREOP_MUL
 					
 					#if TOON_SPHEREOP_ADD
-						// ƒXƒtƒBƒAƒ}ƒbƒv‚ÌF‚ðo—Í‚É‰ÁŽZ
+						// ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—ã®è‰²ã‚’å‡ºåŠ›ã«åŠ ç®—
 						PSOutput.Color0.rgb += ToonSphereMapColor.rgb ;
 					#endif // TOON_SPHEREOP_ADD
 					
@@ -982,12 +982,12 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 				#if TOON_SPHEREOP_MUL
 
-					// o—ÍƒAƒ‹ƒtƒ@ = ƒeƒNƒXƒ`ƒƒƒAƒ‹ƒtƒ@ * FactorƒAƒ‹ƒtƒ@ * ’¸“_ƒAƒ‹ƒtƒ@ * ƒXƒtƒBƒAƒ}ƒbƒvƒAƒ‹ƒtƒ@
+					// å‡ºåŠ›ã‚¢ãƒ«ãƒ•ã‚¡ = ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚¢ãƒ«ãƒ•ã‚¡ * Factorã‚¢ãƒ«ãƒ•ã‚¡ * é ‚ç‚¹ã‚¢ãƒ«ãƒ•ã‚¡ * ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—ã‚¢ãƒ«ãƒ•ã‚¡
 					PSOutput.Color0.a = TextureDiffuseColor.a * cfFactorColor.a * PSInput.Diffuse.a * ToonSphereMapColor.a ;
 
 				#else // TOON_SPHEREOP_MUL
 
-					// o—ÍƒAƒ‹ƒtƒ@ = ƒeƒNƒXƒ`ƒƒƒAƒ‹ƒtƒ@ * FactorƒAƒ‹ƒtƒ@ * ’¸“_ƒAƒ‹ƒtƒ@
+					// å‡ºåŠ›ã‚¢ãƒ«ãƒ•ã‚¡ = ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚¢ãƒ«ãƒ•ã‚¡ * Factorã‚¢ãƒ«ãƒ•ã‚¡ * é ‚ç‚¹ã‚¢ãƒ«ãƒ•ã‚¡
 					PSOutput.Color0.a = TextureDiffuseColor.a * cfFactorColor.a * PSInput.Diffuse.a ;
 
 				#endif // TOON_SPHEREOP_MUL
@@ -996,14 +996,14 @@ PS_OUTPUT main( PS_INPUT PSInput )
 		#else  // TOON
 
 			#ifdef USE_SPETEX
-				// TextureSpecularColor = ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l * ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ * ƒXƒyƒLƒ…ƒ‰ƒeƒNƒXƒ`ƒƒƒJƒ‰[
+				// TextureSpecularColor = ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ * ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼ * ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼
 				TextureSpecularColor = tex2D( SpecularMapTexture, PSInput.TexCoords0_1.xy ) * TotalSpecular * PSInput.Specular ;
 			#else  // USE_SPETEX
-				// TextureSpecularColor = ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l * ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+				// TextureSpecularColor = ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ * ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 				TextureSpecularColor = TotalSpecular * PSInput.Specular ;
 			#endif // USE_SPETEX
 
-			// o—ÍƒJƒ‰[ = TotalDiffuse * ƒeƒNƒXƒ`ƒƒƒJƒ‰[ + TextureSpecularColor
+			// å‡ºåŠ›ã‚«ãƒ©ãƒ¼ = TotalDiffuse * ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼ + TextureSpecularColor
 
 			PSOutput.Color0.rgb = TextureDiffuseColor.rgb * TotalDiffuse.rgb + TextureSpecularColor.rgb ;
 			PSOutput.Color0.a = TextureDiffuseColor.a * cfFactorColor.a * PSInput.Diffuse.a ;
@@ -1018,41 +1018,41 @@ PS_OUTPUT main( PS_INPUT PSInput )
 				TextureDiffuseColor.rgb *= tex3D( ToonRGBtoVMaxRGBVolumeTexture, TotalLightDiffuse.rgb ).rgb * PSInput.Diffuse.rgb ;
 
 				#if TOON_DIFOP_MUL
-					// o—ÍƒJƒ‰[ = ƒeƒNƒXƒ`ƒƒƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l * ƒOƒ‰ƒf[ƒVƒ‡ƒ“ƒJƒ‰[
+					// å‡ºåŠ›ã‚«ãƒ©ãƒ¼ = ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ * ã‚°ãƒ©ãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³ã‚«ãƒ©ãƒ¼
 					PSOutput.Color0 = TextureDiffuseColor * ToonDiffuseGradColor ;
 				#endif // TOON_DIFOP_MUL
 				#if TOON_DIFOP_TRANS
-					// o—ÍƒJƒ‰[ = ƒOƒ‰ƒf[ƒVƒ‡ƒ“ƒJƒ‰[ * ƒOƒ‰ƒf[ƒVƒ‡ƒ“ƒ¿ + ( 1 - ƒOƒ‰ƒf[ƒVƒ‡ƒ“ƒ¿ ) * ( ƒeƒNƒXƒ`ƒƒƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l )
+					// å‡ºåŠ›ã‚«ãƒ©ãƒ¼ = ã‚°ãƒ©ãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³ã‚«ãƒ©ãƒ¼ * ã‚°ãƒ©ãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³Î± + ( 1 - ã‚°ãƒ©ãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³Î± ) * ( ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ )
 					PSOutput.Color0 = lerp( TextureDiffuseColor, ToonDiffuseGradColor, ToonDiffuseGradColor.a ) ;
 				#endif // TOON_DIFOP_TRANS
 
-				// o—Íƒ¿ = ƒeƒNƒXƒ`ƒƒƒ¿ * ƒfƒBƒtƒ…[ƒYƒ¿ * ‘åˆæƒ¿
+				// å‡ºåŠ›Î± = ãƒ†ã‚¯ã‚¹ãƒãƒ£Î± * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºÎ± * å¤§åŸŸÎ±
 				PSOutput.Color0.a = TextureDiffuseColor.a * cfFactorColor.a * PSInput.Diffuse.a ;
 
-				// æŽZ‚Ìê‡‚Íƒ¿’l‚àƒOƒ‰ƒf[ƒVƒ‡ƒ“ƒ¿‚ÆæŽZ‚·‚é
+				// ä¹—ç®—ã®å ´åˆã¯Î±å€¤ã‚‚ã‚°ãƒ©ãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³Î±ã¨ä¹—ç®—ã™ã‚‹
 				#if TOON_DIFOP_MUL
 					PSOutput.Color0.a *= ToonDiffuseGradColor.a ;
 				#endif // TOON_DIFOP_MUL
 
 			#else	// TOON == 1
-				// ƒgƒD[ƒ“‚Q‚ÌŽž‚Ìo—ÍŒvŽZ
+				// ãƒˆã‚¥ãƒ¼ãƒ³ï¼’ã®æ™‚ã®å‡ºåŠ›è¨ˆç®—
 				ToonDiffuseGradColor = tex2D( ToonDiffuseGradTexture, TotalAngleGen ) ;
 
-				// o—Í = ( ƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Ì’~Ï’l + ƒ}ƒeƒŠƒAƒ‹‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[‚Ì’~Ï’l ) * ƒeƒNƒXƒ`ƒƒƒOƒ‰ƒf[ƒVƒ‡ƒ“ƒJƒ‰[ * ƒeƒNƒXƒ`ƒƒƒJƒ‰[
+				// å‡ºåŠ› = ( ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ + ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ ) * ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚°ãƒ©ãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³ã‚«ãƒ©ãƒ¼ * ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼
 				PSOutput.Color0.rgb = saturate( TotalDiffuse.rgb * PSInput.Diffuse.rgb + TotalAmbient.rgb ) * ToonDiffuseGradColor.rgb * TextureDiffuseColor.rgb ;
 
 				#if TOON_SPHEREOP_MUL || TOON_SPHEREOP_ADD
-					// ƒXƒtƒBƒAƒ}ƒbƒv‚ÌF‚ðŽæ“¾
+					// ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—ã®è‰²ã‚’å–å¾—
 					TempF3 = Normal * float3( 0.5f, -0.5f, 0.0f ) + cfZeroHalfOneTwo.yyy ;
 					ToonSphereMapColor = tex2D( ToonSphereMapTexture, TempF3.xy ) ;
 					
 					#if TOON_SPHEREOP_MUL
-						// ƒXƒtƒBƒAƒ}ƒbƒv‚ÌF‚ðo—Í‚ÉæŽZ
+						// ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—ã®è‰²ã‚’å‡ºåŠ›ã«ä¹—ç®—
 						PSOutput.Color0.rgb *= ToonSphereMapColor.rgb ;
 					#endif // TOON_SPHEREOP_MUL
 					
 					#if TOON_SPHEREOP_ADD
-						// ƒXƒtƒBƒAƒ}ƒbƒv‚ÌF‚ðo—Í‚É‰ÁŽZ
+						// ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—ã®è‰²ã‚’å‡ºåŠ›ã«åŠ ç®—
 						PSOutput.Color0.rgb += ToonSphereMapColor.rgb ;
 					#endif // TOON_SPHEREOP_ADD
 					
@@ -1070,28 +1070,28 @@ PS_OUTPUT main( PS_INPUT PSInput )
 
 			#endif		// TOON == 1
 		#else  // TOON
-			// o—ÍƒJƒ‰[ = TotalDiffuse * ƒeƒNƒXƒ`ƒƒƒJƒ‰[
+			// å‡ºåŠ›ã‚«ãƒ©ãƒ¼ = TotalDiffuse * ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼
 			PSOutput.Color0.rgb = TotalDiffuse.rgb * TextureDiffuseColor.rgb ;
 
-			// o—Íƒ¿ = ƒeƒNƒXƒ`ƒƒƒ¿ * ƒfƒBƒtƒ…[ƒYƒ¿ * ‘åˆæƒ¿
+			// å‡ºåŠ›Î± = ãƒ†ã‚¯ã‚¹ãƒãƒ£Î± * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºÎ± * å¤§åŸŸÎ±
 			PSOutput.Color0.a = TextureDiffuseColor.a * cfFactorColor.a * PSInput.Diffuse.a ;
 		#endif // TOON
 
 	#endif // USE_SPE
 
-	// ƒtƒHƒOŒø‰Ê
+	// ãƒ•ã‚©ã‚°åŠ¹æžœ
 	PSOutput.Color0.rgb = lerp( cfFogColor.rgb, PSOutput.Color0.rgb, PSInput.Fog );
 
-	// ƒAƒ‹ƒtƒ@æŽZƒJƒ‰[
+	// ã‚¢ãƒ«ãƒ•ã‚¡ä¹—ç®—ã‚«ãƒ©ãƒ¼
 	if( cfMulAlphaColor.x > 0.5f )
 	{
 		PSOutput.Color0.rgb *= PSOutput.Color0.a;
 	}
 
-	// o—ÍƒJƒ‰[ŒvŽZ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+	// å‡ºåŠ›ã‚«ãƒ©ãƒ¼è¨ˆç®— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
-	// ƒ‰ƒCƒg‚ðŽg‚¤ê‡ *******************************************************************( I—¹ )
+	// ãƒ©ã‚¤ãƒˆã‚’ä½¿ã†å ´åˆ *******************************************************************( çµ‚äº† )
 
 	return PSOutput ;
 }

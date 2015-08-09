@@ -1,6 +1,6 @@
-#include "DxVertexShaderFxCode2.h"
+ï»¿#include "DxVertexShaderFxCode2.h"
 
-// mainŠÖ”
+// mainé–¢æ•°
 VS_OUTPUT main( VS_INPUT VSInput )
 {
 	VS_OUTPUT VSOutput ;
@@ -19,13 +19,13 @@ VS_OUTPUT main( VS_INPUT VSInput )
 #endif
 
 
-	// ’¸“_À•W•ÏŠ· ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJn )
+	// é ‚ç‚¹åº§æ¨™å¤‰æ› ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 
 	#ifdef SKINMESH
 
-		// ƒXƒLƒ“ƒƒbƒVƒ…
+		// ã‚¹ã‚­ãƒ³ãƒ¡ãƒƒã‚·ãƒ¥
 
-		// ƒuƒŒƒ“ƒhs—ñ‚Ìì¬
+		// ãƒ–ãƒ¬ãƒ³ãƒ‰è¡Œåˆ—ã®ä½œæˆ
 		lBoneFloatIndex = VSInput.BlendIndices0 ;
 		lLocalWorldMatrix[ 0 ]  = cfLocalWorldMatrix[ lBoneFloatIndex.x + 0 ] * VSInput.BlendWeight0.xxxx;
 		lLocalWorldMatrix[ 1 ]  = cfLocalWorldMatrix[ lBoneFloatIndex.x + 1 ] * VSInput.BlendWeight0.xxxx;
@@ -66,7 +66,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#endif	// SKINMESH
 
-	// À•WŒvZ( ƒ[ƒJƒ‹¨ƒrƒ…[¨ƒvƒƒWƒFƒNƒVƒ‡ƒ“ )
+	// åº§æ¨™è¨ˆç®—( ãƒ­ãƒ¼ã‚«ãƒ«â†’ãƒ“ãƒ¥ãƒ¼â†’ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³ )
 	lWorldPosition.x = dot( VSInput.Position, LOCAL_WORLD_MAT[ 0 ] ) ;
 	lWorldPosition.y = dot( VSInput.Position, LOCAL_WORLD_MAT[ 1 ] ) ;
 	lWorldPosition.z = dot( VSInput.Position, LOCAL_WORLD_MAT[ 2 ] ) ;
@@ -82,10 +82,10 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	VSOutput.Position.z = dot( lViewPosition, cfProjectionMatrix[ 2 ] ) ;
 	VSOutput.Position.w = dot( lViewPosition, cfProjectionMatrix[ 3 ] ) ;
 	
-	// À•W( ƒrƒ…[‹óŠÔ )‚ğ•Û‘¶
+	// åº§æ¨™( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )ã‚’ä¿å­˜
 	VSOutput.VPosition = lViewPosition.xyz;
 	
-	// –@ü‚ğŒvZ
+	// æ³•ç·šã‚’è¨ˆç®—
 	lWorldNrm.x = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 0 ].xyz ) ;
 	lWorldNrm.y = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 1 ].xyz ) ;
 	lWorldNrm.z = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 2 ].xyz ) ;
@@ -94,12 +94,12 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	lViewNrm.y = dot( lWorldNrm, cfViewMatrix[ 1 ].xyz ) ;
 	lViewNrm.z = dot( lWorldNrm, cfViewMatrix[ 2 ].xyz ) ;
 
-	// –@ü( ƒrƒ…[‹óŠÔ )‚ğ•Û‘¶
+	// æ³•ç·š( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )ã‚’ä¿å­˜
 	VSOutput.VNormal = lViewNrm;
 
 	#ifdef BUMPMAP
 
-		// ]–@üAÚü‚ğƒrƒ…[‹óŠÔ‚É“Š‰e‚·‚é
+		// å¾“æ³•ç·šã€æ¥ç·šã‚’ãƒ“ãƒ¥ãƒ¼ç©ºé–“ã«æŠ•å½±ã™ã‚‹
 		lWorldTan.x = dot( VSInput.Tan, LOCAL_WORLD_MAT[ 0 ].xyz ) ;
 		lWorldTan.y = dot( VSInput.Tan, LOCAL_WORLD_MAT[ 1 ].xyz ) ;
 		lWorldTan.z = dot( VSInput.Tan, LOCAL_WORLD_MAT[ 2 ].xyz ) ;
@@ -116,45 +116,45 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		lViewBin.y = dot( lWorldBin, cfViewMatrix[ 1 ].xyz ) ;
 		lViewBin.z = dot( lWorldBin, cfViewMatrix[ 2 ].xyz ) ;
 		
-		// ]–@üAÚü( ƒrƒ…[‹óŠÔ )‚ğ•Û‘¶
+		// å¾“æ³•ç·šã€æ¥ç·š( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )ã‚’ä¿å­˜
 		VSOutput.VTan = lViewTan;
 		VSOutput.VBin = lViewBin;
 
 	#endif	// BUMPMAP
 
-	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ğƒZƒbƒg
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã‚’ã‚»ãƒƒãƒˆ
 	VSOutput.Diffuse = cfDifSpeSource.x > 0.5f ? VSInput.Diffuse : cfMaterial.Diffuse;
 	
-	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[‚ğƒZƒbƒg
+	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼ã‚’ã‚»ãƒƒãƒˆ
 	VSOutput.Specular = cfDifSpeSource.y > 0.5f ? VSInput.Specular : cfMaterial.Specular;
 
-	// ’¸“_À•W•ÏŠ· ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+	// é ‚ç‚¹åº§æ¨™å¤‰æ› ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
 
 
 
-	// ƒtƒHƒOŒvZ =============================================( ŠJn )
+	// ãƒ•ã‚©ã‚°è¨ˆç®— =============================================( é–‹å§‹ )
 
 	#if FOG_LINEAR || FOG_EXP || FOG_EXP2
 
 		#ifdef FOG_LINEAR
 
-			// üŒ`ƒtƒHƒOŒvZ
+			// ç·šå½¢ãƒ•ã‚©ã‚°è¨ˆç®—
 			VSOutput.Fog = saturate( lViewPosition.z * FOG_LINEAR_DIV + FOG_LINEAR_ADD ) ;
 
 		#endif
 
 		#ifdef FOG_EXP
 
-			// w”ƒtƒHƒOŒvZ 1.0f / pow( e, ‹——£ * density )
+			// æŒ‡æ•°ãƒ•ã‚©ã‚°è¨ˆç®— 1.0f / pow( e, è·é›¢ * density )
 			VSOutput.Fog = saturate( 1.0f / pow( abs( FOG_EXP_E ), lViewPosition.z * FOG_EXP_DENSITY ) ) ;
 
 		#endif
 
 		#ifdef FOG_EXP2
 
-			// w”ƒtƒHƒO‚QŒvZ 1.0f / pow( e, ( ‹——£ * density ) * ( ‹——£ * density ) )
+			// æŒ‡æ•°ãƒ•ã‚©ã‚°ï¼’è¨ˆç®— 1.0f / pow( e, ( è·é›¢ * density ) * ( è·é›¢ * density ) )
 			VSOutput.Fog = saturate( 1.0f / pow( abs( FOG_EXP_E ), ( lViewPosition.z * FOG_EXP_DENSITY ) * ( lViewPosition.z * FOG_EXP_DENSITY ) ) ) ;
 
 		#endif
@@ -165,37 +165,37 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#endif // FOG_LINEAR || FOG_EXP || FOG_EXP2
 
-	// ƒtƒHƒOŒvZ =============================================( I—¹ )
+	// ãƒ•ã‚©ã‚°è¨ˆç®— =============================================( çµ‚äº† )
 
 #if SHADOWMAP
-	// [“x‰e—p‚Ìƒ‰ƒCƒg‚©‚çŒ©‚½Ë‰eÀ•W‚ğZo =================( ŠJn )
+	// æ·±åº¦å½±ç”¨ã®ãƒ©ã‚¤ãƒˆã‹ã‚‰è¦‹ãŸå°„å½±åº§æ¨™ã‚’ç®—å‡º =================( é–‹å§‹ )
 
-	// ƒ[ƒ‹ƒhÀ•W‚ğƒ‰ƒCƒg‚Ìƒrƒ…[À•W‚É•ÏŠ·
+	// ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™ã‚’ãƒ©ã‚¤ãƒˆã®ãƒ“ãƒ¥ãƒ¼åº§æ¨™ã«å¤‰æ›
 	lLViewPosition.x = dot( lWorldPosition, cfShadowMap1LightViewMatrix[ 0 ] ) ;
 	lLViewPosition.y = dot( lWorldPosition, cfShadowMap1LightViewMatrix[ 1 ] ) ;
 	lLViewPosition.z = dot( lWorldPosition, cfShadowMap1LightViewMatrix[ 2 ] ) ;
 	lLViewPosition.w = 1.0f ;
 
-	// ƒ‰ƒCƒg‚Ìƒrƒ…[À•W‚ğƒ‰ƒCƒg‚ÌË‰eÀ•W‚É•ÏŠ·
+	// ãƒ©ã‚¤ãƒˆã®ãƒ“ãƒ¥ãƒ¼åº§æ¨™ã‚’ãƒ©ã‚¤ãƒˆã®å°„å½±åº§æ¨™ã«å¤‰æ›
 	VSOutput.ShadowMap1Pos.x = dot( lLViewPosition, cfShadowMap1LightProjectionMatrix[ 0 ] ) ;
 	VSOutput.ShadowMap1Pos.y = dot( lLViewPosition, cfShadowMap1LightProjectionMatrix[ 1 ] ) ;
 	VSOutput.ShadowMap1Pos.z = dot( lLViewPosition, cfShadowMap1LightProjectionMatrix[ 2 ] ) ;
 
-	// ƒ[ƒ‹ƒhÀ•W‚ğƒ‰ƒCƒg‚Ìƒrƒ…[À•W‚É•ÏŠ·
+	// ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™ã‚’ãƒ©ã‚¤ãƒˆã®ãƒ“ãƒ¥ãƒ¼åº§æ¨™ã«å¤‰æ›
 	lLViewPosition.x = dot( lWorldPosition, cfShadowMap2LightViewMatrix[ 0 ] ) ;
 	lLViewPosition.y = dot( lWorldPosition, cfShadowMap2LightViewMatrix[ 1 ] ) ;
 	lLViewPosition.z = dot( lWorldPosition, cfShadowMap2LightViewMatrix[ 2 ] ) ;
 	lLViewPosition.w = 1.0f ;
 
-	// ƒ‰ƒCƒg‚Ìƒrƒ…[À•W‚ğƒ‰ƒCƒg‚ÌË‰eÀ•W‚É•ÏŠ·
+	// ãƒ©ã‚¤ãƒˆã®ãƒ“ãƒ¥ãƒ¼åº§æ¨™ã‚’ãƒ©ã‚¤ãƒˆã®å°„å½±åº§æ¨™ã«å¤‰æ›
 	VSOutput.ShadowMap2Pos.x = dot( lLViewPosition, cfShadowMap2LightProjectionMatrix[ 0 ] ) ;
 	VSOutput.ShadowMap2Pos.y = dot( lLViewPosition, cfShadowMap2LightProjectionMatrix[ 1 ] ) ;
 	VSOutput.ShadowMap2Pos.z = dot( lLViewPosition, cfShadowMap2LightProjectionMatrix[ 2 ] ) ;
 
-	// [“x‰e—p‚Ìƒ‰ƒCƒg‚©‚çŒ©‚½Ë‰eÀ•W‚ğZo =================( I—¹ )
+	// æ·±åº¦å½±ç”¨ã®ãƒ©ã‚¤ãƒˆã‹ã‚‰è¦‹ãŸå°„å½±åº§æ¨™ã‚’ç®—å‡º =================( çµ‚äº† )
 #endif
 
-	// ƒeƒNƒXƒ`ƒƒÀ•W‚ÌƒZƒbƒg
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ã®ã‚»ãƒƒãƒˆ
 	VSOutput.TexCoords0_1.x = dot( VSInput.TexCoords0, cfTextureMatrix[ 0 ][ 0 ] ) ;
 	VSOutput.TexCoords0_1.y = dot( VSInput.TexCoords0, cfTextureMatrix[ 0 ][ 1 ] ) ;
 

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ＶＭＤファイルデータ構造体ヘッダ
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -19,8 +19,12 @@
 #include "DxModel.h"
 #include "DxModelRead.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 -----------------------------------
 
@@ -358,13 +362,30 @@ extern int LoadVMDBaseData( VMD_READ_INFO *VmdData, void *DataBuffer, int DataSi
 extern int TerminateVMDBaseData( VMD_READ_INFO *VmdData ) ;
 
 // カメラのアニメーションを読み込みようデータに追加する
-extern int SetupVMDCameraAnim( VMD_READ_INFO *VmdData, MV1_MODEL_R *RModel, const char *Name, MV1_ANIMSET_R *AnimSet ) ;
+extern int SetupVMDCameraAnim( VMD_READ_INFO *VmdData, MV1_MODEL_R *RModel, const wchar_t *Name, MV1_ANIMSET_R *AnimSet ) ;
 
 // VMDファイルバイナリをメモリに読み込む
-extern int LoadFile_VMD( void **VmdData, int *FileSize, int FileNumber, MV1_FILE_READ_FUNC *FileReadFunc, const TCHAR *Name, int NameLen, const TCHAR *CurrentDir, int *LoopMotionFlag, float *BaseGravity, int *GravityNo, int *GravityEnable, VECTOR *Gravity ) ;
+extern int LoadFile_VMD(
+	void **					VmdData,
+	int *					FileSize,
+	int						FileNumber,
+	MV1_FILE_READ_FUNC *	FileReadFunc,
+	const wchar_t *			Name,
+	int						NameLen,
+	const wchar_t *			CurrentDir,
+	int *					LoopMotionFlag,
+	float *					BaseGravity,
+	int *					GravityNo,
+	int *					GravityEnable,
+	VECTOR *				Gravity
+) ;
 
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif
 

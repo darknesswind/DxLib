@@ -1,66 +1,92 @@
 ﻿DxUseCLib.lib について
 
-	　DxUseCLib.lib はＤＸライブラリ中の libpng や libjpeg や Ogg Vorbis 関連の
-	ファイルを使用している部分を抜き出し、一つの lib ファイルとしてものです。
-	　このようにする利点はＤＸライブラリに手を加えてみようと思った方が、libpng
-	や libjpeg 等のファイルを用意しなくても DxLib.lib のコンパイルが出来るという
-	事です。
-	　libpng や libjpeg 等の外部ライブラリを使用している部分を改造したいと思った
-	場合は DxUseClib.lib をコンパイルする必要があります。
+	　DxUseCLib.lib はＤＸライブラリ中の libpng や libjpeg などの外部ライブラリを
+	使用している部分を抜き出し、一つの lib ファイルとしてものです。
+	　このようにする利点はＤＸライブラリに手を加えてみようと思った方が、
+	外部ライブラリを用意しなくても DxLib.lib のコンパイルが出来るという事です。
+	　外部ライブラリを使用している部分を改造したい、又は DxCompileConfig.h の中の
+	使用したいオプションが DxUseCLib.lib の再コンパイルを必要とする場合は
+	ＤＸライブラリが使用している外部ライブラリを用意して DxUseClib.lib を
+	コンパイルする必要があります。
 
 
 DxUseCLib.lib のコンパイルについて
 
-	　DxUseCLib.lib は DxUseCLib.cpp と DxUseCLibOgg .cpp だけを静的ライブラリ
-	(スタティックリンクライブラリ) にしたものです。DxUseCLib.cpp と DxUseCLibOgg.cpp
-	さえコンパイルできれば作成できます。
-	　DxUseCLib.cpp または DxUseCLibOgg.cpp に手を加えて、DxUseCLib.lib を
-	コンパイルしたい、という場合は zlib と libpng と libjpeg と Ogg , Ogg Vorbis,
-	Ogg Theora のファイルを用意して、パスを設定(インクルードフォルダとして登録)する
-	必要があります。
+	　DxUseCLib.lib は以下のファイルをコンパイルして静的リンクライブラリ
+	(スタティックリンクライブラリ) にしたものです。
 
-	　以下は　2008/8/23 現在での各ライブラリファイルの説明となりますので、
-	記述と違いがありましたらご連絡ください。
+		DxUseCLib.cpp
+		DxUseCLibOgg.cpp
+		DxUseCLibPhysics.cpp
+		Windows\DxUseCLibOggD3D9.cpp
+		Windows\DxUseCLibOggD3D11.cpp
+		Windows\DxUseCLibOggWin.cpp
+		Windows\DxUseCStrmBaseFilter.cpp
 
+	　DxUseCLib.lib をコンパイルする場合は以下の外部ライブラリを用意して、
+	必要なヘッダファイルをインクルードできるようにする必要があります。
 
-	・libpng
-
-	　こちら http://www.libpng.org/pub/png/libpng.html からソースをダウンロード
-	出来ます。パスを通すフォルダは中のカレントフォルダです。
-
-
-	・zlib
-
-	　こちら http://www.zlib.net/ からソースをダウンロード出来ます。
-	　パスを通すフォルダは中のカレントフォルダです。
+	　以下は　2014/10/6 現在での情報です。
 
 
-	・libjpeg
 
-	　ちょっと厄介です。
-	　ソースは http://www.ijg.org/files/ からダウンロード出来ます。
-	(圧縮ファイル名は jpegsrc.v6b.tar.gz )
+	・Bullet Physics 2.75 ( ファイル名 bullet-2.75.zip )
 
-	　中に最初は jconfig.h がありませんので、環境に応じて以下のファイルを jconfig.h
-	にリネームしてください。
+	　http://bulletphysics.org/wordpress/
 
-	jconfig.mc6	VisualC++ 用
-	jconfig.bcc	Borland C++ 用
+	　ＤＸライブラリでは Bullet Physics のクラス名などの先頭に D_ を付けて
+	コンパイルした libファイルを使用しています。これはモーションの再生でしか
+	Bullet Physics を使用しないＤＸライブラリとは別に、独自に Bullet Physics を
+	使用しようとした場合にクラス名などの衝突が発生しないようにするためです。
+	　リネームするために作成したコンソールアプリケーションは以下のファイルを
+	コンパイルすることで作成できます。
 
-	　その上でコンパイルすると INT32 の二重定義(と、VisualC++ の場合は加えて boolean の
-	二重定義)があるというエラーが発生しますので、各 libjpeg 側の定義をコメントアウト
-	して下さい。(ファイルが何れも 1998年以前 のものなので、対応できていないのだと思います)
+		Tool\bullet_rename.cpp
+		Tool\FileLib.cpp
+
+	　尚、バージョン2.75 のみで正常に動作するやっつけプログラムなので、
+	他のバージョンでは使用できません。
+
+
+
+	・libpng 1.6.12 ( ファイル名 lpng1612.zip )
+
+	　http://www.libpng.org/pub/png/libpng.html
+
+
+
+	・zlib 1.2.8 ( ファイル名 zlib128.zip )
+
+	　http://www.zlib.net/
+
+
+
+	・libjpeg 9 ( ファイル名 jpegsr9.zip )
+
+	　http://www.ijg.org/
+
+	　パッケージのフォルダ内に初期状態では jconfig.h がありませんので、
+	以下のファイルを jconfig.h にリネームしてください。
+	( Visual C++ 用ですが、Borland C++ や gcc でも使用できます )
+
+	　jconfig.vc
+
+
+
+	・libtiff 4.0.3 ( ファイル名 tiff-4.0.3.zip )
+
+	　http://www.libtiff.org/
+
 
 
 	・Ogg, Ogg Vorbis, Ogg Theora
 
-	　こちらは SVN を使用して
+	　SVN( Apache Subversion ) を使用して以下のリポジトリからダウンロードできます。
 
-	http://svn.xiph.org/trunk/ogg
-	http://svn.xiph.org/trunk/vorbis
-	http://svn.xiph.org/trunk/theora
+	http://svn.xiph.org/trunk/ogg     使用リビジョン 19150
+	http://svn.xiph.org/trunk/vorbis  使用リビジョン 19171
+	http://svn.xiph.org/trunk/theora  使用リビジョン 19181
 
-	　の三つをチェックアウトすることでソースを取得することが出来ます。
-	　パスは各 include フォルダを指定してください。
+
 
 　

@@ -2,19 +2,20 @@
 // 
 // 		ＤＸライブラリ		標準Ｃライブラリ使用コード
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxCompileConfig.h"
 #include "DxUseCLib.h"
 #include "DxLib.h"
 #include "DxStatic.h"
 #include "DxFile.h"
+#include "DxChar.h"
 #include "DxBaseFunc.h"
 #include "DxSystem.h"
 #include "DxMemory.h"
@@ -37,9 +38,14 @@
 	#include "btBulletDynamicsCommon.h"
 #endif
 
+#ifndef DX_NON_TIFFREAD
+#include "tiff.h"
+#include "tiffio.h"
+#endif
+
 #ifndef DX_NON_PNGREAD
 	#include "png.h"
-    #include "pngpriv.h"
+//  #include "pngpriv.h"
 #endif
 
 #ifndef DX_NON_JPEGREAD
@@ -55,30 +61,299 @@
 	}
 #endif
 
-namespace DxLib
-{
+//namespace DxLib
+//{
 
 // 構造体型宣言 ------------------------------------------------------------------
 
-// 函数原型声明 ----------------------------------------------------------
+// 関数プロトタイプ宣言 ----------------------------------------------------------
 
-// extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *Image ) ;
-// extern int LoadJpegImage( STREAMDATA *Src, BASEIMAGE *Image ) ;
-// extern int NS_SaveBaseImageToPng( const char *pFilePath, BASEIMAGE *Image, int CompressionLevel ) ;
-// extern int NS_SaveBaseImageToJpeg( const char *pFilePath, BASEIMAGE *Image, int Quality ) ;
+// extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *BaseImage ) ;
+// extern int LoadJpegImage( STREAMDATA *Src, BASEIMAGE *BaseImage ) ;
+// extern int NS_SaveBaseImageToPng( const char *pFilePath, BASEIMAGE *BaseImage, int CompressionLevel ) ;
+// extern int NS_SaveBaseImageToJpeg( const char *pFilePath, BASEIMAGE *BaseImage, int Quality ) ;
 // extern int NS_SRand( int Seed ) ;
 // extern int NS_GetRand( int RandMax ) ;
 
 // プログラム --------------------------------------------------------------------
 
-extern int _VSWPRINTF( DXWCHAR *Buffer, const DXWCHAR *FormatWString, va_list Arg )
+
+
+
+
+
+
+
+// 汎用データ読み込み処理からのＴＩＦＦ画像読み込みのためのプログラム
+
+#ifndef DX_NON_TIFFREAD
+
+// 汎用データ読み込み処理からの読み込みをするためのデータ型
+typedef struct tagTIFFHANDLE
 {
-#ifdef __ANDROID
-	return vswprintf( ( wchar_t * )Buffer, 4096, ( wchar_t * )FormatWString, Arg ) ;
-#else
-	return vswprintf( ( wchar_t * )Buffer, ( wchar_t * )FormatWString, Arg ) ;
-#endif
+	STREAMDATA *Data ;
+	LONGLONG DataSize ;
+} TIFFHANDLE ;
+
+// 汎用データ読み取り処理からデータを読み込むコールバック関数
+tmsize_t TIFFReadProc( thandle_t fd, void *buf, tmsize_t size )
+{
+	TIFFHANDLE *THnd ;
+	tmsize_t Result ;
+
+	THnd = ( TIFFHANDLE * )fd ;
+
+	// サイズの調整
+	if( ( tmsize_t )( THnd->DataSize - STTELL( THnd->Data ) ) < size )
+	{
+		size = ( tmsize_t )( THnd->DataSize - STTELL( THnd->Data ) ) ;
+	}
+	if( size == 0 )
+	{
+		return 0 ;
+	}
+
+	Result = ( tmsize_t )STREAD( buf, 1, ( size_t )size, THnd->Data ) ;
+
+	return Result ;
 }
+
+// 汎用データ読み取り処理からの書き込みには非対応
+tmsize_t TIFFWriteProc( thandle_t /* fd */, void * /* buf */, tmsize_t size )
+{
+	return size ;
+}
+
+// 汎用データ読み取り処理のシークを行うコールバック関数
+toff_t   TIFFSeekProc_     ( thandle_t fd, toff_t offset, int whence )
+{
+	TIFFHANDLE *THnd ;
+
+	THnd = ( TIFFHANDLE * )fd ;
+
+	switch( whence )
+	{
+	case SEEK_CUR :
+		STSEEK( THnd->Data, ( LONGLONG )offset, SEEK_CUR ) ;
+		break ;
+
+	case SEEK_END:
+		STSEEK( THnd->Data, ( LONGLONG )offset, SEEK_END ) ;
+		break ;
+
+	case SEEK_SET:
+	default:
+		STSEEK( THnd->Data, ( LONGLONG )offset, SEEK_SET ) ;
+		break ;
+	}
+
+	return ( toff_t )STTELL( THnd->Data ) ;
+}
+
+// 汎用データ読み込み処理のファイルを閉じるコールバック関数
+int      TIFFCloseProc_    ( thandle_t /*fd*/ )
+{
+	// ファイルを閉じる処理はＴＩＦＦ読み込み外で行うので何もしない
+	return 0 ;
+}
+
+
+// 汎用データ読み込み処理のデータサイズを取得するコールバック関数
+toff_t   TIFFSizeProc_     ( thandle_t fd )
+{
+	TIFFHANDLE *THnd ;
+
+	THnd = ( TIFFHANDLE * )fd ;
+
+	return ( toff_t )THnd->DataSize ;
+}
+
+int      TIFFMapFileProc_  ( thandle_t /*fd*/, void ** /*base*/, toff_t* /*size*/)
+{
+	return 0 ;
+}
+
+void     TIFFUnmapFileProc_( thandle_t /*fd*/, void* /*base*/, toff_t /*size*/)
+{
+	return ;
+}
+
+
+// ＴＩＦＦ画像の読みこみ
+extern int LoadTiffImage( STREAMDATA *Src, BASEIMAGE *BaseImage, int GetFormatOnly )
+{
+	TIFFHANDLE    THnd ;
+	LONGLONG      FilePoint ;
+	TIFF         *Conv ;
+    uint16        bits_per_sample ;
+    uint16        samples_per_pixel ;
+    uint16        photometric ;
+    uint32        width      = 0 ;
+    uint32        height     = 0 ;
+    uint32        rows_strip = 0 ;
+    uint32       *strip      = NULL ;
+    uint32       *src ;
+	BYTE          *dest ;
+	int           x ;
+	int           y ;
+	int           dest_y ;
+	int           line_no ;
+	int           valid_line ;
+	uint32        pixel;
+	unsigned char checkhead[ 2 ] ;
+
+	// 汎用データ読み取り処理からデータを読み込むための準備
+	THnd.Data = Src ;
+	FilePoint = STTELL( Src ) ;
+	STSEEK( Src, 0, SEEK_END ) ;
+	THnd.DataSize = ( LONGLONG )STTELL( Src ) ;
+	STSEEK( Src, FilePoint, SEEK_SET ) ;
+
+	// ファイルフォーマットの簡易チェック
+	STREAD( checkhead, 2, 1, Src ) ;
+	if( ( checkhead[ 0 ] != 0x49 || checkhead[ 1 ] != 0x49 ) &&
+		( checkhead[ 0 ] != 0x4d || checkhead[ 1 ] != 0x4d ) )
+	{
+		return -1 ;
+	}
+	STSEEK( Src, -2, SEEK_CUR ) ;
+
+	// TIFFファイルのオープン
+	Conv = TIFFClientOpen(
+		"Read",
+		"r",
+		&THnd,
+		TIFFReadProc,
+		TIFFWriteProc,
+		TIFFSeekProc_,
+		TIFFCloseProc_,
+		TIFFSizeProc_,
+		TIFFMapFileProc_,
+		TIFFUnmapFileProc_
+	) ;
+
+	// オープンに失敗したらここで終了
+	if( Conv == NULL )
+	{
+		return -1 ;
+	}
+
+	// 画像の情報を取得
+	TIFFGetField( Conv, TIFFTAG_IMAGELENGTH,     &height ) ;
+	TIFFGetField( Conv, TIFFTAG_IMAGEWIDTH,      &width ) ;
+	TIFFGetField( Conv, TIFFTAG_ROWSPERSTRIP,    &rows_strip ) ;
+	TIFFGetField( Conv, TIFFTAG_BITSPERSAMPLE,   &bits_per_sample ) ;
+	TIFFGetField( Conv, TIFFTAG_SAMPLESPERPIXEL, &samples_per_pixel ) ;
+	TIFFGetField( Conv, TIFFTAG_PHOTOMETRIC,     &photometric ) ;
+
+	if( GetFormatOnly == FALSE )
+	{
+		// １ストリップ分の画像データを格納するメモリ領域の確保
+		strip = ( uint32 * )DXALLOC( sizeof( uint32 ) * ( width * rows_strip ) ) ;
+
+		// BASEIMAGE 側の画像データを格納するメモリ領域の確保
+		BaseImage->GraphData = DXALLOC( width * height * 4 ) ;
+		if( BaseImage->GraphData == NULL )
+		{
+			goto ERR ;
+		}
+	}
+	else
+	{
+		BaseImage->GraphData = NULL ;
+	}
+
+	// 画像の幅と高さを保存
+	BaseImage->Width  = ( int )width ;
+	BaseImage->Height = ( int )height ;
+
+	// ピッチの保存
+	BaseImage->Pitch  = ( int )width * 4 ;
+
+	// 現状すべての RGBA8 フォーマットとして読み込み
+	NS_CreateARGB8ColorData( &BaseImage->ColorData ) ;
+
+	if( GetFormatOnly == FALSE )
+	{
+		// 画像の読み込み
+		for( line_no = 0; line_no < ( int )height; line_no += rows_strip )
+		{
+			// １ストリップの情報を読み込み
+			if( !TIFFReadRGBAStrip( Conv, ( uint32 )line_no, strip ) )
+			{
+				goto ERR ;
+			}
+
+			// 有効なラインを取得
+			valid_line = ( int )rows_strip ;
+			if( line_no + rows_strip > height )
+			{
+				valid_line = ( int )( height - line_no ) ;
+			}
+
+			// 画像情報を BASEIMAGE 側の画像格納領域に転送
+			for( y = 0; y < valid_line ; y++ )
+			{
+				// 出力先の画像でのＹ座標を算出
+				dest_y = line_no + ( ( valid_line - y ) - 1 ) ;
+
+				// 転送元アドレスの算出
+				src    = strip + ( width * y ) ;
+
+				// 転送先アドレスの算出
+				dest   = ( BYTE * )BaseImage->GraphData + 4 * width * dest_y ;
+
+				// １ライン分のピクセル情報を BASEIMAGE 側に転送
+				for( x = 0; x < ( int )width; x++, dest += 4 )
+				{
+					pixel = src[ x ] ;
+					dest[ 0 ] = ( BYTE )TIFFGetB( pixel ) ;
+					dest[ 1 ] = ( BYTE )TIFFGetG( pixel ) ;
+					dest[ 2 ] = ( BYTE )TIFFGetR( pixel ) ;
+					dest[ 3 ] = ( BYTE )TIFFGetA( pixel ) ;
+				}
+			}
+		}
+	}
+
+	// TIFFファイルのクローズ
+	TIFFClose( Conv ) ;
+
+	// １ストリップ分の画像データを格納するメモリ領域の解放
+	DXFREE( strip );
+
+	// 終了
+	return 0 ;
+
+ERR :
+	if( BaseImage->GraphData )
+	{
+		DXFREE( BaseImage->GraphData ) ;
+		BaseImage->GraphData = NULL ;
+	}
+
+	if( strip )
+	{
+		DXFREE( strip ) ;
+		strip = NULL ;
+	}
+
+	TIFFClose( Conv ) ;
+	Conv = NULL ;
+
+	// エラー終了
+	return -1 ;
+}
+
+#endif // DX_NON_TIFFREAD
+
+
+
+
+
+
+
+
 
 
 // 汎用データ読み込み処理からのＰＮＧ画像読み込みのためのプログラム
@@ -97,7 +372,8 @@ static void png_general_read_data(png_structp png_ptr, png_bytep data, png_size_
 {
 	PNGGENERAL *PGen ;
 
-	PGen = (PNGGENERAL *)/*CVT_PTR*/(png_ptr->io_ptr) ;
+//	PGen = (PNGGENERAL *)/*CVT_PTR*/(png_ptr->io_ptr) ;
+	PGen = (PNGGENERAL *)png_get_io_ptr(png_ptr) ;
 
 	// 残りのサイズが足りなかったらエラー
 	if( PGen->DataSize - ( int )STTELL( PGen->Data ) < length )
@@ -132,7 +408,7 @@ int png_general_read_set( png_structp png_ptr, PNGGENERAL *PGen, STREAMDATA *Dat
 }
 
 // ＰＮＧ画像の読みこみ
-extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *Image )
+extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *BaseImage, int GetFormatOnly )
 {
 	png_bytep *row_pointers;
 	size_t row, rowbytes ;
@@ -144,7 +420,7 @@ extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *Image )
 	unsigned int sig_read = 0;
 	png_uint_32 width, height;
 	int bit_depth, color_type, interlace_type;
-	void *GraphPoint ;
+	void *ImageData = NULL ;
 //	int i ;
 	png_bytep BufPoint ;
 	BYTE Check[ 8 ] ;
@@ -161,7 +437,8 @@ extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *Image )
 	}
 
 	// ＰＮＧ管理情報の作成
-	if( ( png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL ) ) == NULL ) return -1 ;
+	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL ) ;
+	if( png_ptr == NULL ) return -1 ;
 
 	// 画像情報構造体の作成
 	if( ( info_ptr = png_create_info_struct( png_ptr ) ) == NULL ) 
@@ -181,7 +458,7 @@ extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *Image )
 	png_general_read_set( png_ptr, &PGen, Src ) ;
 
 	// 設定処理郡
-	png_set_sig_bytes(		png_ptr, sig_read ) ;												// よくわから無い処理(汗)
+	png_set_sig_bytes(		png_ptr, ( int )sig_read ) ;										// よくわから無い処理(汗)
 	png_read_info(			png_ptr, info_ptr );												// 画像情報を得る
 	png_get_IHDR(			png_ptr, info_ptr, &width, &height, &bit_depth, &color_type,		// 画像の基本ステータスを取得する
 							&interlace_type, NULL, NULL ) ;
@@ -208,43 +485,46 @@ extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *Image )
 	// １ラインあたりに必要なデータ量を得る
 	rowbytes = png_get_rowbytes( png_ptr, info_ptr ) ;
 
-	// グラフィックデータを格納するメモリ領域を作成する
+	if( GetFormatOnly == FALSE )
 	{
-		png_bytep BufP ;
-
-		row_pointers = ( png_bytep * )DXALLOC( height * sizeof( png_bytep * ) ) ;
-		if( ( BufPoint = ( png_bytep )png_malloc( png_ptr, rowbytes * height ) ) == NULL )
+		// グラフィックデータを格納するメモリ領域を作成する
 		{
-			png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)NULL);
-			return -1 ;
+			png_bytep BufP ;
+
+			row_pointers = ( png_bytep * )DXALLOC( height * sizeof( png_bytep * ) ) ;
+			if( ( BufPoint = ( png_bytep )png_malloc( png_ptr, rowbytes * height ) ) == NULL )
+			{
+				png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)NULL);
+				return -1 ;
+			}
+			BufP = BufPoint ;
+			for (row = 0; row < height; row++, BufP += rowbytes )
+				row_pointers[row] = BufP ;
 		}
-		BufP = BufPoint ;
-		for (row = 0; row < height; row++, BufP += rowbytes )
-			row_pointers[row] = BufP ;
+
+		// 画像データの読み込み
+		png_read_image( png_ptr, row_pointers );
+
+		// 実際に使うグラフィックデータ領域の作成・転送
+		ImageData = DXALLOC( rowbytes * height ) ;
+		GData = ( BYTE * )ImageData ;
+		for (row = 0; row < height; row++, GData += rowbytes )
+			_MEMCPY( GData, row_pointers[row], rowbytes ) ;
+
+		// メモリの解放
+		png_free( png_ptr, BufPoint ) ;
+		DXFREE( row_pointers ) ;
+
+		// 読み込み処理の終了
+		png_read_end(png_ptr, info_ptr);
 	}
-
-	// 画像データの読み込み
-	png_read_image( png_ptr, row_pointers );
-
-	// 実際に使うグラフィックデータ領域の作成・転送
-	GraphPoint = DXALLOC( rowbytes * height ) ;
-	GData = ( BYTE * )GraphPoint ;
-	for (row = 0; row < height; row++, GData += rowbytes )
-		_MEMCPY( GData, row_pointers[row], rowbytes ) ;
-
-	// メモリの解放
-	png_free( png_ptr, BufPoint ) ;
-	DXFREE( row_pointers ) ;
-
-	// 読み込み処理の終了
-	png_read_end(png_ptr, info_ptr);
 
 	// BASEIMAGE データの情報をセットする
 	{
-		Image->Width		= width ;
-		Image->Height		= height ;
-		Image->Pitch		= ( int )rowbytes ;
-		Image->GraphData	= GraphPoint ;
+		BaseImage->Width		= ( int )width ;
+		BaseImage->Height		= ( int )height ;
+		BaseImage->Pitch		= ( int )rowbytes ;
+		BaseImage->GraphData	= ImageData ;
 
 		// カラー情報をセットする
 		if( color_type == PNG_COLOR_TYPE_PALETTE && Expand == false )
@@ -255,7 +535,7 @@ extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *Image )
 			COLORPALETTEDATA *Palette ;
 			
 			// パレットカラーの場合
-			NS_CreatePaletteColorData( &Image->ColorData ) ;
+			NS_CreatePaletteColorData( &BaseImage->ColorData ) ;
 
 			// パレットを取得
 			png_get_PLTE( png_ptr, info_ptr, &SrcPalette, &PaletteNum ) ;
@@ -264,7 +544,7 @@ extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *Image )
 			if( PaletteNum < 256 ) PaletteNum = 256 ;
 
 			// パレットのコピー
-			Palette = Image->ColorData.Palette ;
+			Palette = BaseImage->ColorData.Palette ;
 			for( i = 0 ; i < PaletteNum ; i ++, Palette ++, SrcPalette ++ )
 			{
 				Palette->Blue  = SrcPalette->blue ;
@@ -274,51 +554,113 @@ extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *Image )
 			}
 		}
 		else
-		if( color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA )
+		if( color_type == PNG_COLOR_TYPE_GRAY )
 		{
-			// もしグレースケールなのに１ピクセル２バイトだったら下位８ビットだけを使用する
+			// もしグレースケールなのに１ピクセル２バイトだったら上位８ビットだけを使用する
 			if( rowbytes / 2 >= width )
 			{
-				Image->ColorData.ColorBitDepth	= 16 ;
-				Image->ColorData.PixelByte		= 2 ;
+				BaseImage->ColorData.ColorBitDepth	= 16 ;
+				BaseImage->ColorData.PixelByte		= 2 ;
 
-				Image->ColorData.NoneMask		= 0x0000ff00 ;
+				BaseImage->ColorData.NoneMask		= 0x000000ff ;
 
-				Image->ColorData.AlphaLoc		= 0 ;
-				Image->ColorData.AlphaMask		= 0 ;
-				Image->ColorData.AlphaWidth		= 0 ;
+				BaseImage->ColorData.AlphaLoc		= 0 ;
+				BaseImage->ColorData.AlphaMask		= 0 ;
+				BaseImage->ColorData.AlphaWidth		= 0 ;
 
-				Image->ColorData.RedLoc			= 0 ;
-				Image->ColorData.RedMask		= 0x000000ff ;
-				Image->ColorData.RedWidth		= 8 ;
+				BaseImage->ColorData.RedLoc			= 8 ;
+				BaseImage->ColorData.RedMask		= 0x0000ff00 ;
+				BaseImage->ColorData.RedWidth		= 8 ;
 
-				Image->ColorData.GreenLoc		= 0 ;
-				Image->ColorData.GreenMask		= 0x000000ff ;
-				Image->ColorData.GreenWidth		= 8 ;
+				BaseImage->ColorData.GreenLoc		= 8 ;
+				BaseImage->ColorData.GreenMask		= 0x0000ff00 ;
+				BaseImage->ColorData.GreenWidth		= 8 ;
 
-				Image->ColorData.BlueLoc		= 0  ;
-				Image->ColorData.BlueMask		= 0x000000ff ;
-				Image->ColorData.BlueWidth		= 8 ;
+				BaseImage->ColorData.BlueLoc		= 8  ;
+				BaseImage->ColorData.BlueMask		= 0x0000ff00 ;
+				BaseImage->ColorData.BlueWidth		= 8 ;
 			}
 			else
 			{
-				NS_CreateGrayColorData( &Image->ColorData ) ;
+				NS_CreateGrayColorData( &BaseImage->ColorData ) ;
+			}
+		}
+		else
+		if( color_type == PNG_COLOR_TYPE_GRAY_ALPHA )
+		{
+			BYTE *NewBuffer ;
+			BYTE *Src ;
+			BYTE *Dest ;
+			DWORD Pitch ;
+			DWORD i ;
+			DWORD j ;
+
+			Pitch            = 4 * width ;
+			BaseImage->Pitch = ( int )Pitch ;
+			NS_CreateARGB8ColorData( &BaseImage->ColorData ) ;
+
+			if( GetFormatOnly == FALSE )
+			{
+				NewBuffer = ( BYTE * )DXALLOC( Pitch * height ) ;
+				BaseImage->GraphData	= NewBuffer ;
+
+				Src  = ( BYTE * )ImageData ;
+				Dest = NewBuffer ;
+
+				// １ピクセル２バイトの場合は１ピクセル目は輝度、２バイト目はアルファ値
+				if( rowbytes / 2 >= width )
+				{
+					for( i = 0 ; i < height ; i ++ )
+					{
+						for( j = 0 ; j < width ; j ++ )
+						{
+							Dest[ 0 ] = Src[ 0 ] ;
+							Dest[ 1 ] = Src[ 0 ] ;
+							Dest[ 2 ] = Src[ 0 ] ;
+							Dest[ 3 ] = Src[ 1 ] ;
+							Dest += 4 ;
+							Src  += 2 ;
+						}
+
+						Src  += rowbytes - width * 2 ;
+					}
+				}
+				else
+				{
+					for( i = 0 ; i < height ; i ++ )
+					{
+						for( j = 0 ; j < width ; j ++ )
+						{
+							Dest[ 0 ] = 255 ;
+							Dest[ 1 ] = 255 ;
+							Dest[ 2 ] = 255 ;
+							Dest[ 3 ] = *Src ;
+							Dest += 4 ;
+							Src  ++ ;
+						}
+
+						Src  += rowbytes - width ;
+					}
+				}
+
+				DXFREE( ImageData ) ;
 			}
 		}
 		else
 		{
-			if( info_ptr->channels == 4 )
+//			if( info_ptr->channels == 4 )
+			if( png_get_channels( png_ptr, info_ptr ) == 4 )
 			{
-				NS_CreateFullColorData( &Image->ColorData ) ;
-				Image->ColorData.ColorBitDepth	= 32 ;
-				Image->ColorData.PixelByte		= 4 ;
-				Image->ColorData.AlphaLoc		= 24 ;
-				Image->ColorData.AlphaWidth		= 8 ;
-				Image->ColorData.AlphaMask		= 0xff000000 ;
+				NS_CreateFullColorData( &BaseImage->ColorData ) ;
+				BaseImage->ColorData.ColorBitDepth	= 32 ;
+				BaseImage->ColorData.PixelByte		= 4 ;
+				BaseImage->ColorData.AlphaLoc		= 24 ;
+				BaseImage->ColorData.AlphaWidth		= 8 ;
+				BaseImage->ColorData.AlphaMask		= 0xff000000 ;
 			}
 			else
 			{
-				NS_CreateFullColorData( &Image->ColorData ) ;
+				NS_CreateFullColorData( &BaseImage->ColorData ) ;
 			}
 		}
 	}
@@ -332,7 +674,7 @@ extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *Image )
 
 #ifndef DX_NON_SAVEFUNCTION
 
-extern int SaveBaseImageToPngBase( const DXWCHAR *pFilePathW, const char *pFilePathA, BASEIMAGE *Image, int CompressionLevel )
+extern int SaveBaseImageToPngBase( const char *pFilePathW, const char *pFilePathA, BASEIMAGE *BaseImage, int CompressionLevel )
 {
 	FILE       *fp;
 	png_structp png_ptr;
@@ -370,7 +712,7 @@ extern int SaveBaseImageToPngBase( const DXWCHAR *pFilePathW, const char *pFileP
 ERR:
 		if( buffer )
 		{
-			for( i = 0; i < Image->Height; i++ )
+			for( i = 0; i < BaseImage->Height; i++ )
 				if( buffer[i] ) DXFREE( buffer[i] );
 			DXFREE( buffer );
 		}
@@ -392,14 +734,14 @@ ERR:
 	png_set_IHDR(
 		png_ptr,
 		info_ptr,
-		Image->Width,
-		Image->Height,
+		( png_uint_32 )BaseImage->Width,
+		( png_uint_32 )BaseImage->Height,
 		8,
-		Image->ColorData.AlphaWidth ? PNG_COLOR_TYPE_RGBA : PNG_COLOR_TYPE_RGB,
+		BaseImage->ColorData.AlphaWidth ? PNG_COLOR_TYPE_RGBA : PNG_COLOR_TYPE_RGB,
 		PNG_INTERLACE_NONE,
 		PNG_COMPRESSION_TYPE_DEFAULT,
 		PNG_FILTER_TYPE_DEFAULT
-	);
+	) ;
 
 	// ヘッダ部分の書き出し
 	png_write_info( png_ptr, info_ptr );
@@ -407,19 +749,19 @@ ERR:
 	// 圧縮用データの用意
 	{
 		// バッファの確保
-		buffer = (png_bytepp)DXALLOC( sizeof( png_bytep ) * Image->Height );
+		buffer = (png_bytepp)DXALLOC( sizeof( png_bytep ) * BaseImage->Height );
 		if( buffer == NULL ) goto ERR;
-		_MEMSET( buffer, 0, sizeof( png_bytep ) * Image->Height );
-		for( i = 0; i < Image->Height; i++ )
+		_MEMSET( buffer, 0, sizeof( png_bytep ) * BaseImage->Height );
+		for( i = 0; i < BaseImage->Height; i++ )
 		{
-			buffer[i] = (png_bytep)DXALLOC( sizeof( png_byte ) * ( Image->ColorData.AlphaWidth ? 4 : 3 ) * Image->Width );
+			buffer[i] = (png_bytep)DXALLOC( sizeof( png_byte ) * ( BaseImage->ColorData.AlphaWidth ? 4 : 3 ) * BaseImage->Width );
 			if( buffer[i] == NULL ) goto ERR;
 			sample = buffer[i];
-			if( Image->ColorData.AlphaWidth )
+			if( BaseImage->ColorData.AlphaWidth )
 			{
-				for( j = 0; j < Image->Width; j ++, sample += 4 )
+				for( j = 0; j < BaseImage->Width; j ++, sample += 4 )
 				{
-					NS_GetPixelBaseImage( Image, j, i, &r, &g, &b, &a );
+					NS_GetPixelBaseImage( BaseImage, j, i, &r, &g, &b, &a );
 					sample[0] = (png_byte)r;
 					sample[1] = (png_byte)g;
 					sample[2] = (png_byte)b;
@@ -428,9 +770,9 @@ ERR:
 			}
 			else
 			{
-				for( j = 0; j < Image->Width; j ++, sample += 3 )
+				for( j = 0; j < BaseImage->Width; j ++, sample += 3 )
 				{
-					NS_GetPixelBaseImage( Image, j, i, &r, &g, &b, &a );
+					NS_GetPixelBaseImage( BaseImage, j, i, &r, &g, &b, &a );
 					sample[0] = (png_byte)r;
 					sample[1] = (png_byte)g;
 					sample[2] = (png_byte)b;
@@ -452,7 +794,7 @@ ERR:
 	fclose(fp);
 
 	// メモリの解放
-	for( i = 0; i < Image->Height; i++ )
+	for( i = 0; i < BaseImage->Height; i++ )
 		if( buffer[i] ) DXFREE( buffer[i] );
 	DXFREE( buffer );
 
@@ -631,18 +973,19 @@ extern LONGLONG time2;
 #endif
 
 // ＪＰＥＧ画像の読みこみ
-extern int LoadJpegImage( STREAMDATA *Src, BASEIMAGE *Image )
+extern int LoadJpegImage( STREAMDATA *Src, BASEIMAGE *BaseImage, int GetFormatOnly )
 {
 	struct jpeg_decompress_struct cinfo ;
 	struct my_error_mgr jerr ;
 	JSAMPARRAY buffer ;
-	void *GraphPoint ;
-	int InPitch ;
-	int i ;
-	int imgSize ;
+	void *ImageData = NULL ;
+	unsigned int InPitch ;
+	unsigned int i ;
+	unsigned int imgSize ;
 	unsigned char *pImg ;
-	int OutPitch ;
+	unsigned int OutPitch ;
 	unsigned char Check ;
+	unsigned int PixelByte ;
 
 	// 先頭の１バイトが 0xFF ではなかったらJPEGファイルではない
 	STREAD( &Check, 1, 1, Src ) ;
@@ -675,64 +1018,92 @@ extern int LoadJpegImage( STREAMDATA *Src, BASEIMAGE *Image )
 	// ＪＰＥＧファイルのパラメータ情報の読みこみ
 	(void)jpeg_read_header(&cinfo, TRUE);
 
-	// ＪＰＥＧファイルの解凍の開始
-	(void)jpeg_start_decompress(&cinfo);
 
-	// １ライン当たりのデータバイト数を計算
-	InPitch = cinfo.output_width * cinfo.output_components ;
-	OutPitch = cinfo.output_width * cinfo.output_components ;
-
-	// データバッファの確保
-	buffer = (*cinfo.mem->alloc_sarray)
-				((j_common_ptr) &cinfo, JPOOL_IMAGE, InPitch, 1 );
-
-	// 出力イメージデータサイズのセット、及びデータ領域の確保
-	imgSize = cinfo.output_height * OutPitch ;
-	if( ( GraphPoint = ( unsigned char * ) DXALLOC( imgSize ) ) == NULL )
+	if( GetFormatOnly == FALSE )
 	{
-		jpeg_destroy_decompress( &cinfo );
-		return -1 ;
-	}
-	
-	// 画像データの読みこみ
-	pImg = ( unsigned char * )GraphPoint ; 
-	while( cinfo.output_scanline < cinfo.output_height )
-	{
-		(void) jpeg_read_scanlines(&cinfo, buffer, 1);
+		// ＪＰＥＧファイルの解凍の開始
+		(void)jpeg_start_decompress(&cinfo);
 
-		// データを出力データに変換して、またはそのまま転送
-		for( i = 0 ; i < InPitch ; )
+		// １ライン当たりのデータバイト数を計算
+		PixelByte = ( unsigned int )( cinfo.output_components == 4 ? 3 : cinfo.output_components ) ;
+		InPitch   = cinfo.output_width * cinfo.output_components ;
+		OutPitch  = cinfo.output_width * PixelByte ;
+
+		// データバッファの確保
+		buffer = (*cinfo.mem->alloc_sarray)
+					((j_common_ptr) &cinfo, JPOOL_IMAGE, InPitch, 1 );
+
+		// 出力イメージデータサイズのセット、及びデータ領域の確保
+		imgSize = cinfo.output_height * OutPitch ;
+		if( ( ImageData = ( unsigned char * ) DXALLOC( imgSize ) ) == NULL )
 		{
-			if ( cinfo.output_components == 1 )
+			jpeg_destroy_decompress( &cinfo );
+			return -1 ;
+		}
+		
+		// 画像データの読みこみ
+		pImg = ( unsigned char * )ImageData ; 
+		while( cinfo.output_scanline < cinfo.output_height )
+		{
+			(void) jpeg_read_scanlines(&cinfo, buffer, 1);
+
+			// データを出力データに変換して、またはそのまま転送
+			for( i = 0 ; i < InPitch ; )
 			{
-				*pImg = *( buffer[0] + i ) ; pImg ++ ;
-				i ++ ;
-			}
-			else
-			{
-				*pImg = *( buffer[0] + i + 2 ) ; pImg ++ ;
-				*pImg = *( buffer[0] + i + 1 ) ; pImg ++ ;
-				*pImg = *( buffer[0] + i     ) ; pImg ++ ;
-				i += 3 ;
+				switch( cinfo.output_components )
+				{
+				case 1 :	// グレースケール
+					*pImg = *( buffer[0] + i ) ; pImg ++ ;
+					i ++ ;
+					break ;
+
+				case 3 :	// RGB
+					*pImg = *( buffer[0] + i + 2 ) ; pImg ++ ;
+					*pImg = *( buffer[0] + i + 1 ) ; pImg ++ ;
+					*pImg = *( buffer[0] + i     ) ; pImg ++ ;
+					i += 3 ;
+					break ;
+
+				case 4 :	// CMYK?
+					pImg[ 0 ] = ( unsigned char )( *( buffer[0] + i + 2 ) * *( buffer[0] + i + 3 ) / 255 ) ;
+					pImg[ 1 ] = ( unsigned char )( *( buffer[0] + i + 1 ) * *( buffer[0] + i + 3 ) / 255 ) ;
+					pImg[ 2 ] = ( unsigned char )( *( buffer[0] + i + 0 ) * *( buffer[0] + i + 3 ) / 255 ) ;
+					pImg += 3 ;
+					i += 4 ;
+					break ;
+				}
 			}
 		}
-	}
 
-	// 解凍処理の終了
-	(void) jpeg_finish_decompress(&cinfo);
+		// 解凍処理の終了
+		(void) jpeg_finish_decompress(&cinfo);
+
+		BaseImage->Width     = ( int )cinfo.output_width ;
+		BaseImage->Height    = ( int )cinfo.output_height ;
+		BaseImage->Pitch     = ( int )OutPitch ;
+	}
+	else
+	{
+		BaseImage->Width     = ( int )cinfo.image_width ;
+		BaseImage->Height    = ( int )cinfo.image_height ;
+		BaseImage->Pitch     = 0 ;
+	}
 
 	// BASEIMAGE 構造体のデータを詰める
 	{
-		Image->Width = cinfo.output_width ;
-		Image->Height = cinfo.output_height ;
-		Image->Pitch = OutPitch ;
-		Image->GraphData = GraphPoint ;
+		BaseImage->GraphData = ImageData ;
 
 		// カラー情報をセットする
-		if( cinfo.output_components == 1 )
-			NS_CreateGrayColorData( &Image->ColorData ) ;
-		else
-			NS_CreateFullColorData( &Image->ColorData ) ;
+		switch( PixelByte )
+		{
+		case 1 :
+			NS_CreateGrayColorData( &BaseImage->ColorData ) ;
+			break ;
+
+		case 3 :
+			NS_CreateFullColorData( &BaseImage->ColorData ) ;
+			break ;
+		}
 	}
 
 	// cinfo構造体の解放
@@ -748,7 +1119,7 @@ extern int LoadJpegImage( STREAMDATA *Src, BASEIMAGE *Image )
 
 #ifndef DX_NON_SAVEFUNCTION
 
-extern int SaveBaseImageToJpegBase( const DXWCHAR *pFilePathW, const char *pFilePathA, BASEIMAGE *Image, int Quality, int /*Sample2x1*/ )
+extern int SaveBaseImageToJpegBase( const char *pFilePathW, const char *pFilePathA, BASEIMAGE *BaseImage, int Quality, int /*Sample2x1*/ )
 {
 	struct jpeg_compress_struct cinfo ;
 	struct my_error_mgr jerr ;
@@ -781,7 +1152,7 @@ extern int SaveBaseImageToJpegBase( const DXWCHAR *pFilePathW, const char *pFile
 ERR:
 		if( buffer )
 		{
-			for( i = 0; i < Image->Height; i++ )
+			for( i = 0; i < BaseImage->Height; i++ )
 				if( buffer[i] ) DXFREE( buffer[i] );
 			DXFREE( buffer );
 		}
@@ -798,8 +1169,8 @@ ERR:
 	jpeg_stdio_dest( &cinfo, fp );
 
 	// 出力画像の情報を設定する
-	cinfo.image_width      = Image->Width;
-	cinfo.image_height     = Image->Height;
+	cinfo.image_width      = ( JDIMENSION )BaseImage->Width;
+	cinfo.image_height     = ( JDIMENSION )BaseImage->Height;
 	cinfo.input_components = 3;
 	cinfo.in_color_space   = JCS_RGB;
 	jpeg_set_defaults( &cinfo );
@@ -813,17 +1184,17 @@ ERR:
 	// 圧縮用データの用意
 	{
 		// バッファの確保
-		buffer = (JSAMPARRAY)DXALLOC( sizeof( JSAMPROW ) * Image->Height );
+		buffer = (JSAMPARRAY)DXALLOC( sizeof( JSAMPROW ) * BaseImage->Height );
 		if( buffer == NULL ) goto ERR;
-		_MEMSET( buffer, 0, sizeof( JSAMPROW ) * Image->Height );
-		for( i = 0; i < Image->Height; i++ )
+		_MEMSET( buffer, 0, sizeof( JSAMPROW ) * BaseImage->Height );
+		for( i = 0; i < BaseImage->Height; i++ )
 		{
-			buffer[i] = (JSAMPROW)DXALLOC( sizeof( JSAMPLE ) * 3 * Image->Width );
+			buffer[i] = (JSAMPROW)DXALLOC( sizeof( JSAMPLE ) * 3 * BaseImage->Width );
 			if( buffer[i] == NULL ) goto ERR;
 			sample = buffer[i];
-			for( j = 0; j < Image->Width; j ++, sample += 3 )
+			for( j = 0; j < BaseImage->Width; j ++, sample += 3 )
 			{
-				NS_GetPixelBaseImage( Image, j, i, &r, &g, &b, &a );
+				NS_GetPixelBaseImage( BaseImage, j, i, &r, &g, &b, &a );
 				sample[0] = (JSAMPLE)r;
 				sample[1] = (JSAMPLE)g;
 				sample[2] = (JSAMPLE)b;
@@ -832,7 +1203,7 @@ ERR:
 	}
 
 	// 圧縮
-	jpeg_write_scanlines( &cinfo, buffer, Image->Height );
+	jpeg_write_scanlines( &cinfo, buffer, ( JDIMENSION )BaseImage->Height );
 
 	// 圧縮終了
 	jpeg_finish_compress( &cinfo );
@@ -848,7 +1219,7 @@ ERR:
 	fclose( fp );
 
 	// データの解放
-	for( i = 0; i < Image->Height; i++ )
+	for( i = 0; i < BaseImage->Height; i++ )
 		DXFREE( buffer[i] );
 	DXFREE( buffer );
 
@@ -897,16 +1268,14 @@ unsigned long bInitialized = 0;
 unsigned long bMMX = 0;
 
 /* Prototype */
-#ifndef DX_NON_INLINE_ASM
-unsigned long CheckMMX(void);
-#endif
-void srandMT(unsigned long seed);
-#ifndef DX_NON_INLINE_ASM
-void generateMT(void);
-#else
+//#ifndef DX_NON_INLINE_ASM
+//unsigned long CheckMMX(void);
+//#endif
+//void srandMT(unsigned long seed);
+#ifdef DX_NON_INLINE_ASM
 void generateMT_C(void);
 #endif
-unsigned long randMT(void);
+//unsigned long randMT(void);
 
 
 void srandMT(unsigned long seed)
@@ -1319,52 +1688,6 @@ unsigned long randMT(void)
 }
 //=============================================================================
 
-// 获取随机数
-
-// 乱数の初期値を設定する
-extern int NS_SRand( int Seed )
-{
-	// 初期値セット
-	srandMT( ( unsigned long )Seed ) ;
-
-	// 終了
-	return 0 ;
-}
-
-// 乱数を取得する( RandMax : 返って来る値の最大値 )
-extern int NS_GetRand( int RandMax )
-{
-	int Result ;
-
-	RandMax ++ ;
-	Result = ( int )( ( ( LONGLONG )randMT() * ( LONGLONG )RandMax ) >> 32 ) ;
-
-	return Result ;
-}
-
-#else // DX_NON_MERSENNE_TWISTER
-
-// 乱数の初期値を設定する
-extern int NS_SRand( int Seed )
-{
-	// 初期値セット
-	srand( Seed ) ;
-
-	// 終了
-	return 0 ;
-}
-
-// 乱数を取得する( RandMax : 返って来る値の最大値 )
-extern int NS_GetRand( int RandMax )
-{
-	int Result ;
-
-	RandMax ++ ;
-	Result = ( int )( ( ( LONGLONG )rand() * ( LONGLONG )RandMax ) / ( RAND_MAX + 1 ) ) ;
-
-	return Result ;
-}
-
 #endif // DX_NON_MERSENNE_TWISTER
 
 
@@ -1375,1647 +1698,49 @@ extern int NS_GetRand( int RandMax )
 
 
 
-//#define CHECKMULTIBYTECHAR(CP)		(( (unsigned char)*(CP) >= 0x81 && (unsigned char)*(CP) <= 0x9F ) || ( (unsigned char)*(CP) >= 0xE0 && (unsigned char)*(CP) <= 0xFC ))	// TRUE:２バイト文字  FALSE:１バイト文字
 
-static void FileRead_SkipSpace( DWORD_PTR FileHandle, int *Eof )
+
+
+extern int INT64DIV( const BYTE *Int64, int DivNum )
 {
-	char c;
-	size_t res;
-
-	if( Eof ) *Eof = FALSE;
-	for(;;)
-	{
-		res = FREAD( &c, sizeof( char ), 1, FileHandle );
-		FSYNC( FileHandle )
-		if( res == 0 )
-		{
-			if( Eof ) *Eof = TRUE;
-			return;
-		}
-		if( c != ' ' && c != '\n' && c != '\r' ) break;
-	}
-	FSEEK( FileHandle, -( int )sizeof( char ), SEEK_CUR );
+	return ( int )( *( ( LONGLONG * )Int64 ) / DivNum ) ;
 }
 
-// ファイルから書式化されたデータを読み出す
-extern int FileRead_scanf_base( DWORD_PTR FileHandle, const char *Format, va_list Param )
+extern DWORD UINT64DIV( const BYTE *UInt64, DWORD DivNum )
 {
-	char c, c2[2], tstr[512], str[256], Number[128], Number2[128], Number3[128], VStr[1024];
-	int ReadNum, Width, i, j, k, num, num2, num3;
-	int SkipFlag, VStrRFlag, I64Flag, lFlag, hFlag, Eof, MinusFlag, UIntFlag;
-	int TenFlag, SisuuFlag, MinusFlag2 ;
-	size_t res;
-	LONGLONG int64Num, int64Count;
-	double doubleNum, doubleNum2, doubleNum3, doubleCount;
-	char *pStr;
-	DXWCHAR *pStrW ;
-
-	if( FEOF( FileHandle ) ) return EOF;
-
-	ReadNum = 0;
-	Eof = FALSE;
-	while( *Format != '\0' && FEOF( FileHandle ) == 0 )
-	{
-		if( Format[0] == '%' && Format[1] != '%' )
-		{
-			Width = -1;
-			I64Flag = FALSE;
-			lFlag = FALSE;
-			hFlag = FALSE;
-			UIntFlag = FALSE;
-			SkipFlag = FALSE;
-			Format ++ ;
-			if( *Format == '\0' ) break;
-			if( *Format == '*' )
-			{
-				SkipFlag = TRUE;
-				Format ++ ;
-			}
-			if( *Format == '\0' ) break;
-			if( *Format >= '0' && *Format <= '9' )
-			{
-				for( i = 0; Format[i] >= '0' && Format[i] <= '9'; i++ )
-					str[i] = Format[i];
-				str[i] = '\0';
-				Format += i;
-				Width = _ATOI( str );
-				if( Width == 0 ) break;
-			}
-			if( *Format == '\0' ) break;
-			switch( *Format )
-			{
-			case 'l': case 'H': lFlag = TRUE; Format++ ; break;
-			case 'h': case 'L': hFlag = TRUE; Format++ ; break;
-			case 'I':
-				if( Format[1] == '6' && Format[2] == '4' )
-				{
-					I64Flag = TRUE;
-					Format += 3;
-				}
-				break;
-			}
-			if( *Format == '\0' ) break;
-
-			if( *Format == '[' )
-			{
-				if( lFlag || hFlag || I64Flag ) break;
-
-				Format ++ ;
-				VStrRFlag = FALSE;
-				if( *Format == '^' )
-				{
-					VStrRFlag = TRUE;
-					Format++;
-				}
-				j = 0;
-				_MEMSET( VStr, 0, sizeof( VStr ) );
-				c = '[';
-				while( *Format != '\0' && *Format != ']' )
-				{
-					if( CheckMultiByteChar( *Format, _GET_CHARSET() ) == TRUE )
-					{
-						if( Format[1] == '\0' )
-						{
-							Format++;
-							break;
-						}
-						if( Format[1] == ']' ) break;
-						VStr[j]   = Format[0];
-						VStr[j+1] = Format[1];
-						j += 2 ;
-						Format += 2 ;
-						c = '[';
-					}
-					else
-					{
-						if( *Format == '-' && c != '[' && Format[1] != '\0' && Format[1] != ']' )
-						{
-							num  = (int)(unsigned char)c;
-							num2 = (int)(unsigned char)Format[1];
-							if( num2 < num )
-							{
-								k = num2; num2 = num; num = k;
-							}
-							for( k = num; k <= num2; k++ )
-							{
-								if( c != k )
-								{
-									*((unsigned char *)&VStr[j]) = (unsigned char)k;
-									j++;
-								}
-							}
-							Format += 2;
-							c = '[';
-						}
-						else
-						{
-							VStr[j] = *Format;
-							c = *Format;
-							j ++ ;
-							Format ++ ;
-						}
-					}
-				}
-				if( *Format == '\0' ) break;
-				Format ++ ;
-				pStr = NULL;
-				if( SkipFlag == FALSE )
-				{
-					pStr = va_arg( Param, char * );
-				}
-				FileRead_SkipSpace( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
-				i = 0;
-				for(;;)
-				{
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-					if( CheckMultiByteChar( c, _GET_CHARSET() ) == TRUE )
-					{
-						c2[0] = c;
-						res = FREAD( &c, sizeof( char ), 1, FileHandle );
-						FSYNC( FileHandle )
-						if( res == 0 )
-						{
-							Eof = TRUE;
-							break;
-						}
-						c2[1] = c;
-
-						j = 0;
-						while( VStr[j] != '\0' )
-						{
-							if( CheckMultiByteChar( VStr[j], _GET_CHARSET() ) == TRUE )
-							{
-								if( VStr[j] == c2[0] && VStr[j+1] == c2[1] ) break;
-								j += 2;
-							}
-							else
-							{
-								j ++ ;
-							}
-						}
-
-						if( ( VStrRFlag == TRUE  && VStr[j] != '\0' ) || ( VStrRFlag == FALSE && VStr[j] == '\0' ) )
-						{
-							FSEEK( FileHandle, -( int )sizeof( char ), SEEK_CUR );
-							break;
-						}
-
-						if( Width - i == 1 )
-						{
-							FSEEK( FileHandle, -( int )sizeof( char ), SEEK_CUR );
-							if( pStr )
-							{
-								pStr[0] = c2[0];
-								pStr ++ ;
-							}
-							i ++ ;
-						}
-						else
-						{
-							if( pStr )
-							{
-								pStr[0] = c2[0];
-								pStr[1] = c2[1];
-								pStr += 2 ;
-							}
-							i += 2 ;
-						}
-					}
-					else
-					{
-						j = 0;
-						while( VStr[j] != '\0' )
-						{
-							if( CheckMultiByteChar( VStr[j], _GET_CHARSET() ) == TRUE )
-							{
-								j += 2;
-							}
-							else
-							{
-								if( VStr[j] == c ) break;
-								j ++ ;
-							}
-						}
-
-						if( ( VStrRFlag == TRUE  && VStr[j] != '\0' ) || ( VStrRFlag == FALSE && VStr[j] == '\0' ) ) break;
-						if( pStr )
-						{
-							*pStr = c;
-							pStr ++ ;
-						}
-						i ++ ;
-					}
-					if( Width != 0 && Width == i ) break;
-				}
-				if( pStr ) *pStr = '\0';
-				if( Eof == FALSE && Width != i )
-				{
-					FSEEK( FileHandle, -( int )sizeof( char ), SEEK_CUR );
-				}
-			}
-			else if( *Format == 'd' || *Format == 'D' || *Format == 'u' || *Format == 'U' )
-			{
-				FileRead_SkipSpace( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
-
-				Format ++ ;
-				UIntFlag = *Format == 'u' || *Format == 'U';
-				MinusFlag = FALSE;
-				res = FREAD( &c, sizeof( char ), 1, FileHandle );
-				FSYNC( FileHandle )
-				if( res == 0 )
-				{
-					Eof = TRUE;
-					break;
-				}
-				if( c == '-' )
-				{
-					MinusFlag = TRUE;
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-STR_10INT:
-				for( i = 0; i < 127 && ( Width == -1 || Width != i ) && c >= '0' && c <= '9'; i ++ )
-				{
-					Number[i] = c - '0';
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-				if( Eof == FALSE )
-				{
-					FSEEK( FileHandle, -( int )sizeof( char ), SEEK_CUR );
-				}
-				num = i;
-				if( num == 0 ) break;
-				int64Count = 1;
-				int64Num = 0;
-				for( i = num - 1; i >= 0; i --, int64Count *= 10 )
-				{
-					if( UIntFlag )
-						int64Num = (int)( (ULONGLONG)int64Num + (ULONGLONG)Number[i] * (ULONGLONG)int64Count );
-					else 
-						int64Num += (LONGLONG)Number[i] * int64Count;
-				}
-				if( MinusFlag ) int64Num = -int64Num;
-				if( SkipFlag == FALSE )
-				{
-					if( I64Flag )
-					{
-						if( UIntFlag ) *va_arg( Param,      ULONGLONG * ) =      (ULONGLONG)int64Num;
-						else           *va_arg( Param,       LONGLONG * ) =       (LONGLONG)int64Num;
-					}
-					else if( hFlag )
-					{
-						if( UIntFlag ) *va_arg( Param, unsigned short * ) = (unsigned short)int64Num;
-						else           *va_arg( Param,          short * ) =          (short)int64Num;
-					}
-					else
-					{
-						if( UIntFlag ) *va_arg( Param,   unsigned int * ) =   (unsigned int)int64Num;
-						else           *va_arg( Param,            int * ) =            (int)int64Num;
-					}
-				}
-			}
-			else if( *Format == 'x' || *Format == 'X' )
-			{
-				FileRead_SkipSpace( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
-
-				Format ++ ;
-				MinusFlag = FALSE;
-				res = FREAD( &c, sizeof( char ), 1, FileHandle );
-				FSYNC( FileHandle )
-				if( res == 0 )
-				{
-					Eof = TRUE;
-					break;
-				}
-				if( c == '-' )
-				{
-					MinusFlag = TRUE;
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-STR_16INT:
-				i = 0;
-				for(;;)
-				{
-					if( i >= 127 ) break;
-					if( Width != -1 && Width == i ) break;
-					else if( c >= '0' && c <= '9' ) Number[i] = c - '0';
-					else if( c >= 'a' && c <= 'f' ) Number[i] = c - 'a' + 10;
-					else if( c >= 'A' && c <= 'F' ) Number[i] = c - 'A' + 10;
-					else break;
-					i ++ ;
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-				if( Eof == FALSE )
-				{
-					FSEEK( FileHandle, -( int )sizeof( char ), SEEK_CUR );
-				}
-				num = i;
-				if( num == 0 ) break;
-				int64Count = 1;
-				int64Num = 0;
-				for( i = num - 1; i >= 0; i --, int64Count *= 16 )
-				{
-					int64Num += Number[i] * int64Count;
-				}
-				if( MinusFlag ) int64Num = -int64Num;
-				if( SkipFlag == FALSE )
-				{
-					if( I64Flag )    *va_arg( Param, LONGLONG * ) = (LONGLONG)int64Num;
-					else if( hFlag ) *va_arg( Param, short *    ) =    (short)int64Num;
-					else             *va_arg( Param, int *      ) =      (int)int64Num;
-				}
-			}
-			else if( *Format == 'o' || *Format == 'O' )
-			{
-				FileRead_SkipSpace( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
-
-				Format ++ ;
-				MinusFlag = FALSE;
-				res = FREAD( &c, sizeof( char ), 1, FileHandle );
-				FSYNC( FileHandle )
-				if( res == 0 )
-				{
-					Eof = TRUE;
-					break;
-				}
-				if( c == '-' )
-				{
-					MinusFlag = TRUE;
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-STR_8INT:
-				for( i = 0; i < 127 && ( Width == -1 || Width != i ) && c >= '0' && c <= '7'; i ++ )
-				{
-					Number[i] = c - '0';
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-				if( Eof == FALSE )
-				{
-					FSEEK( FileHandle, -( int )sizeof( char ), SEEK_CUR );
-				}
-				num = i;
-				if( num == 0 ) break;
-				int64Count = 1;
-				int64Num = 0;
-				for( i = num - 1; i >= 0; i --, int64Count *= 8 )
-				{
-					int64Num += Number[i] * int64Count;
-				}
-				if( MinusFlag ) int64Num = -int64Num;
-				if( SkipFlag == FALSE )
-				{
-					if( I64Flag )    *va_arg( Param, LONGLONG * ) = (LONGLONG)int64Num;
-					else if( hFlag ) *va_arg( Param, short *    ) =    (short)int64Num;
-					else             *va_arg( Param, int *      ) =      (int)int64Num;
-				}
-			}
-			else if( *Format == 'i' || *Format == 'I' )
-			{
-				FileRead_SkipSpace( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
-
-				Format ++ ;
-				MinusFlag = FALSE;
-				res = FREAD( &c, sizeof( char ), 1, FileHandle );
-				FSYNC( FileHandle )
-				if( res == 0 )
-				{
-					Eof = TRUE;
-					break;
-				}
-				if( c == '-' )
-				{
-					MinusFlag = TRUE;
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-				if( c == '0' )
-				{
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-					if( c == 'x' )
-					{
-						if( Width != -1 )
-						{
-							Width -- ;
-							if( Width == 0 ) break;
-						}
-						res = FREAD( &c, sizeof( char ), 1, FileHandle );
-						FSYNC( FileHandle )
-						if( res == 0 )
-						{
-							Eof = TRUE;
-							break;
-						}
-						goto STR_16INT;
-					}
-					else
-					{
-						goto STR_8INT;
-					}
-				}
-				else
-				{
-					goto STR_10INT;
-				}
-			}
-			else if( *Format == 'c' || *Format == 'C' )
-			{
-				Format ++ ;
-				if( Width == -1 ) Width = 1;
-				pStr = NULL;
-				if( SkipFlag == FALSE )
-				{
-					if( Format[ -1 ] == 'c' )
-					{
-						pStr = va_arg( Param, char * );
-					}
-					else
-					{
-						pStrW = va_arg( Param, DXWCHAR * );
-					}
-				}
-				for( i = 0; i < Width; i ++ )
-				{
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-					tstr[ i ] = c ;
-				}
-				tstr[ i ] = '\0' ;
-				if( pStr )
-				{
-					_STRCPY( pStr, tstr ) ;
-				}
-				if( pStrW )
-				{
-					MBCharToWChar( _GET_CODEPAGE(), tstr, pStrW, 1024 ) ;
-				}
-			}
-			else if( *Format == 's' || *Format == 'S' )
-			{
-				Format ++ ;
-				FileRead_SkipSpace( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
-
-				pStr = NULL;
-				pStrW = NULL;
-				if( SkipFlag == FALSE )
-				{
-					if( Format[ -1 ] == 's' )
-					{
-						pStr = va_arg( Param, char * );
-					}
-					else
-					{
-						pStrW = va_arg( Param, DXWCHAR * );
-					}
-				}
-
-				i = 0;
-				for(;;)
-				{
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE; 
-						break;
-					}
-					if( CheckMultiByteChar( c, _GET_CHARSET() ) == FALSE && ( c == ' ' || c == '\n' || c == '\r' ) )
-					{
-						FSEEK( FileHandle, -( int )sizeof( char ), SEEK_CUR );
-						break;
-					}
-					tstr[ i ] = c ;
-					i ++ ;
-					if( Width != -1 && i >= Width ) break;
-
-					if( CheckMultiByteChar( c, _GET_CHARSET() ) == TRUE )
-					{
-						res = FREAD( &c, sizeof( char ), 1, FileHandle );
-						FSYNC( FileHandle )
-						if( res == 0 )
-						{
-							Eof = TRUE; 
-							break;
-						}
-						tstr[ i ] = c ;
-						i ++ ;
-						if( Width != -1 && i >= Width ) break;
-					}
-				}
-				tstr[ i ] = '\0' ;
-				if( pStr )
-				{
-					_STRCPY( pStr, tstr ) ;
-				}
-				if( pStrW )
-				{
-					MBCharToWChar( _GET_CODEPAGE(), tstr, pStrW, 1024 ) ;
-				}
-			}
-			else if( *Format == 'f' || *Format == 'F' || *Format == 'g' || *Format == 'G' )
-			{
-				FileRead_SkipSpace( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
-
-				Format ++ ;
-				MinusFlag = FALSE;
-				TenFlag = FALSE;
-				SisuuFlag = FALSE;
-				MinusFlag2 = FALSE;
-				res = FREAD( &c, sizeof( char ), 1, FileHandle );
-				FSYNC( FileHandle )
-				if( res == 0 )
-				{
-					Eof = TRUE;
-					break;
-				}
-				if( c == '-' )
-				{
-					MinusFlag = TRUE;
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-
-				i = 0;	//自然数
-				j = 0;	//小数
-				k = 0;	//指数
-				for(;;)
-				{
-					if( c == '.' )
-					{
-						if( TenFlag ) break;
-						TenFlag = TRUE;
-					}
-					else if( c == 'e' || c == 'E' )
-					{
-						if( SisuuFlag ) break;
-						SisuuFlag = TRUE;
-					}
-					else if( c == '-' || c == '+' )
-					{
-						if( SisuuFlag == FALSE || k != 0 ) break;
-						if( c == '-' ) MinusFlag2 = TRUE;
-					}
-					else if( c >= '0' && c <= '9' )
-					{
-						if( SisuuFlag )
-						{
-							if( k >= 127 ) break ;
-							Number3[k] = c - '0';
-							k ++ ;
-						}
-						else if( TenFlag )
-						{
-							if( j >= 127 ) break ;
-							Number2[j] = c - '0';
-							j ++ ;
-						}
-						else
-						{
-							if( i >= 127 ) break ;
-							Number[i] = c - '0';
-							i ++ ;
-						}
-					}
-					else break;
-
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-				}
-				if( Eof == FALSE )
-				{
-					FSEEK( FileHandle, -( int )sizeof( char ), SEEK_CUR );
-				}
-				if( i == 0 && j == 0 ) break;
-				num = i;
-				num2 = j;
-				num3 = k;
-				if( num == 0 && num2 == 0 ) break;
-
-				doubleCount = 1.0;
-				doubleNum = 0;
-				for( i = num - 1; i >= 0; i --, doubleCount *= 10.0 )
-				{
-					if( Number[i] != 0 )
-						doubleNum += Number[i] * doubleCount;
-				}
-				if( MinusFlag ) doubleNum = -doubleNum;
-
-				doubleCount = 0.1;
-				doubleNum2 = 0;
-				for( i = 0; i < num2; i ++, doubleCount /= 10.0 )
-				{
-					if( Number2[i] != 0 )
-						doubleNum2 += Number2[i] * doubleCount;
-				}
-				if( MinusFlag ) doubleNum2 = -doubleNum2;
-
-				int64Count = 1;
-				int64Num = 0;
-				for( i = num3 - 1; i >= 0; i --, int64Count *= 10 )
-				{
-					int64Num += Number3[i] * int64Count;
-				}
-				if( MinusFlag2 ) int64Num = -int64Num;
-
-				doubleNum3 = 1.0;
-				if( int64Num != 0 )
-				{
-					if( int64Num < 0 )
-					{
-						int64Num = -int64Num;
-						for( i = 0; i < int64Num; i++ )
-							doubleNum3 /= 10.0;
-					}
-					else
-					{
-						for( i = 0; i < int64Num; i++ )
-							doubleNum3 *= 10.0;
-					}
-				}
-
-				doubleNum = ( doubleNum + doubleNum2 ) * doubleNum3;
-
-				if( SkipFlag == FALSE )
-				{
-					if( lFlag ) *va_arg( Param, double * ) = doubleNum;
-					else        *va_arg( Param, float *  ) = (float)doubleNum;
-				}
-			}
-			if( SkipFlag == FALSE ) ReadNum ++ ;
-		}
-		else
-		{
-			if( *Format == ' ' || *Format == '\n' || *Format == '\r' )
-			{
-				while( *Format != '\0' && ( *Format == ' ' || *Format == '\n' || *Format == '\r' ) ) Format ++ ;
-				FileRead_SkipSpace( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
-			}
-			else
-			{
-				for( i = 0; *Format != '\0' && *Format != ' ' && *Format != '\n' && *Format != '\r' && *Format != '%'; i++, Format ++ )
-					str[i] = *Format;
-				str[i] = '\0';
-				num = i;
-				for( i = 0; i < num; i ++ )
-				{
-					res = FREAD( &c, sizeof( char ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-					if( str[i] != c ) break;
-				}
-			}
-		}
-	}
-
-	if( FEOF( FileHandle ) && ReadNum == 0 ) return EOF;
-
-	return ReadNum;
+	return ( DWORD )( *( ( ULONGLONG * )UInt64 ) / DivNum ) ;
 }
 
-static void FileRead_SkipSpaceW( DWORD_PTR FileHandle, int *Eof )
+extern int INT64MOD( const BYTE *Int64, int ModNum )
 {
-	DXWCHAR c;
-	size_t res;
-
-	if( Eof ) *Eof = FALSE;
-	for(;;)
-	{
-		res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-		FSYNC( FileHandle )
-		if( res == 0 )
-		{
-			if( Eof ) *Eof = TRUE;
-			return;
-		}
-		if( c != L' ' && c != L'\n' && c != L'\r' ) break;
-	}
-	FSEEK( FileHandle, -( int )sizeof( DXWCHAR ), SEEK_CUR );
+	return ( int )( *( ( LONGLONG * )Int64 ) % ModNum ) ;
 }
 
-// サロゲートペアかどうかの判定( TRUE:４バイト文字上位  FALSE:２バイト文字 )
-static int _CheckUTF16H( DXWCHAR c )
+extern DWORD UINT64MOD( const BYTE *UInt64, DWORD ModNum )
 {
-	return ( DWORD )c >= 0xd800 && ( DWORD )c <= 0xdbff ? TRUE : FALSE ;
+	return ( DWORD )( *( ( ULONGLONG * )UInt64 ) % ModNum ) ;
 }
 
-static void __WCSCPY( DXWCHAR *Dest, const DXWCHAR *Src )
-{
-	int i ;
-	for( i = 0 ; Src[i] != L'\0' ; i ++ ) Dest[i] = Src[i] ;
-	Dest[i] = L'\0' ;
-}
 
-// ファイルから書式化されたデータを読み出す
-extern int FileRead_scanf_baseW( DWORD_PTR FileHandle, const DXWCHAR *Format, va_list Param )
-{
-	DXWCHAR c, c2[2], tstr[512], str[256], Number[128], Number2[128], Number3[128], VStr[1024];
-	int ReadNum, Width, i, j, k, num, num2, num3;
-	int SkipFlag, VStrRFlag, I64Flag, lFlag, hFlag, Eof, MinusFlag, UIntFlag;
-	int TenFlag, SisuuFlag, MinusFlag2 ;
-	size_t res;
-	LONGLONG int64Num, int64Count;
-	double doubleNum, doubleNum2, doubleNum3, doubleCount;
-	DXWCHAR *pStr;
-	char *pStrA ;
 
-	if( FEOF( FileHandle ) ) return EOF;
 
-	if( FTELL( FileHandle ) == 0 )
-	{
-		FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle ) ;
-		FSYNC( FileHandle )
-		if( *( ( WORD * )&c ) != 0xfeff )
-		{
-			FSEEK( FileHandle, 0, SEEK_SET ) ;
-		}
-	}
 
-	ReadNum = 0;
-	Eof = FALSE;
-	while( *Format != L'\0' && FEOF( FileHandle ) == 0 )
-	{
-		if( Format[0] == L'%' && Format[1] != L'%' )
-		{
-			Width = -1;
-			I64Flag = FALSE;
-			lFlag = FALSE;
-			hFlag = FALSE;
-			UIntFlag = FALSE;
-			SkipFlag = FALSE;
-			Format ++ ;
-			if( *Format == L'\0' ) break;
-			if( *Format == L'*' )
-			{
-				SkipFlag = TRUE;
-				Format ++ ;
-			}
-			if( *Format == L'\0' ) break;
-			if( *Format >= L'0' && *Format <= L'9' )
-			{
-				for( i = 0; Format[i] >= L'0' && Format[i] <= L'9'; i++ )
-					str[i] = Format[i];
-				str[i] = L'\0';
-				Format += i;
-				Width = _ATOIW( str );
-				if( Width == 0 ) break;
-			}
-			if( *Format == L'\0' ) break;
-			switch( *Format )
-			{
-			case L'l': case L'H': lFlag = TRUE; Format++ ; break;
-			case L'h': case L'L': hFlag = TRUE; Format++ ; break;
-			case L'I':
-				if( Format[1] == L'6' && Format[2] == L'4' )
-				{
-					I64Flag = TRUE;
-					Format += 3;
-				}
-				break;
-			}
-			if( *Format == L'\0' ) break;
 
-			if( *Format == L'[' )
-			{
-				if( lFlag || hFlag || I64Flag ) break;
 
-				Format ++ ;
-				VStrRFlag = FALSE;
-				if( *Format == L'^' )
-				{
-					VStrRFlag = TRUE;
-					Format++;
-				}
-				j = 0;
-				_MEMSET( VStr, 0, sizeof( VStr ) );
-				c = L'[';
-				while( *Format != L'\0' && *Format != L']' )
-				{
-					if( _CheckUTF16H( *Format ) == TRUE )
-					{
-						if( Format[1] == L'\0' )
-						{
-							Format++;
-							break;
-						}
-						if( Format[1] == L']' ) break;
-						VStr[j]   = Format[0];
-						VStr[j+1] = Format[1];
-						j += 2 ;
-						Format += 2 ;
-						c = L'[';
-					}
-					else
-					{
-						if( *Format == L'-' && c != L'[' && Format[1] != L'\0' && Format[1] != L']' )
-						{
-							num  = (int)(unsigned short)c;
-							num2 = (int)(unsigned short)Format[1];
-							if( num2 < num )
-							{
-								k = num2; num2 = num; num = k;
-							}
-							for( k = num; k <= num2; k++ )
-							{
-								if( c != k )
-								{
-									*((unsigned short *)&VStr[j]) = (unsigned short)k;
-									j++;
-								}
-							}
-							Format += 2;
-							c = L'[';
-						}
-						else
-						{
-							VStr[j] = *Format;
-							c = *Format;
-							j ++ ;
-							Format ++ ;
-						}
-					}
-				}
-				if( *Format == L'\0' ) break;
-				Format ++ ;
-				pStr = NULL;
-				if( SkipFlag == FALSE )
-				{
-					pStr = va_arg( Param, DXWCHAR * );
-				}
-				FileRead_SkipSpaceW( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
-				i = 0;
-				for(;;)
-				{
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-					if( _CheckUTF16H( c ) == TRUE )
-					{
-						c2[0] = c;
-						res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-						FSYNC( FileHandle )
-						if( res == 0 )
-						{
-							Eof = TRUE;
-							break;
-						}
-						c2[1] = c;
 
-						j = 0;
-						while( VStr[j] != L'\0' )
-						{
-							if( _CheckUTF16H( VStr[j] ) == TRUE )
-							{
-								if( VStr[j] == c2[0] && VStr[j+1] == c2[1] ) break;
-								j += 2;
-							}
-							else
-							{
-								j ++ ;
-							}
-						}
 
-						if( ( VStrRFlag == TRUE  && VStr[j] != L'\0' ) || ( VStrRFlag == FALSE && VStr[j] == L'\0' ) )
-						{
-							FSEEK( FileHandle, -( int )sizeof( DXWCHAR ), SEEK_CUR );
-							break;
-						}
 
-						if( Width - i == 1 )
-						{
-							FSEEK( FileHandle, -( int )sizeof( DXWCHAR ), SEEK_CUR );
-							if( pStr )
-							{
-								pStr[0] = c2[0];
-								pStr ++ ;
-							}
-							i ++ ;
-						}
-						else
-						{
-							if( pStr )
-							{
-								pStr[0] = c2[0];
-								pStr[1] = c2[1];
-								pStr += 2 ;
-							}
-							i += 2 ;
-						}
-					}
-					else
-					{
-						j = 0;
-						while( VStr[j] != L'\0' )
-						{
-							if( _CheckUTF16H( VStr[j] ) == TRUE )
-							{
-								j += 2;
-							}
-							else
-							{
-								if( VStr[j] == c ) break;
-								j ++ ;
-							}
-						}
 
-						if( ( VStrRFlag == TRUE  && VStr[j] != L'\0' ) || ( VStrRFlag == FALSE && VStr[j] == L'\0' ) ) break;
-						if( pStr )
-						{
-							*pStr = c;
-							pStr ++ ;
-						}
-						i ++ ;
-					}
-					if( Width != 0 && Width == i ) break;
-				}
-				if( pStr ) *pStr = L'\0';
-				if( Eof == FALSE && Width != i )
-				{
-					FSEEK( FileHandle, -( int )sizeof( DXWCHAR ), SEEK_CUR );
-				}
-			}
-			else if( *Format == L'd' || *Format == L'D' || *Format == L'u' || *Format == L'U' )
-			{
-				FileRead_SkipSpaceW( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
 
-				Format ++ ;
-				UIntFlag = *Format == L'u' || *Format == L'U';
-				MinusFlag = FALSE;
-				res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-				FSYNC( FileHandle )
-				if( res == 0 )
-				{
-					Eof = TRUE;
-					break;
-				}
-				if( c == L'-' )
-				{
-					MinusFlag = TRUE;
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-STR_10INT:
-				for( i = 0; i < 127 && ( Width == -1 || Width != i ) && c >= L'0' && c <= L'9'; i ++ )
-				{
-					Number[i] = c - L'0';
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-				if( Eof == FALSE )
-				{
-					FSEEK( FileHandle, -( int )sizeof( DXWCHAR ), SEEK_CUR );
-				}
-				num = i;
-				if( num == 0 ) break;
-				int64Count = 1;
-				int64Num = 0;
-				for( i = num - 1; i >= 0; i --, int64Count *= 10 )
-				{
-					if( UIntFlag )
-						int64Num = (int)( (ULONGLONG)int64Num + (ULONGLONG)Number[i] * (ULONGLONG)int64Count );
-					else 
-						int64Num += (LONGLONG)Number[i] * int64Count;
-				}
-				if( MinusFlag ) int64Num = -int64Num;
-				if( SkipFlag == FALSE )
-				{
-					if( I64Flag )
-					{
-						if( UIntFlag ) *va_arg( Param,      ULONGLONG * ) =      (ULONGLONG)int64Num;
-						else           *va_arg( Param,       LONGLONG * ) =       (LONGLONG)int64Num;
-					}
-					else if( hFlag )
-					{
-						if( UIntFlag ) *va_arg( Param, unsigned short * ) = (unsigned short)int64Num;
-						else           *va_arg( Param,          short * ) =          (short)int64Num;
-					}
-					else
-					{
-						if( UIntFlag ) *va_arg( Param,   unsigned int * ) =   (unsigned int)int64Num;
-						else           *va_arg( Param,            int * ) =            (int)int64Num;
-					}
-				}
-			}
-			else if( *Format == L'x' || *Format == L'X' )
-			{
-				FileRead_SkipSpaceW( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
 
-				Format ++ ;
-				MinusFlag = FALSE;
-				res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-				FSYNC( FileHandle )
-				if( res == 0 )
-				{
-					Eof = TRUE;
-					break;
-				}
-				if( c == L'-' )
-				{
-					MinusFlag = TRUE;
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-STR_16INT:
-				i = 0;
-				for(;;)
-				{
-					if( i >= 127 ) break;
-					if( Width != -1 && Width == i ) break;
-					else if( c >= L'0' && c <= L'9' ) Number[i] = c - L'0';
-					else if( c >= L'a' && c <= L'f' ) Number[i] = c - L'a' + 10;
-					else if( c >= L'A' && c <= L'F' ) Number[i] = c - L'A' + 10;
-					else break;
-					i ++ ;
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-				if( Eof == FALSE )
-				{
-					FSEEK( FileHandle, -( int )sizeof( DXWCHAR ), SEEK_CUR );
-				}
-				num = i;
-				if( num == 0 ) break;
-				int64Count = 1;
-				int64Num = 0;
-				for( i = num - 1; i >= 0; i --, int64Count *= 16 )
-				{
-					int64Num += Number[i] * int64Count;
-				}
-				if( MinusFlag ) int64Num = -int64Num;
-				if( SkipFlag == FALSE )
-				{
-					if( I64Flag )    *va_arg( Param, LONGLONG * ) = (LONGLONG)int64Num;
-					else if( hFlag ) *va_arg( Param, short *    ) =    (short)int64Num;
-					else             *va_arg( Param, int *      ) =      (int)int64Num;
-				}
-			}
-			else if( *Format == L'o' || *Format == L'O' )
-			{
-				FileRead_SkipSpaceW( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
 
-				Format ++ ;
-				MinusFlag = FALSE;
-				res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-				FSYNC( FileHandle )
-				if( res == 0 )
-				{
-					Eof = TRUE;
-					break;
-				}
-				if( c == L'-' )
-				{
-					MinusFlag = TRUE;
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-STR_8INT:
-				for( i = 0; i < 127 && ( Width == -1 || Width != i ) && c >= L'0' && c <= L'7'; i ++ )
-				{
-					Number[i] = c - L'0';
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-				if( Eof == FALSE )
-				{
-					FSEEK( FileHandle, -( int )sizeof( DXWCHAR ), SEEK_CUR );
-				}
-				num = i;
-				if( num == 0 ) break;
-				int64Count = 1;
-				int64Num = 0;
-				for( i = num - 1; i >= 0; i --, int64Count *= 8 )
-				{
-					int64Num += Number[i] * int64Count;
-				}
-				if( MinusFlag ) int64Num = -int64Num;
-				if( SkipFlag == FALSE )
-				{
-					if( I64Flag )    *va_arg( Param, LONGLONG * ) = (LONGLONG)int64Num;
-					else if( hFlag ) *va_arg( Param, short *    ) =    (short)int64Num;
-					else             *va_arg( Param, int *      ) =      (int)int64Num;
-				}
-			}
-			else if( *Format == L'i' || *Format == L'I' )
-			{
-				FileRead_SkipSpaceW( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
 
-				Format ++ ;
-				MinusFlag = FALSE;
-				res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-				FSYNC( FileHandle )
-				if( res == 0 )
-				{
-					Eof = TRUE;
-					break;
-				}
-				if( c == L'-' )
-				{
-					MinusFlag = TRUE;
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
-				if( c == L'0' )
-				{
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-					if( c == L'x' )
-					{
-						if( Width != -1 )
-						{
-							Width -- ;
-							if( Width == 0 ) break;
-						}
-						res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-						FSYNC( FileHandle )
-						if( res == 0 )
-						{
-							Eof = TRUE;
-							break;
-						}
-						goto STR_16INT;
-					}
-					else
-					{
-						goto STR_8INT;
-					}
-				}
-				else
-				{
-					goto STR_10INT;
-				}
-			}
-			else if( *Format == L'c' )
-			{
-				Format ++ ;
-				if( Width == -1 ) Width = 1;
-				pStr = NULL;
-				pStrA = NULL;
-				if( SkipFlag == FALSE )
-				{
-					if( Format[ -1 ] == 'c' )
-					{
-						pStr = va_arg( Param, DXWCHAR * );
-					}
-					else
-					{
-						pStrA = va_arg( Param, char * );
-					}
-				}
-				for( i = 0; i < Width; i ++ )
-				{
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-					tstr[ i ] = c ;
-				}
-				tstr[ i ] = L'\0' ;
-				if( pStr )
-				{
-					__WCSCPY( pStr, tstr ) ;
-				}
-				if( pStrA )
-				{
-					WCharToMBChar( _GET_CODEPAGE(), tstr, pStrA, 512 ) ;
-				}
-			}
-			else if( *Format == L's' || *Format == L'S' )
-			{
-				Format ++ ;
-				FileRead_SkipSpaceW( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
 
-				pStr = NULL;
-				pStrA = NULL;
-				if( SkipFlag == FALSE )
-				{
-					if( Format[ -1 ] == 's' )
-					{
-						pStr = va_arg( Param, DXWCHAR * );
-					}
-					else
-					{
-						pStrA = va_arg( Param, char * );
-					}
-				}
 
-				i = 0;
-				for(;;)
-				{
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE; 
-						break;
-					}
-					if( _CheckUTF16H( c ) == FALSE && ( c == L' ' || c == L'\n' || c == L'\r' ) )
-					{
-						FSEEK( FileHandle, -( int )sizeof( DXWCHAR ), SEEK_CUR );
-						break;
-					}
-					tstr[ i ] = c ;
-					i ++ ;
-					if( Width != -1 && i >= Width ) break;
 
-					if( _CheckUTF16H( c ) == TRUE )
-					{
-						res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-						FSYNC( FileHandle )
-						if( res == 0 )
-						{
-							Eof = TRUE; 
-							break;
-						}
-						tstr[ i ] = c ;
-						i ++ ;
-						if( Width != -1 && i >= Width ) break;
-					}
-				}
-				tstr[ i ] = '\0' ;
-				if( pStr )
-				{
-					__WCSCPY( pStr, tstr ) ;
-				}
-				if( pStrA )
-				{
-					WCharToMBChar( _GET_CODEPAGE(), tstr, pStrA, 512 ) ;
-				}
-			}
-			else if( *Format == L'f' || *Format == L'F' || *Format == L'g' || *Format == L'G' )
-			{
-				FileRead_SkipSpaceW( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
 
-				Format ++ ;
-				MinusFlag = FALSE;
-				TenFlag = FALSE;
-				SisuuFlag = FALSE;
-				MinusFlag2 = FALSE;
-				res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-				FSYNC( FileHandle )
-				if( res == 0 )
-				{
-					Eof = TRUE;
-					break;
-				}
-				if( c == L'-' )
-				{
-					MinusFlag = TRUE;
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-				}
 
-				i = 0;	//自然数
-				j = 0;	//小数
-				k = 0;	//指数
-				for(;;)
-				{
-					if( c == L'.' )
-					{
-						if( TenFlag ) break;
-						TenFlag = TRUE;
-					}
-					else if( c == L'e' || c == L'E' )
-					{
-						if( SisuuFlag ) break;
-						SisuuFlag = TRUE;
-					}
-					else if( c == L'-' || c == L'+' )
-					{
-						if( SisuuFlag == FALSE || k != 0 ) break;
-						if( c == L'-' ) MinusFlag2 = TRUE;
-					}
-					else if( c >= L'0' && c <= L'9' )
-					{
-						if( SisuuFlag )
-						{
-							if( k >= 127 ) break ;
-							Number3[k] = c - L'0';
-							k ++ ;
-						}
-						else if( TenFlag )
-						{
-							if( j >= 127 ) break ;
-							Number2[j] = c - L'0';
-							j ++ ;
-						}
-						else
-						{
-							if( i >= 127 ) break ;
-							Number[i] = c - L'0';
-							i ++ ;
-						}
-					}
-					else break;
 
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-					if( Width != -1 )
-					{
-						Width -- ;
-						if( Width == 0 ) break;
-					}
-				}
-				if( Eof == FALSE )
-				{
-					FSEEK( FileHandle, -( int )sizeof( DXWCHAR ), SEEK_CUR );
-				}
-				if( i == 0 && j == 0 ) break;
-				num = i;
-				num2 = j;
-				num3 = k;
-				if( num == 0 && num2 == 0 ) break;
-
-				doubleCount = 1.0;
-				doubleNum = 0;
-				for( i = num - 1; i >= 0; i --, doubleCount *= 10.0 )
-				{
-					if( Number[i] != 0 )
-						doubleNum += Number[i] * doubleCount;
-				}
-				if( MinusFlag ) doubleNum = -doubleNum;
-
-				doubleCount = 0.1;
-				doubleNum2 = 0;
-				for( i = 0; i < num2; i ++, doubleCount /= 10.0 )
-				{
-					if( Number2[i] != 0 )
-						doubleNum2 += Number2[i] * doubleCount;
-				}
-				if( MinusFlag ) doubleNum2 = -doubleNum2;
-
-				int64Count = 1;
-				int64Num = 0;
-				for( i = num3 - 1; i >= 0; i --, int64Count *= 10 )
-				{
-					int64Num += Number3[i] * int64Count;
-				}
-				if( MinusFlag2 ) int64Num = -int64Num;
-
-				doubleNum3 = 1.0;
-				if( int64Num != 0 )
-				{
-					if( int64Num < 0 )
-					{
-						int64Num = -int64Num;
-						for( i = 0; i < int64Num; i++ )
-							doubleNum3 /= 10.0;
-					}
-					else
-					{
-						for( i = 0; i < int64Num; i++ )
-							doubleNum3 *= 10.0;
-					}
-				}
-
-				doubleNum = ( doubleNum + doubleNum2 ) * doubleNum3;
-
-				if( SkipFlag == FALSE )
-				{
-					if( lFlag ) *va_arg( Param, double * ) = doubleNum;
-					else        *va_arg( Param, float *  ) = (float)doubleNum;
-				}
-			}
-			if( SkipFlag == FALSE ) ReadNum ++ ;
-		}
-		else
-		{
-			if( *Format == L' ' || *Format == L'\n' || *Format == L'\r' )
-			{
-				while( *Format != L'\0' && ( *Format == L' ' || *Format == L'\n' || *Format == L'\r' ) ) Format ++ ;
-				FileRead_SkipSpaceW( FileHandle, &Eof );
-				if( Eof == TRUE ) break;
-			}
-			else
-			{
-				for( i = 0; *Format != L'\0' && *Format != L' ' && *Format != L'\n' && *Format != L'\r' && *Format != L'%'; i++, Format ++ )
-					str[i] = *Format;
-				str[i] = L'\0';
-				num = i;
-				for( i = 0; i < num; i ++ )
-				{
-					res = FREAD( &c, sizeof( DXWCHAR ), 1, FileHandle );
-					FSYNC( FileHandle )
-					if( res == 0 )
-					{
-						Eof = TRUE;
-						break;
-					}
-					if( str[i] != c ) break;
-				}
-			}
-		}
-	}
-
-	if( FEOF( FileHandle ) && ReadNum == 0 ) return EOF;
-
-	return ReadNum;
-}
 
 #ifndef DX_NON_MOVIE
 #ifndef DX_NON_DSHOW_MP3
@@ -3061,7 +1786,7 @@ HRESULT SoundCallback_DSMP3(  D_IMediaSample * pSample, D_REFERENCE_TIME * /*Sta
 		DXFREE( OldBuffer ) ;
 	}
 
-	_MEMCPY( ( BYTE * )dsmp3->PCMBuffer + dsmp3->PCMValidDataSize, pBuffer, BufferLen ) ;
+	_MEMCPY( ( BYTE * )dsmp3->PCMBuffer + dsmp3->PCMValidDataSize, pBuffer, ( size_t )BufferLen ) ;
 	dsmp3->PCMValidDataSize += BufferLen ;
 	return 0 ;
 }
@@ -3128,7 +1853,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	MemStream = ( D_CMemStream * )D_CMemStream::CreateInstance( ( BYTE * )TempBuffer, TempSize ) ;
 	if( MemStream == NULL )
 	{
-		DXST_ERRORLOG_ADDA( "MP3変換用 D_CMemStream の作成に失敗しました" );
+		DXST_ERRORLOG_ADDA( "MP3\x95\xcf\x8a\xb7\x97\x70 D_CMemStream \x82\xcc\x8d\xec\x90\xac\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "MP3変換用 D_CMemStream の作成に失敗しました" @*/ );
 		goto ERR ;
 	}
 	hr = S_OK ;
@@ -3137,7 +1862,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	MemReader = ( D_CMemReader * )D_CMemReader::CreateInstance( MemStream, &ccmt, &hr ) ;
 	if( MemReader == NULL )
 	{
-		DXST_ERRORLOG_ADDA( "MP3変換用 D_CMemReader の作成に失敗しました" );
+		DXST_ERRORLOG_ADDA( "MP3\x95\xcf\x8a\xb7\x97\x70 D_CMemReader \x82\xcc\x8d\xec\x90\xac\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "MP3変換用 D_CMemReader の作成に失敗しました" @*/ );
 		goto ERR ;
 	}
 	MemReader->AddRef() ;
@@ -3145,14 +1870,14 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	// Nullレンダラーフィルタの作成
 	if( ( FAILED( WinAPIData.Win32Func.CoCreateInstanceFunc( CLSID_NULLRENDERER, 0, CLSCTX_INPROC_SERVER, IID_IBASEFILTER, ( void ** )&NullRenderer ) ) ) )
 	{
-		DXST_ERRORLOG_ADDA( "MP3変換用 NullRender の作成に失敗しました" );
+		DXST_ERRORLOG_ADDA( "MP3\x95\xcf\x8a\xb7\x97\x70 NullRender \x82\xcc\x8d\xec\x90\xac\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "MP3変換用 NullRender の作成に失敗しました" @*/ );
 		goto ERR ;
 	}
 
 	// グラフィックビルダーオブジェクトの作成
 	if( ( FAILED( WinAPIData.Win32Func.CoCreateInstanceFunc( CLSID_FILTERGRAPH, NULL, CLSCTX_INPROC, IID_IGRAPHBUILDER, ( void ** )&GraphBuilder ) ) ) )
 	{
-		DXST_ERRORLOG_ADDA( "MP3変換用 IGraphBuilder の作成に失敗しました" );
+		DXST_ERRORLOG_ADDA( "MP3\x95\xcf\x8a\xb7\x97\x70 IGraphBuilder \x82\xcc\x8d\xec\x90\xac\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "MP3変換用 IGraphBuilder の作成に失敗しました" @*/ );
 		goto ERR ;
 	}
 
@@ -3161,7 +1886,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	SampleGrabber = ( D_CSampleGrabber * )D_CSampleGrabber::CreateInstance( NULL, &hr ) ;
 	if( SampleGrabber == NULL )
 	{
-		DXST_ERRORLOG_ADDA( "MP3変換用 D_CSampleGrabber の作成に失敗しました" );
+		DXST_ERRORLOG_ADDA( "MP3\x95\xcf\x8a\xb7\x97\x70 D_CSampleGrabber \x82\xcc\x8d\xec\x90\xac\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "MP3変換用 D_CSampleGrabber の作成に失敗しました" @*/ );
 		goto ERR ;
 	}
 
@@ -3171,7 +1896,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	hr = SampleGrabber->SetAcceptedMediaType( &cmt ) ;
 	if( hr != S_OK )
 	{
-		DXST_ERRORLOG_ADDA( "サンプルグラバフィルタのメディアタイプの設定に失敗しました" );
+		DXST_ERRORLOG_ADDA( "\x83\x54\x83\x93\x83\x76\x83\x8b\x83\x4f\x83\x89\x83\x6f\x83\x74\x83\x42\x83\x8b\x83\x5e\x82\xcc\x83\x81\x83\x66\x83\x42\x83\x41\x83\x5e\x83\x43\x83\x76\x82\xcc\x90\xdd\x92\xe8\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "サンプルグラバフィルタのメディアタイプの設定に失敗しました" @*/ );
 		goto ERR ;
 	}
 
@@ -3179,7 +1904,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	hr = GraphBuilder->AddFilter( SampleGrabber, L"SampleGrabber") ;
 	if( hr != S_OK )
 	{
-		DXST_ERRORLOG_ADDA( "サンプルグラバフィルタのグラフへの追加に失敗しました" );
+		DXST_ERRORLOG_ADDA( "\x83\x54\x83\x93\x83\x76\x83\x8b\x83\x4f\x83\x89\x83\x6f\x83\x74\x83\x42\x83\x8b\x83\x5e\x82\xcc\x83\x4f\x83\x89\x83\x74\x82\xd6\x82\xcc\x92\xc7\x89\xc1\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "サンプルグラバフィルタのグラフへの追加に失敗しました" @*/ );
 		goto ERR ;
 	}
 
@@ -3187,7 +1912,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	hr = GraphBuilder->AddFilter( MemReader, L"MemFile" ) ;
 	if( hr != S_OK )
 	{
-		DXST_ERRORLOG_ADDA( "メモリファイルフィルタのグラフへの追加に失敗しました" );
+		DXST_ERRORLOG_ADDA( "\x83\x81\x83\x82\x83\x8a\x83\x74\x83\x40\x83\x43\x83\x8b\x83\x74\x83\x42\x83\x8b\x83\x5e\x82\xcc\x83\x4f\x83\x89\x83\x74\x82\xd6\x82\xcc\x92\xc7\x89\xc1\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "メモリファイルフィルタのグラフへの追加に失敗しました" @*/ );
 		goto ERR ;
 	}
 
@@ -3195,7 +1920,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	hr = GraphBuilder->Render( MemReader->GetPin( 0 ) ) ;
 	if( hr != S_OK )
 	{
-		DXST_ERRORLOG_ADDA( "グラフの構築に失敗しました" );
+		DXST_ERRORLOG_ADDA( "\x83\x4f\x83\x89\x83\x74\x82\xcc\x8d\x5c\x92\x7a\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "グラフの構築に失敗しました" @*/ );
 		goto ERR ;
 	}
 
@@ -3203,15 +1928,18 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	hr = GraphBuilder->AddFilter( NullRenderer, L"File Renderer" ) ;
 	if( hr != S_OK )
 	{
-		DXST_ERRORLOG_ADDA( "ヌルレンダラーフィルタのグラフへの追加に失敗しました" );
+		DXST_ERRORLOG_ADDA( "\x83\x6b\x83\x8b\x83\x8c\x83\x93\x83\x5f\x83\x89\x81\x5b\x83\x74\x83\x42\x83\x8b\x83\x5e\x82\xcc\x83\x4f\x83\x89\x83\x74\x82\xd6\x82\xcc\x92\xc7\x89\xc1\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "ヌルレンダラーフィルタのグラフへの追加に失敗しました" @*/ );
 		goto ERR ;
 	}
 
 	// ヌルレンダラーを元のレンダラーと交換する
 	{
 		D_IEnumFilters *EnumFilter ;
-		D_IPin *LastOutput, *LastInput, *InputPin, *OutputPin ;
-		D_IBaseFilter *TmpFilter ;
+		D_IPin         *LastOutput = NULL ;
+		D_IPin         *LastInput  = NULL ;
+		D_IPin         *InputPin ;
+		D_IPin         *OutputPin ;
+		D_IBaseFilter  *TmpFilter ;
 
 		// フィルターの列挙
 		GraphBuilder->EnumFilters( &EnumFilter ) ;
@@ -3262,7 +1990,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 		// エラー判定
 		if( hr != S_OK )
 		{
-			DXST_ERRORLOG_ADDA( "既存レンダラーをNullレンダラーと交換する処理が失敗しました" );
+			DXST_ERRORLOG_ADDA( "\x8a\xf9\x91\xb6\x83\x8c\x83\x93\x83\x5f\x83\x89\x81\x5b\x82\xf0Null\x83\x8c\x83\x93\x83\x5f\x83\x89\x81\x5b\x82\xc6\x8c\xf0\x8a\xb7\x82\xb7\x82\xe9\x8f\x88\x97\x9d\x82\xaa\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "既存レンダラーをNullレンダラーと交換する処理が失敗しました" @*/ );
 			goto ERR ;
 		}
 	}
@@ -3272,18 +2000,18 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	hr = SampleGrabber->GetConnectedMediaType( &csmpmt ) ;
 	if( hr != S_OK )
 	{
-		DXST_ERRORLOG_ADDA( "音声が含まれていないか、オーディオフォーマットの取得に失敗しました。" );
+		DXST_ERRORLOG_ADDA( "\x89\xb9\x90\xba\x82\xaa\x8a\xdc\x82\xdc\x82\xea\x82\xc4\x82\xa2\x82\xc8\x82\xa2\x82\xa9\x81\x41\x83\x49\x81\x5b\x83\x66\x83\x42\x83\x49\x83\x74\x83\x48\x81\x5b\x83\x7d\x83\x62\x83\x67\x82\xcc\x8e\xe6\x93\xbe\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\x81\x42"/*@ "音声が含まれていないか、オーディオフォーマットの取得に失敗しました。" @*/ );
 		goto ERR ;
 	}
 	if( csmpmt.formattype != FORMAT_WAVEFORMATEX )
 	{
-		DXST_ERRORLOG_ADDA( "サポート外のストリームフォーマットです。" );
+		DXST_ERRORLOG_ADDA( "\x83\x54\x83\x7c\x81\x5b\x83\x67\x8a\x4f\x82\xcc\x83\x58\x83\x67\x83\x8a\x81\x5b\x83\x80\x83\x74\x83\x48\x81\x5b\x83\x7d\x83\x62\x83\x67\x82\xc5\x82\xb7\x81\x42"/*@ "サポート外のストリームフォーマットです。" @*/ );
 		goto ERR ;;
 	}
 	smpfmt = ( WAVEFORMATEX * )csmpmt.pbFormat ;
 	if( smpfmt->wFormatTag != WAVE_FORMAT_PCM )
 	{
-		DXST_ERRORLOG_ADDA( "サポート外のオーディオフォーマットです。" );
+		DXST_ERRORLOG_ADDA( "\x83\x54\x83\x7c\x81\x5b\x83\x67\x8a\x4f\x82\xcc\x83\x49\x81\x5b\x83\x66\x83\x42\x83\x49\x83\x74\x83\x48\x81\x5b\x83\x7d\x83\x62\x83\x67\x82\xc5\x82\xb7\x81\x42"/*@ "サポート外のオーディオフォーマットです。" @*/ );
 		goto ERR ;
 	}
 	SoundConv->OutFormat.cbSize = 0 ;
@@ -3292,13 +2020,13 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	SoundConv->OutFormat.nBlockAlign		= smpfmt->nBlockAlign ;
 	SoundConv->OutFormat.nSamplesPerSec		= smpfmt->nSamplesPerSec ;
 	SoundConv->OutFormat.nAvgBytesPerSec	= SoundConv->OutFormat.nBlockAlign * smpfmt->nSamplesPerSec ;
-	SoundConv->OutFormat.wBitsPerSample		= smpfmt->nBlockAlign * 8 / smpfmt->nChannels ;
+	SoundConv->OutFormat.wBitsPerSample		= ( WORD )( smpfmt->nBlockAlign * 8 / smpfmt->nChannels ) ;
 
 	// サンプリング準備
 	hr = SampleGrabber->SetCallback( SoundCallback_DSMP3, SoundConv ) ;
 	if( hr != S_OK )
 	{
-		DXST_ERRORLOG_ADDA( "コールバック関数を設定できません" );
+		DXST_ERRORLOG_ADDA( "\x83\x52\x81\x5b\x83\x8b\x83\x6f\x83\x62\x83\x4e\x8a\xd6\x90\x94\x82\xf0\x90\xdd\x92\xe8\x82\xc5\x82\xab\x82\xdc\x82\xb9\x82\xf1"/*@ "コールバック関数を設定できません" @*/ );
 		goto ERR ;;
 	}
 
@@ -3307,7 +2035,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	dsmp3->PCMBuffer = DXALLOC( dsmp3->PCMBufferSize ) ;
 	if( dsmp3->PCMBuffer == NULL )
 	{
-		DXST_ERRORLOG_ADDA( "PCMデータを格納するメモリ領域の確保に失敗しました" );
+		DXST_ERRORLOG_ADDA( "PCM\x83\x66\x81\x5b\x83\x5e\x82\xf0\x8a\x69\x94\x5b\x82\xb7\x82\xe9\x83\x81\x83\x82\x83\x8a\x97\xcc\x88\xe6\x82\xcc\x8a\x6d\x95\xdb\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "PCMデータを格納するメモリ領域の確保に失敗しました" @*/ );
 		goto ERR ;
 	}
 
@@ -3318,7 +2046,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	hr = GraphBuilder->QueryInterface( IID_IMEDIAFILTER, ( void ** )&MediaFilter ) ;
 	if( hr != S_OK )
 	{
-		DXST_ERRORLOG_ADDA( "IMediaFilter の取得に失敗しました" );
+		DXST_ERRORLOG_ADDA( "IMediaFilter \x82\xcc\x8e\xe6\x93\xbe\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "IMediaFilter の取得に失敗しました" @*/ );
 		goto ERR ;
 	}
 
@@ -3329,7 +2057,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	hr = GraphBuilder->QueryInterface( IID_IMEDIACONTROL, ( void ** )&MediaControl ) ;
 	if( hr != S_OK )
 	{
-		DXST_ERRORLOG_ADDA( "IMediaControl の取得に失敗しました" );
+		DXST_ERRORLOG_ADDA( "IMediaControl \x82\xcc\x8e\xe6\x93\xbe\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "IMediaControl の取得に失敗しました" @*/ );
 		goto ERR ;
 	}
 
@@ -3337,7 +2065,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	hr = GraphBuilder->QueryInterface( IID_IMEDIAEVENT, ( void ** )&MediaEvent ) ;
 	if( hr != S_OK )
 	{
-		DXST_ERRORLOG_ADDA( "IMediaEvent の取得に失敗しました" );
+		DXST_ERRORLOG_ADDA( "IMediaEvent \x82\xcc\x8e\xe6\x93\xbe\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "IMediaEvent の取得に失敗しました" @*/ );
 		goto ERR ;
 	}
 
@@ -3351,7 +2079,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 
 		if( NS_ProcessMessage() != 0 )
 		{
-			DXST_ERRORLOG_ADDA( "MP3変換の途中でソフトが終了しました" );
+			DXST_ERRORLOG_ADDA( "MP3\x95\xcf\x8a\xb7\x82\xcc\x93\x72\x92\x86\x82\xc5\x83\x5c\x83\x74\x83\x67\x82\xaa\x8f\x49\x97\xb9\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "MP3変換の途中でソフトが終了しました" @*/ );
 			goto ERR ;
 		}
 
@@ -3360,7 +2088,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 		{
 			if( EvCode == D_EC_ERRORABORT )
 			{
-				DXST_ERRORLOG_ADDA( "MP3変換の途中でエラーが発生しました" );
+				DXST_ERRORLOG_ADDA( "MP3\x95\xcf\x8a\xb7\x82\xcc\x93\x72\x92\x86\x82\xc5\x83\x47\x83\x89\x81\x5b\x82\xaa\x94\xad\x90\xb6\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "MP3変換の途中でエラーが発生しました" @*/ );
 				goto ERR ;
 			}
 			if( EvCode == D_EC_COMPLETE )
@@ -3373,7 +2101,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	// バッファが解放されていたらエラー
 	if( dsmp3->PCMBuffer == NULL )
 	{
-		DXST_ERRORLOG_ADDA( "PCMデータを格納するメモリ領域の再確保に失敗しました" );
+		DXST_ERRORLOG_ADDA( "PCM\x83\x66\x81\x5b\x83\x5e\x82\xf0\x8a\x69\x94\x5b\x82\xb7\x82\xe9\x83\x81\x83\x82\x83\x8a\x97\xcc\x88\xe6\x82\xcc\x8d\xc4\x8a\x6d\x95\xdb\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "PCMデータを格納するメモリ領域の再確保に失敗しました" @*/ );
 		goto ERR ;
 	}
 
@@ -3381,7 +2109,7 @@ extern int SetupSoundConvert_DSMP3( SOUNDCONV *SoundConv )
 	SoundConv->MethodType = SOUND_METHODTYPE_DSMP3 ;
 
 	// 変換後のＰＣＭデータを一時的に保存するメモリ領域のサイズは１秒
-	SoundConv->DestDataSize = SoundConv->OutFormat.nAvgBytesPerSec ;
+	SoundConv->DestDataSize = ( int )SoundConv->OutFormat.nAvgBytesPerSec ;
 
 	// 各種インターフェイスとメモリの解放
 	if( MediaEvent   ){ MediaEvent->Release() ; MediaEvent = NULL ; }
@@ -3418,7 +2146,7 @@ ERR :
 
 
 
-}
+//}
 
 
 

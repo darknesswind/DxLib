@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ読み込み処理４用ヘッダ
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -19,8 +19,12 @@
 #include "DxModel.h"
 #include "DxModelRead.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 -----------------------------------
 
@@ -66,13 +70,13 @@ struct PMX_FACE
 // テクスチャ情報
 struct PMX_TEXTURE
 {
-	char	TexturePath[ 512 ] ;
+	wchar_t	TexturePath[ 512 ] ;
 } ;
 
 // マテリアル情報
 struct PMX_MATERIAL
 {
-	char	Name[ 128 ] ;						// 名前
+	wchar_t	Name[ 128 ] ;						// 名前
 
 	float	Diffuse[ 4 ] ;						// ディフューズカラー
 	float	Specular[ 3 ] ;						// スペキュラカラー
@@ -121,7 +125,7 @@ struct PMX_IK
 // ボーン情報
 struct PMX_BONE
 {
-	char	Name[ 128 ] ;						// 名前
+	wchar_t	Name[ 128 ] ;						// 名前
 	float	Position[ 3 ] ;						// 座標
 	int		ParentBoneIndex ;					// 親ボーンインデックス
 	int		TransformLayer ;					// 変形階層
@@ -199,7 +203,7 @@ struct PMX_MORPH_GROUP
 // モーフ情報
 struct PMX_MORPH
 {
-	char	Name[ 128 ] ;						// 名前
+	wchar_t	Name[ 128 ] ;						// 名前
 
 	BYTE	ControlPanel ;						// 操作パネル
 	BYTE	Type ;								// モーフの種類  0:グループ 1:頂点 2:ボーン 3:UV 4:追加UV1 5:追加UV2 6:追加UV3 7:追加UV4 8:材質
@@ -219,7 +223,7 @@ struct PMX_MORPH
 // 剛体情報
 struct PMX_RIGIDBODY
 {
-	char	Name[ 128 ] ;						// 名前
+	wchar_t	Name[ 128 ] ;						// 名前
 
 	int		BoneIndex ;							// 対象ボーン番号
 
@@ -246,7 +250,7 @@ struct PMX_RIGIDBODY
 // ジョイント情報
 struct PMX_JOINT
 {
-	char	Name[ 128 ] ;						// 名前
+	wchar_t	Name[ 128 ] ;						// 名前
 
 	BYTE	Type ;								// 種類( 0:スプリング6DOF ( PMX2.0 では 0 のみ )
 
@@ -350,6 +354,8 @@ struct DX_MODELLOADER3_PMX_PHYSICS_INFO
 	int LoopMotionFlag ;
 	int LoopMotionNum ;
 
+	int	PhysicsCalcPrecision ;
+
 	int PmxPhysicsNum ;
 	PMX_READ_PHYSICS_INFO *PmxPhysicsInfoDim ;
 
@@ -364,16 +370,21 @@ struct DX_MODELLOADER3_PMX_PHYSICS_INFO
 
 // 関数宣言 -------------------------------------
 
+#ifdef DX_USE_NAMESPACE
+
+}
+
+#endif // DX_USE_NAMESPACE
+
 #ifndef DX_NON_BULLET_PHYSICS
 
 extern int SetupPhysicsObject_PMXPhysicsInfo(		DX_MODELLOADER3_PMX_PHYSICS_INFO *MLPhysicsInfo ) ;
 extern int ReleasePhysicsObject_PMXPhysicsInfo(		DX_MODELLOADER3_PMX_PHYSICS_INFO *MLPhysicsInfo ) ;
-extern int OneFrameProcess_PMXPhysicsInfo(			DX_MODELLOADER3_PMX_PHYSICS_INFO *MLPhysicsInfo, int FrameNo, int LoopNo, bool FPS60 ) ;
+extern int OneFrameProcess_PMXPhysicsInfo(			DX_MODELLOADER3_PMX_PHYSICS_INFO *MLPhysicsInfo, int FrameNo, int LoopNo, bool FPS60, int ValidNextRate, int TimeDivNum ) ;
 extern int CheckDisablePhysicsAnim_PMXPhysicsInfo(	DX_MODELLOADER3_PMX_PHYSICS_INFO *MLPhysicsInfo, int PhysicsIndex ) ;
 
 #endif
 
-}
 
 #endif
 #endif

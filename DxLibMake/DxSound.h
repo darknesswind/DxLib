@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		サウンドプログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -13,35 +13,66 @@
 
 #ifndef DX_NON_SOUND
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxLib.h"
 #include "DxStatic.h"
 #include "DxRingBuffer.h"
 #include "DxSoundConvert.h"
 #include "DxHandle.h"
+#include "DxFile.h"
+
+#ifdef __WINDOWS__
+#include "Windows/DxSoundWin.h"
+#endif // __WINDOWS__
+
+#ifdef __PSVITA
+#include "PSVita/DxSoundPSVita.h"
+#endif // __PSVITA
+
+#ifdef __PS4
+#include "PS4/DxSoundPS4.h"
+#endif // __PS4
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
+
+// マクロ定義 --------------------------------------------------------------------
 
 #define MAX_SOUNDBUFFER_NUM				(10)			// DIRECTSOUNDBUFFER バッファの最大数
 #define STS_SETSOUNDNUM					(4)				// ストリーム風サウンド再生に登録できるサウンドの数
 
-#define D_X3DAUDIO_INPUTCHANNELS		(8)				// X3DAudio の計算で使用する最大入力チャンネル数
 #define SOUNDBUFFER_MAX_CHANNEL_NUM		(8)				// 対応するサウンドチャンネルの最大数
 
-// 结构体定义 --------------------------------------------------------------------
+
+// サウンドハンドルエラーチェック用マクロ
+#define SOUNDHCHK( HAND, SPOINT )			HANDLECHK(       DX_HANDLETYPE_SOUND, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+#define SOUNDHCHK_ASYNC( HAND, SPOINT )		HANDLECHK_ASYNC( DX_HANDLETYPE_SOUND, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+
+// ソフトサウンドハンドルエラーチェック用マクロ
+#define SSND_MASKHCHK( HAND, SPOINT )		HANDLECHK(       DX_HANDLETYPE_SOFTSOUND, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+#define SSND_MASKHCHK_ASYNC( HAND, SPOINT )	HANDLECHK_ASYNC( DX_HANDLETYPE_SOFTSOUND, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+
+// ミュージックハンドルエラーチェック用マクロ
+#define MIDI_MASKHCHK( HAND, SPOINT )		HANDLECHK(       DX_HANDLETYPE_MUSIC, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+#define MIDI_MASKHCHK_ASYNC( HAND, SPOINT )	HANDLECHK_ASYNC( DX_HANDLETYPE_MUSIC, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
+
+
+// 構造体定義 --------------------------------------------------------------------
 
 // ファイルからサウンドハンドルを作成する処理に必要なグローバルデータを纏めたもの
 struct LOADSOUND_GPARAM
 {
-	int						Create3DSoundFlag ;						// 3Dサウンドを作成するかどうかのフラグ( TRUE:３Ｄサウンドを作成する  FALSE:３Ｄサウンドを作成しない )
-	int						CreateSoundDataType ;					// 作成するサウンドデータのデータタイプ
-	int						DisableReadSoundFunctionMask ;			// 使用しない読み込み処理のマスク
+	int							NotInitSoundMemDelete ;					// InitSoundMem で削除しないかどうかのフラグ( TRUE:InitSoundMemでは削除しない  FALSE:InitSoundMemで削除する )
+	int							Create3DSoundFlag ;						// 3Dサウンドを作成するかどうかのフラグ( TRUE:３Ｄサウンドを作成する  FALSE:３Ｄサウンドを作成しない )
+	int							CreateSoundDataType ;					// 作成するサウンドデータのデータタイプ
+	int							DisableReadSoundFunctionMask ;			// 使用しない読み込み処理のマスク
 #ifndef DX_NON_OGGVORBIS
-	int						OggVorbisBitDepth ;						// ＯｇｇＶｏｒｂｉｓ使用時のビット深度(1:8bit 2:16bit)
-	int						OggVorbisFromTheoraFile ;				// Ogg Theora ファイル中の Vorbis データを参照するかどうかのフラグ( TRUE:Theora ファイル中の Vorbis データを参照する )
+	int							OggVorbisBitDepth ;						// ＯｇｇＶｏｒｂｉｓ使用時のビット深度(1:8bit 2:16bit)
+	int							OggVorbisFromTheoraFile ;				// Ogg Theora ファイル中の Vorbis データを参照するかどうかのフラグ( TRUE:Theora ファイル中の Vorbis データを参照する )
 #endif
 } ;
 
@@ -64,20 +95,6 @@ struct WAVEDATA
 	int							RefCount ;				// 参照数
 } ;
 
-// XAudio2用コールバック処理用構造体
-struct SOUNDBUFFER_CALLBACK : public D_IXAudio2VoiceCallback
-{
-	virtual void    __stdcall OnVoiceProcessingPassStart( DWORD BytesRequired ) ;
-	virtual void    __stdcall OnVoiceProcessingPassEnd	() ;
-	virtual void    __stdcall OnStreamEnd				() ;
-	virtual void    __stdcall OnBufferStart				( void* pBufferContext ) ;
-	virtual void    __stdcall OnBufferEnd				( void* pBufferContext ) ;
-	virtual void    __stdcall OnLoopEnd					( void* pBufferContext ) ;
-	virtual void    __stdcall OnVoiceError				( void* pBufferContext, HRESULT Error ) ;
-
-	struct SOUNDBUFFER			*Buffer ;
-} ;
-
 // ３Ｄサウンドデータの基本的な情報
 struct _3DSOUNDINFO
 {
@@ -96,30 +113,11 @@ struct SOUNDBUFFER
 {
 	int							Valid ;					// データが有効か否か(TRUE:有効 FALSE:無効)
 
-	union
-	{
-		D_IDirectSoundBuffer 		*DSBuffer ;				// DirectSoundBuffer
-		D_IXAudio2SourceVoice		*XA2SourceVoice ;		// XAudio2SourceVoice
-		D_IXAudio2_8SourceVoice		*XA2_8SourceVoice ;		// XAudio2_8SourceVoice
-	} ;
-	union
-	{
-		D_IXAudio2SubmixVoice		*XA2SubmixVoice ;		// XAudio2SubmixVoice
-		D_IXAudio2_8SubmixVoice		*XA2_8SubmixVoice ;		// XAudio2_8SubmixVoice
-	} ;
-	IUnknown					*XA2ReverbEffect ;		// リバーブエフェクト
-	SOUNDBUFFER_CALLBACK		*XA2Callback ;			// XAudio2用のコールバック
-
-	union
-	{
-		D_XAUDIO2FX_REVERB_PARAMETERS    XAudio2ReverbParameter ;	// リバーブ計算用パラメータ
-		D_XAUDIO2FX_REVERB_PARAMETERS2_8 XAudio2_8ReverbParameter ;	// リバーブ計算用パラメータXAudio2.8用
-	} ;
-
 	int							Pan ;					// パン( 10000:左100%右0%  0:左右100%  -100000:右100% )
 	int							Volume[ SOUNDBUFFER_MAX_CHANNEL_NUM ] ;	// ボリューム( 10000:0%  0:100% )
 	int							Frequency ;				// 再生周波数( -1:デフォルト )
 	int							SampleNum ;				// サンプルの数
+
 	WAVEFORMATEX				Format ;				// バッファのフォーマット
 
 	// DirectSound 以外の場合に使用
@@ -130,20 +128,19 @@ struct SOUNDBUFFER
 	int							Loop ;					// ループするかどうか( TRUE:ループする  FALSE:ループしない )
 	int							CalcPan ;				// キャプチャ用に計算した後のパン( 256:左100%右0%  0:左右100%  -256:右100% )
 	int							CalcVolume ;			// キャプチャ用に計算した後のボリューム( 256:100%  0:0% )
-	int							XAudioChannels ;		// XAudio 側でのチャンネル数
 	volatile int				StopTimeState ;			// StopTime の状態( 0:動作無し 1:再生終了待ち 2:時間経過待ち )
 	volatile int				StopTime ;				// 再生が停止した時間
 
 	// ３Ｄサウンド再生用データ
 	int							Is3DSound ;												// ３Ｄサウンドかどうか
-	D_X3DAUDIO_EMITTER			X3DAudioEmitterData ;									// ３Ｄサウンド用音源情報
-	D_X3DAUDIO_CONE				X3DAudioEmitterConeData ;								// ３Ｄサウンド用音源情報で使用するコーン情報
-	float						X3DAudioEmitterChannelAzimuths[ D_X3DAUDIO_INPUTCHANNELS ] ;	// ３Ｄサウンド用音源情報で使用するチャンネル位置テーブル
 	_3DSOUNDINFO				EmitterInfo ;											// ３Ｄサウンド用の情報
 	float						EmitterRadius ;											// ３Ｄサウンド用音源の音が届く距離
+	float						EmitterInnerRadius ;									// ３Ｄサウンド用音源の音が音量１００％で聞こえる距離
 	int							EmitterDataChangeFlag ;									// ３Ｄサウンド用音源情報が変更されたかどうか( TRUE:変更された  FALSE:変更されていない )
 	float						DSound_Calc3DVolume ;									// DirectSound用の３Ｄ計算後のボリューム
 	float						DSound_Calc3DPan ;										// DirectSound用の３Ｄ計算後のパン
+
+	SOUNDBUFFER_PF				PF ;					// 環境依存情報
 } ;
 
 // ストリーム風サウンドプレイ用ファイルデータ
@@ -219,6 +216,8 @@ struct SOUND
 
 	int							PlayFinishDeleteFlag ;									// サウンドの再生が終了したら削除するかどうか( TRUE:削除する  FALSE:削除しない )
 	HANDLELIST					PlayFinishDeleteSoundList ;								// サウンドの再生が終了したら削除するサウンドのリスト処理用構造体
+
+	int							NotInitSoundMemDelete ;									// InitSoundMem で削除しないかどうかのフラグ( TRUE:InitSoundMemでは削除しない  FALSE:InitSoundMemで削除する )
 
 //	char						FilePath[ 256 ] ;										// ディレクトリ
 //	char						SoundName[ 256 ] ;										// サウンドファイルネーム
@@ -307,50 +306,18 @@ struct SOFTSOUND
 } ;
 
 
-// ＤｉｒｅｃｔＳｏｕｎｄデータ構造体定義
-struct DIRECTSOUNDDATA
+// サウンドシステム用データ構造体
+struct SOUNDSYSTEMDATA
 {
 	int							InitializeFlag ;				// 初期化フラグ
 
-	D_IDirectMusicLoader8		*DirectMusicLoaderObject ;		// DirectMusicLoader8 オブジェクト
-	D_IDirectMusicPerformance8	*DirectMusicPerformanceObject ;	// DirectMusicPerformance8 オブジェクト
-
-	HMODULE						XAudio2_8DLL ;					// XAudio2_8.dll
-	HRESULT						( WINAPI *XAudio2CreateFunc )( D_IXAudio2_8 ** ppXAudio2, DWORD Flags, D_XAUDIO2_PROCESSOR XAudio2Processor );
-	HRESULT						( WINAPI *CreateAudioVolumeMeterFunc )( IUnknown** ppApo ) ;
-	HRESULT						( WINAPI *CreateAudioReverbFunc )( IUnknown** ppApo ) ;
-
-	HMODULE						X3DAudioDLL ;					// X3DAudio.dll
-	void						( __cdecl *X3DAudioInitializeFunc )( DWORD SpeakerChannelMask, float SpeedOfSound, D_X3DAUDIO_HANDLE Instance ) ;
-	void						( __cdecl *X3DAudioCalculateFunc )( const D_X3DAUDIO_HANDLE Instance, const D_X3DAUDIO_LISTENER* pListener, const D_X3DAUDIO_EMITTER* pEmitter, DWORD Flags, D_X3DAUDIO_DSP_SETTINGS* pDSPSettings ) ;
-
-	union
-	{
-		D_IXAudio2				*XAudio2Object ;				// XAudio2オブジェクト
-		D_IXAudio2_8			*XAudio2_8Object ;				// XAudio2_8オブジェクト
-		D_IDirectSound			*DirectSoundObject ;			// ＤｉｒｅｃｔＳｏｕｎｄオブジェクト
-	} ;
-
-	D_XAUDIO2FX_REVERB_PARAMETERS    XAudio2ReverbParameters[ D_XAUDIO2FX_PRESET_NUM ] ;	// リバーブ計算用パラメータ
-	D_XAUDIO2FX_REVERB_PARAMETERS2_8 XAudio2_8ReverbParameters[ D_XAUDIO2FX_PRESET_NUM ] ;	// リバーブ計算用パラメータXAudio2.8用
-	D_IXAudio2MasteringVoice	*XAudio2MasteringVoiceObject ;	// XAudio2MasteringVoiceオブジェクト
-	D_IXAudio2_8MasteringVoice	*XAudio2_8MasteringVoiceObject ;// XAudio2_8MasteringVoiceオブジェクト
-	D_XAUDIO2_EFFECT_CHAIN		XAudio2MasteringEffectChain ;	// マスターボイス用のエフェクトチェイン
-
-	DWORD						XAudio2OutputChannelMask ;		// 出力チャンネルマスク
 	DWORD						OutputChannels ;				// 出力チャンネル数
 	DWORD						OutputSmaplesPerSec ;			// 出力サンプリングレート
 
 	int							_3DSoundOneMetreEnable ;		// _3DSoundOneMetre が有効かどうか( TRUE:有効  FALSE:無効 )
 	float						_3DSoundOneMetre ;				// ３Ｄサウンド処理用の１メートル
-	D_X3DAUDIO_HANDLE			X3DAudioInstance ;				// ３Ｄサウンド計算用インスタンスハンドル
-	D_X3DAUDIO_CONE				X3DAudioListenerConeData ;		// ３Ｄサウンドのリスナー情報に使用するコーン情報
-	D_X3DAUDIO_LISTENER			X3DAudioListenerData ;			// ３Ｄサウンドのリスナー情報
 	_3DSOUNDINFO				ListenerInfo ;					// ３Ｄサウンドのリスナーの情報
 	VECTOR						ListenerSideDirection ;			// ３Ｄサウンドのリスナーの横方向
-
-	D_IDirectSoundBuffer		*PrimarySoundBuffer ;			// プライマリサウンドバッファ
-	D_IDirectSoundBuffer		*BeepSoundBuffer ;				// ビープ音用バッファ
 
 	HANDLELIST					_3DSoundListFirst ;				// ３Ｄサウンドハンドルリストの先頭
 	HANDLELIST					_3DSoundListLast ;				// ３Ｄサウンドハンドルリストの終端
@@ -368,20 +335,19 @@ struct DIRECTSOUNDDATA
 	HANDLELIST					Play3DSoundListLast ;			// 再生している３Ｄサウンドリストの終端
 
 	int							PlayWavSoundHandle ;			// PlayWav関数で鳴らされているWAVEデータのハンドル
-	D_IDirectSoundBuffer		*NoSoundBuffer ;				// 無音バッファ
 
-	int							DisableXAudioFlag ;				// XAudioを使用しないかどうかのフラグ( TRUE:使用しない  FALSE:使用する ) 
 	int							Create3DSoundFlag ;				// 3Dサウンドを作成するかどうかのフラグ( TRUE:３Ｄサウンドを作成する  FALSE:３Ｄサウンドを作成しない )
 	int							OldVolumeTypeFlag ;				// Ver3.10c以前の音量計算式を使用するかどうかのフラグ( TRUE:古い計算式を使用する  FALSE:新しい計算式を使用する )
 	int							SoundMode ;						// 再生形式
 
 	int							MaxVolume ;						// 最大音量
-	int							UseSoftwareMixing ;				// ソフトウエアミキシングを行うかどうかのフラグ( TRUE:ソフトウエア  FALSE:ハードウエア )
 
 	int							EnableSoundCaptureFlag ;		// サウンドキャプチャを前提とした動作をする
+#ifndef DX_NON_SAVEFUNCTION
 	int							SoundCaptureFlag ;				// サウンドキャプチャを実行している最中かどうかのフラグ(TRUE:最中 FASLE:違う)
 	int							SoundCaptureSample ;			// キャプチャしたサンプルの数(44.1KHz換算)
 	HANDLE						SoundCaptureFileHandle ;		// キャプチャしたサウンドを保存しているファイル
+#endif // DX_NON_SAVEFUNCTION
 
 	int							CreateSoundDataType ;			// 作成するサウンドデータのデータタイプ
 	int							DisableReadSoundFunctionMask ;	// 使用しない読み込み処理のマスク
@@ -390,9 +356,7 @@ struct DIRECTSOUNDDATA
 	int							OggVorbisFromTheoraFile ;		// Ogg Theora ファイル中の Vorbis データを参照するかどうかのフラグ( TRUE:Theora ファイル中の Vorbis データを参照する )
 #endif
 
-	HANDLE						StreamSoundThreadHandle ;		// ストリームサウンドを再生する処理を行うスレッドのハンドル
-	DWORD						StreamSoundThreadID ;			// ストリームサウンドを再生する処理を行うスレッドのＩＤ
-	DWORD						StreamSoundThreadEndFlag ;		// ストリームサウンドを再生する処理を終了するかどうかのフラグ
+	SOUNDSYSTEMDATA_PF			PF ;							// 環境依存情報
 } ;
 
 // ＭＩＤＩデータ
@@ -407,46 +371,48 @@ struct MIDIHANDLEDATA
 	void						*DataImage ;					// ＭＩＤＩファイルのデータが格納されているアドレス( DSOUND.SoundMode が DX_MIDIMODE_MCI の時のみ有効 )
 	int							DataSize ;						// ＭＩＤＩファイルのデータサイズ( DSOUND.SoundMode が DX_MIDIMODE_MCI の時のみ有効 )
 
-	D_IDirectMusicSegment8		*DirectMusicSegmentObject ;		// DirectMusicSegment8 オブジェクト
 	int							StartTime ;						// 再生開始時間
+
+	MIDIHANDLEDATA_PF			PF ;							// 環境依存情報
 } ;
 
-// ＭＩＤＩ管理データ型
-struct MIDIDATA
+// ＭＩＤＩシステム用データ構造体
+struct MIDISYSTEMDATA
 {
 	int							PlayFlag ;						// 演奏中フラグ
 	int							PlayHandle ;					// 演奏中のハンドル
 
-	TCHAR						FileName[ MAX_PATH ] ;			// ファイルネーム
+	wchar_t						FileName[ FILEPATH_MAX ] ;		// ファイルネーム
 
-	UINT						MidiID ;						// ＭＩＤＩ演奏時のＩＤ
 	int							LoopFlag ;						// ループ演奏か、フラグ
 
-	D_IDirectMusicSegment8		*DirectMusicSegmentObject ;		// DirectMusicSegment8 オブジェクト
 	int							StartTime ;						// 再生開始時間
 
 	int							MemImagePlayFlag ;				// メモリ上のイメージを使用して再生しているか、フラグ( TRUE:メモリイメージ  FALSE:ファイル )
 
 	int							DefaultHandle ;					// 標準の再生関数で使用するMIDIハンドル
 	int							DefaultHandleToSoundHandleFlag ;	// 標準の再生関数で再生しているハンドルは音声ハンドルか、フラグ
+
+	MIDISYSTEMDATA_PF			PF ;							// 環境依存情報
 } ;
 
 // テーブル-----------------------------------------------------------------------
 
 // 内部大域変数宣言 --------------------------------------------------------------
 
-// ＤｉｒｅｃｔＳｏｕｎｄデータ
-extern DIRECTSOUNDDATA DX_DirectSoundData ;
+// サウンドシステムデータ
+extern SOUNDSYSTEMDATA SoundSysData ;
+
+// ＭＩＤＩ管理用データ
+extern MIDISYSTEMDATA MidiSystemData ;	
 
 // 関数プロトタイプ宣言-----------------------------------------------------------
 
-extern	int		InitializeDirectSound( void ) ;																			// ＤｉｒｅｃｔＳｏｕｎｄを初期化する
-extern	int		TerminateDirectSound( void ) ;																			// ＤｉｒｅｃｔＳｏｕｎｄの使用を終了する
+extern	int		InitializeSoundSystem( void ) ;																			// サウンドシステムを初期化する
+extern	int		TerminateSoundSystem( void ) ;																			// サウンドシステムの後始末をする
 
 extern	int		RefreshStreamSoundPlayCompLength( int SoundHandle, int CurrentPosition = -1, int ASyncThread = FALSE ) ;	// サウンドハンドルの再生完了時間を更新する
 extern	int		ST_SoftSoundPlayerProcessAll( void ) ;																	// ソフトウエアで制御する全てのサウンドデータプレイヤーの定期処理を行う
-
-extern	int		MidiCallBackProcess( void ) ;																			// ＭＩＤＩ演奏終了時呼ばれるコールバック関数
 
 extern	int		StartSoundCapture( const char *SaveFilePath ) ;															// サウンドキャプチャの開始
 extern	int		SoundCaptureProcess( int CaptureSample ) ;																// サウンドキャプチャの周期的処理
@@ -457,16 +423,16 @@ extern	void	InitLoadSoundGParam( LOADSOUND_GPARAM *GParam ) ;														// LO
 extern	int		InitializeSoundHandle( HANDLEINFO *HandleInfo ) ;														// サウンドハンドルの初期化
 extern	int		TerminateSoundHandle( HANDLEINFO *HandleInfo ) ;														// サウンドハンドルの後始末
 
-extern	int		LoadSoundMemBase_UseGParam( LOADSOUND_GPARAM *GParam, const TCHAR *WaveName, int BufferNum, int UnionHandle, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																					// LoadSoundMemBase のグローバル変数にアクセスしないバージョン
+extern	int		LoadSoundMemBase_UseGParam(           LOADSOUND_GPARAM *GParam, const wchar_t *WaveName, int BufferNum, int UnionHandle, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																					// LoadSoundMemBase のグローバル変数にアクセスしないバージョン
 extern	int		LoadSoundMemByMemImageBase_UseGParam( LOADSOUND_GPARAM *GParam, int CreateSoundHandle, int SoundHandle, const void *FileImageBuffer, int ImageSize, int BufferNum, int UnionHandle = -1, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;		// LoadSoundMemByMemImageBase のグローバル変数にアクセスしないバージョン
-extern	int		LoadSoundMem2_UseGParam( LOADSOUND_GPARAM *GParam, const TCHAR *WaveName1 , const TCHAR *WaveName2, int ASyncLoadFlag = FALSE ) ;																													// LoadSoundMem2 のグローバル変数にアクセスしないバージョン
-extern	int		LoadSoundMem2ByMemImage_UseGParam( LOADSOUND_GPARAM *GParam, const void *FileImageBuffer1, int ImageSize1, const void *FileImageBuffer2, int ImageSize2, int ASyncLoadFlag = FALSE ) ;																			// LoadSoundMem2ByMemImage のグローバル変数にアクセスしないバージョン
+extern	int		LoadSoundMem2_UseGParam(              LOADSOUND_GPARAM *GParam, const wchar_t *WaveName1 , const wchar_t *WaveName2, int ASyncLoadFlag = FALSE ) ;																													// LoadSoundMem2 のグローバル変数にアクセスしないバージョン
+extern	int		LoadSoundMem2ByMemImage_UseGParam(    LOADSOUND_GPARAM *GParam, const void *FileImageBuffer1, int ImageSize1, const void *FileImageBuffer2, int ImageSize2, int ASyncLoadFlag = FALSE ) ;																			// LoadSoundMem2ByMemImage のグローバル変数にアクセスしないバージョン
 
-extern	int		AddStreamSoundMem_UseGParam( LOADSOUND_GPARAM *GParam, STREAMDATA *Stream, int LoopNum,  int SoundHandle, int StreamDataType, int *CanStreamCloseFlag, int UnionHandle = -1, int ASyncThread = FALSE ) ;											// AddStreamSoundMem のグローバル変数にアクセスしないバージョン
-extern	int		AddStreamSoundMemToFile_UseGParam( LOADSOUND_GPARAM *GParam, const TCHAR *WaveFile, int LoopNum,  int SoundHandle, int StreamDataType, int UnionHandle = -1, int ASyncThread = FALSE ) ;															// AddStreamSoundMemToFile のグローバル変数にアクセスしないバージョン
-extern	int		AddStreamSoundMemToMem_UseGParam( LOADSOUND_GPARAM *GParam, void *FileImageBuffer, int ImageSize, int LoopNum,  int SoundHandle, int StreamDataType, int UnionHandle = -1, int ASyncThread = FALSE ) ;												// AddStreamSoundMemToMem のグローバル変数にアクセスしないバージョン
-extern	int		SetupStreamSoundMem_UseGParam( int SoundHandle, int ASyncThread = FALSE ) ;																																											// SetupStreamSoundMem のグローバル変数にアクセスしないバージョン
-extern	int		ProcessStreamSoundMem_UseGParam( int SoundHandle, int ASyncThread = FALSE ) ;																																										// ProcessStreamSoundMem のグローバル変数にアクセスしないバージョン
+extern	int		AddStreamSoundMem_UseGParam(       LOADSOUND_GPARAM *GParam, STREAMDATA *Stream, int LoopNum,  int SoundHandle, int StreamDataType, int *CanStreamCloseFlag, int UnionHandle = -1, int ASyncThread = FALSE ) ;											// AddStreamSoundMem のグローバル変数にアクセスしないバージョン
+extern	int		AddStreamSoundMemToFile_UseGParam( LOADSOUND_GPARAM *GParam, const wchar_t *WaveFile, int LoopNum,  int SoundHandle, int StreamDataType, int UnionHandle = -1, int ASyncThread = FALSE ) ;															// AddStreamSoundMemToFile のグローバル変数にアクセスしないバージョン
+extern	int		AddStreamSoundMemToMem_UseGParam(  LOADSOUND_GPARAM *GParam, void *FileImageBuffer, int ImageSize, int LoopNum,  int SoundHandle, int StreamDataType, int UnionHandle = -1, int ASyncThread = FALSE ) ;												// AddStreamSoundMemToMem のグローバル変数にアクセスしないバージョン
+extern	int		SetupStreamSoundMem_UseGParam(     int SoundHandle, int ASyncThread = FALSE ) ;																																											// SetupStreamSoundMem のグローバル変数にアクセスしないバージョン
+extern	int		ProcessStreamSoundMem_UseGParam(   int SoundHandle, int ASyncThread = FALSE ) ;																																										// ProcessStreamSoundMem のグローバル変数にアクセスしないバージョン
 
 extern	int		Refresh3DSoundParamAll() ;																				// 再生中のすべての３Ｄサウンドのパラメータを更新する
 
@@ -481,7 +447,7 @@ extern	int		TerminateSoftSoundHandle( HANDLEINFO *HandleInfo ) ;													// 
 extern	int		DeleteCancelCheckSoftSoundFunction( HANDLEINFO *HandleInfo ) ;											// ソフトサウンドハンドルを削除するかどうかをチェックする関数
 extern	int		DeleteCancelCheckSoftSoundPlayerFunction( HANDLEINFO *HandleInfo ) ;									// ソフトサウンドプレーヤーハンドルを削除するかどうかをチェックする関数
 
-extern	int		LoadSoftSoundBase_UseGParam( LOADSOUND_GPARAM *GParam, const TCHAR *FileName, const void *FileImage, int FileImageSize, int ASyncLoadFlag = FALSE ) ;		// ソフトウエアで扱う波形データをファイルまたはメモリ上に展開されたファイルイメージから作成する
+extern	int		LoadSoftSoundBase_UseGParam( LOADSOUND_GPARAM *GParam, const wchar_t *FileName, const void *FileImage, int FileImageSize, int ASyncLoadFlag = FALSE ) ;		// ソフトウエアで扱う波形データをファイルまたはメモリ上に展開されたファイルイメージから作成する
 extern	int		MakeSoftSoundBase_UseGParam( int IsPlayer, int Channels, int BitsPerSample, int SamplesPerSec, int SampleNum, int UseFormat_SoftSoundHandle = -1, int ASyncLoadFlag = FALSE ) ;	// ソフトウエアで制御するサウンドデータハンドルの作成
 
 extern	int		AddMusicData( void ) ;																					// 新しいＭＩＤＩハンドルを取得する
@@ -490,13 +456,161 @@ extern	int		InitializeMidiHandle( HANDLEINFO *HandleInfo ) ;														// Ｍ
 extern	int		TerminateMidiHandle( HANDLEINFO *HandleInfo ) ;															// ＭＩＤＩハンドルの後始末を行う関数
 
 extern	int		LoadMusicMemByMemImage_UseGParam( void *FileImage, int FileImageSize, int ASyncLoadFlag = FALSE ) ;		// LoadMusicMemByMemImage のグローバル変数にアクセスしないバージョン
-extern	int		LoadMusicMem_UseGParam( const TCHAR *FileName, int ASyncLoadFlag = FALSE ) ;							// LoadMusicMem のグローバル変数にアクセスしないバージョン
-extern	int		LoadMusicMemByResource_UseGParam( const TCHAR *ResourceName, const TCHAR *ResourceType, int ASyncLoadFlag = FALSE ) ;	// LoadMusicMemByResource のグローバル変数にアクセスしないバージョン
+extern	int		LoadMusicMem_UseGParam( const wchar_t *FileName, int ASyncLoadFlag = FALSE ) ;							// LoadMusicMem のグローバル変数にアクセスしないバージョン
+extern	int		LoadMusicMemByResource_UseGParam( const wchar_t *ResourceName, const wchar_t *ResourceType, int ASyncLoadFlag = FALSE ) ;	// LoadMusicMemByResource のグローバル変数にアクセスしないバージョン
+extern	int		LoadMusicMemByMemImage_Static( int MusicHandle, const void *FileImage, int FileImageSize, int ASyncThread ) ;		// LoadMusicMemByMemImage の実処理関数
 
 extern	int		PauseSoundMemAll( int PauseFlag ) ;																		// 全ての音の一時停止状態を変更する
 extern	int		PauseSoftSoundAll( int PauseFlag ) ;																	// 全てのソフトウエアサウンドの一時停止状態を変更する
 
+
+
+
+
+
+// wchar_t版関数
+extern	int		AddStreamSoundMemToFile_WCHAR_T(	const wchar_t *WaveFile, int LoopNum,  int SoundHandle, int StreamDataType, int UnionHandle = -1 ) ;
+extern	int		LoadSoundMem2_WCHAR_T(				const wchar_t *FileName1, const wchar_t *FileName2 ) ;
+
+extern	int		LoadBGM_WCHAR_T(					const wchar_t *FileName ) ;
+
+extern	int		LoadSoundMemBase_WCHAR_T(			const wchar_t *FileName, int BufferNum,      int UnionHandle = -1 ) ;
+extern	int		LoadSoundMem_WCHAR_T(				const wchar_t *FileName, int BufferNum = 3 , int UnionHandle = -1 ) ;
+extern	int		LoadSoundMemToBufNumSitei_WCHAR_T(	const wchar_t *FileName, int BufferNum ) ;
+extern	int		LoadSoundMemByResource_WCHAR_T(		const wchar_t *ResourceName, const wchar_t *ResourceType, int BufferNum = 1 ) ;
+
+extern	int		PlaySoundFile_WCHAR_T(				const wchar_t *FileName, int PlayType ) ;
+extern	int		PlaySound_WCHAR_T(					const wchar_t *FileName, int PlayType ) ;
+
+extern	int		LoadSoftSound_WCHAR_T(				const wchar_t *FileName ) ;
+
+#ifndef DX_NON_SAVEFUNCTION
+extern	int		SaveSoftSound_WCHAR_T(				int SoftSoundHandle, const wchar_t *FileName ) ;
+#endif // DX_NON_SAVEFUNCTION
+
+extern	int		LoadMusicMem_WCHAR_T(				const wchar_t *FileName ) ;
+extern	int		LoadMusicMemByResource_WCHAR_T(		const wchar_t *ResourceName, const wchar_t *ResourceType ) ;
+
+extern	int		PlayMusic_WCHAR_T(					const wchar_t *FileName, int PlayType ) ;
+
+extern	int		PlayMusicByResource_WCHAR_T(		const wchar_t *ResourceName, const wchar_t *ResourceType, int PlayType ) ;
+
+
+
+
+
+//サウンドバッファ用
+extern	int		SoundBuffer_Initialize(          SOUNDBUFFER *Buffer, DWORD Bytes, WAVEFORMATEX *Format, SOUNDBUFFER *Src, int Is3DSound ) ;
+extern	int		SoundBuffer_Duplicate(           SOUNDBUFFER *Buffer, SOUNDBUFFER *Src, int Is3DSound ) ;
+extern	int		SoundBuffer_Terminate(           SOUNDBUFFER *Buffer ) ;
+extern	int		SoundBuffer_CheckEnable(         SOUNDBUFFER *Buffer ) ;
+extern	int		SoundBuffer_Play(                SOUNDBUFFER *Buffer, int Loop ) ;
+extern	int		SoundBuffer_Stop(                SOUNDBUFFER *Buffer, int EffectStop = FALSE ) ;
+extern	int		SoundBuffer_CheckPlay(           SOUNDBUFFER *Buffer ) ;
+extern	int		SoundBuffer_Lock(                SOUNDBUFFER *Buffer, DWORD  WritePos, DWORD WriteSize, void **LockPos1, DWORD *LockSize1, void **LockPos2, DWORD *LockSize2 ) ;
+extern	int		SoundBuffer_Unlock(              SOUNDBUFFER *Buffer, void  *LockPos1, DWORD LockSize1, void  *LockPos2, DWORD LockSize2 ) ;
+extern	int		SoundBuffer_SetFrequency(        SOUNDBUFFER *Buffer, DWORD Frequency ) ;
+extern	int		SoundBuffer_GetFrequency(        SOUNDBUFFER *Buffer, DWORD * Frequency ) ;
+extern	int		SoundBuffer_SetPan(              SOUNDBUFFER *Buffer, LONG Pan ) ;
+extern	int		SoundBuffer_GetPan(              SOUNDBUFFER *Buffer, LPLONG Pan ) ;
+extern	int		SoundBuffer_RefreshVolume(       SOUNDBUFFER *Buffer ) ;
+extern	int		SoundBuffer_SetVolumeAll(        SOUNDBUFFER *Buffer, LONG Volume ) ;
+extern	int		SoundBuffer_SetVolume(           SOUNDBUFFER *Buffer, int Channel, LONG Volume ) ;
+extern	int		SoundBuffer_GetVolume(           SOUNDBUFFER *Buffer, int Channel, LPLONG Volume ) ;
+extern	int		SoundBuffer_GetCurrentPosition(  SOUNDBUFFER *Buffer, DWORD * PlayPos, DWORD * WritePos ) ;
+extern	int		SoundBuffer_SetCurrentPosition(  SOUNDBUFFER *Buffer, DWORD NewPos ) ;
+extern	int		SoundBuffer_CycleProcess(        SOUNDBUFFER *Buffer ) ;
+extern	int		SoundBuffer_FrameProcess(        SOUNDBUFFER *Buffer, int Sample, short *DestBuf ) ;
+extern	int		SoundBuffer_Set3DPosition(       SOUNDBUFFER *Buffer, VECTOR *Position ) ;
+extern	int		SoundBuffer_Set3DRadius(         SOUNDBUFFER *Buffer, float Radius ) ;
+extern	int		SoundBuffer_Set3DInnerRadius(    SOUNDBUFFER *Buffer, float Radius ) ;
+extern	int		SoundBuffer_Set3DVelocity(       SOUNDBUFFER *Buffer, VECTOR *Velocity ) ;
+extern	int		SoundBuffer_Set3DFrontPosition(  SOUNDBUFFER *Buffer, VECTOR *FrontPosition, VECTOR *UpVector ) ;
+extern	int		SoundBuffer_Set3DConeAngle(      SOUNDBUFFER *Buffer, float InnerAngle, float OuterAngle ) ;
+extern	int		SoundBuffer_Set3DConeVolume(     SOUNDBUFFER *Buffer, float InnerAngleVolume, float OuterAngleVolume ) ;
+extern	int		SoundBuffer_Refresh3DSoundParam( SOUNDBUFFER *Buffer, int AlwaysFlag = FALSE ) ;
+extern	int		SoundBuffer_SetReverbParam(      SOUNDBUFFER *Buffer, SOUND3D_REVERB_PARAM *Param ) ;
+extern	int		SoundBuffer_SetPresetReverbParam( SOUNDBUFFER *Buffer, int PresetNo ) ;
+
+
+// 波形データ用
+extern	WAVEDATA *	AllocWaveData( int Size, int UseDoubleSizeBuffer = FALSE ) ;
+extern	int			ReleaseWaveData( WAVEDATA *Data ) ;
+extern	WAVEDATA *	DuplicateWaveData( WAVEDATA *Data ) ;
+
+
+
+
+
+
+
+// 環境依存関数
+extern	int		InitializeSoundSystem_PF_Timing0( void ) ;											// サウンドシステムを初期化する関数の環境依存処理を行う関数( 実行箇所区別０ )
+extern	int		InitializeSoundSystem_PF_Timing1( void ) ;											// サウンドシステムを初期化する関数の環境依存処理を行う関数( 実行箇所区別１ )
+
+extern	int		TerminateSoundSystem_PF_Timing0( void ) ;											// サウンドシステムの後始末をする関数の環境依存処理を行う関数( 実行箇所区別０ )
+extern	int		TerminateSoundSystem_PF_Timing1( void ) ;											// サウンドシステムの後始末をする関数の環境依存処理を行う関数( 実行箇所区別１ )
+
+extern	int		CheckSoundSystem_Initialize_PF( void ) ;											// サウンドシステムの初期化チェックの環境依存処理を行う関数( TRUE:初期化されている  FALSE:初期化されていない )
+
+extern	int		TerminateMidiHandle_PF( MIDIHANDLEDATA *MusicData ) ;								// ＭＩＤＩハンドルの後始末を行う関数の環境依存処理
+
+extern	int		Get3DPresetReverbParamSoundMem_PF( SOUND3D_REVERB_PARAM *ParamBuffer, int PresetNo /* DX_REVERB_PRESET_DEFAULT 等 */ ) ;		// プリセットの３Ｄサウンド用のリバーブパラメータを取得する処理の環境依存処理を行う関数
+extern	int		Set3DSoundListenerPosAndFrontPosAndUpVec_PF( VECTOR Position, VECTOR FrontPosition, VECTOR UpVector ) ;							// ３Ｄサウンドのリスナーの位置とリスナーの前方位置とリスナーの上方向位置を設定する処理の環境依存処理を行う関数
+extern	int		Set3DSoundListenerVelocity_PF( VECTOR Velocity ) ;																				// ３Ｄサウンドのリスナーの移動速度を設定する処理の環境依存処理を行う関数
+extern	int		Set3DSoundListenerConeAngle_PF( float InnerAngle, float OuterAngle ) ;															// ３Ｄサウンドのリスナーの可聴角度範囲を設定する処理の環境依存処理を行う関数
+extern	int		Set3DSoundListenerConeVolume_PF( float InnerAngleVolume, float OuterAngleVolume ) ;												// ３Ｄサウンドのリスナーの可聴角度範囲の音量倍率を設定する処理の環境依存処理を行う関数
+
+extern	int		LoadMusicMemByMemImage_Static_PF( MIDIHANDLEDATA *MusicData, int ASyncThread ) ;												// LoadMusicMemByMemImage の実処理関数の環境依存処理を行う関数
+extern	int		PlayMusicMem_PF( MIDIHANDLEDATA *MusicData, int PlayType ) ;																	// 読み込んだＭＩＤＩデータの演奏を開始する処理の環境依存処理を行う関数
+extern	int		StopMusicMem_PF( MIDIHANDLEDATA *MusicData ) ;																					// ＭＩＤＩデータの演奏を停止する処理の環境依存処理を行う
+extern	int		CheckMusicMem_PF( MIDIHANDLEDATA *MusicData ) ;																					// ＭＩＤＩデータが演奏中かどうかを取得する( TRUE:演奏中  FALSE:停止中 )処理の環境依存処理を行う関数
+extern	int		ProcessMusicMem_PF( MIDIHANDLEDATA *MusicData ) ;																				// ＭＩＤＩデータの周期的処理の環境依存処理を行う関数
+extern	int		GetMusicMemPosition_PF( MIDIHANDLEDATA *MusicData ) ;																			// ＭＩＤＩデータの現在の再生位置を取得する処理の環境依存処理を行う関数
+extern	int		SetVolumeMusic_PF( int Volume ) ;																								// ＭＩＤＩの再生音量をセットする処理の環境依存処理を行う関数
+extern	int		GetMusicPosition_PF( void ) ;																									// ＭＩＤＩの現在の再生位置を取得する処理の環境依存処理を行う関数
+
+
+
+
+extern	int		SoundBuffer_Initialize_Timing0_PF(	SOUNDBUFFER *Buffer, DWORD Bytes, WAVEFORMATEX *Format, SOUNDBUFFER *Src, int Is3DSound ) ;
+extern	int		SoundBuffer_Initialize_Timing1_PF(	SOUNDBUFFER *Buffer, SOUNDBUFFER *Src, int Is3DSound ) ;
+extern	int		SoundBuffer_Terminate_PF(           SOUNDBUFFER *Buffer ) ;
+extern	int		SoundBuffer_CheckEnable_PF(         SOUNDBUFFER *Buffer ) ;
+extern	int		SoundBuffer_Play_PF(                SOUNDBUFFER *Buffer, int Loop ) ;
+extern	int		SoundBuffer_Stop_PF(				SOUNDBUFFER *Buffer, int EffectStop ) ;
+extern	int		SoundBuffer_CheckPlay_PF(           SOUNDBUFFER *Buffer ) ;
+extern	int		SoundBuffer_Lock_PF(                SOUNDBUFFER *Buffer, DWORD WritePos , DWORD WriteSize, void **LockPos1, DWORD *LockSize1, void **LockPos2, DWORD *LockSize2 ) ;
+extern	int		SoundBuffer_Unlock_PF(              SOUNDBUFFER *Buffer, void *LockPos1, DWORD LockSize1, void *LockPos2, DWORD LockSize2 ) ;
+extern	int		SoundBuffer_SetFrequency_PF(        SOUNDBUFFER *Buffer, DWORD Frequency ) ;
+extern	int		SoundBuffer_GetFrequency_PF(        SOUNDBUFFER *Buffer, DWORD * Frequency ) ;
+extern	int		SoundBuffer_RefreshVolume_PF(		SOUNDBUFFER *Buffer ) ;
+extern	int		SoundBuffer_GetCurrentPosition_PF(	SOUNDBUFFER *Buffer, DWORD * PlayPos, DWORD * WritePos ) ;
+extern	int		SoundBuffer_SetCurrentPosition_PF(	SOUNDBUFFER *Buffer, DWORD NewPos ) ;
+extern	int		SoundBuffer_CycleProcess_PF(		SOUNDBUFFER *Buffer ) ;
+extern	int		SoundBuffer_Set3DPosition_PF(		SOUNDBUFFER *Buffer, VECTOR *Position ) ;
+extern	int		SoundBuffer_Set3DRadius_PF(			SOUNDBUFFER *Buffer, float Radius ) ;
+extern	int		SoundBuffer_Set3DInnerRadius_PF(	SOUNDBUFFER *Buffer, float Radius ) ;
+extern	int		SoundBuffer_Set3DVelocity_PF(		SOUNDBUFFER *Buffer, VECTOR *Velocity ) ;
+extern	int		SoundBuffer_Set3DFrontPosition_PF(	SOUNDBUFFER *Buffer, VECTOR *FrontPosition, VECTOR *UpVector ) ;
+extern	int		SoundBuffer_Set3DConeAngle_PF(		SOUNDBUFFER *Buffer, float InnerAngle, float OuterAngle ) ;
+extern	int		SoundBuffer_Set3DConeVolume_PF(		SOUNDBUFFER *Buffer, float InnerAngleVolume, float OuterAngleVolume ) ;
+extern	int		SoundBuffer_Refresh3DSoundParam_PF(	SOUNDBUFFER *Buffer, int AlwaysFlag ) ;
+extern	int		SoundBuffer_SetReverbParam_PF(		SOUNDBUFFER *Buffer, SOUND3D_REVERB_PARAM *Param ) ;
+extern	int		SoundBuffer_SetPresetReverbParam_PF( SOUNDBUFFER *Buffer, int PresetNo ) ;
+
+
+
+
+
+
+
+
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // DX_NON_SOUND
 

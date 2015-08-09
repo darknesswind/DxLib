@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		通信プログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -13,16 +13,21 @@
 
 #ifndef DX_NON_NETWORK
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxLib.h"
 #include "DxHandle.h"
 #include "DxRingBuffer.h"
 #include "DxThread.h"
+#include "DxFile.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
+
+// マクロ定義 --------------------------------------------------------------------
 
 #define MAX_HTTPHANDLE_NUM			(100)				// 同時に使用できる HTTP ハンドルの数
 
@@ -78,7 +83,7 @@ enum FTP_PROC
 	FTP_PR_FILE_GET = 4,				// ファイル取得
 } ;
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // WinSock2.0 で使用する定義と構造体
 
@@ -164,7 +169,8 @@ struct WINSOCKDATA
 //	int						HandleID ;							// ハンドルに割り当てるＩＤ
 	int						InitializeFlag ;					// 初期化フラグ
 //	int						MaxSockets ;						// 最大接続数
-	IPDATA					MyIP ;								// 自分のＩＰアドレス
+	int						MyIPNum ;							// 自分のＩＰアドレスの数
+	IPDATA					*MyIP ;								// 自分のＩＰアドレス
 	int						TimeOutWait ;						// タイムアウトするまでの時間(ミリ秒単位)
 	HWND					ParentWindow ;						// 親ウインドウ
 	HWND					MessageWindow ;						// ウインドウハンドル
@@ -234,8 +240,8 @@ struct FTPDATA
 	DWORD					Fp ;								// 送受信に使用するファイルポインタ
 	int						FileSize ;							// ファイルサイズ
 	int						FilePoint ;							// 送受信したファイルのサイズ
-	char					FileName[MAX_PATH] ;				// 送受信するファイル名
-	char					FileDir[MAX_PATH] ;					// 送受信するファイルが存在するパス
+	char					FileName[FILEPATH_MAX] ;			// 送受信するファイル名
+	char					FileDir[FILEPATH_MAX] ;				// 送受信するファイルが存在するパス
 } ;
 
 // テーブル-----------------------------------------------------------------------
@@ -265,7 +271,11 @@ extern	int			MakeUDPSocketBase_UseGParam( int IsIPv6, int RecvPort, int ASyncLoa
 extern	int			NetWorkSendUDP_UseGParam( int NetUDPHandle, IPDATA SendIP_IPv4, IPDATA_IPv6 SendIP_IPv6, int SendPort, const void *Buffer, int Length, int ASyncLoadFlag = FALSE ) ;	// NetWorkSendUDP のグローバルデータにアクセスしないバージョン
 extern	int			NetWorkRecvUDP_UseGParam( int NetUDPHandle, void *RecvIP, int *RecvPort, void *Buffer, int Length, int Peek, int ASyncLoadFlag = FALSE ) ;						// NetWorkRecvUDP のグローバルデータにアクセスしないバージョン
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // DX_NON_NETWORK
 

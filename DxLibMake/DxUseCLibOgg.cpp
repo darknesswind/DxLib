@@ -2,19 +2,20 @@
 // 
 // 		ＤＸライブラリ		標準Ｃライブラリ使用コード　Ogg関係
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 #include "DxCompileConfig.h"
 
 #if !defined( DX_NON_OGGVORBIS ) || !defined( DX_NON_OGGTHEORA )
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxUseCLib.h"
+#include "DxUseCLibOgg.h"
 #include "DxLib.h"
 #include "DxStatic.h"
 #include "DxUseCLib.h"
@@ -28,6 +29,18 @@
 #include "DxGraphics.h"
 #include "DxASyncLoad.h"
 
+#ifdef __WINDOWS__
+#include "Windows/DxUseCLibOggWin.h"
+#endif
+
+#ifdef __PSVITA
+#include "PSVita/DxUseCLibOggPSVita.h"
+#endif
+
+#ifdef __PS4
+#include "PS4/DxUseCLibOggPS4.h"
+#endif
+
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -35,29 +48,6 @@
 #include <errno.h>
 #include <string.h>
 #include <math.h>
-
-#if defined( DX_NON_OGGVORBIS ) && defined( DX_NON_OGGTHEORA )
-#else
-    #include "vorbis/codec.h"
-    #include "vorbis/vorbisfile.h"
-    
-    #include "os.h"
-    #include "misc.h"
-#endif
-
-#ifndef DX_NON_OGGVORBIS
-	//#include "codec.h"
-	#include "vorbis/vorbisfile.h"
-	
-    #include "vorbis/codec.h"
-#endif
-
-#ifndef DX_NON_OGGTHEORA
-	//#include "codec.h"
-	#include "vorbis/vorbisfile.h"
-	
-    #include "theora/theora.h"
-#endif
 
 #ifdef __DEBUG__
 int ___StockNum ;
@@ -69,133 +59,40 @@ int ___Singou1, ___Singou2 ;
 
 // 定数定義 ----------------------------------------------------------------------
 
-// Theora デコードスレッドの状態
-#define THEORAT_STATE_IDLE		(0)				// 何もしていない
-#define THEORAT_STATE_DECODE	(1)				// フレームデコード中
-#define THEORAT_STATE_SEEK		(2)				// シーク中
-#define THEORAT_STATE_EXIT		(3)				// スレッド終了
-#define THEORAT_STATE_STOP		(4)				// スレッドストップ中
-
 // 構造体型宣言 ------------------------------------------------------------------
 
-namespace DxLib
-{
+//namespace DxLib
+//{
 
 #ifndef DX_NON_OGGVORBIS
-	// ＯＧＧデータ変換用構造体
-	typedef struct tagSOUNDCONV_OGG
-	{
-		int							FileInitializeFlag ;	// File を初期化しているか、フラグ
-		OggVorbis_File				File ;					// ＯＧＧファイルを扱うためのOggVorbisFile構造体
-		int							Word ;					// ビット数 / 8
-	} SOUNDCONV_OGG ;
+
+// ＯＧＧデータ変換用構造体
+typedef struct tagSOUNDCONV_OGG
+{
+	int							FileInitializeFlag ;	// File を初期化しているか、フラグ
+	OggVorbis_File				File ;					// ＯＧＧファイルを扱うためのOggVorbisFile構造体
+	int							Word ;					// ビット数 / 8
+} SOUNDCONV_OGG ;
+
 #endif
+
 
 #ifndef DX_NON_OGGTHEORA
 
-	// Ogg ページヘッダ( ヘッダのサイズの求め方は Segments + 27 )
-	typedef struct tagOGG_HEADER
-	{
-		char					ID[ 4 ] ;					// 識別ID "OggS"
-		BYTE					Version ;					// バージョン
-		BYTE					HeadType ;					// ヘッダータイプ
-		BYTE					GranulePosition[ 8 ] ;		// アドレス( リトルエンディアン )
-		BYTE					SerialNumber[ 4 ] ;			// シリアルナンバー
-		BYTE					PageNumber[ 4 ] ;			// ページナンバー
-		BYTE					CRCCehckSum[ 4 ] ;			// CRCチェックサム
-		BYTE					Segments ;					// セグメント数
-		BYTE					SegmentTable[ 1 ] ;			// セグメントテーブル
-	} OGG_HEADER ;
+static BYTE LimitTable[ 512 * 2 + 256 ] ;
 
-	// ページの情報
-	typedef struct tagTHEORA_PAGEINFO
-	{
-		int						StreamAddres ;				// ストリーム上のアドレス
-		int						FrameAddres ;				// Theora 動画中のフレーム
-		int						KeyFrame ;					// キーフレームが含まれているかどうか
-		int						FrameNum ;					// ページに含まれるフレーム数
-	} THEORA_PAGEINFO ;
-
-	// ストックフレームの情報
-	typedef struct tagTHEORA_STOCKFRAME
-	{
-		volatile int			UseFlag ;					// 使用しているかどうか( 1:使用している  0:使用していない )
-		volatile int			FrameNumber ;				// 保存している画像のフレーム
-
-		void					*YBuffer ;					// Ｙイメージへのアドレス
-		void					*UBuffer ;					// Ｕイメージへのアドレス
-		void					*VBuffer ;					// Ｖイメージへのアドレス
-		int						YWidth, YHeight ;			// Ｙイメージの幅と高さ
-		int						YStride ;					// Ｙバッファのピッチ
-		int						UVWidth, UVHeight ;			// ＵＶイメージの幅と高さ
-		int						UVStride ;					// ＵＶバッファのピッチ
-	} THEORA_STOCKFRAME ;
-
-	// Ogg Theora デコード処理用データ構造体
-	typedef struct tagDECODE_THEORA
-	{
-		DX_CRITICAL_SECTION		CriticalSection ;			// 複数スレッドでの競合防止用のクリティカルセクション
-
-		volatile int			ThreadState ;				// スレッドの状態( THEORAT_STATE_IDLE 等 )
-		volatile int			ThreadStopRequest ;			// スレッドに止まってほしいときに 1 にする
-		volatile int			ThreadExitRequest ;			// スレッドに終了してほしいときに 1 にする
-		volatile int			ThreadSeekRequest ;			// スレッドにシークして欲しいときに 1 にする
-		volatile int			ThreadSeekFrame  ;			// スレッドにシークして貰うときのシーク先フレーム
-		volatile int			ThreadPacketEnd ;			// データを全て読み終わったフラグ
-		volatile int			ThreadStandbyTime ;			// 待機状態を維持する目安とする時間
-		HANDLE					DecodeThreadHandle ;		// デコード処理スレッド
-		DWORD					DecodeThreadID ;			// デコード処理スレッドのＩＤ 
-
-		STREAMDATASHREDTYPE2	StreamShred ;				// ストリーム関数
-		DWORD_PTR				StreamData ;				// ストリームデータ
-
-		ogg_sync_state			OggSyncState ;				// Ogg ベースデータ
-		ogg_page				OggPage ;					// Ogg ページ
-		ogg_stream_state		OggTheoraStream ;			// Ogg ストリーム
-		ogg_packet				OggPacket ;					// Ogg パケット
-
-		theora_info				TheoraInfo ;				// Theora 情報
-		theora_comment			TheoraComment ;				// Theora Comment
-		theora_state			TheoraState ;				// Theora State
-		int						TheoraSerialNo ;			// Theora データのシリアルナンバー
-
-		THEORA_PAGEINFO			*TheoraPageInfo ;			// ページの情報
-		int						TheoraPageInfoNum ;			// ページの情報の数
-		int						*TheoraTimeFrameToDataFrame ;	// 再生時間フレームに対応するデータフレームとの対応配列( 再生時間フレームの箇所にデータフレーム番号が入っている )
-		unsigned char			*TheoraKeyFrameInfo ;		// キーフレーム情報配列( キーフレームの配列要素が 1 になっている )
-		ogg_int64_t				TheoraTotalDataFrame ;		// 総データフレーム数
-		int						TheoraTotalTimeFrame ;		// 総再生時間フレーム数
-		volatile int			TheoraCurrentTimeFrame ;	// 対外的なカレントタイムフレーム
-		volatile int			TheoraCurrentDataFrame ;	// 対外的なカレントデータフレーム
-		volatile int			TheoraInCurrentDataFrame ;	// 実際のカレントデータフレーム
-
-		int						NumOfTheoraHeader ;			// Theora のヘッダの数
-
-		volatile THEORA_STOCKFRAME *StockFrame ;			// ストックフレーム
-		volatile int			StockFrameMaxNum ;			// ストックフレームの最大数
-
-		BASEIMAGE				BaseImage ;					// カレントフレームが格納されたフレームスタック中のイメージのコピー
-		int						YUVSurfaceReleaseRequest ;	// ＹＵＶフォーマットサーフェスの解放依頼フラグ
-		DX_DIRECT3DSURFACE9		*YUVSurface ;				// カレントフレームが格納されたフレームスタック中の YUV フォーマットサーフェス
-		DWORD					YUVImageFourCC ;			// ＹＵＶサーフェスに使用されている FourCC フォーマット
-		int						BaseImageSetup ;			// カレントフレームの RGB イメージが構築されているかどうか( 1:されている  0:されていない )
-		int						YUVImageSetup ;				// カレントフレームの YUV イメージが構築されているかどうか( 1:されている  0:されていない )
-	} DECODE_THEORA ;
-
-	static BYTE LimitTable[ 512 * 2 + 256 ] ;
-
-	#define RV		0
-	#define GU		1
-	#define GV		2
-	#define BU		3
-	#define Y		4
-	static int YUVTable[ 5 ][ 256 ] ;		// 0:rv  1:gu   2:gv   3:bu   4:y
+#define RV		0
+#define GU		1
+#define GV		2
+#define BU		3
+#define Y		4
+static int YUVTable[ 5 ][ 256 ] ;		// 0:rv  1:gu   2:gv   3:bu   4:y
 
 #endif
 
-}
+//}
 
-// 函数原型声明 ----------------------------------------------------------
+// 関数プロトタイプ宣言 ----------------------------------------------------------
 
 // extern int SetupSoundConvert_OGG( SOUNDCONV *SoundConv ) ;										// ＯＧＧファイルのセットアップ処理を行う( [戻] -1:エラー )
 // extern int TerminateSoundConvert_OGG( SOUNDCONV *SoundConv ) ;									// ＯＧＧファイルの後始末処理を行う
@@ -203,25 +100,23 @@ namespace DxLib
 // extern int SetSampleTimeSoundConvert_OGG( SOUNDCONV *SoundConv, int SampleTime ) ;				// 変換処理の位置を変更する( サンプル単位 )
 // extern int GetSoundConvertDestSize_Fast_OGG( SOUNDCONV *SoundConv ) ;							// 変換後の大凡のデータサイズを得る
 
-namespace DxLib
-{
+//namespace DxLib
+//{
 
 #ifndef DX_NON_OGGTHEORA
 
-	static int	TheoraDecode_ReadHeader(				DECODE_THEORA *DT ) ;		// ヘッダの読み込み
-	static void TheoraDecode_InitializeTheoraDecoder(	DECODE_THEORA *DT ) ;
-	static void TheoraDecode_InitializeVorbisDecoder(	DECODE_THEORA *DT ) ;
-	static int  TheoraDecode_ReadData(					DECODE_THEORA *DT, int Bytes = 4096 ) ;
-	static bool TheoraDecode_PlayFile(					DECODE_THEORA *DT, const char *fileName ) ;
-	static void TheoraDecode_Rendering(					DECODE_THEORA *DT ) ;
-	static int _TheoraDecode_IncToFrame( DWORD_PTR Handle, int AddNum ) ;					// 戻り値  1:キーフレーム  0:キーフレームじゃない  -1:ストリームの終端
-	static void TheoraDecode_CreateSurface(				DECODE_THEORA *DT, int ASyncThread ) ;
-	static void TheoraDecode_ReleaseSurface(			DECODE_THEORA *DT, int ASyncThread ) ;
-	static DWORD WINAPI TheoraDecode_Thread( LPVOID Data ) ;
+static int			TheoraDecode_ReadHeader(				DECODE_THEORA *DT ) ;		// ヘッダの読み込み
+static void			TheoraDecode_InitializeTheoraDecoder(	DECODE_THEORA *DT ) ;
+static void			TheoraDecode_InitializeVorbisDecoder(	DECODE_THEORA *DT ) ;
+static int			TheoraDecode_ReadData(					DECODE_THEORA *DT, int Bytes = 4096 ) ;
+static bool			TheoraDecode_PlayFile(					DECODE_THEORA *DT, const char *fileName ) ;
+static void			TheoraDecode_Rendering(					DECODE_THEORA *DT ) ;
+static int			_TheoraDecode_IncToFrame( DWORD_PTR Handle, int AddNum ) ;					// 戻り値  1:キーフレーム  0:キーフレームじゃない  -1:ストリームの終端
+static void			TheoraDecode_ReleaseSurface(			DECODE_THEORA *DT, int ASyncThread ) ;
 
 #endif
 
-}
+//}
 
 #ifndef DX_NON_OGGTHEORA
 extern "C"
@@ -229,13 +124,13 @@ extern "C"
 	extern float *vorbis_window(         vorbis_dsp_state *v,int W);
 }
 
-namespace DxLib
-{
+//namespace DxLib
+//{
 
 static long				th__get_data(					OggVorbis_File *vf );
 static int				th__seek_helper(				OggVorbis_File *vf, ogg_int64_t offset);
 static ogg_int64_t		th__get_next_page(				OggVorbis_File *vf, ogg_page *og, ogg_int64_t boundary );
-static ogg_int64_t		th__get_prev_page(				OggVorbis_File *vf, ogg_page *og );
+static ogg_int64_t		th__get_prev_page(				OggVorbis_File *vf, ogg_int64_t begin, ogg_page *og );
 static void				th__add_serialno(				ogg_page *og, long **serialno_list, int *n);
 static int				th__lookup_serialno(			ogg_page *og, long *serialno_list, int n);
 static int				th__get_serialnos(				OggVorbis_File *vf, long **s, int *n);
@@ -293,14 +188,14 @@ static int				th_ov_time_seek_lap(			OggVorbis_File *vf,double pos);
 static int				th_ov_time_seek_page_lap(		OggVorbis_File *vf,double pos);
 static void				th_analysis_output_always( char *base,int i,float *v,int n,int bark,int dB,ogg_int64_t off);
 
-}
+//}
 
 #endif
 
 // プログラム --------------------------------------------------------------------
 
-namespace DxLib
-{
+//namespace DxLib
+//{
 
 #if defined( DX_NON_OGGVORBIS ) && defined( DX_NON_OGGTHEORA )
 #else
@@ -344,6 +239,7 @@ static long StreamTell( void *DataP )
 /* read a little more data from the file/pipe into the ogg_sync framer
 */
 #define CHUNKSIZE 65536
+#define READSIZE  2048
 
 static long th__get_data(OggVorbis_File *vf)
 {
@@ -353,14 +249,14 @@ static long th__get_data(OggVorbis_File *vf)
  
 	if( vf->datasource )
 	{
-		char *buffer = ogg_sync_buffer( &vf->oy, CHUNKSIZE );
+		char *buffer = ogg_sync_buffer( &vf->oy, READSIZE );
 
-		size_t bytes = ( vf->callbacks.read_func )( buffer, 1, CHUNKSIZE, vf->datasource );
+		long bytes = ( long )( ( vf->callbacks.read_func )( buffer, 1, READSIZE, vf->datasource ) ) ;
 
-		if( bytes > 0 ) ogg_sync_wrote( &vf->oy, ( long )bytes );
+		if( bytes > 0 ) ogg_sync_wrote( &vf->oy, bytes );
 		if( bytes == 0 && errno ) return( -1 );
 
-		return( ( long )bytes );
+		return( bytes );
 	}else{
 		return( 0 );
 	}
@@ -371,10 +267,14 @@ static int th__seek_helper(OggVorbis_File *vf,ogg_int64_t offset)
 {
 	if(vf->datasource)
 	{ 
-		if( !( vf->callbacks.seek_func ) || ( vf->callbacks.seek_func )( vf->datasource, offset, SEEK_SET ) == -1 )
-			return OV_EREAD;
-		vf->offset = offset;
-		ogg_sync_reset( &vf->oy );
+	    if(vf->offset != offset)
+		{
+			if( !( vf->callbacks.seek_func ) ||
+				( vf->callbacks.seek_func )( vf->datasource, offset, SEEK_SET ) == -1 )
+				return OV_EREAD;
+			vf->offset = offset;
+			ogg_sync_reset( &vf->oy );
+		}
 	}else{
 		/* shouldn't happen unless someone writes a broken callback */
 		return OV_EFAULT;
@@ -440,9 +340,8 @@ static ogg_int64_t th__get_next_page( OggVorbis_File *vf, ogg_page *og, ogg_int6
 	 backward search linkage.	no 'readp' as it will certainly have to
 	 read. */
 /* returns offset or OV_EREAD, OV_FAULT */
-static ogg_int64_t th__get_prev_page( OggVorbis_File *vf, ogg_page *og )
+static ogg_int64_t th__get_prev_page( OggVorbis_File *vf, ogg_int64_t begin, ogg_page *og )
 {
-	ogg_int64_t begin=vf->offset;
 	ogg_int64_t end=begin;
 	ogg_int64_t ret;
 	ogg_int64_t offset=-1;
@@ -457,6 +356,7 @@ static ogg_int64_t th__get_prev_page( OggVorbis_File *vf, ogg_page *og )
 
 		while( vf->offset < end )
 		{
+			memset(og,0,sizeof(*og));
 			ret = th__get_next_page( vf, og, end-vf->offset );
 			if( ret == OV_EREAD ) return( OV_EREAD );
 			if( ret < 0 )
@@ -470,15 +370,18 @@ static ogg_int64_t th__get_prev_page( OggVorbis_File *vf, ogg_page *og )
 		}
 	}
 
-	/* we have the offset.	Actually snork and hold the page now */
-	ret=th__seek_helper(vf,offset);
-	if(ret)return(ret);
-
-	ret=th__get_next_page(vf,og,CHUNKSIZE);
-	if(ret<0)
+	if( og->header_len == 0 )
 	{
-		/* this shouldn't be possible */
-		return(OV_EFAULT);
+		/* we have the offset.	Actually snork and hold the page now */
+		ret=th__seek_helper(vf,offset);
+		if(ret)return(ret);
+
+		ret=th__get_next_page(vf,og,CHUNKSIZE);
+		if(ret<0)
+		{
+			/* this shouldn't be possible */
+			return(OV_EFAULT);
+		}
 	}
 
 	return(offset);
@@ -861,7 +764,7 @@ static void th__prefetch_all_headers( OggVorbis_File *vf, ogg_int64_t dataoffset
 			{
 				for(;;)
 				{
-					ret=th__get_prev_page(vf,&og);
+					ret=th__get_prev_page(vf,vf->offset,&og);
 					if(ret<0)
 					{
 						/* this should not be possible */
@@ -925,7 +828,7 @@ static int th__open_seekable2(OggVorbis_File *vf)
 
 	/* We get the offset for the last page of the physical bitstream.
 		 Most OggVorbis files will contain a single logical bitstream */
-	end=th__get_prev_page(vf,&og);
+	end=th__get_prev_page(vf,vf->offset,&og);
 	if(end<0)return((int)end);
 
 	/* back to beginning, learn all serialnos of first link */
@@ -1197,7 +1100,7 @@ static int th__ov_open1( void *f, OggVorbis_File *vf, char *initial, long ibytes
 		 stream) */
 	if(initial){
 		char *buffer=ogg_sync_buffer(&vf->oy,ibytes);
-		memcpy(buffer,initial,ibytes);
+		memcpy(buffer,initial,(size_t)ibytes);
 		ogg_sync_wrote(&vf->oy,ibytes);
 	}
 
@@ -1207,8 +1110,8 @@ static int th__ov_open1( void *f, OggVorbis_File *vf, char *initial, long ibytes
 	/* No seeking yet; Set up a 'single' (current) logical bitstream
 		 entry for partial open */
 	vf->links=1;
-	vf->vi = (vorbis_info    *)_ogg_calloc( vf->links, sizeof( *vf->vi ) );
-	vf->vc = (vorbis_comment *)_ogg_calloc( vf->links, sizeof( *vf->vc ) );
+	vf->vi = (vorbis_info    *)_ogg_calloc( ( size_t )vf->links, sizeof( *vf->vi ) );
+	vf->vc = (vorbis_comment *)_ogg_calloc( ( size_t )vf->links, sizeof( *vf->vc ) );
 	ogg_stream_init( &vf->os, -1 ); /* fill in the serialno later */
 
 	/* Try to fetch the headers, maintaining all the storage */
@@ -1728,13 +1631,27 @@ int th_ov_pcm_seek_page( OggVorbis_File *vf, ogg_int64_t pos )
 	/* new search algorithm by HB (Nicholas Vinen) */
 	{
 		ogg_int64_t end		  = vf->offsets[ link + 1 ];
-		ogg_int64_t begin	  = vf->offsets[ link ];
+		ogg_int64_t begin	  = vf->dataoffsets[ link ];
 		ogg_int64_t begintime = vf->pcmlengths[ link * 2 ];
 		ogg_int64_t endtime	  = vf->pcmlengths[ link * 2 + 1 ] + begintime;
 		ogg_int64_t target	  = pos - total + begintime;
-		ogg_int64_t best	  = begin;
-		
+		ogg_int64_t best	  = -1;
+	    int         got_page  = 0;
+	
 		ogg_page og;
+
+		/* if we have only one page, there will be no bisection.  Grab the page here */
+		if( begin == end )
+		{
+			result = th__seek_helper(vf,begin);
+			if( result ) goto seek_error;
+
+			result = th__get_next_page(vf,&og,1);
+			if( result < 0 ) goto seek_error;
+
+			got_page = 1;
+		}
+
 		while( begin < end )
 		{
 			ogg_int64_t bisect;
@@ -1745,9 +1662,12 @@ int th_ov_pcm_seek_page( OggVorbis_File *vf, ogg_int64_t pos )
 			}
 			else
 			{
-				 /* take a (pretty decent) guess. */
-				 bisect = begin + ( target - begintime ) * ( end - begin ) / ( endtime - begintime ) - CHUNKSIZE;
-				 if( bisect <= begin ) bisect = begin + 1;
+				/* take a (pretty decent) guess. */
+				bisect=begin +
+				  (ogg_int64_t)((double)(target-begintime)*(end-begin)/(endtime-begintime))
+				  - CHUNKSIZE;
+				if( bisect < begin + CHUNKSIZE )
+					bisect = begin;
 			}
 			
 			result=th__seek_helper(vf,bisect);
@@ -1778,6 +1698,7 @@ int th_ov_pcm_seek_page( OggVorbis_File *vf, ogg_int64_t pos )
 				else
 				{
 					ogg_int64_t granulepos;
+					got_page=1;
 
 					if(ogg_page_serialno(&og)!=vf->serialnos[link])
 						continue;
@@ -1825,14 +1746,54 @@ int th_ov_pcm_seek_page( OggVorbis_File *vf, ogg_int64_t pos )
 			}
 		}
 
-		/* found our page. seek to it, update pcm offset. Easier case than
-			 raw_seek, don't keep packets preceeding granulepos. */
+		/* Out of bisection: did it 'fail?' */
+		if(best == -1)
+		{
+			/* Check the 'looking for data in first page' special case;
+			bisection would 'fail' because our search target was before the
+			first PCM granule position fencepost. */
+
+			if(got_page &&
+				begin == vf->dataoffsets[link] &&
+				ogg_page_serialno(&og)==vf->serialnos[link])
+			{
+				/* Yes, this is the beginning-of-stream case. We already have
+				our page, right at the beginning of PCM data.  Set state
+				and return. */
+
+				vf->pcm_offset=total;
+
+				if(link!=vf->current_link)
+				{
+					/* Different link; dump entire decode machine */
+					th__decode_clear(vf);
+
+					vf->current_link=link;
+					vf->current_serialno=vf->serialnos[link];
+					vf->ready_state=STREAMSET;
+
+				}
+				else
+				{
+					vorbis_synthesis_restart(&vf->vd);
+				}
+
+				ogg_stream_reset_serialno(&vf->os,vf->current_serialno);
+				ogg_stream_pagein(&vf->os,&og);
+
+			}
+			else
+			{
+				goto seek_error;
+			}
+		}
+		else
 		{
 			ogg_page og;
 			ogg_packet op;
 			
 			/* seek */
-			result=th__seek_helper(vf,result);
+			result=th__seek_helper(vf,best);
 			vf->pcm_offset=-1;
 			if(result) goto seek_error;
 			result=th__get_next_page(vf,&og,-1);
@@ -1867,18 +1828,30 @@ int th_ov_pcm_seek_page( OggVorbis_File *vf, ogg_int64_t pos )
 									 get one with a granulepos or without the 'continued' flag
 									 set.	Then just use raw_seek for simplicity. */
 			
-					result=th__seek_helper(vf,best);
-					if(result<0) goto seek_error;
-					
-					for(;;)
+//					result=th__seek_helper(vf,best);
+//					if(result<0) goto seek_error;
+//					
+//					for(;;)
+//					{
+//						result=th__get_prev_page(vf,&og);
+//						if(result<0) goto seek_error;
+//						if(ogg_page_serialno(&og)==vf->current_serialno && (ogg_page_granulepos(&og)>-1 || !ogg_page_continued(&og)))
+//						{
+//							return th_ov_raw_seek(vf,result);
+//						}
+//						vf->offset=result;
+//					}
+					result = best;
+					while( result > vf->dataoffsets[ link ] )
 					{
-						result=th__get_prev_page(vf,&og);
-						if(result<0) goto seek_error;
-						if(ogg_page_serialno(&og)==vf->current_serialno && (ogg_page_granulepos(&og)>-1 || !ogg_page_continued(&og)))
+						result=th__get_prev_page( vf, result, &og );
+						if( result < 0 ) goto seek_error;
+						if( ogg_page_serialno( &og ) == vf->current_serialno &&
+						   ( ogg_page_granulepos( &og ) > -1 ||
+						   !ogg_page_continued( &og ) ) )
 						{
-							return th_ov_raw_seek(vf,result);
+							return th_ov_raw_seek( vf, result );
 						}
-						vf->offset=result;
 					}
 				}
 				if(result<0)
@@ -2011,14 +1984,15 @@ int th_ov_pcm_seek(OggVorbis_File *vf,ogg_int64_t pos)
 	vf->samptrack=0.f;
 	/* discard samples until we reach the desired position. Crossing a
 		 logical bitstream boundary with abandon is OK. */
-	while(vf->pcm_offset<pos)
+    int hs=vorbis_synthesis_halfrate_p(vf->vi);
+    while(vf->pcm_offset<((pos>>hs)<<hs))
 	{
-		ogg_int64_t target=pos-vf->pcm_offset;
+		ogg_int64_t target=(pos-vf->pcm_offset)>>hs;
 		long samples=vorbis_synthesis_pcmout(&vf->vd,NULL);
 
 		if(samples>target)samples=(long)target;
 		vorbis_synthesis_read(&vf->vd,samples);
-		vf->pcm_offset+=samples;
+		vf->pcm_offset+=samples<<hs;
 		
 		if(samples<target)
 		{
@@ -2287,7 +2261,7 @@ long th_ov_read( OggVorbis_File *vf, char *buffer, int length, int bigendianp, i
 						val=vorbis_ftoi(pcm[i][j]*128.f);
 						if(val>127)val=127;
 						else if(val<-128)val=-128;
-						*buffer++=val+off;
+						*buffer++=(char)(val+off);
 					}
 				}
 				vorbis_fpu_restore(fpu);
@@ -2317,7 +2291,7 @@ long th_ov_read( OggVorbis_File *vf, char *buffer, int length, int bigendianp, i
 								{
 									val=-32768;
 								}
-								*dest=val;
+								*dest=(short)val;
 								dest+=channels;
 							}
 						}
@@ -2335,7 +2309,7 @@ long th_ov_read( OggVorbis_File *vf, char *buffer, int length, int bigendianp, i
 								val=vorbis_ftoi(src[j]*32768.f);
 								if(val>32767)val=32767;
 								else if(val<-32768)val=-32768;
-								*dest=val+off;
+								*dest=(short)(val+off);
 								dest+=channels;
 							}
 						}
@@ -2354,8 +2328,8 @@ long th_ov_read( OggVorbis_File *vf, char *buffer, int length, int bigendianp, i
 							if(val>32767)val=32767;
 							else if(val<-32768)val=-32768;
 							val+=off;
-							*buffer++=(val>>8);
-							*buffer++=(val&0xff);
+							*buffer++=(char)((val>>8));
+							*buffer++=(char)(val&0xff);
 						}
 					}
 					vorbis_fpu_restore(fpu);
@@ -2372,8 +2346,8 @@ long th_ov_read( OggVorbis_File *vf, char *buffer, int length, int bigendianp, i
 							if(val>32767)val=32767;
 							else if(val<-32768)val=-32768;
 							val+=off;
-							*buffer++=(val&0xff);
-							*buffer++=(val>>8);
+							*buffer++=(char)(val&0xff);
+							*buffer++=(char)((val>>8));
 						}
 					}
 					vorbis_fpu_restore(fpu);	
@@ -2864,12 +2838,12 @@ extern	int SetupSoundConvert_OGG( SOUNDCONV *SoundConv )
 
 	// ＷＡＶＥフォーマットをセットする
 	Byte = SoundConv->OggVorbisBitDepth ;
-	SoundConv->OutFormat.cbSize = 0 ;
-	SoundConv->OutFormat.wFormatTag = WAVE_FORMAT_PCM ;
-	SoundConv->OutFormat.nChannels = info->channels ;
-	SoundConv->OutFormat.nSamplesPerSec = info->rate ;
-	SoundConv->OutFormat.wBitsPerSample = Byte * 8 ;
-	SoundConv->OutFormat.nBlockAlign = Byte * SoundConv->OutFormat.nChannels ;
+	SoundConv->OutFormat.cbSize          = 0 ;
+	SoundConv->OutFormat.wFormatTag      = WAVE_FORMAT_PCM ;
+	SoundConv->OutFormat.nChannels       = ( WORD )info->channels ;
+	SoundConv->OutFormat.nSamplesPerSec  = ( DWORD )info->rate ;
+	SoundConv->OutFormat.wBitsPerSample  = ( WORD )( Byte * 8 ) ;
+	SoundConv->OutFormat.nBlockAlign     = ( WORD )( Byte * SoundConv->OutFormat.nChannels ) ;
 	SoundConv->OutFormat.nAvgBytesPerSec = SoundConv->OutFormat.nSamplesPerSec * SoundConv->OutFormat.nBlockAlign ;
 	oggdata->Word = Byte ;
 
@@ -2947,16 +2921,17 @@ extern	int SetSampleTimeSoundConvert_OGG( SOUNDCONV *SoundConv, int SampleTime )
 {
 //	SOUNDCONV_OGG *oggdata = &SoundConv->OggTypeData ;
 	SOUNDCONV_OGG *oggdata = (SOUNDCONV_OGG *)SoundConv->ConvFunctionBuffer ;
+	int ret ;
 
 #ifndef DX_NON_OGGTHEORA
 	if( SoundConv->OggVorbisFromTheoraFile )
 	{
-		th_ov_pcm_seek( &oggdata->File, SampleTime ) ;
+		ret = th_ov_pcm_seek( &oggdata->File, SampleTime ) ;
 	}
 	else
 #endif
 	{
-		ov_pcm_seek( &oggdata->File, SampleTime ) ;
+		ret = ov_pcm_seek( &oggdata->File, SampleTime ) ;
 	}
 
 	SoundConv->DestDataValidSize = 0 ;
@@ -3002,7 +2977,7 @@ extern int	TheoraDecode_GrobalInitialize( void )
 	for( i = 0 ; i < 512 * 2 + 256 ; i ++ )
 	{
 		Num = i - 512 ;
-		LimitTable[ i ] = Num < 0 ? 0 : ( Num > 255 ? 255 : Num ) ;
+		LimitTable[ i ] = ( BYTE )( Num < 0 ? 0 : ( Num > 255 ? 255 : Num ) ) ;
 	}
 
 	// YUV変換テーブルの構築
@@ -3021,7 +2996,7 @@ extern int	TheoraDecode_GrobalInitialize( void )
 
 
 // Ogg Theora の読み込み処理の準備を行う( 戻り値  0:失敗  1以上:初期化成功 )
-extern DWORD_PTR TheoraDecode_InitializeStream( STREAMDATASHREDTYPE2 *StreamShred, DWORD_PTR StreamData, int StockFrameNum, int ASyncThread )
+extern DWORD_PTR TheoraDecode_InitializeStream( STREAMDATASHREDTYPE2W *StreamShred, DWORD_PTR StreamData, int StockFrameNum, int NotUseYUVFormatSurface, int ASyncThread )
 {
 	int MaxPageNum ;
 	int MaxDataFrameNum ;
@@ -3042,15 +3017,18 @@ extern DWORD_PTR TheoraDecode_InitializeStream( STREAMDATASHREDTYPE2 *StreamShre
 	}
 
 	// 新しいムービーデコード処理用のメモリ領域の確保
-	DT = ( DECODE_THEORA * )DXALLOC( sizeof( DECODE_THEORA ) ) ;
+	DT = ( DECODE_THEORA * )DXALLOC( sizeof( DECODE_THEORA ) + sizeof( DECODE_THEORA_PF ) ) ;
 	if( DT == NULL )
 	{
-		DXST_ERRORLOG_ADDA( "Theora ムービーデコード処理用のメモリ確保に失敗しました\n" );
+		DXST_ERRORLOG_ADDA( "Theora \x83\x80\x81\x5b\x83\x72\x81\x5b\x83\x66\x83\x52\x81\x5b\x83\x68\x8f\x88\x97\x9d\x97\x70\x82\xcc\x83\x81\x83\x82\x83\x8a\x8a\x6d\x95\xdb\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\n"/*@ "Theora ムービーデコード処理用のメモリ確保に失敗しました\n" @*/ );
 		return 0 ;
 	}
 
 	// 構造体の初期化
-	_MEMSET( DT, 0, sizeof( DECODE_THEORA ) ) ;
+	_MEMSET( DT, 0, sizeof( DECODE_THEORA ) + sizeof( DECODE_THEORA_PF ) ) ;
+
+	// 環境依存データのアドレスをセット
+	DT->PF = ( DECODE_THEORA_PF * )( DT + 1 ) ;
 
 	// クリティカルセクションも初期化する
 	CriticalSection_Initialize( &DT->CriticalSection ) ;
@@ -3058,6 +3036,9 @@ extern DWORD_PTR TheoraDecode_InitializeStream( STREAMDATASHREDTYPE2 *StreamShre
 	DT->NumOfTheoraHeader = 0 ;
 	DT->TheoraCurrentDataFrame = -1 ;
 	DT->TheoraCurrentTimeFrame = -1 ;
+
+	// ＹＵＶフォーマットのサーフェスを使用するかどうかをセットする
+	DT->NotUseYUVFormatSurface = NotUseYUVFormatSurface ;
 
 	// Ogg ライブラリで使用する構造体の初期化
 	ogg_sync_init(       &DT->OggSyncState ) ;
@@ -3076,17 +3057,6 @@ extern DWORD_PTR TheoraDecode_InitializeStream( STREAMDATASHREDTYPE2 *StreamShre
 
 	// クリティカルセクションのロックを取得
 	CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
-
-	// デコード処理スレッドの作成
-	DT->ThreadStopRequest = 1 ;
-	DT->ThreadState = THEORAT_STATE_IDLE ;
-	DT->ThreadStandbyTime = NS_GetNowCount() ;
-	DT->DecodeThreadHandle = CreateThread( NULL, 0, TheoraDecode_Thread, DT, 0, &DT->DecodeThreadID ) ;
-	if( DT->DecodeThreadHandle == NULL )
-	{
-		DXST_ERRORLOG_ADDA( "Theora ムービーデコード用スレッドの作成に失敗しました\n" );
-		goto ERR ;
-	}
 
 	// Theora データデコードの準備
 	theora_decode_init( &DT->TheoraState, &DT->TheoraInfo ) ;
@@ -3109,7 +3079,7 @@ extern DWORD_PTR TheoraDecode_InitializeStream( STREAMDATASHREDTYPE2 *StreamShre
 		DT->TheoraPageInfo = ( THEORA_PAGEINFO * )DXALLOC( sizeof( THEORA_PAGEINFO ) * MaxPageNum ) ;
 		if( DT->TheoraPageInfo == NULL )
 		{
-			DXST_ERRORLOG_ADDA( "Theora ページ情報格納用メモリの確保に失敗しました\n" );
+			DXST_ERRORLOG_ADDA( "Theora \x83\x79\x81\x5b\x83\x57\x8f\xee\x95\xf1\x8a\x69\x94\x5b\x97\x70\x83\x81\x83\x82\x83\x8a\x82\xcc\x8a\x6d\x95\xdb\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\n"/*@ "Theora ページ情報格納用メモリの確保に失敗しました\n" @*/ );
 			goto ERR ;
 		}
 		DT->TheoraPageInfoNum = 0 ;
@@ -3119,7 +3089,7 @@ extern DWORD_PTR TheoraDecode_InitializeStream( STREAMDATASHREDTYPE2 *StreamShre
 		DT->TheoraKeyFrameInfo = ( unsigned char * )DXALLOC( sizeof( unsigned char ) * MaxDataFrameNum ) ;
 		if( DT->TheoraKeyFrameInfo == NULL )
 		{
-			DXST_ERRORLOG_ADDA( "Theora キーフレーム情報格納用メモリの確保に失敗しました\n" );
+			DXST_ERRORLOG_ADDA( "Theora \x83\x4c\x81\x5b\x83\x74\x83\x8c\x81\x5b\x83\x80\x8f\xee\x95\xf1\x8a\x69\x94\x5b\x97\x70\x83\x81\x83\x82\x83\x8a\x82\xcc\x8a\x6d\x95\xdb\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\n"/*@ "Theora キーフレーム情報格納用メモリの確保に失敗しました\n" @*/ );
 			goto ERR ;
 		}
 
@@ -3128,7 +3098,7 @@ extern DWORD_PTR TheoraDecode_InitializeStream( STREAMDATASHREDTYPE2 *StreamShre
 		DT->TheoraTimeFrameToDataFrame = ( int * )DXALLOC( sizeof( int ) * MaxTimeFrameNum ) ;
 		if( DT->TheoraTimeFrameToDataFrame == NULL )
 		{
-			DXST_ERRORLOG_ADDA( "Theora タイムフレームとデータフレーム対応情報格納用メモリの確保に失敗しました\n" );
+			DXST_ERRORLOG_ADDA( "Theora \x83\x5e\x83\x43\x83\x80\x83\x74\x83\x8c\x81\x5b\x83\x80\x82\xc6\x83\x66\x81\x5b\x83\x5e\x83\x74\x83\x8c\x81\x5b\x83\x80\x91\xce\x89\x9e\x8f\xee\x95\xf1\x8a\x69\x94\x5b\x97\x70\x83\x81\x83\x82\x83\x8a\x82\xcc\x8a\x6d\x95\xdb\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\n"/*@ "Theora タイムフレームとデータフレーム対応情報格納用メモリの確保に失敗しました\n" @*/ );
 			goto ERR ;
 		}
 
@@ -3191,7 +3161,7 @@ extern DWORD_PTR TheoraDecode_InitializeStream( STREAMDATASHREDTYPE2 *StreamShre
 
 				// フレームアドレスとストリームのバイトアドレスをセット
 				DT->TheoraPageInfo[ DT->TheoraPageInfoNum ].FrameAddres = ( int )DT->TheoraTotalDataFrame ;
-				DT->TheoraPageInfo[ DT->TheoraPageInfoNum ].StreamAddres = NowBytePos ;
+				DT->TheoraPageInfo[ DT->TheoraPageInfoNum ].StreamAddres = ( int )NowBytePos ;
 
 				// キーフレームがあるかどうかとフレーム数はこれからカウントする
 				DT->TheoraPageInfo[ DT->TheoraPageInfoNum ].FrameNum = 0 ;
@@ -3253,9 +3223,9 @@ SEARCH_END:
 	CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
 
 	// 通常参照用にシステムメモリに XRGB 形式のバッファを作成する
-	if( CreateXRGB8ColorBaseImage( DT->TheoraInfo.width, DT->TheoraInfo.height, &DT->BaseImage ) == -1 )
+	if( CreateXRGB8ColorBaseImage( ( int )DT->TheoraInfo.width, ( int )DT->TheoraInfo.height, ( BASEIMAGE * )&DT->BaseImage ) == -1 )
 	{
-		DXST_ERRORLOG_ADDA( "Theora ムービーデコードフレームストック用画像バッファの確保に失敗しました\n" );
+		DXST_ERRORLOG_ADDA( "Theora \x83\x80\x81\x5b\x83\x72\x81\x5b\x83\x66\x83\x52\x81\x5b\x83\x68\x83\x74\x83\x8c\x81\x5b\x83\x80\x83\x58\x83\x67\x83\x62\x83\x4e\x97\x70\x89\xe6\x91\x9c\x83\x6f\x83\x62\x83\x74\x83\x40\x82\xcc\x8a\x6d\x95\xdb\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\n"/*@ "Theora ムービーデコードフレームストック用画像バッファの確保に失敗しました\n" @*/ );
 		goto ERR ;
 	}
 
@@ -3265,11 +3235,17 @@ SEARCH_END:
 		DT->StockFrame = ( THEORA_STOCKFRAME * )DXALLOC( sizeof( THEORA_STOCKFRAME ) * StockFrameNum ) ;
 		if( DT->StockFrame == NULL )
 		{
-			DXST_ERRORLOG_ADDA( "Theora ムービーデコードフレームストック用のメモリ確保に失敗しました\n" );
+			DXST_ERRORLOG_ADDA( "Theora \x83\x80\x81\x5b\x83\x72\x81\x5b\x83\x66\x83\x52\x81\x5b\x83\x68\x83\x74\x83\x8c\x81\x5b\x83\x80\x83\x58\x83\x67\x83\x62\x83\x4e\x97\x70\x82\xcc\x83\x81\x83\x82\x83\x8a\x8a\x6d\x95\xdb\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\n"/*@ "Theora ムービーデコードフレームストック用のメモリ確保に失敗しました\n" @*/ );
 			goto ERR ;
 		}
 
 		_MEMSET( ( void * )DT->StockFrame, 0, sizeof( THEORA_STOCKFRAME ) * StockFrameNum ) ;
+	}
+
+	// デコード処理スレッドの作成
+	if( TheoraDecode_InitializeStream_PF( DT ) < 0 )
+	{
+		goto ERR ;
 	}
 
 	// クリティカルセクションのロックを解放
@@ -3280,6 +3256,15 @@ SEARCH_END:
 //	TheoraDecode_SeekToFrame( ( DWORD_PTR )DT, 82 ) ;
 //	TheoraDecode_SeekToFrame( ( DWORD_PTR )DT, 83 ) ;
 	TheoraDecode_SeekToFrame( ( DWORD_PTR )DT, 0 ) ;
+
+	// クリティカルセクションのロックを取得
+	CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
+
+	// 先読みを許可
+	DT->ThreadEnableCacheRead = 1 ;
+
+	// クリティカルセクションのロックを解放
+	CriticalSection_Unlock( &DT->CriticalSection ) ;
 
 	// 最初のフレームの画像はセットアップしておく
 	TheoraDecode_SetupImage( ( DWORD_PTR )DT, 1, 1, ASyncThread ) ;
@@ -3302,6 +3287,8 @@ int	TheoraDecode_Terminate( DWORD_PTR Handle )
 	volatile THEORA_STOCKFRAME *Stock ;
 	int i ;
 	bool Result ;
+
+//	DXST_ERRORLOGFMT_ADDW(( L"TheoraDecode_Terminate 00 0x%08x", DT )) ;
 
 	if( DT->DecodeThreadHandle )
 	{
@@ -3328,7 +3315,7 @@ int	TheoraDecode_Terminate( DWORD_PTR Handle )
 				break ;
 			}
 
-			Sleep( 1 ) ;
+			Thread_Sleep( 1 ) ;
 		}
 
 		// スレッドのハンドルを閉じる
@@ -3382,7 +3369,7 @@ int	TheoraDecode_Terminate( DWORD_PTR Handle )
 		DT->TheoraTimeFrameToDataFrame = NULL ;
 	}
 
-	ReleaseBaseImage( &DT->BaseImage ) ;
+	ReleaseBaseImage( ( BASEIMAGE * )&DT->BaseImage ) ;
 
 	ogg_stream_clear(     &DT->OggTheoraStream ) ;
 	theora_clear(         &DT->TheoraState ) ;
@@ -3418,7 +3405,7 @@ int TheoraDecode_ReadData( DECODE_THEORA *DT, int Bytes )
 	size_t bytes ;
 
 	buffer = ogg_sync_buffer( &DT->OggSyncState, Bytes ) ;
-	bytes  = DT->StreamShred.Read( buffer, 1, Bytes, DT->StreamData ) ;
+	bytes  = DT->StreamShred.Read( buffer, 1, ( size_t )Bytes, DT->StreamData ) ;
 
 	ogg_sync_wrote( &DT->OggSyncState, ( long )bytes ) ;
 
@@ -3586,7 +3573,7 @@ int TheoraDecode_SeekToFrame( DWORD_PTR Handle, int Frame )
 			break ;
 		}
 
-		Sleep( 0 ) ;
+		Thread_Sleep( 0 ) ;
 	}
 
 	// クリティカルセクションのロックを取得
@@ -3618,7 +3605,7 @@ int TheoraDecode_SeekToTime( DWORD_PTR Handle, LONGLONG Time )
 {
 	DECODE_THEORA *DT = ( DECODE_THEORA * )Handle ;
 
-	return TheoraDecode_SeekToFrame( ( DWORD_PTR )DT, ( int )( Time / ( ( double )DT->TheoraInfo.fps_numerator / DT->TheoraInfo.fps_denominator ) ) ) ;
+	return TheoraDecode_SeekToFrame( ( DWORD_PTR )DT, ( int )( Time / ( 1000000.0 / ( ( double )DT->TheoraInfo.fps_numerator / DT->TheoraInfo.fps_denominator ) ) ) ) ;
 }
 
 // カレントフレームを指定フレーム分進める
@@ -3664,18 +3651,20 @@ LONGLONG ___time3;
 int _TheoraDecode_IncToFrame( DWORD_PTR Handle, int AddNum )
 {
 	DECODE_THEORA *DT = ( DECODE_THEORA * )Handle ;
-	int i, LastKeyFrame ;
+	int i, LastKeyFrame, LastKeyFrame2 ;
 #ifdef __DEBUG__
 	LONGLONG time = GetNowHiPerformanceCount() ;
 #endif
 
 	// 指定のフレームをインクリメントするにあたり最後に現れるキーフレームを検出する
-	LastKeyFrame = -1 ;
+	LastKeyFrame  = -1 ;
+	LastKeyFrame2 = -1 ;
 	for( i = 0 ; i < AddNum ; i ++ )
 	{
 		if( DT->TheoraKeyFrameInfo[ DT->TheoraInCurrentDataFrame + i ] == 1 )
 		{
-			LastKeyFrame = DT->TheoraInCurrentDataFrame + i ;
+			LastKeyFrame2 = LastKeyFrame ;
+			LastKeyFrame  = DT->TheoraInCurrentDataFrame + i ;
 		}
 	}
 
@@ -3706,7 +3695,7 @@ int _TheoraDecode_IncToFrame( DWORD_PTR Handle, int AddNum )
 			}
 
 			// キーフレーム以外で指定のフレームに辿り着くまでにまだキーフレームが存在する場合はデコードをスキップ
-			if( LastKeyFrame == -1 || LastKeyFrame <= DT->TheoraInCurrentDataFrame + 1 )
+			if( LastKeyFrame2 == -1 || LastKeyFrame2 <= DT->TheoraInCurrentDataFrame )
 			{
 				if( theora_decode_packetin( &DT->TheoraState, &DT->OggPacket ) != 0 ) continue ;
 			}
@@ -3760,13 +3749,7 @@ static void TheoraDecode_ReleaseSurface( DECODE_THEORA *DT, int ASyncThread )
 	}
 #endif // DX_NON_ASYNCLOAD
 
-	DT->YUVSurfaceReleaseRequest = FALSE ;
-
-	if( DT->YUVSurface != NULL )
-	{
-		DT->YUVSurface->Release() ;
-		DT->YUVSurface = NULL ;
-	}
+	TheoraDecode_ReleaseSurface_PF( DT ) ;
 }
 
 #ifndef DX_NON_ASYNCLOAD
@@ -3781,7 +3764,7 @@ static int TheoraDecode_CreateSurfaceASyncCallback( ASYNCLOAD_MAINTHREAD_REQUEST
 
 #endif // DX_NON_ASYNCLOAD
 
-void TheoraDecode_CreateSurface( DECODE_THEORA *DT, int ASyncThread )
+extern void TheoraDecode_CreateSurface( DECODE_THEORA *DT, int ASyncThread )
 {
 #ifndef DX_NON_ASYNCLOAD
 	if( ASyncThread )
@@ -3798,40 +3781,443 @@ void TheoraDecode_CreateSurface( DECODE_THEORA *DT, int ASyncThread )
 	// 既に確保されていたものは解放
 	TheoraDecode_ReleaseSurface( DT, FALSE ) ;
 
-	// ハードウエア機能が有効な場合は YUV フォーマットの一時保存用テクスチャを作成する
-	if( GRA2.ValidHardWare && GraphicsDevice_IsValid() != 0 )
+	// 環境依存処理
+	TheoraDecode_CreateSurface_PF( DT ) ;
+}
+
+// Ogg Theora のデコードスレッドで行うループ処理を行う
+extern int TheoraDecode_Thread_LoopProcess( DECODE_THEORA *DT )
+{
+	int i, j, k ;
+	static int ___flag = 0 ;
+
+	// クリティカルセクションのロックを取得
+	CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
+
+	// 終了リクエストがあったらスレッドを終了
+	if( DT->ThreadExitRequest == 1 )
 	{
-		int w, h ;
+		DT->ThreadState = THEORAT_STATE_EXIT ;
 
-		DT->YUVSurface = NULL ;
+		// クリティカルセクションのロックを解放
+		CriticalSection_Unlock( &DT->CriticalSection ) ;
+		return 2 ;
+	}
+	else
+	// ストップリクエストがあったらスレッドをストップ
+	if( DT->ThreadStopRequest == 1 )
+	{
+		DT->ThreadState = THEORAT_STATE_STOP ;
 
-		w = DT->TheoraInfo.width ;
-		h = DT->TheoraInfo.height ;
+		// クリティカルセクションのロックを解放
+		CriticalSection_Unlock( &DT->CriticalSection ) ;
 
-		// 最初は YV12 形式を試す
-		DT->YUVImageFourCC = MAKEFOURCC( 'Y', 'V', '1', '2' ) ;
-		GraphicsDevice_CreateOffscreenPlainSurface( w, h, ( D_D3DFORMAT )DT->YUVImageFourCC, D_D3DPOOL_DEFAULT, &DT->YUVSurface, NULL ) ;
+		Thread_Sleep( 1 ) ;
+	}
+	else
+	// シークリクエストがあったらシーク
+	if( DT->ThreadSeekRequest == 1 )
+	{
+		int now_frame ;
 
-		// 作成に失敗したら YUY2 フォーマットを試してみる
-		if( DT->YUVSurface == NULL )
+		// 状態をシーク状態にする
+		DT->ThreadState = THEORAT_STATE_SEEK ;
+
+		// クリティカルセクションのロックを解放
+		CriticalSection_Unlock( &DT->CriticalSection ) ;
+
+		// 指定のフレームが含まれるページを検索
+		for( i = 0 ; i < DT->TheoraPageInfoNum && DT->TheoraPageInfo[ i ].FrameAddres + DT->TheoraPageInfo[ i ].FrameNum <= DT->ThreadSeekFrame ; i ++ ){}
+		if( i == DT->TheoraPageInfoNum )
 		{
-			DT->YUVImageFourCC = MAKEFOURCC( 'Y', 'U', 'Y', '2' ) ;
-			GraphicsDevice_CreateOffscreenPlainSurface( w, h, ( D_D3DFORMAT )DT->YUVImageFourCC, D_D3DPOOL_DEFAULT, &DT->YUVSurface, NULL ) ;
+			return (DWORD)-1 ;
 		}
 
-		// それでも駄目なら UYVY フォーマットを試す
-		if( DT->YUVSurface == NULL )
+		// 指定のフレームが含まれるページ以前のキーフレームがあるページまで遡る
+		if( i != 0 ) i -- ;
+		while( i > 0 && DT->TheoraPageInfo[ i ].KeyFrame == 0 )
+			i -- ;
+
+		// パケットが前のページを跨いでたりするとキーフレームを取り逃すことがあるので更に一つ前のページを・・・
+		if( i != 0 ) i -- ;
+
+		// 情報をリセット
+		ogg_sync_reset( &DT->OggSyncState ) ;
+		ogg_stream_reset( &DT->OggTheoraStream ) ;
+
+		// 検出したページの先頭に移動
+		DT->StreamShred.Seek( DT->StreamData, DT->TheoraPageInfo[ i ].StreamAddres, STREAM_SEEKTYPE_SET ) ;
+
+		// 指定のフレームまで移動
 		{
-			DT->YUVImageFourCC = MAKEFOURCC( 'U', 'Y', 'V', 'Y' ) ;
-			GraphicsDevice_CreateOffscreenPlainSurface( w, h, ( D_D3DFORMAT )DT->YUVImageFourCC, D_D3DPOOL_DEFAULT, &DT->YUVSurface, NULL ) ;
+			now_frame = DT->TheoraPageInfo[ i ].FrameAddres ;
+
+			// １フレーム目はここで処理( ページ跨ぎのパケットを落としても１フレームとしてカウントする必要があるため )
+			if( i != 0 )
+			{
+				do
+				{
+					TheoraDecode_ReadData( DT ) ;
+				}while( ogg_sync_pageout( &DT->OggSyncState, &DT->OggPage ) != 1 ) ;
+
+				// ページ跨ぎのパケットがあったら飛ばされるのでここでその分のフレームをインクリメント
+				if( ogg_page_continued( &DT->OggPage ) != 0 )
+				{
+					now_frame ++ ;
+				}
+
+				// ストリームにページをセット
+				ogg_stream_pagein( &DT->OggTheoraStream, &DT->OggPage ) ;
+			}
+
+			_TheoraDecode_IncToFrame( ( DWORD_PTR )DT, DT->ThreadSeekFrame - now_frame + 1 ) ;
+//				while( now_frame <= DT->ThreadSeekFrame )
+//				{
+//					_TheoraDecode_IncToFrame( ( DWORD_PTR )DT, now_frame != DT->ThreadSeekFrame ? false : true ) ;
+//					now_frame ++ ;
+//				}
 		}
 
-		// それでも駄目なら YUV フォーマットを諦める
-		if( DT->YUVSurface == NULL )
+		// クリティカルセクションのロックを取得
+		CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
+
+		// フレームスタックリセット
+		for( i = 0 ; i < DT->StockFrameMaxNum ; i ++ )
 		{
-			DT->YUVImageFourCC = 0 ;
+			DT->StockFrame[ i ].UseFlag = 0 ;
+		}
+
+		// カレントフレームをセット
+		DT->TheoraInCurrentDataFrame = DT->ThreadSeekFrame ;
+
+		// シークリクエスト終了
+		DT->ThreadSeekRequest = 0 ;
+
+		// パケットもう無いフラグを倒す
+		DT->ThreadPacketEnd = 0 ;
+
+		// クリティカルセクションのロックを解放
+		CriticalSection_Unlock( &DT->CriticalSection ) ;
+	}
+	else
+	// 何も無かった場合はフレームの先読み
+	if( DT->ThreadEnableCacheRead )
+	{
+		volatile THEORA_STOCKFRAME *Stock ;
+		ogg_int64_t StockFrame ;
+
+		// 過ぎてしまったフレームのストックは解放
+		if( DT->ThreadPacketEnd == 0 )
+		{
+			Stock = DT->StockFrame ;
+			for( i = 0 ; i < DT->StockFrameMaxNum ; i ++, Stock ++ )
+			{
+				if( Stock->UseFlag == 0 ) continue ;
+
+				// 自分より後のフレームか、ループを考慮した場合の
+				// 先頭付近のフレームでなければ破棄
+				StockFrame = DT->TheoraCurrentDataFrame + DT->StockFrameMaxNum ;
+				if( Stock->FrameNumber < DT->TheoraCurrentDataFrame )
+				{
+					// ストック可能なフレームの最大がファイルの総フレーム数を超えているかどうかで分岐
+					if( StockFrame >= DT->TheoraTotalDataFrame )
+					{
+						// 超えている場合はファイル先頭のフレームかどうかをしらべ、そうでなければ破棄
+						if( StockFrame - DT->TheoraTotalDataFrame < Stock->FrameNumber )
+						{
+							Stock->UseFlag = 0 ;
+						}
+					}
+					else
+					{
+						// 超えていない場合は通り過ぎてしまったフレーム
+						Stock->UseFlag = 0 ;
+					}
+				}
+				else
+				// 内部フレームよりも後の場合はカレントフレームのバッファ分で無い場合は破棄
+				if( Stock->FrameNumber > DT->TheoraInCurrentDataFrame &&
+					Stock->FrameNumber > DT->TheoraCurrentDataFrame + DT->StockFrameMaxNum )
+				{
+					Stock->UseFlag = 0 ;
+				}
+			}
+		}
+
+		// 有効なストックの数を調べる
+		Stock = DT->StockFrame ;
+		j = 0 ;
+		for( i = 0 ; i < DT->StockFrameMaxNum; i ++, Stock++ )
+		{
+			if( Stock->UseFlag )
+			{
+#ifdef __DEBUG__
+				___StockFrame[ j ] = Stock->FrameNumber ;
+#endif
+				j ++ ;
+			}
+		}
+#ifdef __DEBUG__
+		___StockNum = j ;
+		while( j < DT->StockFrameMaxNum )
+		{
+			___StockFrame[ j ] = -1 ;
+			j ++ ;
+		}
+#endif
+		// ただ、空きフレームのストックが何も無い場合は何もしない
+		Stock = DT->StockFrame ;
+		for( i = 0 ; i < DT->StockFrameMaxNum && Stock->UseFlag; i ++, Stock ++ ){}
+		if( DT->StockFrameMaxNum == i )
+		{
+			// 対外的なカレントデータフレームに対応するストックがなくなった場合は一つストックを無効にする
+			Stock = DT->StockFrame ;
+			for( i = 0 ; i < DT->StockFrameMaxNum && ( Stock->UseFlag == 0 || Stock->FrameNumber != DT->TheoraCurrentDataFrame ) ; i ++, Stock ++ ){}
+			if( DT->StockFrameMaxNum == i )
+			{
+				Stock = DT->StockFrame ;
+				for( i = 0 ; i < DT->StockFrameMaxNum; i ++, Stock ++ )
+				{
+					if( Stock->UseFlag == 0 ) continue ;
+
+					Stock->UseFlag = 0 ;
+				}
+			}
+			else
+			// 状態をアイドリングにする
+			if( DT->ThreadState != THEORAT_STATE_IDLE )
+			{
+				DT->ThreadState = THEORAT_STATE_IDLE ;
+				DT->ThreadStandbyTime = NS_GetNowCount() ;
+			}
+		}
+		else
+		{
+			// 状態をデコードにする
+			DT->ThreadState = THEORAT_STATE_DECODE ;
+
+			// 現在の内部フレームが既に展開されているかどうかを調べる
+			Stock = DT->StockFrame ;
+			for( i = 0 ; i < DT->StockFrameMaxNum && ( Stock->UseFlag == 0 || Stock->FrameNumber != DT->TheoraInCurrentDataFrame ) ; i ++, Stock ++ ){}
+
+			// 現在のフレームが既に展開されているかどうかを調べる
+			Stock = DT->StockFrame ;
+			for( k = 0 ; k < DT->StockFrameMaxNum && ( Stock->UseFlag == 0 || Stock->FrameNumber != DT->TheoraCurrentDataFrame ) ; k ++, Stock ++ ){}
+
+			// 空きフレームを探す
+			Stock = DT->StockFrame ;
+			for( j = 0 ; j < DT->StockFrameMaxNum && Stock->UseFlag ; j ++, Stock ++ ){}
+
+			// 空きフレームがあり、且つ現在のフレームが既にストックにあるか、
+			// もしくはデコードが遅れていたら次のパケットを読む
+			if( j != DT->StockFrameMaxNum && 
+				( i != DT->StockFrameMaxNum || DT->TheoraCurrentDataFrame > DT->TheoraInCurrentDataFrame ) )
+			{
+				int AddFrame ;
+
+#ifdef __DEBUG__
+				___StockValidFlag = 1 ;
+#endif
+				// 有効な Theora ビデオコードを取得
+				if( k == DT->StockFrameMaxNum && DT->TheoraCurrentDataFrame > DT->TheoraInCurrentDataFrame )
+				{
+					AddFrame = DT->TheoraCurrentDataFrame - DT->TheoraInCurrentDataFrame ;
+					if( AddFrame < 0 ) AddFrame = 1 ;
+				}
+				else
+				{
+					AddFrame = 1 ;
+				}
+
+				// 終端フレームに達しているかどうかで処理を分岐
+				if( DT->TheoraInCurrentDataFrame + AddFrame >= DT->TheoraTotalDataFrame )
+				{
+					// 終端フレームに達している場合はファイル先頭に移動する
+
+					// クリティカルセクションのロックを解放
+					CriticalSection_Unlock( &DT->CriticalSection ) ;
+
+					// 加算フレームを補正
+					AddFrame = ( int )( ( DT->TheoraInCurrentDataFrame + AddFrame ) - DT->TheoraTotalDataFrame ) ;
+
+					// 情報をリセット
+					ogg_sync_reset( &DT->OggSyncState ) ;
+					ogg_stream_reset( &DT->OggTheoraStream ) ;
+
+					// ページの先頭に移動
+					DT->StreamShred.Seek( DT->StreamData, DT->TheoraPageInfo[ 0 ].StreamAddres, STREAM_SEEKTYPE_SET ) ;
+
+					// カレントフレームを先頭に変更
+					DT->TheoraInCurrentDataFrame = 0 ;
+
+					// 指定のフレームまで移動
+					if( AddFrame != 0 )
+					{
+						_TheoraDecode_IncToFrame( ( DWORD_PTR )DT, AddFrame ) ;
+					}
+
+					// クリティカルセクションのロックを取得
+					CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
+				}
+				else
+				{
+					int Result ;
+
+					// クリティカルセクションのロックを解放
+					CriticalSection_Unlock( &DT->CriticalSection ) ;
+
+					// 終端に達していない場合は普通にフレームを移動
+					Result = _TheoraDecode_IncToFrame( ( DWORD_PTR )DT, AddFrame ) ;
+
+					// クリティカルセクションのロックを取得
+					CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
+
+					if( Result == -1 )
+					{
+						DT->ThreadPacketEnd = 1 ;
+
+						// クリティカルセクションのロックを解放
+						CriticalSection_Unlock( &DT->CriticalSection ) ;
+
+						Thread_Sleep( 1 ) ;
+						return 0 ;
+					}
+				}
+			}
+			else
+			{
+#ifdef __DEBUG__
+				___StockValidFlag = 0 ;
+#endif
+			}
+
+#ifdef __DEBUG__
+			___InCurrentFrameNumber = DT->TheoraInCurrentDataFrame ;
+#endif
+
+			// ストックに空きがある場合は現在のフレームをストックする
+			if( j != DT->StockFrameMaxNum )
+			{
+				yuv_buffer	yuv ;
+
+				// クリティカルセクションのロックを解放
+				CriticalSection_Unlock( &DT->CriticalSection ) ;
+
+				// yuv 情報を出力
+				theora_decode_YUVout( &DT->TheoraState, &yuv );
+
+//					if( yuv.y_stride == 842150451 )
+//					{
+//						DXST_ERRORLOGFMT_ADDW(( L"TheoraDecode Thread Error 0x%08x", DT )) ;
+//						DxErrorCheckAlloc() ;
+//						*((DWORD *)0) = 0xffffffff ;
+//					}
+
+				// yuv 情報を保存する
+
+				// バッファのサイズが違う場合は一度解放する
+				if( Stock->YStride  != yuv.y_stride  || Stock->YWidth  != yuv.y_width  || Stock->YHeight  != yuv.y_height  )
+				{
+					if( Stock->YBuffer )
+					{
+						DXFREE( Stock->YBuffer ) ;
+						Stock->YBuffer = NULL ;
+					}
+				}
+				if( Stock->UVStride != yuv.uv_stride || Stock->UVWidth != yuv.uv_width || Stock->UVHeight != yuv.uv_height )
+				{
+					if( Stock->UBuffer )
+					{
+						DXFREE( Stock->UBuffer ) ;
+						Stock->UBuffer = NULL ;
+					}
+					if( Stock->VBuffer )
+					{
+						DXFREE( Stock->VBuffer ) ;
+						Stock->VBuffer = NULL ;
+					}
+				}
+
+				// 情報を保存する
+				Stock->YStride = yuv.y_stride ;
+				Stock->YWidth  = yuv.y_width ;
+				Stock->YHeight = yuv.y_height ;
+
+				Stock->UVStride = yuv.uv_stride ;
+				Stock->UVWidth  = yuv.uv_width ;
+				Stock->UVHeight = yuv.uv_height ;
+
+				// バッファがまだ確保されていない場合はバッファを確保する
+				if( Stock->YBuffer == NULL )
+				{
+					Stock->YBuffer = DXALLOC( ( size_t )( Stock->YHeight * Stock->YStride   ) ) ;
+					if( Stock->YBuffer == NULL )
+					{
+						*((DWORD *)0) = 0xffffffff ;
+					}
+				}
+				if( Stock->UBuffer == NULL )
+				{
+					Stock->UBuffer = DXALLOC( ( size_t )( Stock->UVHeight * Stock->UVStride ) ) ;
+					if( Stock->UBuffer == NULL )
+					{
+						*((DWORD *)0) = 0xffffffff ;
+					}
+				}
+				if( Stock->VBuffer == NULL )
+				{
+					Stock->VBuffer = DXALLOC( ( size_t )( Stock->UVHeight * Stock->UVStride ) ) ;
+					if( Stock->VBuffer == NULL )
+					{
+						*((DWORD *)0) = 0xffffffff ;
+					}
+				}
+
+				// バッファにデータをコピーする
+				_MEMCPY( Stock->YBuffer, yuv.y, ( size_t )( yuv.y_stride  * yuv.y_height  ) ) ;
+				_MEMCPY( Stock->UBuffer, yuv.u, ( size_t )( yuv.uv_stride * yuv.uv_height ) ) ;
+				_MEMCPY( Stock->VBuffer, yuv.v, ( size_t )( yuv.uv_stride * yuv.uv_height ) ) ;
+
+				// クリティカルセクションのロックを取得
+				CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
+
+				// 展開したフレームの情報を残す
+				Stock->UseFlag = 1 ;
+				Stock->FrameNumber = DT->TheoraInCurrentDataFrame ;
+			}
+		}
+
+		// クリティカルセクションのロックを解放
+		CriticalSection_Unlock( &DT->CriticalSection ) ;
+
+		// ちょっと待つ
+		if( DT->ThreadState == THEORAT_STATE_IDLE && NS_GetNowCount() - DT->ThreadStandbyTime > 200 )
+		{
+			Thread_Sleep( 1 ) ;
+		}
+		else
+		{
+			Thread_Sleep( 0 ) ;
 		}
 	}
+	else
+	// 先読みが許可されていない場合はただ待つ
+	{
+		// クリティカルセクションのロックを解放
+		CriticalSection_Unlock( &DT->CriticalSection ) ;
+
+		// ちょっと待つ
+		if( DT->ThreadState == THEORAT_STATE_IDLE && NS_GetNowCount() - DT->ThreadStandbyTime > 200 )
+		{
+			Thread_Sleep( 1 ) ;
+		}
+		else
+		{
+			Thread_Sleep( 0 ) ;
+		}
+	}
+
+	return 0 ;
 }
 
 // カレントフレームのRGB画像を作成する( 戻り値  1:作成された  0:されなかった )
@@ -3846,7 +4232,7 @@ int TheoraDecode_SetupImage( DWORD_PTR Handle, int BaseImage, int YUVImage, int 
 #endif
 
 	// 現在のフレームの画像がセットアップされていれば何もせず終了
-	if( ( ( YUVImage  && DT->YUVImageSetup  ) || YUVImage  == 0 || DT->YUVSurface == NULL ) &&
+	if( ( ( YUVImage  && DT->YUVImageSetup  ) || YUVImage  == 0 || DT->ValidYUVSurface == FALSE ) &&
 		( ( BaseImage && DT->BaseImageSetup ) || BaseImage == 0 ) )
 		return 0 ;
 
@@ -3870,7 +4256,7 @@ int TheoraDecode_SetupImage( DWORD_PTR Handle, int BaseImage, int YUVImage, int 
 			// クリティカルセクションのロックを解放
 			CriticalSection_Unlock( &DT->CriticalSection ) ;
 
-			Sleep( 1 ) ;
+			Thread_Sleep( 1 ) ;
 		}
 		if( DT->ThreadState == THEORAT_STATE_EXIT )
 		{
@@ -3907,7 +4293,7 @@ int TheoraDecode_SetupImage( DWORD_PTR Handle, int BaseImage, int YUVImage, int 
 		CriticalSection_Unlock( &DT->CriticalSection ) ;
 
 		// 無かったら待つ
-		Sleep( 0 ) ;
+		Thread_Sleep( 0 ) ;
 	}
 
 #ifdef __DEBUG__
@@ -3915,132 +4301,10 @@ int TheoraDecode_SetupImage( DWORD_PTR Handle, int BaseImage, int YUVImage, int 
 #endif
 
 	// ＹＵＶイメージのセットアップ指定があって、まだ作成されていなかったら作成する
-	if( YUVImage && DT->YUVImageSetup == 0 && DT->YUVSurface )
+	if( YUVImage && DT->YUVImageSetup == 0 && DT->ValidYUVSurface )
 	{
-		D_D3DLOCKED_RECT LockRect ;
-		int Ok ;
-
 		// YUY2 サーフェスの場合
-
-		// ロックに失敗したらサーフェスの作成しなおし
-		Ok = 0 ;
-		for( i = 0 ; i < 3 ; i ++ )
-		{
-			if( DT->YUVSurface == NULL || DT->YUVSurfaceReleaseRequest || GraphicsSurface_LockRect_ASync( DT->YUVSurface, &LockRect, NULL, 0, ASyncThread ) != D_DD_OK )
-			{
-				TheoraDecode_CreateSurface( DT, ASyncThread ) ;
-			}
-			else
-			{
-				Ok = 1 ;
-				break ;
-			}
-		}
-
-		// 作成しなおしても駄目だったら諦め
-		if( Ok == 1 )
-		{
-			// フォーマットによって処理を分岐
-			d  = ( unsigned char * )LockRect.pBits ;
-			ys = ( unsigned char * )Stock->YBuffer ;
-			us = ( unsigned char * )Stock->UBuffer ;
-			vs = ( unsigned char * )Stock->VBuffer ;
-			dpitch = LockRect.Pitch ;
-
-			// YV12 の場合
-			if( DT->YUVImageFourCC == MAKEFOURCC( 'Y', 'V', '1', '2' ) )
-			{
-				if( Stock->YWidth  == Stock->UVWidth  * 2 &&
-					Stock->YHeight == Stock->UVHeight * 2 )
-				{
-					ysadd  = Stock->YStride  * 2 - Stock->YWidth ;
-					uvadd  = Stock->UVStride     - Stock->UVWidth ; 
-					dadd   = dpitch          * 2 - Stock->YWidth ;
-					w = Stock->YWidth  / 2 ;
-					h = Stock->YHeight / 2 ;
-
-					for( i = 0 ; i < Stock->YHeight ; i ++, d += dpitch, ys += Stock->YStride )
-					{
-						_MEMCPY( d, ys, Stock->YWidth ) ; 
-					}
-					for( i = 0 ; i < Stock->UVHeight ; i ++, d += dpitch / 2, vs += Stock->UVStride )
-					{
-						_MEMCPY( d, vs, Stock->UVWidth ) ; 
-					}
-					for( i = 0 ; i < Stock->UVHeight ; i ++, d += dpitch / 2, us += Stock->UVStride )
-					{
-						_MEMCPY( d, us, Stock->UVWidth ) ; 
-					}
-				}
-			}
-			else
-			// YUY2 の場合
-			if( DT->YUVImageFourCC == MAKEFOURCC( 'Y', 'U', 'Y', '2' ) )
-			{
-				if( Stock->YWidth  == Stock->UVWidth  * 2 &&
-					Stock->YHeight == Stock->UVHeight * 2 )
-				{
-					ysadd  = Stock->YStride  * 2 - Stock->YWidth ;
-					uvadd  = Stock->UVStride     - Stock->UVWidth ;
-					dadd   = dpitch     * 2 - Stock->YWidth * 2 ;
-					w = Stock->YWidth  / 2 ;
-					h = Stock->YHeight / 2 ;
-					for( i = 0; i < h; i++, d += dadd, ys += ysadd, vs += uvadd, us += uvadd )
-					{
-						for( j = 0; j < w; j ++, d += 4, ys += 2, us ++, vs ++ )
-						{
-							d[          0 ] = ys[                0 ] ;
-							d[          2 ] = ys[                1 ] ;
-							d[ dpitch     ] = ys[ Stock->YStride     ] ;
-							d[ dpitch + 2 ] = ys[ Stock->YStride + 1 ] ;
-
-							d[          1 ] = *us ;
-							d[ dpitch + 1 ] = *us ;
-
-							d[          3 ] = *vs ;
-							d[ dpitch + 3 ] = *vs ;
-						}
-					}
-				}
-			}
-			else
-			// UYVY の場合
-			if( DT->YUVImageFourCC == MAKEFOURCC( 'U', 'Y', 'V', 'Y' ) )
-			{
-				if( Stock->YWidth  == Stock->UVWidth  * 2 &&
-					Stock->YHeight == Stock->UVHeight * 2 )
-				{
-					ysadd  = Stock->YStride  * 2 - Stock->YWidth ;
-					uvadd  = Stock->UVStride     - Stock->UVWidth ;
-					dadd   = dpitch     * 2 - Stock->YWidth * 2 ;
-					w = Stock->YWidth  / 2 ;
-					h = Stock->YHeight / 2 ;
-					for( i = 0; i < h; i++, d += dadd, ys += ysadd, vs += uvadd, us += uvadd )
-					{
-						for( j = 0; j < w; j ++, d += 4, ys += 2, us ++, vs ++ )
-						{
-							d[          1 ] = ys[                0 ] ;
-							d[          3 ] = ys[                1 ] ;
-							d[ dpitch + 1 ] = ys[ Stock->YStride     ] ;
-							d[ dpitch + 3 ] = ys[ Stock->YStride + 1 ] ;
-
-							d[          0 ] = *us ;
-							d[ dpitch + 0 ] = *us ;
-
-							d[          2 ] = *vs ;
-							d[ dpitch + 2 ] = *vs ;
-
-						}
-					}
-				}
-			}
-
-			// ロックを解除
-			GraphicsSurface_UnlockRect_ASync( DT->YUVSurface, ASyncThread ) ;
-
-			// セットアップフラグを立てる
-			DT->YUVImageSetup = 1 ;
-		}
+		TheoraDecode_SetupImage_PF( DT, Stock, ASyncThread ) ;
 	}
 
 	// ＲＧＢイメージのセットアップ指定があって、まだ作成されていなかったら作成する
@@ -4115,9 +4379,9 @@ int TheoraDecode_SetupImage( DWORD_PTR Handle, int BaseImage, int YUVImage, int 
 					if( r < 0 ) r = 0; else if( r > 255 ) r = 255;
 					if( g < 0 ) g = 0; else if( g > 255 ) g = 255;
 					if( b < 0 ) b = 0; else if( b > 255 ) b = 255;
-					d[2] = r;
-					d[1] = g;
-					d[0] = b;
+					d[2] = ( unsigned char )r;
+					d[1] = ( unsigned char )g;
+					d[0] = ( unsigned char )b;
 					d[3] = 255;
 				}
 			}
@@ -4141,16 +4405,15 @@ const BASEIMAGE *TheoraDecode_GetBaseImage( DWORD_PTR Handle )
 	DECODE_THEORA *DT = ( DECODE_THEORA * )Handle ;
 
 	// アドレスを返す
-	return &DT->BaseImage ;
+	return ( const BASEIMAGE * )&DT->BaseImage ;
 }
 
 // 一時バッファの YUV フォーマットのテクスチャを得る
-const DX_DIRECT3DSURFACE9 *TheoraDecode_GetYUVImage( DWORD_PTR Handle )
+const void * TheoraDecode_GetYUVImage( DWORD_PTR Handle )
 {
 	DECODE_THEORA *DT = ( DECODE_THEORA * )Handle ;
 
-	// アドレスを返す
-	return DT->YUVSurface ;
+	return TheoraDecode_GetYUVImage_PF( DT ) ;
 }
 
 // 動画の情報を取得する
@@ -4158,12 +4421,12 @@ int	TheoraDecode_GetInfo( DWORD_PTR Handle, THEORADECODE_INFO *Info )
 {
 	DECODE_THEORA *DT = ( DECODE_THEORA * )Handle ;
 
-	Info->FrameRate = ( double )DT->TheoraInfo.fps_numerator / DT->TheoraInfo.fps_denominator ;
+	Info->FrameRate  = ( double )DT->TheoraInfo.fps_numerator / DT->TheoraInfo.fps_denominator ;
 	Info->TotalFrame = ( int )DT->TheoraTotalTimeFrame ;
-//	Info->Width = ( int )DT->TheoraInfo.width ;
-//	Info->Height = ( int )DT->TheoraInfo.height ;
-	Info->Width = ( int )DT->TheoraInfo.frame_width ;
-	Info->Height = ( int )DT->TheoraInfo.frame_height ;
+//	Info->Width      = ( int )DT->TheoraInfo.width ;
+//	Info->Height     = ( int )DT->TheoraInfo.height ;
+	Info->Width      = ( int )DT->TheoraInfo.frame_width ;
+	Info->Height     = ( int )DT->TheoraInfo.frame_height ;
 
 	// 終了
 	return 0 ;
@@ -4177,414 +4440,8 @@ int	TheoraDecode_GetCurrentFrame( DWORD_PTR Handle )
 	return DT->TheoraCurrentTimeFrame ;
 }
 
-// デコードスレッド
-DWORD WINAPI TheoraDecode_Thread( LPVOID Data )
-{
-	DECODE_THEORA *DT = ( DECODE_THEORA * )Data ;
-	int i, j, k ;
-	static int ___flag = 0 ;
-
-	for(;;)
-	{
-		// クリティカルセクションのロックを取得
-		CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
-
-		// 終了リクエストがあったらスレッドを終了
-		if( DT->ThreadExitRequest == 1 )
-		{
-			DT->ThreadState = THEORAT_STATE_EXIT ;
-
-			// クリティカルセクションのロックを解放
-			CriticalSection_Unlock( &DT->CriticalSection ) ;
-			break ;
-		}
-		else
-		// ストップリクエストがあったらスレッドをストップ
-		if( DT->ThreadStopRequest == 1 )
-		{
-			DT->ThreadState = THEORAT_STATE_STOP ;
-
-			// クリティカルセクションのロックを解放
-			CriticalSection_Unlock( &DT->CriticalSection ) ;
-
-			Sleep( 1 ) ;
-		}
-		else
-		// シークリクエストがあったらシーク
-		if( DT->ThreadSeekRequest == 1 )
-		{
-			int now_frame ;
-
-			// 状態をシーク状態にする
-			DT->ThreadState = THEORAT_STATE_SEEK ;
-
-			// クリティカルセクションのロックを解放
-			CriticalSection_Unlock( &DT->CriticalSection ) ;
-
-			// 指定のフレームが含まれるページを検索
-			for( i = 0 ; i < DT->TheoraPageInfoNum && DT->TheoraPageInfo[ i ].FrameAddres + DT->TheoraPageInfo[ i ].FrameNum <= DT->ThreadSeekFrame ; i ++ ){}
-			if( i == DT->TheoraPageInfoNum )
-			{
-				return (DWORD)-1 ;
-			}
-
-			// 指定のフレームが含まれるページ以前のキーフレームがあるページまで遡る
-			if( i != 0 ) i -- ;
-			while( i > 0 && DT->TheoraPageInfo[ i ].KeyFrame == 0 )
-				i -- ;
-
-			// パケットが前のページを跨いでたりするとキーフレームを取り逃すことがあるので更に一つ前のページを・・・
-			if( i != 0 ) i -- ;
-
-			// 情報をリセット
-			ogg_sync_reset( &DT->OggSyncState ) ;
-			ogg_stream_reset( &DT->OggTheoraStream ) ;
-
-			// 検出したページの先頭に移動
-			DT->StreamShred.Seek( DT->StreamData, DT->TheoraPageInfo[ i ].StreamAddres, STREAM_SEEKTYPE_SET ) ;
-
-			// 指定のフレームまで移動
-			{
-				now_frame = DT->TheoraPageInfo[ i ].FrameAddres ;
-
-				// １フレーム目はここで処理( ページ跨ぎのパケットを落としても１フレームとしてカウントする必要があるため )
-				if( i != 0 )
-				{
-					do
-					{
-						TheoraDecode_ReadData( DT ) ;
-					}while( ogg_sync_pageout( &DT->OggSyncState, &DT->OggPage ) != 1 ) ;
-
-					// ページ跨ぎのパケットがあったら飛ばされるのでここでその分のフレームをインクリメント
-					if( ogg_page_continued( &DT->OggPage ) != 0 )
-					{
-						now_frame ++ ;
-					}
-
-					// ストリームにページをセット
-					ogg_stream_pagein( &DT->OggTheoraStream, &DT->OggPage ) ;
-				}
-
-				while( now_frame <= DT->ThreadSeekFrame )
-				{
-					_TheoraDecode_IncToFrame( ( DWORD_PTR )DT, now_frame != DT->ThreadSeekFrame ? false : true ) ;
-					now_frame ++ ;
-				}
-			}
-
-			// クリティカルセクションのロックを取得
-			CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
-
-			// フレームスタックリセット
-			for( i = 0 ; i < DT->StockFrameMaxNum ; i ++ )
-			{
-				DT->StockFrame[ i ].UseFlag = 0 ;
-			}
-
-			// カレントフレームをセット
-			DT->TheoraInCurrentDataFrame = DT->ThreadSeekFrame ;
-
-			// シークリクエスト終了
-			DT->ThreadSeekRequest = 0 ;
-
-			// パケットもう無いフラグを倒す
-			DT->ThreadPacketEnd = 0 ;
-
-			// クリティカルセクションのロックを解放
-			CriticalSection_Unlock( &DT->CriticalSection ) ;
-		}
-		else
-		// 何も無かった場合はフレームの先読み
-		{
-			volatile THEORA_STOCKFRAME *Stock ;
-			ogg_int64_t StockFrame ;
-
-			// 過ぎてしまったフレームのストックは解放
-			if( DT->ThreadPacketEnd == 0 )
-			{
-				Stock = DT->StockFrame ;
-				for( i = 0 ; i < DT->StockFrameMaxNum ; i ++, Stock ++ )
-				{
-					if( Stock->UseFlag == 0 ) continue ;
-
-					// 自分より後のフレームか、ループを考慮した場合の
-					// 先頭付近のフレームでなければ破棄
-					StockFrame = DT->TheoraCurrentDataFrame + DT->StockFrameMaxNum ;
-					if( Stock->FrameNumber < DT->TheoraCurrentDataFrame )
-					{
-						// ストック可能なフレームの最大がファイルの総フレーム数を超えているかどうかで分岐
-						if( StockFrame >= DT->TheoraTotalDataFrame )
-						{
-							// 超えている場合はファイル先頭のフレームかどうかをしらべ、そうでなければ破棄
-							if( StockFrame - DT->TheoraTotalDataFrame < Stock->FrameNumber )
-							{
-								Stock->UseFlag = 0 ;
-							}
-						}
-						else
-						{
-							// 超えていない場合は通り過ぎてしまったフレーム
-							Stock->UseFlag = 0 ;
-						}
-					}
-					else
-					// 内部フレームよりも後の場合はカレントフレームのバッファ分で無い場合は破棄
-					if( Stock->FrameNumber > DT->TheoraInCurrentDataFrame &&
-						Stock->FrameNumber > DT->TheoraCurrentDataFrame + DT->StockFrameMaxNum )
-					{
-						Stock->UseFlag = 0 ;
-					}
-				}
-			}
-
-			// 有効なストックの数を調べる
-			Stock = DT->StockFrame ;
-			j = 0 ;
-			for( i = 0 ; i < DT->StockFrameMaxNum; i ++, Stock++ )
-			{
-				if( Stock->UseFlag )
-				{
-#ifdef __DEBUG__
-					___StockFrame[ j ] = Stock->FrameNumber ;
-#endif
-					j ++ ;
-				}
-			}
-#ifdef __DEBUG__
-			___StockNum = j ;
-			while( j < DT->StockFrameMaxNum )
-			{
-				___StockFrame[ j ] = -1 ;
-				j ++ ;
-			}
-#endif
-			// ただ、空きフレームのストックが何も無い場合は何もしない
-			Stock = DT->StockFrame ;
-			for( i = 0 ; i < DT->StockFrameMaxNum && Stock->UseFlag; i ++, Stock ++ ){}
-			if( DT->StockFrameMaxNum == i )
-			{
-				// 対外的なカレントデータフレームに対応するストックがなくなった場合は一つストックを無効にする
-				Stock = DT->StockFrame ;
-				for( i = 0 ; i < DT->StockFrameMaxNum && ( Stock->UseFlag == 0 || Stock->FrameNumber != DT->TheoraCurrentDataFrame ) ; i ++, Stock ++ ){}
-				if( DT->StockFrameMaxNum == i )
-				{
-					Stock = DT->StockFrame ;
-					for( i = 0 ; i < DT->StockFrameMaxNum; i ++, Stock ++ )
-					{
-						if( Stock->UseFlag == 0 ) continue ;
-
-						Stock->UseFlag = 0 ;
-					}
-				}
-				else
-				// 状態をアイドリングにする
-				if( DT->ThreadState != THEORAT_STATE_IDLE )
-				{
-					DT->ThreadState = THEORAT_STATE_IDLE ;
-					DT->ThreadStandbyTime = NS_GetNowCount() ;
-				}
-			}
-			else
-			{
-				// 状態をデコードにする
-				DT->ThreadState = THEORAT_STATE_DECODE ;
-
-				// 現在の内部フレームが既に展開されているかどうかを調べる
-				Stock = DT->StockFrame ;
-				for( i = 0 ; i < DT->StockFrameMaxNum && ( Stock->UseFlag == 0 || Stock->FrameNumber != DT->TheoraInCurrentDataFrame ) ; i ++, Stock ++ ){}
-
-				// 現在のフレームが既に展開されているかどうかを調べる
-				Stock = DT->StockFrame ;
-				for( k = 0 ; k < DT->StockFrameMaxNum && ( Stock->UseFlag == 0 || Stock->FrameNumber != DT->TheoraCurrentDataFrame ) ; k ++, Stock ++ ){}
-
-				// 空きフレームを探す
-				Stock = DT->StockFrame ;
-				for( j = 0 ; j < DT->StockFrameMaxNum && Stock->UseFlag ; j ++, Stock ++ ){}
-
-				// 空きフレームがあり、且つ現在のフレームが既にストックにあるか、
-				// もしくはデコードが遅れていたら次のパケットを読む
-				if( j != DT->StockFrameMaxNum && 
-					( i != DT->StockFrameMaxNum || DT->TheoraCurrentDataFrame > DT->TheoraInCurrentDataFrame ) )
-				{
-					int AddFrame ;
-
-#ifdef __DEBUG__
-					___StockValidFlag = 1 ;
-#endif
-					// 有効な Theora ビデオコードを取得
-					if( k == DT->StockFrameMaxNum && DT->TheoraCurrentDataFrame > DT->TheoraInCurrentDataFrame )
-					{
-						AddFrame = DT->TheoraCurrentDataFrame - DT->TheoraInCurrentDataFrame ;
-						if( AddFrame < 0 ) AddFrame = 1 ;
-					}
-					else
-					{
-						AddFrame = 1 ;
-					}
-
-					// 終端フレームに達しているかどうかで処理を分岐
-					if( DT->TheoraInCurrentDataFrame + AddFrame >= DT->TheoraTotalDataFrame )
-					{
-						// 終端フレームに達している場合はファイル先頭に移動する
-
-						// クリティカルセクションのロックを解放
-						CriticalSection_Unlock( &DT->CriticalSection ) ;
-
-						// 加算フレームを補正
-						AddFrame = ( int )( ( DT->TheoraInCurrentDataFrame + AddFrame ) - DT->TheoraTotalDataFrame ) ;
-
-						// 情報をリセット
-						ogg_sync_reset( &DT->OggSyncState ) ;
-						ogg_stream_reset( &DT->OggTheoraStream ) ;
-
-						// ページの先頭に移動
-						DT->StreamShred.Seek( DT->StreamData, DT->TheoraPageInfo[ 0 ].StreamAddres, STREAM_SEEKTYPE_SET ) ;
-
-						// カレントフレームを先頭に変更
-						DT->TheoraInCurrentDataFrame = 0 ;
-
-						// 指定のフレームまで移動
-						if( AddFrame != 0 )
-						{
-							_TheoraDecode_IncToFrame( ( DWORD_PTR )DT, AddFrame ) ;
-						}
-
-						// クリティカルセクションのロックを取得
-						CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
-					}
-					else
-					{
-						int Result ;
-
-						// クリティカルセクションのロックを解放
-						CriticalSection_Unlock( &DT->CriticalSection ) ;
-
-						// 終端に達していない場合は普通にフレームを移動
-						Result = _TheoraDecode_IncToFrame( ( DWORD_PTR )DT, AddFrame ) ;
-
-						// クリティカルセクションのロックを取得
-						CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
-
-						if( Result == -1 )
-						{
-							DT->ThreadPacketEnd = 1 ;
-
-							// クリティカルセクションのロックを解放
-							CriticalSection_Unlock( &DT->CriticalSection ) ;
-
-							Sleep( 1 ) ;
-							continue ;
-						}
-					}
-				}
-				else
-				{
-#ifdef __DEBUG__
-					___StockValidFlag = 0 ;
-#endif
-				}
-
-#ifdef __DEBUG__
-				___InCurrentFrameNumber = DT->TheoraInCurrentDataFrame ;
-#endif
-
-				// ストックに空きがある場合は現在のフレームをストックする
-				if( j != DT->StockFrameMaxNum )
-				{
-					yuv_buffer	yuv ;
-
-					// クリティカルセクションのロックを解放
-					CriticalSection_Unlock( &DT->CriticalSection ) ;
-
-					// yuv 情報を出力
-					theora_decode_YUVout( &DT->TheoraState, &yuv );
-
-					// yuv 情報を保存する
-
-					// バッファのサイズが違う場合は一度解放する
-					if( Stock->YStride  != yuv.y_stride  || Stock->YWidth  != yuv.y_width  || Stock->YHeight  != yuv.y_height  )
-					{
-						if( Stock->YBuffer )
-						{
-							DXFREE( Stock->YBuffer ) ;
-							Stock->YBuffer = NULL ;
-						}
-					}
-					if( Stock->UVStride != yuv.uv_stride || Stock->UVWidth != yuv.uv_width || Stock->UVHeight != yuv.uv_height )
-					{
-						if( Stock->UBuffer )
-						{
-							DXFREE( Stock->UBuffer ) ;
-							Stock->UBuffer = NULL ;
-						}
-						if( Stock->VBuffer )
-						{
-							DXFREE( Stock->VBuffer ) ;
-							Stock->VBuffer = NULL ;
-						}
-					}
-
-					// 情報を保存する
-					Stock->YStride = yuv.y_stride ;
-					Stock->YWidth  = yuv.y_width ;
-					Stock->YHeight = yuv.y_height ;
-
-					Stock->UVStride = yuv.uv_stride ;
-					Stock->UVWidth  = yuv.uv_width ;
-					Stock->UVHeight = yuv.uv_height ;
-
-					// バッファがまだ確保されていない場合はバッファを確保する
-					if( Stock->YBuffer == NULL )
-					{
-						Stock->YBuffer = DXALLOC( Stock->YHeight * Stock->YStride ) ;
-					}
-					if( Stock->UBuffer == NULL )
-					{
-						Stock->UBuffer = DXALLOC( Stock->UVHeight * Stock->UVStride ) ;
-					}
-					if( Stock->VBuffer == NULL )
-					{
-						Stock->VBuffer = DXALLOC( Stock->UVHeight * Stock->UVStride ) ;
-					}
-
-					// バッファにデータをコピーする
-					_MEMCPY( Stock->YBuffer, yuv.y, yuv.y_stride  * yuv.y_height  ) ;
-					_MEMCPY( Stock->UBuffer, yuv.u, yuv.uv_stride * yuv.uv_height ) ;
-					_MEMCPY( Stock->VBuffer, yuv.v, yuv.uv_stride * yuv.uv_height ) ;
-
-					// クリティカルセクションのロックを取得
-					CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
-
-					// 展開したフレームの情報を残す
-					Stock->UseFlag = 1 ;
-					Stock->FrameNumber = DT->TheoraInCurrentDataFrame ;
-				}
-			}
-
-			// クリティカルセクションのロックを解放
-			CriticalSection_Unlock( &DT->CriticalSection ) ;
-
-			// ちょっと待つ
-			if( DT->ThreadState == THEORAT_STATE_IDLE && NS_GetNowCount() - DT->ThreadStandbyTime > 200 )
-			{
-				Sleep( 1 ) ;
-			}
-			else
-			{
-				Sleep( 0 ) ;
-			}
-		}
-	}
-
-	// スレッド終了
-	ExitThread( 0 ) ;
-
-	// 終了
-	return 0 ;
-}
-
 #endif // DX_NON_OGGTHEORA
 
-}
+//}
 
 #endif // !defined( DX_NON_OGGVORBIS ) || !defined( DX_NON_OGGTHEORA )

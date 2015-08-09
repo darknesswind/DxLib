@@ -2,11 +2,11 @@
 // 
 // 		ＤＸライブラリ		演算プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // ----------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 // インクルード----------------------------------------------------------------
@@ -17,8 +17,12 @@
 #include "DxBaseFunc.h"
 #include "DxMemory.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義------------------------------------------------------------------
 
@@ -103,6 +107,71 @@ extern VECTOR	Get_Triangle_Point_MinPosition( VECTOR Point, VECTOR TrianglePos1,
 	return Result ;
 }
 
+// 点に一番近い三角形上の座標を得る
+extern VECTOR_D	Get_Triangle_Point_MinPositionD( VECTOR_D Point, VECTOR_D TrianglePos1, VECTOR_D TrianglePos2, VECTOR_D TrianglePos3 )
+{
+	VECTOR_D Line12, Line23, Line31, Line1P, Line2P, Line3P, Result ;
+	double Dot1P2, Dot1P3, Dot2P1, Dot2P3, Dot2PH, Dot3P1, Dot3P2, Dot3PH, OPA, OPB, OPC, Div, t, v, w ;
+
+	VectorSubD( &Line12, &TrianglePos2, &TrianglePos1 ) ;
+	VectorSubD( &Line31, &TrianglePos1, &TrianglePos3 ) ;
+	VectorSubD( &Line1P, &Point,        &TrianglePos1 ) ;
+	Dot1P2 = VectorInnerProductD( &Line12, &Line1P ) ;
+	Dot1P3 = VectorInnerProductD( &Line31, &Line1P ) ;
+	if( Dot1P2 <= 0.0 && Dot1P3 >= 0.0 ) return TrianglePos1 ;
+
+	VectorSubD( &Line23, &TrianglePos3, &TrianglePos2 ) ;
+	VectorSubD( &Line2P, &Point,        &TrianglePos2 ) ;
+	Dot2P1 = VectorInnerProductD( &Line12, &Line2P ) ;
+	Dot2P3 = VectorInnerProductD( &Line23, &Line2P ) ;
+	if( Dot2P1 >= 0.0 && Dot2P3 <= 0.0 ) return TrianglePos2 ;
+
+	Dot2PH = VectorInnerProductD( &Line31, &Line2P ) ;
+	OPC = Dot1P2 * -Dot2PH - Dot2P1 * -Dot1P3 ;	// ←ラグランジュ恒等式
+	if( OPC <= 0.0 && Dot1P2 >= 0.0 && Dot2P1 <= 0.0 )
+	{
+		t = Dot1P2 / ( Dot1P2 - Dot2P1 ) ;
+		Result.x = TrianglePos1.x + Line12.x * t ;
+		Result.y = TrianglePos1.y + Line12.y * t ;
+		Result.z = TrianglePos1.z + Line12.z * t ;
+		return Result ;
+	}
+
+	VectorSubD( &Line3P, &Point,        &TrianglePos3 ) ;
+	Dot3P1 = VectorInnerProductD( &Line31, &Line3P ) ;
+	Dot3P2 = VectorInnerProductD( &Line23, &Line3P ) ;
+	if( Dot3P1 <= 0.0 && Dot3P2 >= 0.0 ) return TrianglePos3 ;
+
+	Dot3PH = VectorInnerProductD( &Line12, &Line3P ) ;
+	OPB = Dot3PH * -Dot1P3 - Dot1P2 * -Dot3P1 ;	// ←ラグランジュ恒等式
+	if( OPB <= 0.0 && Dot1P3 <= 0.0 && Dot3P1 >= 0.0 )
+	{
+		t = Dot3P1 / ( Dot3P1 - Dot1P3 ) ;
+		Result.x = TrianglePos3.x + Line31.x * t ;
+		Result.y = TrianglePos3.y + Line31.y * t ;
+		Result.z = TrianglePos3.z + Line31.z * t ;
+		return Result ;
+	}
+
+	OPA = Dot2P1 * -Dot3P1 - Dot3PH * -Dot2PH ;	// ←ラグランジュ恒等式
+	if( OPA <= 0.0 && ( -Dot2PH - Dot2P1 ) >= 0.0 && ( Dot3PH + Dot3P1 ) >= 0.0 )
+	{
+		t = ( -Dot2PH - Dot2P1 ) / ( ( -Dot2PH - Dot2P1 ) + ( Dot3PH + Dot3P1 ) ) ;
+		Result.x = TrianglePos2.x + Line23.x * t ;
+		Result.y = TrianglePos2.y + Line23.y * t ;
+		Result.z = TrianglePos2.z + Line23.z * t ;
+		return Result ;
+	}
+
+	Div = 1.0 / ( OPA + OPB + OPC ) ;
+	v = OPB * Div ;
+	w = OPC * Div ;
+	Result.x = TrianglePos1.x + Line12.x * v - Line31.x * w ;
+	Result.y = TrianglePos1.y + Line12.y * v - Line31.y * w ;
+	Result.z = TrianglePos1.z + Line12.z * v - Line31.z * w ;
+	return Result ;
+}
+
 // 点に一番近い線上の座標を得る
 extern VECTOR	Get_Line_Point_MinPosition( VECTOR Point, VECTOR LinePos1, VECTOR LinePos2 )
 {
@@ -141,6 +210,44 @@ extern VECTOR	Get_Line_Point_MinPosition( VECTOR Point, VECTOR LinePos1, VECTOR 
 	return Result ;
 }
 
+// 点に一番近い線上の座標を得る
+extern VECTOR_D	Get_Line_Point_MinPositionD( VECTOR_D Point, VECTOR_D LinePos1, VECTOR_D LinePos2 )
+{
+	double Length12, t ;
+	double Dot12_1P ;
+	VECTOR_D Line12, Line1P ;
+	VECTOR_D Result ;
+
+	Line12.x = LinePos2.x - LinePos1.x ;
+	Line12.y = LinePos2.y - LinePos1.y ;
+	Line12.z = LinePos2.z - LinePos1.z ;
+	Line1P.x = Point.x - LinePos1.x ;
+	Line1P.y = Point.y - LinePos1.y ;
+	Line1P.z = Point.z - LinePos1.z ;
+	Dot12_1P = Line12.x * Line1P.x + Line12.y * Line1P.y + Line12.z * Line1P.z ;
+	if( Dot12_1P <= 0.0 )
+	{
+		return LinePos1 ;
+	}
+
+	Length12 = Line12.x * Line12.x + Line12.y * Line12.y + Line12.z * Line12.z ;
+	if( Length12 == 0.0 )
+	{
+		return LinePos1 ;
+	}
+
+	if( Length12 < Dot12_1P )
+	{
+		return LinePos2 ;
+	}
+
+	t = Dot12_1P / Length12 ;
+	Result.x = LinePos1.x + Line12.x * t ;
+	Result.y = LinePos1.y + Line12.y * t ;
+	Result.z = LinePos1.z + Line12.z * t ;
+	return Result ;
+}
+
 // 二つの平面が交差する線を得る
 extern int Get_TwoPlane_Line( VECTOR Normal1, float Dist1, VECTOR Normal2, float Dist2, VECTOR *OutDir, VECTOR *OutPos )
 {
@@ -156,6 +263,25 @@ extern int Get_TwoPlane_Line( VECTOR Normal1, float Dist1, VECTOR Normal2, float
 	k1 = ( Dist1 * d22 - Dist2 * d12 ) / div ;
 	k2 = ( Dist2 * d11 - Dist1 * d12 ) / div ;
 	*OutPos = VAdd( VScale( Normal1, k1 ), VScale( Normal2, k2 ) ) ;
+
+	return 0 ;
+}
+
+// 二つの平面が交差する線を得る
+extern int Get_TwoPlane_LineD( VECTOR_D Normal1, double Dist1, VECTOR_D Normal2, double Dist2, VECTOR_D *OutDir, VECTOR_D *OutPos )
+{
+	double d11, d12, d22, div, k1, k2 ;
+
+	*OutDir = VCrossD( Normal1, Normal2 ) ;
+	if( VDotD( *OutDir, *OutDir ) < 0.000001 ) return -1 ;
+
+	d11 = VDotD( Normal1, Normal1 ) ;
+	d12 = VDotD( Normal1, Normal2 ) ;
+	d22 = VDotD( Normal2, Normal2 ) ;
+	div = d11 * d22 - d12 * d12 ;
+	k1 = ( Dist1 * d22 - Dist2 * d12 ) / div ;
+	k2 = ( Dist2 * d11 - Dist1 * d12 ) / div ;
+	*OutPos = VAddD( VScaleD( Normal1, k1 ), VScaleD( Normal2, k2 ) ) ;
 
 	return 0 ;
 }
@@ -183,6 +309,29 @@ extern int	Get_TwoLine_MinLength_Rate( VECTOR Direction1, VECTOR Position1, floa
 	return 0 ;
 }
 
+// 二つの線の最近点のそれぞれの方向ベクトルの拡大値を得る
+extern int	Get_TwoLine_MinLength_RateD( VECTOR_D Direction1, VECTOR_D Position1, double *OutRate1, VECTOR_D Direction2, VECTOR_D Position2, double *OutRate2 )
+{
+	VECTOR_D r ;
+	double a, b, c, d, e, f, s, t ;
+
+	r = VSubD( Position1, Position2 ) ;
+	a = VDotD( Direction1, Direction1 ) ;
+	b = VDotD( Direction1, Direction2 ) ;
+	c = VDotD( Direction1, r ) ;
+	e = VDotD( Direction2, Direction2 ) ;
+	f = VDotD( Direction2, r ) ;
+
+	d = a * e - b * b ;
+	s = ( b * f - c * e ) / d ;
+	t = ( a * f - b * c ) / d ;
+
+	if( OutRate1 ) *OutRate1 = s ;
+	if( OutRate2 ) *OutRate2 = t ;
+
+	return 0 ;
+}
+
 
 // 演算ライブラリ
 
@@ -198,10 +347,34 @@ extern void CreateNormalizePlane( FLOAT4 *Plane, VECTOR *Position, VECTOR *Norma
 	Plane->w = -( Plane->x * Position->x + Plane->y * Position->y + Plane->z * Position->z ) ;
 }
 
+// 平面上の点と平面の法線から正規化された平面パラメータを算出する
+extern void CreateNormalizePlaneD( DOUBLE4 *Plane, VECTOR_D *Position, VECTOR_D *Normal )
+{
+	double fTemp ;
+
+	fTemp = _SQRTD( Normal->x * Normal->x + Normal->y * Normal->y + Normal->z * Normal->z ) ; 
+	Plane->x = Normal->x / fTemp ;
+	Plane->y = Normal->y / fTemp ;
+	Plane->z = Normal->z / fTemp ;
+	Plane->w = -( Plane->x * Position->x + Plane->y * Position->y + Plane->z * Position->z ) ;
+}
+
 // ベクトルの外積を求める
 __inline static VECTOR VectorGaiseki( const VECTOR &a, const VECTOR &b )
 {
 	VECTOR out ;
+
+	out.x = a.y * b.z - a.z * b.y ;
+	out.y = -( a.x * b.z - a.z * b.x ) ;
+	out.z = a.x * b.y - a.y * b.x ;
+
+	return out ;
+}
+
+// ベクトルの外積を求める
+__inline static VECTOR_D VectorGaisekiD( const VECTOR_D &a, const VECTOR_D &b )
+{
+	VECTOR_D out ;
 
 	out.x = a.y * b.z - a.z * b.y ;
 	out.y = -( a.x * b.z - a.z * b.x ) ;
@@ -222,6 +395,69 @@ __inline static VECTOR VectorSa( const VECTOR &a, const VECTOR &b )
 	return out ;
 }
 
+// ベクトルの差を求める
+__inline static VECTOR_D VectorSaD( const VECTOR_D &a, const VECTOR_D &b )
+{
+	VECTOR_D out ;
+
+	out.x = a.x - b.x ;
+	out.y = a.y - b.y ;
+	out.z = a.z - b.z ;
+
+	return out ;
+}
+
+// float型要素の行列をdouble型要素の行列に変換する
+extern int ConvertMatrixFtoD( MATRIX_D *Out, const MATRIX *In )
+{
+	Out->m[ 0 ][ 0 ] = In->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] = In->m[ 0 ][ 1 ] ;
+	Out->m[ 0 ][ 2 ] = In->m[ 0 ][ 2 ] ;
+	Out->m[ 0 ][ 3 ] = In->m[ 0 ][ 3 ] ;
+
+	Out->m[ 1 ][ 0 ] = In->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] = In->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] = In->m[ 1 ][ 2 ] ;
+	Out->m[ 1 ][ 3 ] = In->m[ 1 ][ 3 ] ;
+
+	Out->m[ 2 ][ 0 ] = In->m[ 2 ][ 0 ] ;
+	Out->m[ 2 ][ 1 ] = In->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] = In->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] = In->m[ 2 ][ 3 ] ;
+
+	Out->m[ 3 ][ 0 ] = In->m[ 3 ][ 0 ] ;
+	Out->m[ 3 ][ 1 ] = In->m[ 3 ][ 1 ] ;
+	Out->m[ 3 ][ 2 ] = In->m[ 3 ][ 2 ] ;
+	Out->m[ 3 ][ 3 ] = In->m[ 3 ][ 3 ] ;
+
+	return 0 ;
+}
+
+// double型要素の行列をfloat型要素の行列に変換する
+extern int ConvertMatrixDtoF( MATRIX *Out, const MATRIX_D *In )
+{
+	Out->m[ 0 ][ 0 ] = ( float )In->m[ 0 ][ 0 ] ;
+	Out->m[ 0 ][ 1 ] = ( float )In->m[ 0 ][ 1 ] ;
+	Out->m[ 0 ][ 2 ] = ( float )In->m[ 0 ][ 2 ] ;
+	Out->m[ 0 ][ 3 ] = ( float )In->m[ 0 ][ 3 ] ;
+
+	Out->m[ 1 ][ 0 ] = ( float )In->m[ 1 ][ 0 ] ;
+	Out->m[ 1 ][ 1 ] = ( float )In->m[ 1 ][ 1 ] ;
+	Out->m[ 1 ][ 2 ] = ( float )In->m[ 1 ][ 2 ] ;
+	Out->m[ 1 ][ 3 ] = ( float )In->m[ 1 ][ 3 ] ;
+
+	Out->m[ 2 ][ 0 ] = ( float )In->m[ 2 ][ 0 ] ;
+	Out->m[ 2 ][ 1 ] = ( float )In->m[ 2 ][ 1 ] ;
+	Out->m[ 2 ][ 2 ] = ( float )In->m[ 2 ][ 2 ] ;
+	Out->m[ 2 ][ 3 ] = ( float )In->m[ 2 ][ 3 ] ;
+
+	Out->m[ 3 ][ 0 ] = ( float )In->m[ 3 ][ 0 ] ;
+	Out->m[ 3 ][ 1 ] = ( float )In->m[ 3 ][ 1 ] ;
+	Out->m[ 3 ][ 2 ] = ( float )In->m[ 3 ][ 2 ] ;
+	Out->m[ 3 ][ 3 ] = ( float )In->m[ 3 ][ 3 ] ;
+
+	return 0 ;
+}
 
 // 単位行列を作成する
 extern int CreateIdentityMatrix( MATRIX *Out )
@@ -235,6 +471,23 @@ extern int CreateIdentityMatrix( MATRIX *Out )
 	} ;
 
 	_MEMCPY( Out, &m, sizeof( MATRIX ) ) ;
+
+	// 終了
+	return 0 ;
+}
+
+// 単位行列を作成する
+extern int CreateIdentityMatrixD( MATRIX_D *Out )
+{
+	static const MATRIX_D m =
+	{
+		1.0, 0.0, 0.0, 0.0 ,
+		0.0, 1.0, 0.0, 0.0 ,
+		0.0, 0.0, 1.0, 0.0 ,
+		0.0, 0.0, 0.0, 1.0 
+	} ;
+
+	_MEMCPY( Out, &m, sizeof( MATRIX_D ) ) ;
 
 	// 終了
 	return 0 ;
@@ -282,7 +535,7 @@ extern int CreateLookAtMatrix( MATRIX *Out, const VECTOR *Eye, const VECTOR *At,
 	// 注視点に対する視点とは異なる。
 	VECTOR vView = VectorSa( *At, *Eye ) ;
  
-	FLOAT fLength = ( float )_SQRT( vView.x * vView.x + vView.y * vView.y + vView.z * vView.z ) ;
+	float fLength = ( float )_SQRT( vView.x * vView.x + vView.y * vView.y + vView.z * vView.z ) ;
 	if( fLength < 1e-6f ) return -1;
  
 	// z 軸の基底ベクトルを正規化する。
@@ -292,7 +545,7 @@ extern int CreateLookAtMatrix( MATRIX *Out, const VECTOR *Eye, const VECTOR *At,
  
 	// 内積を取得して、上方向ベクトルに対する、Z 軸の基底ベクトルの
 	// 射影を計算する。この射影は y 軸の基底ベクトルである。
-	FLOAT fDotProduct = Up->x * vView.x + Up->y * vView.y + Up->z * vView.z ;
+	float fDotProduct = Up->x * vView.x + Up->y * vView.y + Up->z * vView.z ;
 
 	v.x = vView.x * fDotProduct ;
 	v.y = vView.y * fDotProduct ;
@@ -347,6 +600,44 @@ extern int CreateLookAtMatrix( MATRIX *Out, const VECTOR *Eye, const VECTOR *At,
 	Out->m[3][1] = - ( Eye->x * vUp.x + Eye->y * vUp.y + Eye->z * vUp.z ) ;
 	Out->m[3][2] = - ( Eye->x * vView.x + Eye->y * vView.y + Eye->z * vView.z );
 */
+	return 0;
+}
+
+// ビュー行列を作成する
+extern int CreateLookAtMatrixD( MATRIX_D *Out, const VECTOR_D *Eye, const VECTOR_D *At, const VECTOR_D *Up )
+{
+	VECTOR_D va, vu, vx, vy, vz ;
+
+	// 視点→注視点のベクトルを得る
+	va = VectorSaD( *At, *Eye ) ;
+
+	// 視点に垂直なベクトルを得る
+	vu = *Up ;
+
+	// 新Ｘ軸のベクトルを算出
+	vx = VectorGaisekiD( vu, va ) ;
+
+	// 新Ｙ軸のベクトルを算出
+	vy = VectorGaisekiD( va, vx ) ;
+
+	// 新Ｚ軸のベクトルをセット
+	vz = va ;
+
+	// 各ベクトルの正規化
+	VectorNormalizeD( &vx, &vx ) ;
+	VectorNormalizeD( &vy, &vy ) ;
+	VectorNormalizeD( &vz, &vz ) ;
+
+	// ビュー行列の作成
+	Out->m[0][0] = vx.x ; Out->m[0][1] = vy.x ; Out->m[0][2] = vz.x ; Out->m[0][3] = 0.0 ;
+	Out->m[1][0] = vx.y ; Out->m[1][1] = vy.y ; Out->m[1][2] = vz.y ; Out->m[1][3] = 0.0 ;
+	Out->m[2][0] = vx.z ; Out->m[2][1] = vy.z ; Out->m[2][2] = vz.z ; Out->m[2][3] = 0.0 ;
+	Out->m[3][3] = 1.0 ;
+
+	Out->m[3][0] = - ( Eye->x * vx.x + Eye->y * vx.y + Eye->z * vx.z ) ;
+	Out->m[3][1] = - ( Eye->x * vy.x + Eye->y * vy.y + Eye->z * vy.z ) ;
+	Out->m[3][2] = - ( Eye->x * vz.x + Eye->y * vz.y + Eye->z * vz.z ) ;
+
 	return 0;
 }
 
@@ -406,6 +697,53 @@ extern int CreateLookAtMatrix2( MATRIX *Out, const VECTOR *Eye, double XZAngle, 
 	return CreateLookAtMatrix( Out, Eye, &At, &Up ) ; 
 }
 
+// ビュー行列を作成する
+extern int CreateLookAtMatrix2D( MATRIX_D *Out, const VECTOR_D *Eye, double XZAngle, double Oira )
+{
+	VECTOR_D At, Up ;
+	double Sin, Cos, x ;
+
+	At.x = 1.0 ;
+	At.y = 0.0 ;
+	At.z = 0.0 ;
+
+	Up.x = 0.0 ;
+	Up.y = 1.0 ;
+	Up.z = 0.0 ;
+
+	// オイラー回転
+	_SINCOSD( Oira, &Sin, &Cos ) ;
+
+	x = At.x * Cos - At.y * Sin ;
+	At.y = At.x * Sin + At.y * Cos ;
+	At.x = x ;
+
+	x = Up.x * Cos - Up.y * Sin ;
+	Up.y = Up.x * Sin + Up.y * Cos ;
+	Up.x = x ;
+
+
+	// ＸＺ回転
+	_SINCOSD( XZAngle, &Sin, &Cos ) ;
+
+	x = At.x * Cos - At.z * Sin ;
+	At.z = At.x * Sin + At.z * Cos ;
+	At.x = x ;
+
+	x = Up.x * Cos - Up.z * Sin ;
+	Up.z = Up.x * Sin + Up.z * Cos ;
+	Up.x = x ;
+
+
+	// 平行移動
+	At.x += Eye->x ;
+	At.y += Eye->y ;
+	At.z += Eye->z ;
+
+	// 行列作成
+	return CreateLookAtMatrixD( Out, Eye, &At, &Up ) ; 
+}
+
 
 // ビュー行列を作成する(右手座標系用)
 extern int CreateLookAtMatrixRH( MATRIX *Out, const VECTOR *Eye, const VECTOR *At, const VECTOR *Up )
@@ -437,6 +775,44 @@ extern int CreateLookAtMatrixRH( MATRIX *Out, const VECTOR *Eye, const VECTOR *A
 	Out->m[1][0] = vx.y ; Out->m[1][1] = vy.y ; Out->m[1][2] = vz.y ; Out->m[1][3] = 0.0f ;
 	Out->m[2][0] = vx.z ; Out->m[2][1] = vy.z ; Out->m[2][2] = vz.z ; Out->m[2][3] = 0.0f ;
 	Out->m[3][3] = 1.0f ;
+
+	Out->m[3][0] = - ( Eye->x * vx.x + Eye->y * vx.y + Eye->z * vx.z ) ;
+	Out->m[3][1] = - ( Eye->x * vy.x + Eye->y * vy.y + Eye->z * vy.z ) ;
+	Out->m[3][2] = - ( Eye->x * vz.x + Eye->y * vz.y + Eye->z * vz.z ) ;
+
+	return 0;
+}
+
+// ビュー行列を作成する(右手座標系用)
+extern int CreateLookAtMatrixRHD( MATRIX_D *Out, const VECTOR_D *Eye, const VECTOR_D *At, const VECTOR_D *Up )
+{
+	VECTOR_D va, vu, vx, vy, vz ;
+
+	// 視点→注視点のベクトルを得る
+	va = VectorSaD( *Eye, *At ) ;
+
+	// 視点に垂直なベクトルを得る
+	vu = *Up ;
+
+	// 新Ｘ軸のベクトルを算出
+	vx = VectorGaisekiD( vu, va ) ;
+
+	// 新Ｙ軸のベクトルを算出
+	vy = VectorGaisekiD( va, vx ) ;
+
+	// 新Ｚ軸のベクトルをセット
+	vz = va ;
+
+	// 各ベクトルの正規化
+	VectorNormalizeD( &vx, &vx ) ;
+	VectorNormalizeD( &vy, &vy ) ;
+	VectorNormalizeD( &vz, &vz ) ;
+
+	// ビュー行列の作成
+	Out->m[0][0] = vx.x ; Out->m[0][1] = vy.x ; Out->m[0][2] = vz.x ; Out->m[0][3] = 0.0 ;
+	Out->m[1][0] = vx.y ; Out->m[1][1] = vy.y ; Out->m[1][2] = vz.y ; Out->m[1][3] = 0.0 ;
+	Out->m[2][0] = vx.z ; Out->m[2][1] = vy.z ; Out->m[2][2] = vz.z ; Out->m[2][3] = 0.0 ;
+	Out->m[3][3] = 1.0 ;
 
 	Out->m[3][0] = - ( Eye->x * vx.x + Eye->y * vx.y + Eye->z * vx.z ) ;
 	Out->m[3][1] = - ( Eye->x * vy.x + Eye->y * vy.y + Eye->z * vy.z ) ;
@@ -477,6 +853,38 @@ extern int CreateMultiplyMatrix( MATRIX *Out, const MATRIX *In1, const MATRIX *I
 	return 0 ;
 }
 
+
+// 行列の積を求める
+extern int CreateMultiplyMatrixD( MATRIX_D *Out, const MATRIX_D *In1, const MATRIX_D *In2 )
+{
+	MATRIX_D OM ;
+	
+	OM.m[0][0] = In1->m[0][0] * In2->m[0][0] + In1->m[0][1] * In2->m[1][0] + In1->m[0][2] * In2->m[2][0] + In1->m[0][3] * In2->m[3][0] ;
+	OM.m[0][1] = In1->m[0][0] * In2->m[0][1] + In1->m[0][1] * In2->m[1][1] + In1->m[0][2] * In2->m[2][1] + In1->m[0][3] * In2->m[3][1] ;
+	OM.m[0][2] = In1->m[0][0] * In2->m[0][2] + In1->m[0][1] * In2->m[1][2] + In1->m[0][2] * In2->m[2][2] + In1->m[0][3] * In2->m[3][2] ;
+	OM.m[0][3] = In1->m[0][0] * In2->m[0][3] + In1->m[0][1] * In2->m[1][3] + In1->m[0][2] * In2->m[2][3] + In1->m[0][3] * In2->m[3][3] ;
+
+	OM.m[1][0] = In1->m[1][0] * In2->m[0][0] + In1->m[1][1] * In2->m[1][0] + In1->m[1][2] * In2->m[2][0] + In1->m[1][3] * In2->m[3][0] ;
+	OM.m[1][1] = In1->m[1][0] * In2->m[0][1] + In1->m[1][1] * In2->m[1][1] + In1->m[1][2] * In2->m[2][1] + In1->m[1][3] * In2->m[3][1] ;
+	OM.m[1][2] = In1->m[1][0] * In2->m[0][2] + In1->m[1][1] * In2->m[1][2] + In1->m[1][2] * In2->m[2][2] + In1->m[1][3] * In2->m[3][2] ;
+	OM.m[1][3] = In1->m[1][0] * In2->m[0][3] + In1->m[1][1] * In2->m[1][3] + In1->m[1][2] * In2->m[2][3] + In1->m[1][3] * In2->m[3][3] ;
+
+	OM.m[2][0] = In1->m[2][0] * In2->m[0][0] + In1->m[2][1] * In2->m[1][0] + In1->m[2][2] * In2->m[2][0] + In1->m[2][3] * In2->m[3][0] ;
+	OM.m[2][1] = In1->m[2][0] * In2->m[0][1] + In1->m[2][1] * In2->m[1][1] + In1->m[2][2] * In2->m[2][1] + In1->m[2][3] * In2->m[3][1] ;
+	OM.m[2][2] = In1->m[2][0] * In2->m[0][2] + In1->m[2][1] * In2->m[1][2] + In1->m[2][2] * In2->m[2][2] + In1->m[2][3] * In2->m[3][2] ;
+	OM.m[2][3] = In1->m[2][0] * In2->m[0][3] + In1->m[2][1] * In2->m[1][3] + In1->m[2][2] * In2->m[2][3] + In1->m[2][3] * In2->m[3][3] ;
+
+	OM.m[3][0] = In1->m[3][0] * In2->m[0][0] + In1->m[3][1] * In2->m[1][0] + In1->m[3][2] * In2->m[2][0] + In1->m[3][3] * In2->m[3][0] ;
+	OM.m[3][1] = In1->m[3][0] * In2->m[0][1] + In1->m[3][1] * In2->m[1][1] + In1->m[3][2] * In2->m[2][1] + In1->m[3][3] * In2->m[3][1] ;
+	OM.m[3][2] = In1->m[3][0] * In2->m[0][2] + In1->m[3][1] * In2->m[1][2] + In1->m[3][2] * In2->m[2][2] + In1->m[3][3] * In2->m[3][2] ;
+	OM.m[3][3] = In1->m[3][0] * In2->m[0][3] + In1->m[3][1] * In2->m[1][3] + In1->m[3][2] * In2->m[2][3] + In1->m[3][3] * In2->m[3][3] ;
+
+	if( Out ) *Out = OM ;
+
+	// 終了
+	return 0 ;
+}
+
 // 射影行列を作成する
 extern int CreatePerspectiveFovMatrix( MATRIX *Out, float fov, float zn, float zf, float aspect  )
 {
@@ -486,7 +894,7 @@ extern int CreatePerspectiveFovMatrix( MATRIX *Out, float fov, float zn, float z
 	{
 		if( MathScreenSizeX == 0 || MathScreenSizeY == 0 )
 		{
-			aspect = ( float )480 / ( float )640 ;
+			aspect = ( float )DEFAULT_SCREEN_SIZE_Y / ( float )DEFAULT_SCREEN_SIZE_X ;
 		}
 		else
 		{
@@ -499,11 +907,11 @@ extern int CreatePerspectiveFovMatrix( MATRIX *Out, float fov, float zn, float z
     if( _FABS( zf - zn ) < 0.0001f ) return -1 ;
     if( _FABS( Sin )     < 0.0001f ) return -1 ;
 
-//  FLOAT w = aspect * ( cosf(fov/2)/sinf(fov/2) );
-//  FLOAT h =   1.0f * ( cosf(fov/2)/sinf(fov/2) );
-	FLOAT w = aspect * ( Cos / Sin ) ;
-	FLOAT h =   1.0f * ( Cos / Sin ) ;
-    FLOAT Q = zf / ( zf - zn ) ;
+//  float w = aspect * ( cosf(fov/2)/sinf(fov/2) );
+//  float h =   1.0f * ( cosf(fov/2)/sinf(fov/2) );
+	float w = aspect * ( Cos / Sin ) ;
+	float h =   1.0f * ( Cos / Sin ) ;
+    float Q = zf / ( zf - zn ) ;
 
     _MEMSET( Out, 0, sizeof(MATRIX) );
     Out->m[0][0] = w ;
@@ -512,6 +920,43 @@ extern int CreatePerspectiveFovMatrix( MATRIX *Out, float fov, float zn, float z
     Out->m[3][2] = -Q * zn ;
     Out->m[2][3] = 1.0f ;
 	Out->m[3][3] = 0.0f ;
+
+    return 0;
+}
+
+// 射影行列を作成する
+extern int CreatePerspectiveFovMatrixD( MATRIX_D *Out, double fov, double zn, double zf, double aspect  )
+{
+	double Sin, Cos ;
+
+	if( aspect < 0.0 )
+	{
+		if( MathScreenSizeX == 0 || MathScreenSizeY == 0 )
+		{
+			aspect = ( float )DEFAULT_SCREEN_SIZE_Y / ( float )DEFAULT_SCREEN_SIZE_X ;
+		}
+		else
+		{
+			aspect = ( double )MathScreenSizeY / ( double )MathScreenSizeX ;
+		}
+	}
+
+	_SINCOSD( fov / 2, &Sin, &Cos ) ;
+
+    if( _DABS( zf - zn ) < 0.0001 ) return -1 ;
+    if( _DABS( Sin )     < 0.0001 ) return -1 ;
+
+	double w = aspect * ( Cos / Sin ) ;
+	double h =    1.0 * ( Cos / Sin ) ;
+    double Q = zf / ( zf - zn ) ;
+
+    _MEMSET( Out, 0, sizeof( MATRIX_D ) );
+    Out->m[0][0] = w ;
+    Out->m[1][1] = h ;
+    Out->m[2][2] = Q ;
+    Out->m[3][2] = -Q * zn ;
+    Out->m[2][3] = 1.0 ;
+	Out->m[3][3] = 0.0 ;
 
     return 0;
 }
@@ -525,7 +970,7 @@ extern int CreatePerspectiveFovMatrixRH( MATRIX *Out, float fov, float zn, float
 	{
 		if( MathScreenSizeX == 0 || MathScreenSizeY == 0 )
 		{
-			aspect = ( float )480 / ( float )640 ;
+			aspect = ( float )DEFAULT_SCREEN_SIZE_Y / ( float )DEFAULT_SCREEN_SIZE_X ;
 		}
 		else
 		{
@@ -538,11 +983,11 @@ extern int CreatePerspectiveFovMatrixRH( MATRIX *Out, float fov, float zn, float
     if( _FABS(zn-zf) < 0.0001f ) return -1 ;
     if( _FABS( Sin ) < 0.0001f ) return -1;
 
-//  FLOAT w = aspect * ( cosf(fov/2)/sinf(fov/2) );
-//  FLOAT h =   1.0f * ( cosf(fov/2)/sinf(fov/2) );
-	FLOAT w = aspect * ( Cos / Sin ) ;
-	FLOAT h =   1.0f * ( Cos / Sin ) ;
-    FLOAT Q = zf / ( zn - zf ) ;
+//  float w = aspect * ( cosf(fov/2)/sinf(fov/2) );
+//  float h =   1.0f * ( cosf(fov/2)/sinf(fov/2) );
+	float w = aspect * ( Cos / Sin ) ;
+	float h =   1.0f * ( Cos / Sin ) ;
+    float Q = zf / ( zn - zf ) ;
 
     _MEMSET( Out, 0, sizeof(MATRIX) );
     Out->m[0][0] = w;
@@ -551,6 +996,43 @@ extern int CreatePerspectiveFovMatrixRH( MATRIX *Out, float fov, float zn, float
     Out->m[3][2] = Q*zn;
     Out->m[2][3] = -1.0f;
 	Out->m[3][3] = 0.0f ;
+
+    return 0;
+}
+
+// 射影行列を作成する(右手座標系用)
+extern int CreatePerspectiveFovMatrixRHD( MATRIX_D *Out, double fov, double zn, double zf, double aspect )
+{
+	double Sin, Cos ;
+
+	if( aspect < 0.0 )
+	{
+		if( MathScreenSizeX == 0 || MathScreenSizeY == 0 )
+		{
+			aspect = ( float )DEFAULT_SCREEN_SIZE_Y / ( float )DEFAULT_SCREEN_SIZE_X ;
+		}
+		else
+		{
+			aspect = ( double )MathScreenSizeY / ( double )MathScreenSizeX ;
+		}
+	}
+
+	_SINCOSD( fov / 2, &Sin, &Cos ) ;
+
+    if( _DABS(zn-zf) < 0.0001 ) return -1 ;
+    if( _DABS( Sin ) < 0.0001 ) return -1;
+
+	double w = aspect * ( Cos / Sin ) ;
+	double h =    1.0 * ( Cos / Sin ) ;
+    double Q = zf / ( zn - zf ) ;
+
+    _MEMSET( Out, 0, sizeof(MATRIX_D) ) ;
+    Out->m[0][0] = w ;
+    Out->m[1][1] = h ;
+    Out->m[2][2] = Q ;
+    Out->m[3][2] = Q*zn ;
+    Out->m[2][3] = -1.0 ;
+	Out->m[3][3] = 0.0 ;
 
     return 0;
 }
@@ -564,7 +1046,7 @@ extern int CreateOrthoMatrix( MATRIX *Out, float size, float zn, float zf, float
 	{
 		if( MathScreenSizeX == 0 || MathScreenSizeY == 0 )
 		{
-			aspect = ( float )480 / ( float )640 ;
+			aspect = ( float )DEFAULT_SCREEN_SIZE_Y / ( float )DEFAULT_SCREEN_SIZE_X ;
 		}
 		else
 		{
@@ -587,6 +1069,38 @@ extern int CreateOrthoMatrix( MATRIX *Out, float size, float zn, float zf, float
     return 0;
 }
 
+// 正射影行列を作成する
+extern int CreateOrthoMatrixD( MATRIX_D *Out, double size, double zn, double zf, double aspect )
+{
+	double w, h ;
+
+	if( aspect < 0.0 )
+	{
+		if( MathScreenSizeX == 0 || MathScreenSizeY == 0 )
+		{
+			aspect = ( float )DEFAULT_SCREEN_SIZE_Y / ( float )DEFAULT_SCREEN_SIZE_X ;
+		}
+		else
+		{
+			aspect = ( double )MathScreenSizeY / ( double )MathScreenSizeX ;
+		}
+	}
+
+    if( _DABS( zn - zf ) < 0.0001 ) return -1 ;
+
+	w = size / aspect ;
+	h = size ;
+
+    _MEMSET( Out, 0, sizeof( MATRIX_D ) ) ;
+    Out->m[ 0 ][ 0 ] = 2.0 / w ;
+    Out->m[ 1 ][ 1 ] = 2.0 / h ;
+    Out->m[ 2 ][ 2 ] = 1.0 / ( zf - zn ) ;
+    Out->m[ 3 ][ 2 ] = zn  / ( zn - zf ) ;
+	Out->m[ 3 ][ 3 ] = 1.0 ;
+
+    return 0;
+}
+
 // 正射影行列を作成する(右手座標系用)
 extern int CreateOrthoMatrixRH( MATRIX *Out, float size, float zn, float zf, float aspect )
 {
@@ -596,7 +1110,7 @@ extern int CreateOrthoMatrixRH( MATRIX *Out, float size, float zn, float zf, flo
 	{
 		if( MathScreenSizeX == 0 || MathScreenSizeY == 0 )
 		{
-			aspect = ( float )480 / ( float )640 ;
+			aspect = ( float )DEFAULT_SCREEN_SIZE_Y / ( float )DEFAULT_SCREEN_SIZE_X ;
 		}
 		else
 		{
@@ -619,6 +1133,38 @@ extern int CreateOrthoMatrixRH( MATRIX *Out, float size, float zn, float zf, flo
     return 0;
 }
 
+// 正射影行列を作成する(右手座標系用)
+extern int CreateOrthoMatrixRHD( MATRIX_D *Out, double size, double zn, double zf, double aspect )
+{
+	double w, h ;
+
+	if( aspect < 0.0 )
+	{
+		if( MathScreenSizeX == 0 || MathScreenSizeY == 0 )
+		{
+			aspect = ( float )DEFAULT_SCREEN_SIZE_Y / ( float )DEFAULT_SCREEN_SIZE_X ;
+		}
+		else
+		{
+			aspect = ( double )MathScreenSizeY / ( double )MathScreenSizeX ;
+		}
+	}
+
+    if( _DABS( zn - zf ) < 0.0001 ) return -1 ;
+
+	w = size / aspect ;
+	h = size ;
+
+    _MEMSET( Out, 0, sizeof( MATRIX_D ) ) ;
+    Out->m[ 0 ][ 0 ] = 2.0 / w ;
+    Out->m[ 1 ][ 1 ] = 2.0 / h ;
+    Out->m[ 2 ][ 2 ] = 1.0 / ( zn - zf ) ;
+    Out->m[ 3 ][ 2 ] = zn   / ( zn - zf ) ;
+	Out->m[ 3 ][ 3 ] = 1.0 ;
+
+    return 0;
+}
+
 // スケーリング行列を作成する
 extern int CreateScalingMatrix( MATRIX *Out, float sx, float sy, float sz )
 {
@@ -628,6 +1174,20 @@ extern int CreateScalingMatrix( MATRIX *Out, float sx, float sy, float sz )
 	Out->m[1][1] = sy ;
 	Out->m[2][2] = sz ;
 	Out->m[3][3] = 1.0f ;
+
+	// 終了
+	return 0 ;
+}
+
+// スケーリング行列を作成する
+extern int CreateScalingMatrixD( MATRIX_D *Out, double sx, double sy, double sz )
+{
+	_MEMSET( Out, 0, sizeof( MATRIX_D ) ) ;
+
+	Out->m[0][0] = sx ;
+	Out->m[1][1] = sy ;
+	Out->m[2][2] = sz ;
+	Out->m[3][3] = 1.0 ;
 
 	// 終了
 	return 0 ;
@@ -652,7 +1212,25 @@ extern int CreateRotationXMatrix( MATRIX *Out, float Angle )
 
 	return 0 ;
 }
-	
+
+// Ｘ軸を中心とした回転行列を作成する
+extern int CreateRotationXMatrixD( MATRIX_D *Out, double Angle )
+{
+	double Sin, Cos ;
+
+	_SINCOSD( Angle, &Sin, &Cos ) ;
+
+	_MEMSET( Out, 0, sizeof( MATRIX_D ) ) ;
+	Out->m[0][0] =  1.0 ;
+	Out->m[1][1] =  Cos ;
+	Out->m[1][2] =  Sin ;
+	Out->m[2][1] = -Sin ;
+	Out->m[2][2] =  Cos ;
+	Out->m[3][3] =  1.0 ;
+
+	return 0 ;
+}
+
 // Ｙ軸を中心とした回転行列を作成する
 extern int CreateRotationYMatrix( MATRIX *Out, float Angle )
 {
@@ -669,6 +1247,24 @@ extern int CreateRotationYMatrix( MATRIX *Out, float Angle )
 	Out->m[2][2] = Cos ;
 	Out->m[1][1] = 1.0f ;
 	Out->m[3][3] = 1.0f ;
+
+	return 0 ;
+}
+
+// Ｙ軸を中心とした回転行列を作成する
+extern int CreateRotationYMatrixD( MATRIX_D *Out, double Angle )
+{
+	double Sin, Cos ;
+
+	_SINCOSD( Angle, &Sin, &Cos ) ;
+
+	_MEMSET( Out, 0, sizeof( MATRIX_D ) ) ;
+	Out->m[0][0] =  Cos ;
+	Out->m[0][2] = -Sin ;
+	Out->m[2][0] =  Sin ;
+	Out->m[2][2] =  Cos ;
+	Out->m[1][1] =  1.0 ;
+	Out->m[3][3] =  1.0 ;
 
 	return 0 ;
 }
@@ -693,6 +1289,24 @@ extern int CreateRotationZMatrix( MATRIX *Out, float Angle )
 	return 0 ;
 }
 
+// Ｚ軸を中心とした回転行列を作成する
+extern int CreateRotationZMatrixD( MATRIX_D *Out, double Angle )
+{
+	double Sin, Cos ;
+
+	_SINCOSD( Angle, &Sin, &Cos ) ;
+
+	_MEMSET( Out, 0, sizeof( MATRIX_D ) ) ;
+	Out->m[0][0] =  Cos ;
+	Out->m[0][1] =  Sin ;
+	Out->m[1][0] = -Sin ;
+	Out->m[1][1] =  Cos ;
+	Out->m[2][2] =  1.0 ;
+	Out->m[3][3] =  1.0 ;
+
+	return 0 ;
+}
+
 // 平行移動行列を作成する
 extern int CreateTranslationMatrix( MATRIX *Out, float x, float y, float z )
 {
@@ -708,10 +1322,52 @@ extern int CreateTranslationMatrix( MATRIX *Out, float x, float y, float z )
 	return 0 ;
 }
 
+// 平行移動行列を作成する
+extern int CreateTranslationMatrixD( MATRIX_D *Out, double x, double y, double z )
+{
+	_MEMSET( Out, 0, sizeof( MATRIX_D ) ) ;
+	Out->m[3][0] = x ;
+	Out->m[3][1] = y ;
+	Out->m[3][2] = z ;
+	Out->m[3][3] = 1.0 ;
+	Out->m[0][0] = 1.0 ;
+	Out->m[1][1] = 1.0 ;
+	Out->m[2][2] = 1.0 ;
+
+	return 0 ;
+}
+
 // 転置行列を作成する
 extern int CreateTransposeMatrix( MATRIX *Out, const MATRIX *In )
 {
 	MATRIX I1 = *In ;
+	Out->m[0][0] = I1.m[0][0] ;
+	Out->m[0][1] = I1.m[1][0] ;
+	Out->m[0][2] = I1.m[2][0] ;
+	Out->m[0][3] = I1.m[3][0] ;
+
+	Out->m[1][0] = I1.m[0][1] ;
+	Out->m[1][1] = I1.m[1][1] ;
+	Out->m[1][2] = I1.m[2][1] ;
+	Out->m[1][3] = I1.m[3][1] ;
+
+	Out->m[2][0] = I1.m[0][2] ;
+	Out->m[2][1] = I1.m[1][2] ;
+	Out->m[2][2] = I1.m[2][2] ;
+	Out->m[2][3] = I1.m[3][2] ;
+
+	Out->m[3][0] = I1.m[0][3] ;
+	Out->m[3][1] = I1.m[1][3] ;
+	Out->m[3][2] = I1.m[2][3] ;
+	Out->m[3][3] = I1.m[3][3] ;
+
+	return 0 ;
+}
+
+// 転置行列を作成する
+extern int CreateTransposeMatrixD( MATRIX_D *Out, const MATRIX_D *In )
+{
+	MATRIX_D I1 = *In ;
 	Out->m[0][0] = I1.m[0][0] ;
 	Out->m[0][1] = I1.m[1][0] ;
 	Out->m[0][2] = I1.m[2][0] ;
@@ -1141,6 +1797,208 @@ extern int CreateInverseMatrix( MATRIX *Out, const MATRIX *In )
 #endif
 }
 
+// 逆行列を作成する
+extern int CreateInverseMatrixD( MATRIX_D *Out, const MATRIX_D *In )
+{
+	MATRIX_D InT ;
+	double detA ;
+
+	InT = *In ;
+	detA = 
+	InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 3 ] +
+	InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 1 ] +
+	InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 2 ] +
+	InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 2 ] +
+	InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 3 ] +
+	InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 0 ] +
+	InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 3 ] +
+	InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 0 ] +
+	InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 1 ] +
+	InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 1 ] +
+	InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 2 ] +
+	InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 0 ] -
+
+	InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 2 ] -
+	InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 3 ] -
+	InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 1 ] -
+	InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 3 ] -
+	InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 0 ] -
+	InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 2 ] -
+	InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 1 ] -
+	InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 3 ] -
+	InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 0 ] -
+	InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 2 ] -
+	InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 0 ] -
+	InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 1 ] ;
+
+	if( detA < 0.0000001 && detA > - 0.0000001 )
+	{
+		return -1 ;
+	}
+
+	Out->m[ 0 ][ 0 ] =
+	(
+		InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 3 ] +
+		InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 1 ] +
+		InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 2 ] -
+		InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 2 ] -
+		InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 3 ] -
+		InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 1 ]
+	) / detA ;
+
+	Out->m[ 0 ][ 1 ] =
+	(	
+		InT.m[ 0 ][ 1 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 2 ] +
+		InT.m[ 0 ][ 2 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 3 ] +
+		InT.m[ 0 ][ 3 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 1 ] -
+		InT.m[ 0 ][ 1 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 3 ] -
+		InT.m[ 0 ][ 2 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 1 ] -
+		InT.m[ 0 ][ 3 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 2 ]
+	) / detA ;
+
+	Out->m[ 0 ][ 2 ] =
+	(	
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 2 ] * InT.m[ 3 ][ 3 ] +
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 3 ] * InT.m[ 3 ][ 1 ] +
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 1 ] * InT.m[ 3 ][ 2 ] -
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 3 ] * InT.m[ 3 ][ 2 ] -
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 1 ] * InT.m[ 3 ][ 3 ] -
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 2 ] * InT.m[ 3 ][ 1 ]
+	) / detA ;
+
+	Out->m[ 0 ][ 3 ] =
+	(	
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 2 ] +
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 3 ] +
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 1 ] -
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 3 ] -
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 1 ] -
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 2 ]
+	) / detA ;
+
+	Out->m[ 1 ][ 0 ] =
+	(	
+		InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 2 ] +
+		InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 3 ] +
+		InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 0 ] -
+		InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 3 ] -
+		InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 0 ] -
+		InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 2 ]
+	) / detA ;
+
+	Out->m[ 1 ][ 1 ] = 
+	(	
+		InT.m[ 0 ][ 0 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 3 ] +
+		InT.m[ 0 ][ 2 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 0 ] +
+		InT.m[ 0 ][ 3 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 2 ] -
+		InT.m[ 0 ][ 0 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 2 ] -
+		InT.m[ 0 ][ 2 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 3 ] -
+		InT.m[ 0 ][ 3 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 0 ]
+	) / detA ;
+
+	Out->m[ 1 ][ 2 ] = 
+	(	
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 3 ] * InT.m[ 3 ][ 2 ] +
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 0 ] * InT.m[ 3 ][ 3 ] +
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 2 ] * InT.m[ 3 ][ 0 ] -
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 2 ] * InT.m[ 3 ][ 3 ] -
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 3 ] * InT.m[ 3 ][ 0 ] -
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 0 ] * InT.m[ 3 ][ 2 ]
+	) / detA ;
+
+	Out->m[ 1 ][ 3 ] = 
+	(	
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 3 ] +
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 0 ] +
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 2 ] -
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 2 ] -
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 3 ] -
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 0 ]
+	) / detA ;
+
+	Out->m[ 2 ][ 0 ] = 
+	(
+		InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 3 ] +
+		InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 0 ] +
+		InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 1 ] -
+		InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 1 ] -
+		InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 3 ] -
+		InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 0 ]
+	) / detA ;
+
+	Out->m[ 2 ][ 1 ] = 
+	(
+		InT.m[ 0 ][ 0 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 1 ] +
+		InT.m[ 0 ][ 1 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 3 ] +
+		InT.m[ 0 ][ 3 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 0 ] -
+		InT.m[ 0 ][ 0 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 3 ] -
+		InT.m[ 0 ][ 1 ] * InT.m[ 2 ][ 3 ] * InT.m[ 3 ][ 0 ] -
+		InT.m[ 0 ][ 3 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 1 ]
+	) / detA ;
+
+	Out->m[ 2 ][ 2 ] = 
+	(
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 1 ] * InT.m[ 3 ][ 3 ] +
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 3 ] * InT.m[ 3 ][ 0 ] +
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 0 ] * InT.m[ 3 ][ 1 ] -
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 3 ] * InT.m[ 3 ][ 1 ] -
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 0 ] * InT.m[ 3 ][ 3 ] -
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 1 ] * InT.m[ 3 ][ 0 ]
+	) / detA ;
+
+	Out->m[ 2 ][ 3 ] = 
+	(
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 1 ] +
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 3 ] +
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 0 ] -
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 3 ] -
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 3 ] * InT.m[ 2 ][ 0 ] -
+		InT.m[ 0 ][ 3 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 1 ]
+	) / detA ;
+
+	Out->m[ 3 ][ 0 ] = 
+	(
+		InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 1 ] +
+		InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 2 ] +
+		InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 0 ] -
+		InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 2 ] -
+		InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 0 ] -
+		InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 1 ]
+	) / detA ;
+
+	Out->m[ 3 ][ 1 ] = 
+	(
+		InT.m[ 0 ][ 0 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 2 ] +
+		InT.m[ 0 ][ 1 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 0 ] +
+		InT.m[ 0 ][ 2 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 1 ] -
+		InT.m[ 0 ][ 0 ] * InT.m[ 2 ][ 2 ] * InT.m[ 3 ][ 1 ] -
+		InT.m[ 0 ][ 1 ] * InT.m[ 2 ][ 0 ] * InT.m[ 3 ][ 2 ] -
+		InT.m[ 0 ][ 2 ] * InT.m[ 2 ][ 1 ] * InT.m[ 3 ][ 0 ]
+	) / detA ;
+
+	Out->m[ 3 ][ 2 ] = 
+	(
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 2 ] * InT.m[ 3 ][ 1 ] +
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 0 ] * InT.m[ 3 ][ 2 ] +
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 1 ] * InT.m[ 3 ][ 0 ] -
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 1 ] * InT.m[ 3 ][ 2 ] -
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 2 ] * InT.m[ 3 ][ 0 ] -
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 0 ] * InT.m[ 3 ][ 1 ]
+	) / detA ;
+
+	Out->m[ 3 ][ 3 ] = 
+	(
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 2 ] +
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 0 ] +
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 1 ] -
+		InT.m[ 0 ][ 0 ] * InT.m[ 1 ][ 2 ] * InT.m[ 2 ][ 1 ] -
+		InT.m[ 0 ][ 1 ] * InT.m[ 1 ][ 0 ] * InT.m[ 2 ][ 2 ] -
+		InT.m[ 0 ][ 2 ] * InT.m[ 1 ][ 1 ] * InT.m[ 2 ][ 0 ]
+	) / detA ;
+
+	return 0 ;
+}
+
 // ビューポート行列を作成する
 extern int CreateViewportMatrix( MATRIX *Out, float CenterX, float CenterY, float Width, float Height )
 {
@@ -1152,6 +2010,21 @@ extern int CreateViewportMatrix( MATRIX *Out, float CenterX, float CenterY, floa
 	Out->m[3][0] = CenterX ;
 	Out->m[3][1] = CenterY ;
 	Out->m[3][2] = 0.0F ;
+
+	return 0 ;
+}
+
+// ビューポート行列を作成する
+extern int CreateViewportMatrixD( MATRIX_D *Out, double CenterX, double CenterY, double Width, double Height )
+{
+	_MEMSET( Out, 0, sizeof( MATRIX_D ) ) ;
+	Out->m[0][0] = Width / 2.0 ;
+	Out->m[1][1] = -Height / 2.0 ;
+	Out->m[2][2] = 1.0 ;
+	Out->m[3][3] = 1.0 ;
+	Out->m[3][0] = CenterX ;
+	Out->m[3][1] = CenterY ;
+	Out->m[3][2] = 0.0 ;
 
 	return 0 ;
 }
@@ -1189,6 +2062,39 @@ extern int CreateRotationXYZMatrix( MATRIX *Out, float XRot, float YRot, float Z
 	return 0 ;
 }
 
+// Ｘ軸回転→Ｙ軸回転→Ｚ軸回転を合成した行列を作成する
+extern int CreateRotationXYZMatrixD( MATRIX_D *Out, double XRot, double YRot, double ZRot )
+{
+	double SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	double SinXSinY, SinYCosX ;
+
+	_SINCOSD( XRot, &SinX, &CosX ) ;
+	_SINCOSD( YRot, &SinY, &CosY ) ;
+	_SINCOSD( ZRot, &SinZ, &CosZ ) ;
+
+	SinXSinY = SinX * SinY ;
+	SinYCosX = SinY * CosX ;
+
+	Out->m[ 0 ][ 0 ] = CosY * CosZ ;
+	Out->m[ 0 ][ 1 ] = CosY * SinZ ;
+	Out->m[ 0 ][ 2 ] = -SinY ;
+	Out->m[ 0 ][ 3 ] = 0.0 ;
+	Out->m[ 1 ][ 0 ] = SinXSinY * CosZ - CosX * SinZ ;
+	Out->m[ 1 ][ 1 ] = SinXSinY * SinZ + CosX * CosZ ;
+	Out->m[ 1 ][ 2 ] = SinX * CosY ;
+	Out->m[ 1 ][ 3 ] = 0.0 ;
+	Out->m[ 2 ][ 0 ] = SinYCosX * CosZ + SinX * SinZ ;
+	Out->m[ 2 ][ 1 ] = SinYCosX * SinZ - SinX * CosZ ;
+	Out->m[ 2 ][ 2 ] = CosX * CosY ;
+	Out->m[ 2 ][ 3 ] = 0.0 ;
+	Out->m[ 3 ][ 0 ] = 0.0 ;
+	Out->m[ 3 ][ 1 ] = 0.0 ;
+	Out->m[ 3 ][ 2 ] = 0.0 ;
+	Out->m[ 3 ][ 3 ] = 1.0 ;
+
+	return 0 ;
+}
+
 // Ｘ軸回転→Ｚ軸回転→Ｙ軸回転を合成した行列を作成する
 extern int CreateRotationXZYMatrix( MATRIX *Out, float XRot, float YRot, float ZRot )
 {
@@ -1218,6 +2124,39 @@ extern int CreateRotationXZYMatrix( MATRIX *Out, float XRot, float YRot, float Z
 	Out->m[ 3 ][ 1 ] = 0.0f ;
 	Out->m[ 3 ][ 2 ] = 0.0f ;
 	Out->m[ 3 ][ 3 ] = 1.0f ;
+
+	return 0 ;
+}
+
+// Ｘ軸回転→Ｚ軸回転→Ｙ軸回転を合成した行列を作成する
+extern int CreateRotationXZYMatrixD( MATRIX_D *Out, double XRot, double YRot, double ZRot )
+{
+	double SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	double CosXSinZ, SinXSinZ ;
+
+	_SINCOSD( XRot, &SinX, &CosX ) ;
+	_SINCOSD( YRot, &SinY, &CosY ) ;
+	_SINCOSD( ZRot, &SinZ, &CosZ ) ;
+
+	CosXSinZ = CosX * SinZ ;
+	SinXSinZ = SinX * SinZ ;
+
+	Out->m[ 0 ][ 0 ] = CosY * CosZ ;
+	Out->m[ 0 ][ 1 ] = SinZ ;
+	Out->m[ 0 ][ 2 ] = CosZ * -SinY ;
+	Out->m[ 0 ][ 3 ] = 0.0 ;
+	Out->m[ 1 ][ 0 ] = CosXSinZ * -CosY + SinX * SinY ;
+	Out->m[ 1 ][ 1 ] = CosX * CosZ ;
+	Out->m[ 1 ][ 2 ] = CosXSinZ *  SinY + SinX * CosY ;
+	Out->m[ 1 ][ 3 ] = 0.0 ;
+	Out->m[ 2 ][ 0 ] = SinXSinZ *  CosY + CosX * SinY ;
+	Out->m[ 2 ][ 1 ] = -SinX * CosZ ;
+	Out->m[ 2 ][ 2 ] = SinXSinZ * -SinY + CosX * CosY ;
+	Out->m[ 2 ][ 3 ] = 0.0 ;
+	Out->m[ 3 ][ 0 ] = 0.0 ;
+	Out->m[ 3 ][ 1 ] = 0.0 ;
+	Out->m[ 3 ][ 2 ] = 0.0 ;
+	Out->m[ 3 ][ 3 ] = 1.0 ;
 
 	return 0 ;
 }
@@ -1255,6 +2194,39 @@ extern int CreateRotationYXZMatrix( MATRIX *Out, float XRot, float YRot, float Z
 	return 0 ;
 }
 
+// Ｙ軸回転→Ｘ軸回転→Ｚ軸回転を合成した行列を作成する
+extern int CreateRotationYXZMatrixD( MATRIX_D *Out, double XRot, double YRot, double ZRot )
+{
+	double SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	double SinXSinY, CosYSinX ;
+
+	_SINCOSD( XRot, &SinX, &CosX ) ;
+	_SINCOSD( YRot, &SinY, &CosY ) ;
+	_SINCOSD( ZRot, &SinZ, &CosZ ) ;
+
+	SinXSinY = SinX * SinY ;
+	CosYSinX = CosY * SinX ;
+
+	Out->m[ 0 ][ 0 ] = CosY * CosZ - SinXSinY * SinZ ;
+	Out->m[ 0 ][ 1 ] = CosY * SinZ + SinXSinY * CosZ ;
+	Out->m[ 0 ][ 2 ] = -SinY * CosX ;
+	Out->m[ 0 ][ 3 ] = 0.0 ;
+	Out->m[ 1 ][ 0 ] = CosX * -SinZ ;
+	Out->m[ 1 ][ 1 ] = CosX * CosZ ;
+	Out->m[ 1 ][ 2 ] = SinX ;
+	Out->m[ 1 ][ 3 ] = 0.0 ;
+	Out->m[ 2 ][ 0 ] = SinY * CosZ + CosYSinX * SinZ ;
+	Out->m[ 2 ][ 1 ] = SinY * SinZ - CosYSinX * CosZ ;
+	Out->m[ 2 ][ 2 ] = CosY * CosX ;
+	Out->m[ 2 ][ 3 ] = 0.0 ;
+	Out->m[ 3 ][ 0 ] = 0.0 ;
+	Out->m[ 3 ][ 1 ] = 0.0 ;
+	Out->m[ 3 ][ 2 ] = 0.0 ;
+	Out->m[ 3 ][ 3 ] = 1.0 ;
+
+	return 0 ;
+}
+
 // Ｙ軸回転→Ｚ軸回転→Ｘ軸回転を合成した行列を作成する
 extern int CreateRotationYZXMatrix( MATRIX *Out, float XRot, float YRot, float ZRot )
 {
@@ -1284,6 +2256,39 @@ extern int CreateRotationYZXMatrix( MATRIX *Out, float XRot, float YRot, float Z
 	Out->m[ 3 ][ 1 ] = 0.0f ;
 	Out->m[ 3 ][ 2 ] = 0.0f ;
 	Out->m[ 3 ][ 3 ] = 1.0f ;
+
+	return 0 ;
+}
+
+// Ｙ軸回転→Ｚ軸回転→Ｘ軸回転を合成した行列を作成する
+extern int CreateRotationYZXMatrixD( MATRIX_D *Out, double XRot, double YRot, double ZRot )
+{
+	double SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	double CosYSinZ, SinYSinZ ;
+
+	_SINCOSD( XRot, &SinX, &CosX ) ;
+	_SINCOSD( YRot, &SinY, &CosY ) ;
+	_SINCOSD( ZRot, &SinZ, &CosZ ) ;
+
+	CosYSinZ = CosY * SinZ ;
+	SinYSinZ = SinY * SinZ ;
+
+	Out->m[ 0 ][ 0 ] = CosY * CosZ ;
+	Out->m[ 0 ][ 1 ] = CosYSinZ * CosX + SinY * SinX ;
+	Out->m[ 0 ][ 2 ] = CosYSinZ * SinX - SinY * CosX ;
+	Out->m[ 0 ][ 3 ] = 0.0 ;
+	Out->m[ 1 ][ 0 ] = -SinZ ;
+	Out->m[ 1 ][ 1 ] = CosZ * CosX ;
+	Out->m[ 1 ][ 2 ] = CosZ * SinX ;
+	Out->m[ 1 ][ 3 ] = 0.0 ;
+	Out->m[ 2 ][ 0 ] = SinY * CosZ ;
+	Out->m[ 2 ][ 1 ] = SinYSinZ * CosX - CosY * SinX ;
+	Out->m[ 2 ][ 2 ] = SinYSinZ * SinX + CosY * CosX ;
+	Out->m[ 2 ][ 3 ] = 0.0 ;
+	Out->m[ 3 ][ 0 ] = 0.0 ;
+	Out->m[ 3 ][ 1 ] = 0.0 ;
+	Out->m[ 3 ][ 2 ] = 0.0 ;
+	Out->m[ 3 ][ 3 ] = 1.0 ;
 
 	return 0 ;
 }
@@ -1321,6 +2326,39 @@ extern int CreateRotationZXYMatrix( MATRIX *Out, float XRot, float YRot, float Z
 	return 0 ;
 }
 
+// Ｚ軸回転→Ｘ軸回転→Ｙ軸回転を合成した行列を作成する
+extern int CreateRotationZXYMatrixD( MATRIX_D *Out, double XRot, double YRot, double ZRot )
+{
+	double SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	double SinXSinZ, SinXCosZ ;
+
+	_SINCOSD( XRot, &SinX, &CosX ) ;
+	_SINCOSD( YRot, &SinY, &CosY ) ;
+	_SINCOSD( ZRot, &SinZ, &CosZ ) ;
+
+	SinXSinZ = SinX * SinZ ;
+	SinXCosZ = SinX * CosZ ;
+
+	Out->m[ 0 ][ 0 ] = CosY *  CosZ + SinXSinZ * SinY ;
+	Out->m[ 0 ][ 1 ] = CosX * SinZ ;
+	Out->m[ 0 ][ 2 ] = CosZ * -SinY + SinXSinZ * CosY ;
+	Out->m[ 0 ][ 3 ] = 0.0 ;
+	Out->m[ 1 ][ 0 ] = CosY * -SinZ + SinXCosZ * SinY ;
+	Out->m[ 1 ][ 1 ] = CosX * CosZ ;
+	Out->m[ 1 ][ 2 ] = SinZ *  SinY + SinXCosZ * CosY ;
+	Out->m[ 1 ][ 3 ] = 0.0 ;
+	Out->m[ 2 ][ 0 ] = CosX * SinY ;
+	Out->m[ 2 ][ 1 ] = -SinX ;
+	Out->m[ 2 ][ 2 ] = CosX * CosY ;
+	Out->m[ 2 ][ 3 ] = 0.0 ;
+	Out->m[ 3 ][ 0 ] = 0.0 ;
+	Out->m[ 3 ][ 1 ] = 0.0 ;
+	Out->m[ 3 ][ 2 ] = 0.0 ;
+	Out->m[ 3 ][ 3 ] = 1.0 ;
+
+	return 0 ;
+}
+
 // Ｚ軸回転→Ｙ軸回転→Ｘ軸回転を合成した行列を作成する
 extern int CreateRotationZYXMatrix( MATRIX *Out, float XRot, float YRot, float ZRot )
 {
@@ -1354,6 +2392,39 @@ extern int CreateRotationZYXMatrix( MATRIX *Out, float XRot, float YRot, float Z
 	return 0 ;
 }
 
+// Ｚ軸回転→Ｙ軸回転→Ｘ軸回転を合成した行列を作成する
+extern int CreateRotationZYXMatrixD( MATRIX_D *Out, double XRot, double YRot, double ZRot )
+{
+	double SinX, CosX, SinY, CosY, SinZ, CosZ ;
+	double CosZSinY, SinZSinY ;
+
+	_SINCOSD( XRot, &SinX, &CosX ) ;
+	_SINCOSD( YRot, &SinY, &CosY ) ;
+	_SINCOSD( ZRot, &SinZ, &CosZ ) ;
+
+	CosZSinY = CosZ * SinY ;
+	SinZSinY = SinZ * SinY ;
+
+	Out->m[ 0 ][ 0 ] = CosY * CosZ ;
+	Out->m[ 0 ][ 1 ] = SinZ * CosX + CosZSinY * SinX ;
+	Out->m[ 0 ][ 2 ] = SinZ * SinX - CosZSinY * CosX ;
+	Out->m[ 0 ][ 3 ] = 0.0 ;
+	Out->m[ 1 ][ 0 ] = -SinZ * CosY ;
+	Out->m[ 1 ][ 1 ] = CosZ * CosX - SinZSinY * SinX ;
+	Out->m[ 1 ][ 2 ] = CosZ * SinX + SinZSinY * CosX ;
+	Out->m[ 1 ][ 3 ] = 0.0 ;
+	Out->m[ 2 ][ 0 ] = SinY ;
+	Out->m[ 2 ][ 1 ] = CosY * -SinX ;
+	Out->m[ 2 ][ 2 ] = CosY *  CosX ;
+	Out->m[ 2 ][ 3 ] = 0.0 ;
+	Out->m[ 3 ][ 0 ] = 0.0 ;
+	Out->m[ 3 ][ 1 ] = 0.0 ;
+	Out->m[ 3 ][ 2 ] = 0.0 ;
+	Out->m[ 3 ][ 3 ] = 1.0 ;
+
+	return 0 ;
+}
+
 // 行列からＸＹＺ軸回転の値を取得する( 戻り値　-1:ジンバルロック発生  0:成功 )
 extern int GetMatrixXYZRotation( const MATRIX *In, float *OutXRot, float *OutYRot, float *OutZRot )
 {
@@ -1383,6 +2454,44 @@ extern int GetMatrixXYZRotation( const MATRIX *In, float *OutXRot, float *OutYRo
 		else
 		{
 			YRot = _ATAN2( -In->m[ 0 ][ 2 ], In->m[ 0 ][ 0 ] / Cos ) ;
+		}
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return 0 ;
+	}
+}
+
+// 行列からＸＹＺ軸回転の値を取得する( 戻り値　-1:ジンバルロック発生  0:成功 )
+extern int GetMatrixXYZRotationD( const MATRIX_D *In, double *OutXRot, double *OutYRot, double *OutZRot )
+{
+	double XRot, YRot, ZRot, Sin, Cos ;
+
+	if( ( In->m[ 0 ][ 2 ] >  0.99999 && In->m[ 0 ][ 2 ] <  1.000001 ) ||
+		( In->m[ 0 ][ 2 ] < -0.99999 && In->m[ 0 ][ 2 ] > -1.000001 ) )
+	{
+		XRot = 0.0 ;
+		YRot = -In->m[ 0 ][ 2 ] > 0.5 ? DX_PI / 2.0 : -DX_PI / 2.0 ;
+		ZRot = _ATAN2D( -In->m[ 1 ][ 0 ], In->m[ 1 ][ 1 ] ) ;
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return -1 ;
+	}
+	else
+	{
+		XRot = _ATAN2D( In->m[ 1 ][ 2 ], In->m[ 2 ][ 2 ] ) ;
+		ZRot = _ATAN2D( In->m[ 0 ][ 1 ], In->m[ 0 ][ 0 ] ) ;
+		_SINCOSD( ZRot, &Sin, &Cos ) ;
+		if( Cos < 0.000001 && Cos > -0.000001 )
+		{
+			YRot = _ATAN2D( -In->m[ 0 ][ 2 ], In->m[ 0 ][ 1 ] / Sin ) ;
+		}
+		else
+		{
+			YRot = _ATAN2D( -In->m[ 0 ][ 2 ], In->m[ 0 ][ 0 ] / Cos ) ;
 		}
 
 		if( OutXRot ) *OutXRot = XRot ;
@@ -1430,6 +2539,44 @@ extern int GetMatrixXZYRotation( const MATRIX *In, float *OutXRot, float *OutYRo
 	}
 }
 
+// 行列からＸＺＹ軸回転の値を取得する( 戻り値　-1:ジンバルロック発生  0:成功 )
+extern int GetMatrixXZYRotationD( const MATRIX_D *In, double *OutXRot, double *OutYRot, double *OutZRot )
+{
+	double XRot, YRot, ZRot, Sin, Cos ;
+
+	if( ( In->m[ 0 ][ 1 ] >  0.99999 && In->m[ 0 ][ 1 ] <  1.000001 ) ||
+		( In->m[ 0 ][ 1 ] < -0.99999 && In->m[ 0 ][ 1 ] > -1.000001 ) )
+	{
+		XRot = 0.0 ;
+		ZRot = In->m[ 0 ][ 1 ] > 0.5 ? DX_PI / 2.0 : -DX_PI / 2.0 ;
+		YRot = _ATAN2D( In->m[ 2 ][ 0 ], In->m[ 2 ][ 2 ] ) ;
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return -1 ;
+	}
+	else
+	{
+		YRot = _ATAN2D( -In->m[ 0 ][ 2 ], In->m[ 0 ][ 0 ] ) ;
+		XRot = _ATAN2D( -In->m[ 2 ][ 1 ], In->m[ 1 ][ 1 ] ) ;
+		_SINCOSD( XRot, &Sin, &Cos ) ;
+		if( Cos < 0.000001 && Cos > -0.000001 )
+		{
+			ZRot = _ATAN2D( In->m[ 0 ][ 1 ], -In->m[ 2 ][ 1 ] / Sin ) ;
+		}
+		else
+		{
+			ZRot = _ATAN2D( In->m[ 0 ][ 1 ],  In->m[ 1 ][ 1 ] / Cos ) ;
+		}
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return 0 ;
+	}
+}
+
 // 行列からＹＸＺ軸回転の値を取得する( 戻り値　-1:ジンバルロック発生  0:成功 )
 extern int GetMatrixYXZRotation( const MATRIX *In, float *OutXRot, float *OutYRot, float *OutZRot )
 {
@@ -1459,6 +2606,44 @@ extern int GetMatrixYXZRotation( const MATRIX *In, float *OutXRot, float *OutYRo
 		else
 		{
 			XRot = _ATAN2( In->m[ 1 ][ 2 ],  In->m[ 2 ][ 2 ] / Cos ) ;
+		}
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return 0 ;
+	}
+}
+
+// 行列からＹＸＺ軸回転の値を取得する( 戻り値　-1:ジンバルロック発生  0:成功 )
+extern int GetMatrixYXZRotationD( const MATRIX_D *In, double *OutXRot, double *OutYRot, double *OutZRot )
+{
+	double XRot, YRot, ZRot, Sin, Cos ;
+
+	if( ( In->m[ 1 ][ 2 ] >  0.99999 && In->m[ 1 ][ 2 ] <  1.000001 ) ||
+		( In->m[ 1 ][ 2 ] < -0.99999 && In->m[ 1 ][ 2 ] > -1.000001 ) )
+	{
+		YRot = 0.0 ;
+		XRot = In->m[ 1 ][ 2 ] > 0.5 ? DX_PI / 2.0 : -DX_PI / 2.0 ;
+		ZRot = _ATAN2D( In->m[ 0 ][ 1 ], In->m[ 0 ][ 0 ] ) ;
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return -1 ;
+	}
+	else
+	{
+		ZRot = _ATAN2D( -In->m[ 1 ][ 0 ], In->m[ 1 ][ 1 ] ) ;
+		YRot = _ATAN2D( -In->m[ 0 ][ 2 ], In->m[ 2 ][ 2 ] ) ;
+		_SINCOSD( YRot, &Sin, &Cos ) ;
+		if( Cos < 0.000001 && Cos > -0.000001 )
+		{
+			XRot = _ATAN2D( In->m[ 1 ][ 2 ], -In->m[ 0 ][ 2 ] / Sin ) ;
+		}
+		else
+		{
+			XRot = _ATAN2D( In->m[ 1 ][ 2 ],  In->m[ 2 ][ 2 ] / Cos ) ;
 		}
 
 		if( OutXRot ) *OutXRot = XRot ;
@@ -1506,6 +2691,44 @@ extern int GetMatrixYZXRotation( const MATRIX *In, float *OutXRot, float *OutYRo
 	}
 }
 
+// 行列からＹＺＸ軸回転の値を取得する( 戻り値　-1:ジンバルロック発生  0:成功 )
+extern int GetMatrixYZXRotationD( const MATRIX_D *In, double *OutXRot, double *OutYRot, double *OutZRot )
+{
+	double XRot, YRot, ZRot, Sin, Cos ;
+
+	if( ( In->m[ 1 ][ 0 ] >  0.99999 && In->m[ 1 ][ 0 ] <  1.000001 ) ||
+		( In->m[ 1 ][ 0 ] < -0.99999 && In->m[ 1 ][ 0 ] > -1.000001 ) )
+	{
+		YRot = 0.0 ;
+		ZRot = -In->m[ 1 ][ 0 ] > 0.5 ? DX_PI / 2.0 : -DX_PI / 2.0 ;
+		XRot = _ATAN2D( -In->m[ 2 ][ 1 ], In->m[ 2 ][ 2 ] ) ;
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return -1 ;
+	}
+	else
+	{
+		XRot = _ATAN2D( In->m[ 1 ][ 2 ], In->m[ 1 ][ 1 ] ) ;
+		YRot = _ATAN2D( In->m[ 2 ][ 0 ], In->m[ 0 ][ 0 ] ) ;
+		_SINCOSD( YRot, &Sin, &Cos ) ;
+		if( Cos < 0.000001 && Cos > -0.000001 )
+		{
+			ZRot = _ATAN2D( -In->m[ 1 ][ 0 ], In->m[ 2 ][ 0 ] / Sin ) ;
+		}
+		else
+		{
+			ZRot = _ATAN2D( -In->m[ 1 ][ 0 ], In->m[ 0 ][ 0 ] / Cos ) ;
+		}
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return 0 ;
+	}
+}
+
 // 行列からＺＸＹ軸回転の値を取得する( 戻り値　-1:ジンバルロック発生  0:成功 )
 extern int GetMatrixZXYRotation( const MATRIX *In, float *OutXRot, float *OutYRot, float *OutZRot )
 {
@@ -1535,6 +2758,44 @@ extern int GetMatrixZXYRotation( const MATRIX *In, float *OutXRot, float *OutYRo
 		else
 		{
 			XRot = _ATAN2( -In->m[ 2 ][ 1 ],  In->m[ 1 ][ 1 ] / Cos ) ;
+		}
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return 0 ;
+	}
+}
+
+// 行列からＺＸＹ軸回転の値を取得する( 戻り値　-1:ジンバルロック発生  0:成功 )
+extern int GetMatrixZXYRotationD( const MATRIX_D *In, double *OutXRot, double *OutYRot, double *OutZRot )
+{
+	double XRot, YRot, ZRot, Sin, Cos ;
+
+	if( ( In->m[ 2 ][ 1 ] >  0.99999 && In->m[ 2 ][ 1 ] <  1.000001 ) ||
+		( In->m[ 2 ][ 1 ] < -0.99999 && In->m[ 2 ][ 1 ] > -1.000001 ) )
+	{
+		ZRot = 0.0 ;
+		XRot = -In->m[ 2 ][ 1 ] > 0.5 ? DX_PI / 2.0 : -DX_PI / 2.0 ;
+		YRot = _ATAN2D( -In->m[ 0 ][ 2 ], In->m[ 0 ][ 0 ] ) ;
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return -1 ;
+	}
+	else
+	{
+		YRot = _ATAN2D( In->m[ 2 ][ 0 ], In->m[ 2 ][ 2 ] ) ;
+		ZRot = _ATAN2D( In->m[ 0 ][ 1 ], In->m[ 1 ][ 1 ] ) ;
+		_SINCOSD( ZRot, &Sin, &Cos ) ;
+		if( Cos < 0.000001 && Cos > -0.000001 )
+		{
+			XRot = _ATAN2D( -In->m[ 2 ][ 1 ], -In->m[ 0 ][ 1 ] / Sin ) ;
+		}
+		else
+		{
+			XRot = _ATAN2D( -In->m[ 2 ][ 1 ],  In->m[ 1 ][ 1 ] / Cos ) ;
 		}
 
 		if( OutXRot ) *OutXRot = XRot ;
@@ -1582,6 +2843,64 @@ extern int GetMatrixZYXRotation( const MATRIX *In, float *OutXRot, float *OutYRo
 	}
 }
 
+// 行列からＺＹＸ軸回転の値を取得する( 戻り値　-1:ジンバルロック発生  0:成功 )
+extern int GetMatrixZYXRotationD( const MATRIX_D *In, double *OutXRot, double *OutYRot, double *OutZRot )
+{
+	double XRot, YRot, ZRot, Sin, Cos ;
+
+	if( ( In->m[ 2 ][ 0 ] >  0.99999 && In->m[ 2 ][ 0 ] <  1.000001 ) ||
+		( In->m[ 2 ][ 0 ] < -0.99999 && In->m[ 2 ][ 0 ] > -1.000001 ) )
+	{
+		ZRot = 0.0 ;
+		YRot = In->m[ 2 ][ 0 ] > 0.5 ? DX_PI / 2.0 : -DX_PI / 2.0 ;
+		XRot = _ATAN2D( In->m[ 1 ][ 2 ], In->m[ 1 ][ 1 ] ) ;
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return -1 ;
+	}
+	else
+	{
+		XRot = _ATAN2D( -In->m[ 2 ][ 1 ], In->m[ 2 ][ 2 ] ) ;
+		ZRot = _ATAN2D( -In->m[ 1 ][ 0 ], In->m[ 0 ][ 0 ] ) ;
+		_SINCOSD( ZRot, &Sin, &Cos ) ;
+		if( Cos < 0.000001 && Cos > -0.000001 )
+		{
+			YRot = _ATAN2D( In->m[ 2 ][ 0 ], -In->m[ 1 ][ 0 ] / Sin ) ;
+		}
+		else
+		{
+			YRot = _ATAN2D( In->m[ 2 ][ 0 ],  In->m[ 0 ][ 0 ] / Cos ) ;
+		}
+
+		if( OutXRot ) *OutXRot = XRot ;
+		if( OutYRot ) *OutYRot = YRot ;
+		if( OutZRot ) *OutZRot = ZRot ;
+		return 0 ;
+	}
+}
+
+// float型のベクトルをdouble型のベクトルに変換する
+extern int VectorConvertFtoD( VECTOR_D *Out, const VECTOR   *In )
+{
+	Out->x = In->x ;
+	Out->y = In->y ;
+	Out->z = In->z ;
+
+	return 0 ;
+}
+
+// double型のベクトルをfloat型のベクトルに変換する
+extern int VectorConvertDtoF( VECTOR   *Out, const VECTOR_D *In )
+{
+	Out->x = ( float )In->x ;
+	Out->y = ( float )In->y ;
+	Out->z = ( float )In->z ;
+
+	return 0 ;
+}
+
 // ベクトルを正規化する
 extern int VectorNormalize( VECTOR *Out, const VECTOR *In )
 {
@@ -1596,8 +2915,33 @@ extern int VectorNormalize( VECTOR *Out, const VECTOR *In )
 	return 0 ;
 }
 
+// ベクトルを正規化する
+extern int VectorNormalizeD( VECTOR_D *Out, const VECTOR_D *In )
+{
+	double r ;
+
+	r = _SQRTD( In->x * In->x + In->y * In->y + In->z * In->z ) ;
+	Out->x = In->x / r ;
+	Out->y = In->y / r ;
+	Out->z = In->z / r ;
+
+	// 終了
+	return 0 ;
+}
+
 // ベクトルをスカラー倍する
 extern int VectorScale( VECTOR *Out, const VECTOR *In, float Scale )
+{
+	Out->x = In->x * Scale ;
+	Out->y = In->y * Scale ;
+	Out->z = In->z * Scale ;
+
+	// 終了
+	return 0 ;
+}
+
+// ベクトルをスカラー倍する
+extern int VectorScaleD( VECTOR_D *Out, const VECTOR_D *In, double Scale )
 {
 	Out->x = In->x * Scale ;
 	Out->y = In->y * Scale ;
@@ -1618,6 +2962,17 @@ extern int VectorMultiply( VECTOR *Out, const VECTOR *In1, const VECTOR *In2 )
 	return 0 ;
 }
 
+// ベクトルの掛け算をする
+extern int VectorMultiplyD( VECTOR_D *Out, const VECTOR_D *In1, const VECTOR_D *In2 )
+{
+	Out->x = In1->x * In2->x ;
+	Out->y = In1->y * In2->y ;
+	Out->z = In1->z * In2->z ;
+
+	// 終了
+	return 0 ;
+}
+
 // Out = In1 - In2 のベクトル計算をする
 extern int VectorSub( VECTOR *Out, const VECTOR *In1, const VECTOR *In2 ) 
 {
@@ -1629,8 +2984,30 @@ extern int VectorSub( VECTOR *Out, const VECTOR *In1, const VECTOR *In2 )
 	return 0 ;
 }
 
+// Out = In1 - In2 のベクトル計算をする
+extern int VectorSubD( VECTOR_D *Out, const VECTOR_D *In1, const VECTOR_D *In2 ) 
+{
+	Out->x = In1->x - In2->x ;
+	Out->y = In1->y - In2->y ;
+	Out->z = In1->z - In2->z ;
+
+	// 終了
+	return 0 ;
+}
+
 // Out = In1 + In2 のベクトル計算をする 
 extern int VectorAdd( VECTOR *Out, const VECTOR *In1, const VECTOR *In2 )
+{
+	Out->x = In1->x + In2->x ;
+	Out->y = In1->y + In2->y ;
+	Out->z = In1->z + In2->z ;
+
+	// 終了
+	return 0 ;
+}
+
+// Out = In1 + In2 のベクトル計算をする 
+extern int VectorAddD( VECTOR_D *Out, const VECTOR_D *In1, const VECTOR_D *In2 )
 {
 	Out->x = In1->x + In2->x ;
 	Out->y = In1->y + In2->y ;
@@ -1654,8 +3031,28 @@ extern int VectorOuterProduct( VECTOR *Out, const VECTOR *In1, const VECTOR *In2
 	return 0 ;
 }
 
+// In1とIn2の外積を計算する
+extern int VectorOuterProductD( VECTOR_D *Out, const VECTOR_D *In1, const VECTOR_D *In2 )
+{
+	VECTOR_D in1 = *In1 ;
+	VECTOR_D in2 = *In2 ;
+	
+	Out->x = in1.y * in2.z - in1.z * in2.y ;
+	Out->y = in1.z * in2.x - in1.x * in2.z ;
+	Out->z = in1.x * in2.y - in1.y * in2.x ;
+	
+	// 終了
+	return 0 ;
+}
+
 // In1とIn2の内積を計算する
 extern float VectorInnerProduct( const VECTOR *In1, const VECTOR *In2 )
+{
+	return In1->x * In2->x + In1->y * In2->y + In1->z * In2->z ;
+}
+
+// In1とIn2の内積を計算する
+extern double VectorInnerProductD( const VECTOR_D *In1, const VECTOR_D *In2 )
 {
 	return In1->x * In2->x + In1->y * In2->y + In1->z * In2->z ;
 }
@@ -1667,6 +3064,22 @@ extern int VectorRotationX( VECTOR *Out, const VECTOR *In, double Angle )
 	float Sin, Cos ;
 
 	_SINCOS( (float)Angle, &Sin, &Cos ) ;
+	Out->x = In->x ;
+	f      = In->z * Cos - In->y * Sin ;
+	Out->y = In->z * Sin + In->y * Cos ;
+	Out->z = f ;
+
+	// 終了
+	return 0 ;
+}
+
+// ベクトルのＸ軸を軸にした回転を行う
+extern int VectorRotationXD( VECTOR_D *Out, const VECTOR_D *In, double Angle )
+{
+	double f ;
+	double Sin, Cos ;
+
+	_SINCOSD( Angle, &Sin, &Cos ) ;
 	Out->x = In->x ;
 	f      = In->z * Cos - In->y * Sin ;
 	Out->y = In->z * Sin + In->y * Cos ;
@@ -1692,6 +3105,22 @@ extern int VectorRotationY( VECTOR *Out, const VECTOR *In, double Angle )
 	return 0 ;
 }
 
+// ベクトルのＹ軸を軸にした回転を行う
+extern int VectorRotationYD( VECTOR_D *Out, const VECTOR_D *In, double Angle )
+{
+	double f ;
+	double Sin, Cos ;
+
+	_SINCOSD( Angle, &Sin, &Cos ) ;
+	Out->y = In->y ;
+	f      = In->x * Cos - In->z * Sin ;
+	Out->z = In->x * Sin + In->z * Cos ;
+	Out->x = f ;
+
+	// 終了
+	return 0 ;
+}
+
 // ベクトルのＺ軸を軸にした回転を行う
 extern int VectorRotationZ( VECTOR *Out, const VECTOR *In, double Angle )
 {
@@ -1699,6 +3128,22 @@ extern int VectorRotationZ( VECTOR *Out, const VECTOR *In, double Angle )
 	float Sin, Cos ;
 
 	_SINCOS( (float)Angle, &Sin, &Cos ) ;
+	Out->z = In->z ;
+	f      = In->x * Cos - In->y * Sin ;
+	Out->y = In->x * Sin + In->y * Cos ;
+	Out->x = f ;
+
+	// 終了
+	return 0 ;
+}
+
+// ベクトルのＺ軸を軸にした回転を行う
+extern int VectorRotationZD( VECTOR_D *Out, const VECTOR_D *In, double Angle )
+{
+	double f ;
+	double Sin, Cos ;
+
+	_SINCOSD( Angle, &Sin, &Cos ) ;
 	Out->z = In->z ;
 	f      = In->x * Cos - In->y * Sin ;
 	Out->y = In->x * Sin + In->y * Cos ;
@@ -1722,10 +3167,34 @@ extern int VectorTransform( VECTOR *Out, const VECTOR *InVec, const MATRIX *InMa
 	return 0 ;
 }
 
+// ベクトル行列と4x4正方行列を乗算する( w は 1 と仮定 )
+extern int VectorTransformD( VECTOR_D *Out, const VECTOR_D *InVec, const MATRIX_D *InMatrix )
+{
+	VECTOR_D InV = *InVec ;
+
+	Out->x = InV.x * InMatrix->m[0][0] + InV.y * InMatrix->m[1][0] + InV.z * InMatrix->m[2][0] + InMatrix->m[3][0] ;
+	Out->y = InV.x * InMatrix->m[0][1] + InV.y * InMatrix->m[1][1] + InV.z * InMatrix->m[2][1] + InMatrix->m[3][1] ;
+	Out->z = InV.x * InMatrix->m[0][2] + InV.y * InMatrix->m[1][2] + InV.z * InMatrix->m[2][2] + InMatrix->m[3][2] ;
+
+	return 0 ;
+}
+
 // ベクトル行列と4x4正方行列の回転部分のみを乗算する
 extern int VectorTransformSR( VECTOR *Out, const VECTOR *InVec, const MATRIX *InMatrix )
 {
 	VECTOR InV = *InVec ;
+
+	Out->x = InV.x * InMatrix->m[0][0] + InV.y * InMatrix->m[1][0] + InV.z * InMatrix->m[2][0] ;
+	Out->y = InV.x * InMatrix->m[0][1] + InV.y * InMatrix->m[1][1] + InV.z * InMatrix->m[2][1] ;
+	Out->z = InV.x * InMatrix->m[0][2] + InV.y * InMatrix->m[1][2] + InV.z * InMatrix->m[2][2] ;
+
+	return 0 ;
+}
+
+// ベクトル行列と4x4正方行列の回転部分のみを乗算する
+extern int VectorTransformSRD( VECTOR_D *Out, const VECTOR_D *InVec, const MATRIX_D *InMatrix )
+{
+	VECTOR_D InV = *InVec ;
 
 	Out->x = InV.x * InMatrix->m[0][0] + InV.y * InMatrix->m[1][0] + InV.z * InMatrix->m[2][0] ;
 	Out->y = InV.x * InMatrix->m[0][1] + InV.y * InMatrix->m[1][1] + InV.z * InMatrix->m[2][1] ;
@@ -1739,6 +3208,22 @@ extern int VectorTransform4( VECTOR *Out, float *V4Out, const VECTOR *InVec, con
 {
 	VECTOR invec ;
 	float v4in ;
+
+	invec = *InVec ;
+	v4in = *V4In ;
+	Out->x = invec.x * InMatrix->m[0][0] + invec.y * InMatrix->m[1][0] + invec.z * InMatrix->m[2][0] + v4in * InMatrix->m[3][0]  ;
+	Out->y = invec.x * InMatrix->m[0][1] + invec.y * InMatrix->m[1][1] + invec.z * InMatrix->m[2][1] + v4in * InMatrix->m[3][1]  ;
+	Out->z = invec.x * InMatrix->m[0][2] + invec.y * InMatrix->m[1][2] + invec.z * InMatrix->m[2][2] + v4in * InMatrix->m[3][2]  ;
+	*V4Out = invec.x * InMatrix->m[0][3] + invec.y * InMatrix->m[1][3] + invec.z * InMatrix->m[2][3] + v4in * InMatrix->m[3][3]  ;
+
+	return 0 ;
+}
+
+// ベクトル行列と4x4正方行列を乗算する( w の要素を渡す )
+extern int VectorTransform4D( VECTOR_D *Out, double *V4Out, const VECTOR_D *InVec, const double *V4In, const MATRIX_D *InMatrix )
+{
+	VECTOR_D invec ;
+	double v4in ;
 
 	invec = *InVec ;
 	v4in = *V4In ;
@@ -1900,6 +3385,145 @@ extern int Segment_Segment_Analyse( const VECTOR *SegmentAPos1, const VECTOR *Se
 	return 0 ;
 }
 
+// 二つの線分の最接近点情報を解析する
+extern int Segment_Segment_AnalyseD( const VECTOR_D *SegmentAPos1, const VECTOR_D *SegmentAPos2, const VECTOR_D *SegmentBPos1, const VECTOR_D *SegmentBPos2, SEGMENT_SEGMENT_RESULT_D *Result )
+{
+	VECTOR_D segA1_2 ;
+	VECTOR_D segB1_2 ;
+	VECTOR_D segB1_A1 ;
+	VECTOR_D tp ;
+	double a, b, c, d, e, f, w, s, t = 0.0 ;
+	double tmpA, tmpB ;
+	SEGMENT_POINT_RESULT_D spres ;
+
+	VectorSubD( &segA1_2, SegmentAPos2, SegmentAPos1 ) ;
+	VectorSubD( &segB1_2, SegmentBPos2, SegmentBPos1 ) ;
+	VectorSubD( &segB1_A1, SegmentAPos1, SegmentBPos1 ) ;
+	a =  VectorInnerProductD( &segA1_2, &segA1_2 ) ;
+	b = -VectorInnerProductD( &segA1_2, &segB1_2 ) ;
+	c = -b ;
+	d = -VectorInnerProductD( &segB1_2, &segB1_2 ) ;
+	e = -VectorInnerProductD( &segA1_2, &segB1_A1 ) ;
+	f = -VectorInnerProductD( &segB1_2, &segB1_A1 ) ;
+
+	// SegmentAPos1 - SegmentAPos2 または SegmentBPos1 - SegmentBPos2 の距離が限りなくゼロに近いかどうかのチェック
+	tmpA = a < 0.0 ? -a : a ;
+	tmpB = d < 0.0 ? -d : d ;
+	if( tmpA < 0.00000001 )
+	{
+		Result->SegA_MinDist_Pos1_Pos2_t = 0.0 ;
+		Result->SegA_MinDist_Pos = *SegmentAPos1 ;
+		if( tmpB < 0.00000001 )
+		{
+			Result->SegB_MinDist_Pos1_Pos2_t = 0.0 ;
+			Result->SegB_MinDist_Pos = *SegmentBPos1 ;
+			Result->SegA_SegB_MinDist_Square = VSquareSizeD( segB1_A1 ) ;
+		}
+		else
+		{
+			Segment_Point_AnalyseD( SegmentBPos1, SegmentBPos2, SegmentAPos1, &spres ) ;
+
+			Result->SegB_MinDist_Pos1_Pos2_t = spres.Seg_MinDist_Pos1_Pos2_t ;
+			Result->SegB_MinDist_Pos = spres.Seg_MinDist_Pos ;
+			Result->SegA_SegB_MinDist_Square = spres.Seg_Point_MinDist_Square ;
+		}
+		return 0 ;
+	}
+	else
+	if( tmpB < 0.00000001 )
+	{
+		Result->SegB_MinDist_Pos1_Pos2_t = 0.0 ;
+		Result->SegB_MinDist_Pos = *SegmentBPos1 ;
+
+		Segment_Point_AnalyseD( SegmentAPos1, SegmentAPos2, SegmentBPos1, &spres ) ;
+
+		Result->SegA_MinDist_Pos1_Pos2_t = spres.Seg_MinDist_Pos1_Pos2_t ;
+		Result->SegA_MinDist_Pos = spres.Seg_MinDist_Pos ;
+		Result->SegA_SegB_MinDist_Square = spres.Seg_Point_MinDist_Square ;
+
+		return 0 ;
+	}
+
+	s = -0.1 ;
+	w = a * d - b * c ;
+	if( w <= -0.00000001 )
+	{
+		// クラーメルの公式
+		s = ( e * d - b * f ) / w ;
+		t = ( a * f - e * c ) / w ;
+	}
+
+	// 二つの線分が縮退していたら点と見なして点同士の距離を返す
+	if( a <= 0.0 && -d <= 0.0 )
+	{
+		Result->SegA_MinDist_Pos1_Pos2_t = 0.0 ;
+		Result->SegB_MinDist_Pos1_Pos2_t = 0.0 ;
+		Result->SegA_MinDist_Pos = *SegmentAPos1 ;
+		Result->SegB_MinDist_Pos = *SegmentBPos1 ;
+		Result->SegA_SegB_MinDist_Square = VSquareSizeD( segB1_A1 ) ;
+
+		return 0 ;
+	}
+
+	if( a <= 0.0 )
+	{
+		s = 0.0 ;
+		if( t > 1.0 || t < 0.0 )
+			t = t > 1.0 ? 1.0 : 0.0 ;
+	}
+	else
+	if( -d <= 0.0 )
+	{
+		t = 0.0 ;
+		if( s > 1.0 || s < 0.0 )
+			s = s > 1.0 ? 1.0 : 0.0 ;
+	}
+	else
+	{
+		if( s > 1.0 || s < 0.0 )
+		{
+			s = s > 1.0 ? 1.0 : 0.0 ;
+
+			t = ( -b * s + -f ) / -d ;		// ガウス消去法
+			if( t > 1.0 || t < 0.0 )
+			{
+				t = t > 1.0 ? 1.0 : 0.0 ;
+				s = ( -b * t - -e ) / a ;	// ガウス消去法
+					 if( s > 1.0 ) s = 1.0 ;
+				else if( s < 0.0 ) s = 0.0 ;
+			}
+		}
+		else
+		if( t > 1.0 || t < 0.0 )
+		{
+			t = t > 1.0 ? 1.0 : 0.0 ;
+			s = ( -b * t - -e ) / a ;		// ガウス消去法
+
+			if( s > 1.0 || s < 0.0 )
+			{
+				s = s > 1.0 ? 1.0 : 0.0 ;
+				t = ( -b * s + -f ) / -d ;	// ガウス消去法
+					 if( t > 1.0 ) t = 1.0 ;
+				else if( t < 0.0 ) t = 0.0 ;
+			}
+		}
+	}
+
+	Result->SegA_MinDist_Pos1_Pos2_t = s ;
+	Result->SegB_MinDist_Pos1_Pos2_t = t ;
+
+	VectorScaleD( &Result->SegA_MinDist_Pos, &segA1_2, s ) ;
+	VectorAddD( &Result->SegA_MinDist_Pos, &Result->SegA_MinDist_Pos, SegmentAPos1 ) ;
+
+	VectorScaleD( &Result->SegB_MinDist_Pos, &segB1_2, t ) ;
+	VectorAddD( &Result->SegB_MinDist_Pos, &Result->SegB_MinDist_Pos, SegmentBPos1 ) ;
+
+	VectorSubD( &tp, &Result->SegA_MinDist_Pos, &Result->SegB_MinDist_Pos ) ;
+	Result->SegA_SegB_MinDist_Square = VSquareSizeD( tp ) ;
+
+	return 0 ;
+}
+
 // 線分と点の最接近点情報を解析する
 extern int Segment_Point_Analyse( const VECTOR *SegmentPos1, const VECTOR *SegmentPos2, const VECTOR *PointPos, SEGMENT_POINT_RESULT *Result )
 {
@@ -1941,6 +3565,51 @@ extern int Segment_Point_Analyse( const VECTOR *SegmentPos1, const VECTOR *Segme
 	Result->Seg_MinDist_Pos1_Pos2_t = DotSeg1_2_Pnt / SizeSquSeg1_2 ;
 	Result->Seg_MinDist_Pos = VAdd( VScale( Seg1_2, Result->Seg_MinDist_Pos1_Pos2_t ), *SegmentPos1 ) ;
 	Result->Seg_Point_MinDist_Square = VSquareSize( VSub( *PointPos, Result->Seg_MinDist_Pos ) ) ;
+
+	return 0 ;
+}
+
+// 線分と点の最接近点情報を解析する
+extern int Segment_Point_AnalyseD( const VECTOR_D *SegmentPos1, const VECTOR_D *SegmentPos2, const VECTOR_D *PointPos, SEGMENT_POINT_RESULT_D *Result )
+{
+	double SizeSquSeg1_2 ;
+	double DotSeg1_2_Pnt ;
+	VECTOR_D Seg1_2, Seg1_Pnt ;
+
+	VectorSubD( &Seg1_2, SegmentPos2, SegmentPos1 ) ;
+	VectorSubD( &Seg1_Pnt, PointPos, SegmentPos1 ) ;
+	DotSeg1_2_Pnt = VDotD( Seg1_2, Seg1_Pnt ) ;
+	if( DotSeg1_2_Pnt <= 0.0 )
+	{
+		Result->Seg_MinDist_Pos = *SegmentPos1 ;
+		Result->Seg_MinDist_Pos1_Pos2_t = 0.0 ;
+		Result->Seg_Point_MinDist_Square = VSquareSizeD( VSubD( *PointPos, Result->Seg_MinDist_Pos ) ) ;
+
+		return 0 ;
+	}
+
+	SizeSquSeg1_2 = VSquareSizeD( Seg1_2 ) ;
+	if( SizeSquSeg1_2 == 0.0 )
+	{
+		Result->Seg_MinDist_Pos = *SegmentPos1 ;
+		Result->Seg_MinDist_Pos1_Pos2_t = 0.0 ;
+		Result->Seg_Point_MinDist_Square = VSquareSizeD( VSubD( *PointPos, Result->Seg_MinDist_Pos ) ) ;
+
+		return 0 ;
+	}
+
+	if( SizeSquSeg1_2 < DotSeg1_2_Pnt )
+	{
+		Result->Seg_MinDist_Pos = *SegmentPos2 ;
+		Result->Seg_MinDist_Pos1_Pos2_t = 1.0 ;
+		Result->Seg_Point_MinDist_Square = VSquareSizeD( VSubD( *PointPos, Result->Seg_MinDist_Pos ) ) ;
+
+		return 0 ;
+	}
+
+	Result->Seg_MinDist_Pos1_Pos2_t = DotSeg1_2_Pnt / SizeSquSeg1_2 ;
+	Result->Seg_MinDist_Pos = VAddD( VScaleD( Seg1_2, Result->Seg_MinDist_Pos1_Pos2_t ), *SegmentPos1 ) ;
+	Result->Seg_Point_MinDist_Square = VSquareSizeD( VSubD( *PointPos, Result->Seg_MinDist_Pos ) ) ;
 
 	return 0 ;
 }
@@ -2143,6 +3812,201 @@ extern int Segment_Triangle_Analyse( const VECTOR *SegmentPos1, const VECTOR *Se
 	return 0 ;
 }
 
+// 線分と三角形の最接近点情報を解析する
+extern int Segment_Triangle_AnalyseD( const VECTOR_D *SegmentPos1, const VECTOR_D *SegmentPos2, const VECTOR_D *TrianglePos1, const VECTOR_D *TrianglePos2, const VECTOR_D *TrianglePos3, SEGMENT_TRIANGLE_RESULT_D *Result )
+{
+	bool Project1, Project2 ;
+	VECTOR_D Seg1_TriPro ;
+	VECTOR_D Seg2_TriPro ;
+	double Seg1_TriPro_w1 ;
+	double Seg1_TriPro_w2 ;
+	double Seg1_TriPro_w3 ;
+	double Seg2_TriPro_w1 ;
+	double Seg2_TriPro_w2 ;
+	double Seg2_TriPro_w3 ;
+	VECTOR_D Seg1_2 ;
+	VECTOR_D Tri1_Seg1 ;
+	VECTOR_D Tri1_Seg2 ;
+	VECTOR_D TriNorm ;
+	VECTOR_D tv ;
+	VECTOR_D Tri1_2, Tri1_3 ;
+	double Seg1_TriProSeg1_Dist = 0.0 ;
+	double Seg2_TriProSeg2_Dist = 0.0 ;
+	int MinType ;
+	double MinLen ;
+	SEGMENT_SEGMENT_RESULT_D Seg_Tri1_2_Res ;
+	SEGMENT_SEGMENT_RESULT_D Seg_Tri2_3_Res ;
+	SEGMENT_SEGMENT_RESULT_D Seg_Tri3_1_Res ;
+	double TriPos_SegPos1_2_t ;
+	VECTOR_D Seg_TriPos ;
+	double Seg_TriPos_TriPos1_w ;
+	double Seg_TriPos_TriPos2_w ;
+	double Seg_TriPos_TriPos3_w ;
+
+	VectorSubD( &Seg1_2, SegmentPos2, SegmentPos1 ) ;
+	VectorSubD( &Tri1_2, TrianglePos2, TrianglePos1 ) ;
+	VectorSubD( &Tri1_3, TrianglePos3, TrianglePos1 ) ;
+	VectorOuterProductD( &TriNorm, &Tri1_2, &Tri1_3 ) ;
+	VectorNormalizeD( &TriNorm, &TriNorm ) ;
+
+	// 三角形が示す平面状に頂点を投影する
+	VectorSubD( &Tri1_Seg1, SegmentPos1, TrianglePos1 ) ;
+	Seg1_TriProSeg1_Dist = VectorInnerProductD( &Tri1_Seg1, &TriNorm ) ;
+	VectorScaleD( &tv, &TriNorm, Seg1_TriProSeg1_Dist ) ;
+	VectorSubD( &Seg1_TriPro, SegmentPos1, &tv ) ;
+	if( Seg1_TriProSeg1_Dist < 0.0 ) Seg1_TriProSeg1_Dist = -Seg1_TriProSeg1_Dist ;
+	
+
+	// 三角形内に頂点が存在するかどうかを調べる
+	TriangleBarycenter_BaseD( TrianglePos1, TrianglePos2, TrianglePos3, &Seg1_TriPro, &Seg1_TriPro_w1, &Seg1_TriPro_w2, &Seg1_TriPro_w3 ) ;
+	Project1 = Seg1_TriPro_w1 >= 0.0 && Seg1_TriPro_w1 <= 1.0 && Seg1_TriPro_w2 >= 0.0 && Seg1_TriPro_w2 <= 1.0 && Seg1_TriPro_w3 >= 0.0 && Seg1_TriPro_w3 <= 1.0 ;
+
+	// 三角形が示す平面状に頂点を投影する
+	VectorSubD( &Tri1_Seg2, SegmentPos2, TrianglePos1 ) ;
+	Seg2_TriProSeg2_Dist = VectorInnerProductD( &Tri1_Seg2, &TriNorm ) ;
+	VectorScaleD( &tv, &TriNorm, Seg2_TriProSeg2_Dist ) ;
+	VectorSubD( &Seg2_TriPro, SegmentPos2, &tv ) ;
+	if( Seg2_TriProSeg2_Dist < 0.0 ) Seg2_TriProSeg2_Dist = -Seg2_TriProSeg2_Dist ;
+
+	// 三角形内に頂点が存在するかどうかを調べる
+	TriangleBarycenter_BaseD( TrianglePos1, TrianglePos2, TrianglePos3, &Seg2_TriPro, &Seg2_TriPro_w1, &Seg2_TriPro_w2, &Seg2_TriPro_w3 ) ;
+	Project2 = Seg2_TriPro_w1 >= 0.0 && Seg2_TriPro_w1 <= 1.0 && Seg2_TriPro_w2 >= 0.0 && Seg2_TriPro_w2 <= 1.0 && Seg2_TriPro_w3 >= 0.0 && Seg2_TriPro_w3 <= 1.0 ;
+
+
+	// 三角形が表す平面と線分との接点と重心を算出する
+	TriPos_SegPos1_2_t = Seg1_TriProSeg1_Dist / ( Seg1_TriProSeg1_Dist + Seg2_TriProSeg2_Dist ) ;
+	VectorScaleD( &Seg_TriPos, &Seg1_2, TriPos_SegPos1_2_t ) ;
+	VectorAddD( &Seg_TriPos, &Seg_TriPos, SegmentPos1 ) ;
+
+	TriangleBarycenter_BaseD( TrianglePos1, TrianglePos2, TrianglePos3, &Seg_TriPos,
+		&Seg_TriPos_TriPos1_w, &Seg_TriPos_TriPos2_w, &Seg_TriPos_TriPos3_w ) ;
+
+
+	// 線分と三角形が接しているかチェック
+	if( Seg_TriPos_TriPos1_w >= 0.0 && Seg_TriPos_TriPos1_w <= 1.0 &&
+		Seg_TriPos_TriPos2_w >= 0.0 && Seg_TriPos_TriPos2_w <= 1.0 &&
+		Seg_TriPos_TriPos3_w >= 0.0 && Seg_TriPos_TriPos3_w <= 1.0 )
+	{
+		Result->Seg_Tri_MinDist_Square = 0.0 ;
+
+		Result->Seg_MinDist_Pos1_Pos2_t = TriPos_SegPos1_2_t ;
+		Result->Seg_MinDist_Pos = Seg_TriPos ;
+
+		Result->Tri_MinDist_Pos1_w = Seg_TriPos_TriPos1_w ;
+		Result->Tri_MinDist_Pos2_w = Seg_TriPos_TriPos2_w ;
+		Result->Tri_MinDist_Pos3_w = Seg_TriPos_TriPos3_w ;
+
+		Result->Tri_MinDist_Pos = Result->Seg_MinDist_Pos ;
+		return 0 ;
+	}
+
+	// どちらも三角形の範囲にあった場合
+	if( Project1 && Project2 )
+	{
+		// 片方の側にどちらの頂点もある場合は、より近いほうの頂点と平面との距離を結果にする
+		if( Seg1_TriProSeg1_Dist < Seg2_TriProSeg2_Dist )
+		{
+			Result->Seg_Tri_MinDist_Square = Seg1_TriProSeg1_Dist * Seg1_TriProSeg1_Dist ;
+			Result->Seg_MinDist_Pos1_Pos2_t = 0.0 ;
+			Result->Seg_MinDist_Pos = *SegmentPos1 ;
+			Result->Tri_MinDist_Pos1_w = Seg1_TriPro_w1 ;
+			Result->Tri_MinDist_Pos2_w = Seg1_TriPro_w2 ;
+			Result->Tri_MinDist_Pos3_w = Seg1_TriPro_w3 ;
+			Result->Tri_MinDist_Pos = Seg1_TriPro ;
+		}
+		else
+		{
+			Result->Seg_Tri_MinDist_Square = Seg2_TriProSeg2_Dist * Seg2_TriProSeg2_Dist ;
+			Result->Seg_MinDist_Pos1_Pos2_t = 1.0 ;
+			Result->Seg_MinDist_Pos = *SegmentPos2 ;
+			Result->Tri_MinDist_Pos1_w = Seg2_TriPro_w1 ;
+			Result->Tri_MinDist_Pos2_w = Seg2_TriPro_w2 ;
+			Result->Tri_MinDist_Pos3_w = Seg2_TriPro_w3 ;
+			Result->Tri_MinDist_Pos = Seg2_TriPro ;
+		}
+		return 0 ;
+	}
+
+	// そうではない場合は三角形の３辺と線分の距離を測り、一番距離が短い辺を探す
+	Segment_Segment_AnalyseD( SegmentPos1, SegmentPos2, TrianglePos1, TrianglePos2, &Seg_Tri1_2_Res ) ;
+	Segment_Segment_AnalyseD( SegmentPos1, SegmentPos2, TrianglePos2, TrianglePos3, &Seg_Tri2_3_Res ) ;
+	Segment_Segment_AnalyseD( SegmentPos1, SegmentPos2, TrianglePos3, TrianglePos1, &Seg_Tri3_1_Res ) ;
+
+	MinLen = Seg_Tri1_2_Res.SegA_SegB_MinDist_Square ;
+	MinType = 0 ;
+	if( Seg_Tri2_3_Res.SegA_SegB_MinDist_Square < MinLen )
+	{
+		MinType = 1 ;
+		MinLen = Seg_Tri2_3_Res.SegA_SegB_MinDist_Square ;
+	}
+	if( Seg_Tri3_1_Res.SegA_SegB_MinDist_Square < MinLen )
+	{
+		MinType = 2 ;
+		MinLen = Seg_Tri3_1_Res.SegA_SegB_MinDist_Square ;
+	}
+	if( Project1 && Seg1_TriProSeg1_Dist * Seg1_TriProSeg1_Dist < MinLen )
+	{
+		MinType = 3 ;
+		MinLen = Seg1_TriProSeg1_Dist * Seg1_TriProSeg1_Dist ;
+	}
+	if( Project2 && Seg2_TriProSeg2_Dist * Seg2_TriProSeg2_Dist < MinLen )
+	{
+		MinType = 4 ;
+		MinLen = Seg2_TriProSeg2_Dist * Seg2_TriProSeg2_Dist ;
+	}
+
+	Result->Seg_Tri_MinDist_Square = MinLen ;
+	switch( MinType )
+	{
+	case 0 :
+		Result->Seg_MinDist_Pos1_Pos2_t = Seg_Tri1_2_Res.SegA_MinDist_Pos1_Pos2_t ;
+		Result->Seg_MinDist_Pos = Seg_Tri1_2_Res.SegA_MinDist_Pos ;
+		Result->Tri_MinDist_Pos1_w = 1.0 - Seg_Tri1_2_Res.SegB_MinDist_Pos1_Pos2_t ;
+		Result->Tri_MinDist_Pos2_w =        Seg_Tri1_2_Res.SegB_MinDist_Pos1_Pos2_t ;
+		Result->Tri_MinDist_Pos3_w = 0.0 ;
+		Result->Tri_MinDist_Pos = Seg_Tri1_2_Res.SegB_MinDist_Pos ;
+		break ;
+
+	case 1 :
+		Result->Seg_MinDist_Pos1_Pos2_t = Seg_Tri2_3_Res.SegA_MinDist_Pos1_Pos2_t ;
+		Result->Seg_MinDist_Pos = Seg_Tri2_3_Res.SegA_MinDist_Pos ;
+		Result->Tri_MinDist_Pos1_w = 0.0 ;
+		Result->Tri_MinDist_Pos2_w = 1.0 - Seg_Tri2_3_Res.SegB_MinDist_Pos1_Pos2_t ;
+		Result->Tri_MinDist_Pos3_w =        Seg_Tri2_3_Res.SegB_MinDist_Pos1_Pos2_t ;
+		Result->Tri_MinDist_Pos = Seg_Tri2_3_Res.SegB_MinDist_Pos ;
+		break ;
+
+	case 2 :
+		Result->Seg_MinDist_Pos1_Pos2_t = Seg_Tri3_1_Res.SegA_MinDist_Pos1_Pos2_t ;
+		Result->Seg_MinDist_Pos = Seg_Tri3_1_Res.SegA_MinDist_Pos ;
+		Result->Tri_MinDist_Pos1_w =        Seg_Tri3_1_Res.SegB_MinDist_Pos1_Pos2_t ;
+		Result->Tri_MinDist_Pos2_w = 0.0 ;
+		Result->Tri_MinDist_Pos3_w = 1.0 - Seg_Tri3_1_Res.SegB_MinDist_Pos1_Pos2_t ;
+		Result->Tri_MinDist_Pos = Seg_Tri3_1_Res.SegB_MinDist_Pos ;
+		break ;
+
+	case 3 :
+		Result->Seg_MinDist_Pos1_Pos2_t = 0.0 ;
+		Result->Seg_MinDist_Pos = *SegmentPos1 ;
+		Result->Tri_MinDist_Pos1_w = Seg1_TriPro_w1 ;
+		Result->Tri_MinDist_Pos2_w = Seg1_TriPro_w2 ;
+		Result->Tri_MinDist_Pos3_w = Seg1_TriPro_w3 ;
+		Result->Tri_MinDist_Pos = Seg1_TriPro ;
+		break ;
+
+	case 4 :
+		Result->Seg_MinDist_Pos1_Pos2_t = 1.0 ;
+		Result->Seg_MinDist_Pos = *SegmentPos2 ;
+		Result->Tri_MinDist_Pos1_w = Seg2_TriPro_w1 ;
+		Result->Tri_MinDist_Pos2_w = Seg2_TriPro_w2 ;
+		Result->Tri_MinDist_Pos3_w = Seg2_TriPro_w3 ;
+		Result->Tri_MinDist_Pos = Seg2_TriPro ;
+		break ;
+	}
+
+	return 0 ;
+}
+
 // 三角形と点の最接近点情報を解析する
 extern int Triangle_Point_Analyse( const VECTOR *TrianglePos1, const VECTOR *TrianglePos2, const VECTOR *TrianglePos3, const VECTOR *PointPos, TRIANGLE_POINT_RESULT *Result )
 {
@@ -2267,6 +4131,130 @@ extern int Triangle_Point_Analyse( const VECTOR *TrianglePos1, const VECTOR *Tri
 	return 0 ;
 }
 
+// 三角形と点の最接近点情報を解析する
+extern int Triangle_Point_AnalyseD( const VECTOR_D *TrianglePos1, const VECTOR_D *TrianglePos2, const VECTOR_D *TrianglePos3, const VECTOR_D *PointPos, TRIANGLE_POINT_RESULT_D *Result )
+{
+	VECTOR_D Tri1_2 ;
+	VECTOR_D Tri2_3 ;
+	VECTOR_D Tri3_1 ;
+	VECTOR_D Tri1_Pnt ;
+	VECTOR_D Tri2_Pnt ;
+	VECTOR_D Tri3_Pnt ;
+	double Dot1P2 ;
+	double Dot1P3 ;
+	double Dot2P1 ;
+	double Dot2P3 ;
+	double Dot2PH ;
+	double Dot3P1 ;
+	double Dot3P2 ;
+	double Dot3PH ;
+	double OPA ;
+	double OPB ;
+	double OPC ;
+	double Div ;
+	double t ;
+	double v ;
+	double w ;
+
+	VectorSubD( &Tri1_2,   TrianglePos2, TrianglePos1 ) ;
+	VectorSubD( &Tri3_1,   TrianglePos1, TrianglePos3 ) ;
+	VectorSubD( &Tri1_Pnt, PointPos,     TrianglePos1 ) ;
+	Dot1P2 = VectorInnerProductD( &Tri1_2, &Tri1_Pnt ) ;
+	Dot1P3 = VectorInnerProductD( &Tri3_1, &Tri1_Pnt ) ;
+	if( Dot1P2 <= 0.0 && Dot1P3 >= 0.0 )
+	{
+		Result->Tri_Pnt_MinDist_Square = VSquareSizeD( VSubD( *TrianglePos1, *PointPos ) ) ;
+		Result->Tri_MinDist_Pos1_w = 1.0 ;
+		Result->Tri_MinDist_Pos2_w = 0.0 ;
+		Result->Tri_MinDist_Pos3_w = 0.0 ;
+		Result->Tri_MinDist_Pos = *TrianglePos1 ;
+		return 0 ;
+	}
+
+	VectorSubD( &Tri2_3,   TrianglePos3, TrianglePos2 ) ;
+	VectorSubD( &Tri2_Pnt, PointPos,     TrianglePos2 ) ;
+	Dot2P1 = VectorInnerProductD( &Tri1_2, &Tri2_Pnt ) ;
+	Dot2P3 = VectorInnerProductD( &Tri2_3, &Tri2_Pnt ) ;
+	if( Dot2P1 >= 0.0 && Dot2P3 <= 0.0 )
+	{
+		Result->Tri_Pnt_MinDist_Square = VSquareSizeD( VSubD( *TrianglePos2, *PointPos ) ) ;
+		Result->Tri_MinDist_Pos1_w = 0.0 ;
+		Result->Tri_MinDist_Pos2_w = 1.0 ;
+		Result->Tri_MinDist_Pos3_w = 0.0 ;
+		Result->Tri_MinDist_Pos = *TrianglePos2 ;
+		return 0 ;
+	}
+
+	Dot2PH = VectorInnerProductD( &Tri3_1, &Tri2_Pnt ) ;
+	OPC = Dot1P2 * -Dot2PH - Dot2P1 * -Dot1P3 ;	// ←ラグランジュ恒等式
+	if( OPC <= 0.0 && Dot1P2 >= 0.0 && Dot2P1 <= 0.0 )
+	{
+		t = Dot1P2 / ( Dot1P2 - Dot2P1 ) ;
+		Result->Tri_MinDist_Pos.x = TrianglePos1->x + Tri1_2.x * t ;
+		Result->Tri_MinDist_Pos.y = TrianglePos1->y + Tri1_2.y * t ;
+		Result->Tri_MinDist_Pos.z = TrianglePos1->z + Tri1_2.z * t ;
+		Result->Tri_MinDist_Pos1_w = 1.0 - t ;
+		Result->Tri_MinDist_Pos2_w = t ;
+		Result->Tri_MinDist_Pos3_w = 0.0 ;
+		Result->Tri_Pnt_MinDist_Square = VSquareSizeD( VSubD( Result->Tri_MinDist_Pos, *PointPos ) ) ;
+		return 0 ;
+	}
+
+	VectorSubD( &Tri3_Pnt, PointPos,        TrianglePos3 ) ;
+	Dot3P1 = VectorInnerProductD( &Tri3_1, &Tri3_Pnt ) ;
+	Dot3P2 = VectorInnerProductD( &Tri2_3, &Tri3_Pnt ) ;
+	if( Dot3P1 <= 0.0 && Dot3P2 >= 0.0 )
+	{
+		Result->Tri_Pnt_MinDist_Square = VSquareSizeD( VSubD( *TrianglePos3, *PointPos ) ) ;
+		Result->Tri_MinDist_Pos1_w = 0.0 ;
+		Result->Tri_MinDist_Pos2_w = 0.0 ;
+		Result->Tri_MinDist_Pos3_w = 1.0 ;
+		Result->Tri_MinDist_Pos = *TrianglePos3 ;
+		return 0 ;
+	}
+
+	Dot3PH = VectorInnerProductD( &Tri1_2, &Tri3_Pnt ) ;
+	OPB = Dot3PH * -Dot1P3 - Dot1P2 * -Dot3P1 ;	// ←ラグランジュ恒等式
+	if( OPB <= 0.0 && Dot1P3 <= 0.0 && Dot3P1 >= 0.0 )
+	{
+		t = Dot3P1 / ( Dot3P1 - Dot1P3 ) ;
+		Result->Tri_MinDist_Pos.x = TrianglePos3->x + Tri3_1.x * t ;
+		Result->Tri_MinDist_Pos.y = TrianglePos3->y + Tri3_1.y * t ;
+		Result->Tri_MinDist_Pos.z = TrianglePos3->z + Tri3_1.z * t ;
+		Result->Tri_MinDist_Pos1_w = t ;
+		Result->Tri_MinDist_Pos2_w = 0 ;
+		Result->Tri_MinDist_Pos3_w = 1.0 - t ;
+		Result->Tri_Pnt_MinDist_Square = VSquareSizeD( VSubD( Result->Tri_MinDist_Pos, *PointPos ) ) ;
+		return 0 ;
+	}
+
+	OPA = Dot2P1 * -Dot3P1 - Dot3PH * -Dot2PH ;	// ←ラグランジュ恒等式
+	if( OPA <= 0.0 && ( -Dot2PH - Dot2P1 ) >= 0.0 && ( Dot3PH + Dot3P1 ) >= 0.0 )
+	{
+		t = ( -Dot2PH - Dot2P1 ) / ( ( -Dot2PH - Dot2P1 ) + ( Dot3PH + Dot3P1 ) ) ;
+		Result->Tri_MinDist_Pos.x = TrianglePos2->x + Tri2_3.x * t ;
+		Result->Tri_MinDist_Pos.y = TrianglePos2->y + Tri2_3.y * t ;
+		Result->Tri_MinDist_Pos.z = TrianglePos2->z + Tri2_3.z * t ;
+		Result->Tri_MinDist_Pos1_w = 0.0 ;
+		Result->Tri_MinDist_Pos2_w = 1.0 - t ;
+		Result->Tri_MinDist_Pos3_w = t ;
+		Result->Tri_Pnt_MinDist_Square = VSquareSizeD( VSubD( Result->Tri_MinDist_Pos, *PointPos ) ) ;
+		return 0 ;
+	}
+
+	Div = 1.0 / ( OPA + OPB + OPC ) ;
+	v = OPB * Div ;
+	w = OPC * Div ;
+	Result->Tri_MinDist_Pos.x = TrianglePos1->x + Tri1_2.x * v - Tri3_1.x * w ;
+	Result->Tri_MinDist_Pos.y = TrianglePos1->y + Tri1_2.y * v - Tri3_1.y * w ;
+	Result->Tri_MinDist_Pos.z = TrianglePos1->z + Tri1_2.z * v - Tri3_1.z * w ;
+	Result->Tri_MinDist_Pos2_w = v ;
+	Result->Tri_MinDist_Pos3_w = w ;
+	Result->Tri_MinDist_Pos1_w = 1.0 - v - w ;
+	Result->Tri_Pnt_MinDist_Square = VSquareSizeD( VSubD( Result->Tri_MinDist_Pos, *PointPos ) ) ;
+	return 0 ;
+}
+
 // 平面と点の最近点情報を解析する
 extern int Plane_Point_Analyse( const VECTOR *PlanePos, const VECTOR *PlaneNormal, const VECTOR *PointPos, PLANE_POINT_RESULT *Result )
 {
@@ -2286,10 +4274,35 @@ extern int Plane_Point_Analyse( const VECTOR *PlanePos, const VECTOR *PlaneNorma
 	return 0 ;
 }
 
+// 平面と点の最近点情報を解析する
+extern int Plane_Point_AnalyseD( const VECTOR_D *PlanePos, const VECTOR_D *PlaneNormal, const VECTOR_D *PointPos, PLANE_POINT_RESULT_D *Result )
+{
+	double t ;
+	VECTOR_D Plane_Pnt ;
+	double DotPlaneNormal_Plane_Pnt ;
+
+	VectorSubD( &Plane_Pnt, PointPos, PlanePos ) ;
+	DotPlaneNormal_Plane_Pnt = VDotD( *PlaneNormal, Plane_Pnt ) ;
+
+	Result->Pnt_Plane_Normal_Side = DotPlaneNormal_Plane_Pnt >= 0.0 ? 1 : 0 ;
+
+	t = DotPlaneNormal_Plane_Pnt / VDotD( *PlaneNormal, *PlaneNormal ) ;
+	Result->Plane_MinDist_Pos = VSubD( *PointPos, VScaleD( *PlaneNormal, t ) ) ;
+	Result->Plane_Pnt_MinDist_Square = VSquareSizeD( VScaleD( *PlaneNormal, t ) ) ;
+
+	return 0 ;
+}
+
 // 指定の座標から三角形の重心を求める
 extern void TriangleBarycenter( VECTOR TrianglePos1, VECTOR TrianglePos2, VECTOR TrianglePos3, VECTOR Position, float *TrianglePos1Weight, float *TrianglePos2Weight, float *TrianglePos3Weight )
 {
-	return TriangleBarycenter_Base( &TrianglePos1, &TrianglePos2, &TrianglePos3, &Position, TrianglePos1Weight, TrianglePos2Weight, TrianglePos3Weight ) ;
+	TriangleBarycenter_Base( &TrianglePos1, &TrianglePos2, &TrianglePos3, &Position, TrianglePos1Weight, TrianglePos2Weight, TrianglePos3Weight ) ;
+}
+
+// 指定の座標から三角形の重心を求める
+extern void TriangleBarycenterD( VECTOR_D TrianglePos1, VECTOR_D TrianglePos2, VECTOR_D TrianglePos3, VECTOR_D Position, double *TrianglePos1Weight, double *TrianglePos2Weight, double *TrianglePos3Weight )
+{
+	TriangleBarycenter_BaseD( &TrianglePos1, &TrianglePos2, &TrianglePos3, &Position, TrianglePos1Weight, TrianglePos2Weight, TrianglePos3Weight ) ;
 }
 
 // 指定の座標から三角形の重心を求める
@@ -2313,10 +4326,37 @@ extern void TriangleBarycenter_Base( const VECTOR *TrianglePos1, const VECTOR *T
 	*TrianglePos1Weight = 1.0f - *TrianglePos2Weight - *TrianglePos3Weight ;
 }
 
+// 指定の座標から三角形の重心を求める
+extern void TriangleBarycenter_BaseD( const VECTOR_D *TrianglePos1, const VECTOR_D *TrianglePos2, const VECTOR_D *TrianglePos3, const VECTOR_D *Position, double *TrianglePos1Weight, double *TrianglePos2Weight, double *TrianglePos3Weight )
+{
+	VECTOR_D v1, v2, v3 ;
+	double d11, d12, d22, d13, d23, divn ;
+
+	VectorSubD( &v1, TrianglePos2, TrianglePos1 ) ;
+	VectorSubD( &v2, TrianglePos3, TrianglePos1 ) ;
+	VectorSubD( &v3, Position, TrianglePos1 ) ;
+
+	d11 = VectorInnerProductD( &v1, &v1 ) ;
+	d12 = VectorInnerProductD( &v2, &v1 ) ;
+	d22 = VectorInnerProductD( &v2, &v2 ) ;
+	d13 = VectorInnerProductD( &v1, &v3 ) ;
+	d23 = VectorInnerProductD( &v2, &v3 ) ;
+	divn = d11 * d22 - d12 * d12 ;
+	*TrianglePos2Weight = ( d13 * d22 - d12 * d23 ) / divn ;
+	*TrianglePos3Weight = ( d11 * d23 - d13 * d12 ) / divn ;
+	*TrianglePos1Weight = 1.0f - *TrianglePos2Weight - *TrianglePos3Weight ;
+}
+
 // 二つの線分の最近点間の距離を得る
 extern float Segment_Segment_MinLength( VECTOR SA1, VECTOR SA2, VECTOR SB1, VECTOR SB2 )
 {
 	return _SQRT( Segment_Segment_MinLength_Square( SA1, SA2, SB1, SB2 ) ) ;
+}
+
+// 二つの線分の最近点間の距離を得る
+extern double Segment_Segment_MinLengthD( VECTOR_D SA1, VECTOR_D SA2, VECTOR_D SB1, VECTOR_D SB2 )
+{
+	return _SQRTD( Segment_Segment_MinLength_SquareD( SA1, SA2, SB1, SB2 ) ) ;
 }
 
 // 二つの線分がもっとも近づく点の距離の二乗を得る
@@ -2438,10 +4478,124 @@ extern float Segment_Segment_MinLength_Square( VECTOR SA1, VECTOR SA2, VECTOR SB
 	return VectorInnerProduct( &tp, &tp ) ;
 }
 
+// 二つの線分がもっとも近づく点の距離の二乗を得る
+extern double Segment_Segment_MinLength_SquareD( VECTOR_D SA1, VECTOR_D SA2, VECTOR_D SB1, VECTOR_D SB2 )
+{
+	VECTOR_D da, db, p, tp ;
+	VECTOR_D e1, e2 ;
+	double a, b, c, d, e, f, w, s, t = 0.0 ;
+	double tmpA, tmpB ;
+
+	VectorSubD( &da, &SA2, &SA1 ) ;
+	VectorSubD( &db, &SB2, &SB1 ) ;
+	VectorSubD( &p, &SA1, &SB1 ) ;
+	a =  VectorInnerProductD( &da, &da ) ;
+	b = -VectorInnerProductD( &da, &db ) ;
+	c = -b ;
+	d = -VectorInnerProductD( &db, &db ) ;
+	e = -VectorInnerProductD( &da, &p ) ;
+	f = -VectorInnerProductD( &db, &p ) ;
+
+	// SA1 - SA2 または SB1 - SB2 の距離が限りなくゼロに近いかどうかのチェック
+	tmpA = a < 0.0 ? -a : a ;
+	tmpB = d < 0.0 ? -d : d ;
+	if( tmpA < 0.00000001 )
+	{
+		if( tmpB < 0.00000001 )
+		{
+			return VSquareSizeD( VSubD( SA1, SB1 ) ) ;
+		}
+		else
+		{
+			return Segment_Point_MinLength_SquareD( SB1, SB2, SA1 ) ;
+		}
+	}
+	else
+	if( tmpB < 0.00000001 )
+	{
+		return Segment_Point_MinLength_SquareD( SA1, SA2, SB1 ) ;
+	}
+
+	s = -0.1 ;
+	w = a * d - b * c ;
+	if( w <= -0.00000001 )
+	{
+		// クラーメルの公式
+		s = ( e * d - b * f ) / w ;
+		t = ( a * f - e * c ) / w ;
+	}
+
+	// 二つの線分が縮退していたら点と見なして点同士の距離を返す
+	if( a <= 0.0 && -d <= 0.0 )
+	{
+		VectorSubD( &tp, &SA1, &SB1 ) ;
+		return _SQRTD( VectorInnerProductD( &tp, &tp ) ) ;
+	}
+
+	if( a <= 0.0 )
+	{
+		s = 0.0 ;
+		if( t > 1.0 || t < 0.0 )
+			t = t > 1.0 ? 1.0 : 0.0 ;
+	}
+	else
+	if( -d <= 0.0 )
+	{
+		t = 0.0 ;
+		if( s > 1.0 || s < 0.0 )
+			s = s > 1.0 ? 1.0 : 0.0 ;
+	}
+	else
+	{
+		if( s > 1.0 || s < 0.0 )
+		{
+			s = s > 1.0 ? 1.0 : 0.0 ;
+
+			t = ( -b * s + -f ) / -d ;		// ガウス消去法
+			if( t > 1.0 || t < 0.0 )
+			{
+				t = t > 1.0 ? 1.0 : 0.0 ;
+				s = ( -b * t - -e ) / a ;	// ガウス消去法
+					 if( s > 1.0 ) s = 1.0 ;
+				else if( s < 0.0 ) s = 0.0 ;
+			}
+		}
+		else
+		if( t > 1.0 || t < 0.0 )
+		{
+			t = t > 1.0 ? 1.0 : 0.0 ;
+			s = ( -b * t - -e ) / a ;		// ガウス消去法
+
+			if( s > 1.0 || s < 0.0 )
+			{
+				s = s > 1.0 ? 1.0 : 0.0 ;
+				t = ( -b * s + -f ) / -d ;	// ガウス消去法
+					 if( t > 1.0 ) t = 1.0 ;
+				else if( t < 0.0 ) t = 0.0 ;
+			}
+		}
+	}
+
+	VectorScaleD( &e1, &da, s ) ;
+	VectorAddD( &e1, &e1, &SA1 ) ;
+
+	VectorScaleD( &e2, &db, t ) ;
+	VectorAddD( &e2, &e2, &SB1 ) ;
+
+	VectorSubD( &tp, &e1, &e2 ) ;
+	return VectorInnerProductD( &tp, &tp ) ;
+}
+
 // 線分と三角形の最近点間の距離を得る 
 extern float Segment_Triangle_MinLength( VECTOR SegmentPos1, VECTOR SegmentPos2, VECTOR TrianglePos1, VECTOR TrianglePos2, VECTOR TrianglePos3 )
 {
 	return _SQRT( Segment_Triangle_MinLength_Square(  SegmentPos1,  SegmentPos2,  TrianglePos1,  TrianglePos2,  TrianglePos3 ) ) ;
+}
+
+// 線分と三角形の最近点間の距離を得る 
+extern double Segment_Triangle_MinLengthD( VECTOR_D SegmentPos1, VECTOR_D SegmentPos2, VECTOR_D TrianglePos1, VECTOR_D TrianglePos2, VECTOR_D TrianglePos3 )
+{
+	return _SQRTD( Segment_Triangle_MinLength_SquareD(  SegmentPos1,  SegmentPos2,  TrianglePos1,  TrianglePos2,  TrianglePos3 ) ) ;
 }
 
 // 線分と三角形の最近点間の距離の二乗を得る 
@@ -2557,10 +4711,126 @@ extern float Segment_Triangle_MinLength_Square( VECTOR SegmentPos1, VECTOR Segme
 	return MinLen ;
 }
 
+// 線分と三角形の最近点間の距離の二乗を得る 
+extern double Segment_Triangle_MinLength_SquareD( VECTOR_D SegmentPos1, VECTOR_D SegmentPos2, VECTOR_D TrianglePos1, VECTOR_D TrianglePos2, VECTOR_D TrianglePos3 )
+{
+	bool Touei1, Touei2 ;
+	VECTOR_D st1, st2 ;
+	VECTOR_D stw1, stw2 ;
+	VECTOR_D tv, tnorm ;
+	VECTOR_D v12, v13 ;
+	double st1u, st1v, st1w ;
+	double st2u, st2v, st2w ;
+	double l1 = 0.0, l2 = 0.0 ;
+	double l12, l23, l31 ;
+	double MinLen ;
+	HITRESULT_LINE_D HitResult ;
+
+	// 線分が三角形を貫いていたら距離は０
+	HitResult = HitCheck_Line_TriangleD( SegmentPos1, SegmentPos2, TrianglePos1, TrianglePos2, TrianglePos3 ) ;
+	if( HitResult.HitFlag )
+	{
+		return 0.0 ;
+	}
+
+	VectorSubD( &v12, &TrianglePos2, &TrianglePos1 ) ;
+	VectorSubD( &v13, &TrianglePos3, &TrianglePos1 ) ;
+	VectorOuterProductD( &tnorm, &v12, &v13 ) ;
+	VectorNormalizeD( &tnorm, &tnorm ) ;
+
+	// 三角形が示す平面状に頂点を投影する
+	VectorSubD( &tv, &SegmentPos1, &TrianglePos1 ) ;
+	stw1 = tv ;
+	VectorScaleD( &tv, &tnorm, VectorInnerProductD( &tv, &tnorm ) ) ;
+	VectorSubD( &st1, &SegmentPos1, &tv ) ;
+
+	// 三角形内に頂点が存在するかどうかを調べる
+	TriangleBarycenter_BaseD( &TrianglePos1, &TrianglePos2, &TrianglePos3, &st1, &st1u, &st1v, &st1w ) ;
+	Touei1 = !( st1u <= 0.0 || st1u >= 1.0 || st1v <= 0.0 || st1v >= 1.0 || st1w <= 0.0 || st1w >= 1.0 ) ;
+	if( Touei1 )
+	{
+		VectorSubD( &tv, &SegmentPos1, &st1 ) ;
+		l1 = VectorInnerProductD( &tv, &tv ) ;
+	}
+
+	// 三角形が示す平面状に頂点を投影する
+	VectorSubD( &tv, &SegmentPos2, &TrianglePos1 ) ;
+	stw2 = tv ;
+	VectorScaleD( &tv, &tnorm, VectorInnerProductD( &tv, &tnorm ) ) ;
+	VectorSubD( &st2, &SegmentPos2, &tv ) ;
+
+	// 三角形内に頂点が存在するかどうかを調べる
+	TriangleBarycenter_BaseD( &TrianglePos1, &TrianglePos2, &TrianglePos3, &st2, &st2u, &st2v, &st2w ) ;
+	Touei2 = !( st2u <= 0.0 || st2u >= 1.0 || st2v <= 0.0 || st2v >= 1.0 || st2w <= 0.0 || st2w >= 1.0 ) ;
+	if( Touei2 )
+	{
+		VectorSubD( &tv, &SegmentPos2, &st2 ) ;
+		l2 = VectorInnerProductD( &tv, &tv ) ;
+	}
+
+	// どちらも三角形の範囲にあった場合
+	if( Touei1 && Touei2 )
+	{
+		double i1, i2 ;
+
+		// 線分の各頂点が三角形の前後にあるか判定
+		i1 = VectorInnerProductD( &tnorm, &stw1 ) ;
+		i2 = VectorInnerProductD( &tnorm, &stw2 ) ;
+		if( ( i1 < 0.0 && i2 < 0.0 ) || ( i1 >= 0.0 && i2 >= 0.0 ) )
+		{
+			// 片方の側にどちらの頂点もある場合は、より近いほうの頂点と平面との距離を結果にする
+			if( l1 < l2 )
+			{
+				return l1 ;
+			}
+			else
+			{
+				return l2 ;
+			}
+		}
+		else
+		{
+			// 各頂点が前後にある場合は接しているということ
+			return 0.0 ;
+		}
+	}
+
+	// そうではない場合は三角形の３辺と線分の距離を測り、一番距離が短い辺を探す
+	l12 = Segment_Segment_MinLength_SquareD( SegmentPos1, SegmentPos2, TrianglePos1, TrianglePos2 ) ;
+	l23 = Segment_Segment_MinLength_SquareD( SegmentPos1, SegmentPos2, TrianglePos2, TrianglePos3 ) ;
+	l31 = Segment_Segment_MinLength_SquareD( SegmentPos1, SegmentPos2, TrianglePos3, TrianglePos1 ) ;
+
+	MinLen = l12 ;
+	if( l23 < MinLen )
+	{
+		MinLen = l23 ;
+	}
+	if( l31 < MinLen )
+	{
+		MinLen = l31 ;
+	}
+	if( Touei1 && l1 < MinLen )
+	{
+		MinLen = l1 ;
+	}
+	if( Touei2 && l2 < MinLen )
+	{
+		MinLen = l2 ;
+	}
+
+	return MinLen ;
+}
+
 // 線分と点の一番近い距離を得る
 extern float Segment_Point_MinLength( VECTOR SegmentPos1, VECTOR SegmentPos2, VECTOR PointPos )
 {
 	return _SQRT( Segment_Point_MinLength_Square(  SegmentPos1,  SegmentPos2,  PointPos ) ) ;
+}
+
+// 線分と点の一番近い距離を得る
+extern double Segment_Point_MinLengthD( VECTOR_D SegmentPos1, VECTOR_D SegmentPos2, VECTOR_D PointPos )
+{
+	return _SQRTD( Segment_Point_MinLength_SquareD(  SegmentPos1,  SegmentPos2,  PointPos ) ) ;
 }
 
 // 線分と点の一番近い距離の二乗を得る
@@ -2578,10 +4848,31 @@ extern float Segment_Point_MinLength_Square( VECTOR SegmentPos1, VECTOR SegmentP
 	return Sa.x * Sa.x + Sa.y * Sa.y + Sa.z * Sa.z ;
 }
 
+// 線分と点の一番近い距離の二乗を得る
+extern double Segment_Point_MinLength_SquareD( VECTOR_D SegmentPos1, VECTOR_D SegmentPos2, VECTOR_D PointPos )
+{
+	VECTOR_D MinPosition, Sa ;
+
+	// 線と点の最近点を取得する
+	MinPosition = Get_Line_Point_MinPositionD( PointPos, SegmentPos1, SegmentPos2 ) ;
+
+	// 最近点と点の距離を返す
+	Sa.x = MinPosition.x - PointPos.x ;
+	Sa.y = MinPosition.y - PointPos.y ;
+	Sa.z = MinPosition.z - PointPos.z ;
+	return Sa.x * Sa.x + Sa.y * Sa.y + Sa.z * Sa.z ;
+}
+
 // 三角形と点の一番近い距離を得る
 extern float Triangle_Point_MinLength( VECTOR TrianglePos1, VECTOR TrianglePos2, VECTOR TrianglePos3, VECTOR PointPos )
 {
 	return _SQRT( Triangle_Point_MinLength_Square(  TrianglePos1,  TrianglePos2,  TrianglePos3,  PointPos ) ) ;
+}
+
+// 三角形と点の一番近い距離を得る
+extern double Triangle_Point_MinLengthD( VECTOR_D TrianglePos1, VECTOR_D TrianglePos2, VECTOR_D TrianglePos3, VECTOR_D PointPos )
+{
+	return _SQRTD( Triangle_Point_MinLength_SquareD(  TrianglePos1,  TrianglePos2,  TrianglePos3,  PointPos ) ) ;
 }
 
 // 点に一番近い平面上の座標を得る
@@ -2593,6 +4884,15 @@ extern VECTOR Plane_Point_MinLength_Position( VECTOR PlanePos, VECTOR PlaneNorma
 	return VSub( PointPos, VScale( PlaneNormal, t ) ) ;
 }
 
+// 点に一番近い平面上の座標を得る
+extern VECTOR_D Plane_Point_MinLength_PositionD( VECTOR_D PlanePos, VECTOR_D PlaneNormal, VECTOR_D PointPos )
+{
+	double t ;
+
+	t = VDotD( PlaneNormal, VSubD( PointPos, PlanePos ) ) / VDotD( PlaneNormal, PlaneNormal ) ;
+	return VSubD( PointPos, VScaleD( PlaneNormal, t ) ) ;
+}
+
 // 平面と点の一番近い距離を得る
 extern float Plane_Point_MinLength( VECTOR PlanePos, VECTOR PlaneNormal, VECTOR PointPos )
 {
@@ -2600,6 +4900,15 @@ extern float Plane_Point_MinLength( VECTOR PlanePos, VECTOR PlaneNormal, VECTOR 
 
 	t = VDot( PlaneNormal, VSub( PointPos, PlanePos ) ) / VDot( PlaneNormal, PlaneNormal ) ;
 	return VSize( VScale( PlaneNormal, t ) ) ;
+}
+
+// 平面と点の一番近い距離を得る
+extern double Plane_Point_MinLengthD( VECTOR_D PlanePos, VECTOR_D PlaneNormal, VECTOR_D PointPos )
+{
+	double t ;
+
+	t = VDotD( PlaneNormal, VSubD( PointPos, PlanePos ) ) / VDotD( PlaneNormal, PlaneNormal ) ;
+	return VSizeD( VScaleD( PlaneNormal, t ) ) ;
 }
 
 // 三角形と点の一番近い距離の二乗を得る
@@ -2617,10 +4926,31 @@ extern float Triangle_Point_MinLength_Square( VECTOR TrianglePos1, VECTOR Triang
 	return Sa.x * Sa.x + Sa.y * Sa.y + Sa.z * Sa.z ;
 }
 
+// 三角形と点の一番近い距離の二乗を得る
+extern double Triangle_Point_MinLength_SquareD( VECTOR_D TrianglePos1, VECTOR_D TrianglePos2, VECTOR_D TrianglePos3, VECTOR_D PointPos )
+{
+	VECTOR_D MinPosition, Sa ;
+
+	// 点と三角形の最近点を取得する
+	MinPosition = Get_Triangle_Point_MinPositionD( PointPos, TrianglePos1, TrianglePos2, TrianglePos3 ) ;
+
+	// 最近点との距離を返す
+	Sa.x = MinPosition.x - PointPos.x ;
+	Sa.y = MinPosition.y - PointPos.y ;
+	Sa.z = MinPosition.z - PointPos.z ;
+	return Sa.x * Sa.x + Sa.y * Sa.y + Sa.z * Sa.z ;
+}
+
 // 二つの三角形の最近点間の距離を得る
 extern float Triangle_Triangle_MinLength( VECTOR Triangle1Pos1, VECTOR Triangle1Pos2, VECTOR Triangle1Pos3, VECTOR Triangle2Pos1, VECTOR Triangle2Pos2, VECTOR Triangle2Pos3 )
 {
 	return _SQRT( Triangle_Triangle_MinLength_Square( Triangle1Pos1, Triangle1Pos2, Triangle1Pos3, Triangle2Pos1, Triangle2Pos2, Triangle2Pos3 ) ) ;
+}
+
+// 二つの三角形の最近点間の距離を得る
+extern double Triangle_Triangle_MinLengthD( VECTOR_D Triangle1Pos1, VECTOR_D Triangle1Pos2, VECTOR_D Triangle1Pos3, VECTOR_D Triangle2Pos1, VECTOR_D Triangle2Pos2, VECTOR_D Triangle2Pos3 )
+{
+	return _SQRTD( Triangle_Triangle_MinLength_SquareD( Triangle1Pos1, Triangle1Pos2, Triangle1Pos3, Triangle2Pos1, Triangle2Pos2, Triangle2Pos3 ) ) ;
 }
 
 // 二つの三角形の最近点間の距離の二乗を得る
@@ -2680,6 +5010,72 @@ extern float Triangle_Triangle_MinLength_Square( VECTOR Triangle1Pos1, VECTOR Tr
 	if( TempMinDist < 0.0000001f )
 	{
 		return 0.0f ;
+	}
+	if( MinDist > TempMinDist )
+	{
+		MinDist = TempMinDist ;
+	}
+
+	return MinDist ;
+}
+
+// 二つの三角形の最近点間の距離の二乗を得る
+extern double Triangle_Triangle_MinLength_SquareD( VECTOR_D Triangle1Pos1, VECTOR_D Triangle1Pos2, VECTOR_D Triangle1Pos3, VECTOR_D Triangle2Pos1, VECTOR_D Triangle2Pos2, VECTOR_D Triangle2Pos3 )
+{
+	double MinDist ;
+	double TempMinDist ;
+
+	MinDist = Segment_Triangle_MinLength_SquareD( Triangle1Pos1, Triangle1Pos2, Triangle2Pos1, Triangle2Pos2, Triangle2Pos3 ) ;
+	if( MinDist < 0.0000001 )
+	{
+		return 0.0 ;
+	}
+
+	TempMinDist = Segment_Triangle_MinLength_SquareD( Triangle1Pos2, Triangle1Pos3, Triangle2Pos1, Triangle2Pos2, Triangle2Pos3 ) ;
+	if( TempMinDist < 0.0000001 )
+	{
+		return 0.0 ;
+	}
+	if( MinDist > TempMinDist )
+	{
+		MinDist = TempMinDist ;
+	}
+
+	TempMinDist = Segment_Triangle_MinLength_SquareD( Triangle1Pos3, Triangle1Pos1, Triangle2Pos1, Triangle2Pos2, Triangle2Pos3 ) ;
+	if( TempMinDist < 0.0000001 )
+	{
+		return 0.0 ;
+	}
+	if( MinDist > TempMinDist )
+	{
+		MinDist = TempMinDist ;
+	}
+
+
+	TempMinDist = Segment_Triangle_MinLength_SquareD( Triangle2Pos1, Triangle2Pos2, Triangle1Pos1, Triangle1Pos2, Triangle1Pos3 ) ;
+	if( TempMinDist < 0.0000001 )
+	{
+		return 0.0 ;
+	}
+	if( MinDist > TempMinDist )
+	{
+		MinDist = TempMinDist ;
+	}
+
+	TempMinDist = Segment_Triangle_MinLength_SquareD( Triangle2Pos2, Triangle2Pos3, Triangle1Pos1, Triangle1Pos2, Triangle1Pos3 ) ;
+	if( TempMinDist < 0.0000001 )
+	{
+		return 0.0 ;
+	}
+	if( MinDist > TempMinDist )
+	{
+		MinDist = TempMinDist ;
+	}
+
+	TempMinDist = Segment_Triangle_MinLength_SquareD( Triangle2Pos3, Triangle2Pos1, Triangle1Pos1, Triangle1Pos2, Triangle1Pos3 ) ;
+	if( TempMinDist < 0.0000001 )
+	{
+		return 0.0 ;
 	}
 	if( MinDist > TempMinDist )
 	{
@@ -2811,6 +5207,57 @@ extern HITRESULT_LINE HitCheck_Line_Triangle( VECTOR LinePos1, VECTOR LinePos2, 
 	// 終了
 	return Result ;
 }
+
+// 三角形と線の当たり判定
+extern HITRESULT_LINE_D HitCheck_Line_TriangleD( VECTOR_D LinePos1, VECTOR_D LinePos2, VECTOR_D TrianglePos1, VECTOR_D TrianglePos2, VECTOR_D TrianglePos3 )
+{
+	VECTOR_D LineL1L2, LineL1T1, LineL1T2, LineL1T3, OP ;
+	VECTOR_D LineL1C, LineL2C ;
+	double u, v, w, totalr ;
+	HITRESULT_LINE_D Result ;
+
+	Result.HitFlag = 0 ;
+
+	VectorSubD( &LineL1L2, &LinePos2, &LinePos1 ) ;
+	VectorSubD( &LineL1T1, &TrianglePos1, &LinePos1 ) ;
+	VectorSubD( &LineL1T2, &TrianglePos2, &LinePos1 ) ;
+	VectorSubD( &LineL1T3, &TrianglePos3, &LinePos1 ) ;
+
+	VectorOuterProductD( &OP, &LineL1L2, &LineL1T2 ) ;
+	u = VectorInnerProductD( &OP, &LineL1T3 ) ;
+
+	VectorOuterProductD( &OP, &LineL1L2, &LineL1T3 ) ;
+	v = VectorInnerProductD( &OP, &LineL1T1 ) ;
+
+	VectorOuterProductD( &OP, &LineL1L2, &LineL1T1 ) ;
+	w = VectorInnerProductD( &OP, &LineL1T2 ) ;
+
+	if( ( ( u < 0.0 || v < 0.0 || w < 0.0 ) &&
+		  ( u > 0.0 || v > 0.0 || w > 0.0 ) ) ||
+		( u < 0.0000001 && u > -0.0000001 &&
+		  v < 0.0000001 && v > -0.0000001 &&
+		  w < 0.0000001 && w > -0.0000001 ) )
+		return Result ;
+
+	totalr = 1.0 / ( u + v + w ) ;
+	u *= totalr ;
+	v *= totalr ;
+	w *= totalr ;
+	Result.Position.x = TrianglePos1.x * u + TrianglePos2.x * v + TrianglePos3.x * w ;
+	Result.Position.y = TrianglePos1.y * u + TrianglePos2.y * v + TrianglePos3.y * w ;
+	Result.Position.z = TrianglePos1.z * u + TrianglePos2.z * v + TrianglePos3.z * w ;
+
+	VectorSubD( &LineL1C, &LinePos1, &Result.Position ) ;
+	VectorSubD( &LineL2C, &LinePos2, &Result.Position ) ;
+	if( VectorInnerProductD( &LineL1C, &LineL2C ) <= 0.0 )
+	{
+		Result.HitFlag = 1 ;
+	}
+
+	// 終了
+	return Result ;
+}
+
 
 // 三角形と三角形の当たり判定( TRUE:当たっている  FALSE:当たっていない )
 extern int HitCheck_Triangle_Triangle( VECTOR Triangle1Pos1, VECTOR Triangle1Pos2, VECTOR Triangle1Pos3, 
@@ -3006,6 +5453,169 @@ extern int HitCheck_Triangle_Triangle( VECTOR Triangle1Pos1, VECTOR Triangle1Pos
 			( R2[ 0 ] <= R1[ 0 ] && R2[ 1 ] >= R1[ 0 ] ) ? TRUE : FALSE ;
 }
 
+// 三角形と三角形の当たり判定( TRUE:当たっている  FALSE:当たっていない )
+extern int HitCheck_Triangle_TriangleD( VECTOR_D Triangle1Pos1, VECTOR_D Triangle1Pos2, VECTOR_D Triangle1Pos3, 
+											    VECTOR_D Triangle2Pos1, VECTOR_D Triangle2Pos2, VECTOR_D Triangle2Pos3 )
+{
+	VECTOR_D N1, N2, CLDir, CLPos, sv21, sv31 ;
+	double D1, D2, L1[ 3 ], L2[ 3 ], R1[ 2 ], R2[ 2 ], f ;
+	VECTOR_D LD1[ 2 ], LP1[ 2 ], LD2[ 2 ], LP2[ 2 ] ;
+
+	// 三角形２の頂点が三角形１が成す平面の片側に存在する場合は当たっていない
+	sv21 = VSubD( Triangle1Pos2, Triangle1Pos1 ) ;
+	sv31 = VSubD( Triangle1Pos3, Triangle1Pos1 ) ;
+	N1 = VNormD( VCrossD( sv21, sv31 ) ) ;
+	D1 = VDotD( N1, Triangle1Pos1 ) ;
+	L1[ 0 ] = VDotD( N1, Triangle2Pos1 ) - D1 ;
+	L1[ 1 ] = VDotD( N1, Triangle2Pos2 ) - D1 ;
+	L1[ 2 ] = VDotD( N1, Triangle2Pos3 ) - D1 ;
+	if( L1[ 0 ] < 0.0 )
+	{
+		if( L1[ 1 ] < 0.0 )
+		{
+			if( L1[ 2 ] < 0.0 )
+				return FALSE ;
+
+			LD1[ 0 ] = VSubD( Triangle2Pos3, Triangle2Pos2 ) ;
+			LP1[ 0 ] = Triangle2Pos2 ;
+			LD1[ 1 ] = VSubD( Triangle2Pos3, Triangle2Pos1 ) ;
+			LP1[ 1 ] = Triangle2Pos1 ;
+		}
+		else
+		{
+			if( L1[ 2 ] < 0.0 )
+			{
+				LD1[ 0 ] = VSubD( Triangle2Pos2, Triangle2Pos1 ) ;
+				LP1[ 0 ] = Triangle2Pos1 ;
+				LD1[ 1 ] = VSubD( Triangle2Pos2, Triangle2Pos3 ) ;
+				LP1[ 1 ] = Triangle2Pos3 ;
+			}
+			else
+			{
+				LD1[ 0 ] = VSubD( Triangle2Pos1, Triangle2Pos2 ) ;
+				LP1[ 0 ] = Triangle2Pos2 ;
+				LD1[ 1 ] = VSubD( Triangle2Pos1, Triangle2Pos3 ) ;
+				LP1[ 1 ] = Triangle2Pos3 ;
+			}
+		}
+	}
+	else
+	{
+		if( L1[ 1 ] < 0.0 )
+		{
+			if( L1[ 2 ] < 0.0 )
+			{
+				LD1[ 0 ] = VSubD( Triangle2Pos1, Triangle2Pos2 ) ;
+				LP1[ 0 ] = Triangle2Pos2 ;
+				LD1[ 1 ] = VSubD( Triangle2Pos1, Triangle2Pos3 ) ;
+				LP1[ 1 ] = Triangle2Pos3 ;
+			}
+			else
+			{
+				LD1[ 0 ] = VSubD( Triangle2Pos2, Triangle2Pos1 ) ;
+				LP1[ 0 ] = Triangle2Pos1 ;
+				LD1[ 1 ] = VSubD( Triangle2Pos2, Triangle2Pos3 ) ;
+				LP1[ 1 ] = Triangle2Pos3 ;
+			}
+		}
+		else
+		{
+			if( L1[ 2 ] < 0.0 )
+			{
+				LD1[ 0 ] = VSubD( Triangle2Pos3, Triangle2Pos2 ) ;
+				LP1[ 0 ] = Triangle2Pos2 ;
+				LD1[ 1 ] = VSubD( Triangle2Pos3, Triangle2Pos1 ) ;
+				LP1[ 1 ] = Triangle2Pos1 ;
+			}
+			else return FALSE ;
+		}
+	}
+
+	// 三角形１の頂点が三角形２が成す平面の片側に存在する場合は当たっていない
+	N2 = VNormD( VCrossD( VSubD( Triangle2Pos2, Triangle2Pos1 ), VSubD( Triangle2Pos3, Triangle2Pos1 ) ) ) ;
+	D2 = VDotD( N2, Triangle2Pos1 ) ;
+	L2[ 0 ] = VDotD( N2, Triangle1Pos1 ) - D2 ;
+	L2[ 1 ] = VDotD( N2, Triangle1Pos2 ) - D2 ;
+	L2[ 2 ] = VDotD( N2, Triangle1Pos3 ) - D2 ;
+	if( L2[ 0 ] < 0.0 )
+	{
+		if( L2[ 1 ] < 0.0 )
+		{
+			if( L2[ 2 ] < 0.0 )
+				return FALSE ;
+
+			LD2[ 0 ] = VSubD( Triangle1Pos3, Triangle1Pos2 ) ;
+			LP2[ 0 ] = Triangle1Pos2 ;
+			LD2[ 1 ] = VSubD( Triangle1Pos3, Triangle1Pos1 ) ;
+			LP2[ 1 ] = Triangle1Pos1 ;
+		}
+		else
+		{
+			if( L2[ 2 ] < 0.0 )
+			{
+				LD2[ 0 ] = VSubD( Triangle1Pos2, Triangle1Pos1 ) ;
+				LP2[ 0 ] = Triangle1Pos1 ;
+				LD2[ 1 ] = VSubD( Triangle1Pos2, Triangle1Pos3 ) ;
+				LP2[ 1 ] = Triangle1Pos3 ;
+			}
+			else
+			{
+				LD2[ 0 ] = VSubD( Triangle1Pos1, Triangle1Pos2 ) ;
+				LP2[ 0 ] = Triangle1Pos2 ;
+				LD2[ 1 ] = VSubD( Triangle1Pos1, Triangle1Pos3 ) ;
+				LP2[ 1 ] = Triangle1Pos3 ;
+			}
+		}
+	}
+	else
+	{
+		if( L2[ 1 ] < 0.0 )
+		{
+			if( L2[ 2 ] < 0.0 )
+			{
+				LD2[ 0 ] = VSubD( Triangle1Pos1, Triangle1Pos2 ) ;
+				LP2[ 0 ] = Triangle1Pos2 ;
+				LD2[ 1 ] = VSubD( Triangle1Pos1, Triangle1Pos3 ) ;
+				LP2[ 1 ] = Triangle1Pos3 ;
+			}
+			else
+			{
+				LD2[ 0 ] = VSubD( Triangle1Pos2, Triangle1Pos1 ) ;
+				LP2[ 0 ] = Triangle1Pos1 ;
+				LD2[ 1 ] = VSubD( Triangle1Pos2, Triangle1Pos3 ) ;
+				LP2[ 1 ] = Triangle1Pos3 ;
+			}
+		}
+		else
+		{
+			if( L2[ 2 ] < 0.0 )
+			{
+				LD2[ 0 ] = VSubD( Triangle1Pos3, Triangle1Pos2 ) ;
+				LP2[ 0 ] = Triangle1Pos2 ;
+				LD2[ 1 ] = VSubD( Triangle1Pos3, Triangle1Pos1 ) ;
+				LP2[ 1 ] = Triangle1Pos1 ;
+			}
+			else return FALSE ;
+		}
+	}
+
+	// 二つの平面が交差する線を得る
+	Get_TwoPlane_LineD( N1, D1, N2, D2, &CLDir, &CLPos ) ;
+
+	// 交差する線と各面の辺との交点の位置を得る
+	Get_TwoLine_MinLength_RateD( LD1[ 0 ], LP1[ 0 ], NULL, CLDir, CLPos, &R1[ 0 ] ) ;
+	Get_TwoLine_MinLength_RateD( LD1[ 1 ], LP1[ 1 ], NULL, CLDir, CLPos, &R1[ 1 ] ) ;
+	Get_TwoLine_MinLength_RateD( LD2[ 0 ], LP2[ 0 ], NULL, CLDir, CLPos, &R2[ 0 ] ) ;
+	Get_TwoLine_MinLength_RateD( LD2[ 1 ], LP2[ 1 ], NULL, CLDir, CLPos, &R2[ 1 ] ) ;
+	if( R1[ 0 ] > R1[ 1 ] ){ f = R1[ 0 ] ; R1[ 0 ] = R1[ 1 ] ; R1[ 1 ] = f ; }
+	if( R2[ 0 ] > R2[ 1 ] ){ f = R2[ 0 ] ; R2[ 0 ] = R2[ 1 ] ; R2[ 1 ] = f ; }
+
+	// 重なっていたら当たっている
+	return  ( R1[ 0 ] <= R2[ 0 ] && R1[ 1 ] >= R2[ 0 ] ) ||
+			( R2[ 0 ] <= R1[ 0 ] && R2[ 1 ] >= R1[ 0 ] ) ? TRUE : FALSE ;
+}
+
+
 // 線と球の当たり判定( TRUE:当たっている  FALSE:当たっていない )
 extern int HitCheck_Line_Sphere( VECTOR LinePos1, VECTOR LinePos2, VECTOR SphereCenterPos, float SphereR )
 {
@@ -3020,6 +5630,22 @@ extern int HitCheck_Line_Sphere( VECTOR LinePos1, VECTOR LinePos2, VECTOR Sphere
 	Sa.z = MinPosition.z - SphereCenterPos.z ;
 	return Sa.x * Sa.x + Sa.y * Sa.y + Sa.z * Sa.z <= SphereR * SphereR ? TRUE : FALSE ;
 }
+
+// 線と球の当たり判定( TRUE:当たっている  FALSE:当たっていない )
+extern int HitCheck_Line_SphereD( VECTOR_D LinePos1, VECTOR_D LinePos2, VECTOR_D SphereCenterPos, double SphereR )
+{
+	VECTOR_D MinPosition, Sa ;
+
+	// 線と三角形の最近点を取得する
+	MinPosition = Get_Line_Point_MinPositionD( SphereCenterPos, LinePos1, LinePos2 ) ;
+
+	// 最近点との距離が球の半径より近いかどうかで当たっているかどうかを判定
+	Sa.x = MinPosition.x - SphereCenterPos.x ;
+	Sa.y = MinPosition.y - SphereCenterPos.y ;
+	Sa.z = MinPosition.z - SphereCenterPos.z ;
+	return Sa.x * Sa.x + Sa.y * Sa.y + Sa.z * Sa.z <= SphereR * SphereR ? TRUE : FALSE ;
+}
+
 
 // 線と箱の当たり判定
 extern HITRESULT_LINE HitCheck_Line_Cube( VECTOR LinePos1, VECTOR LinePos2, VECTOR CubePos1, VECTOR CubePos2 )
@@ -3140,6 +5766,126 @@ extern HITRESULT_LINE HitCheck_Line_Cube( VECTOR LinePos1, VECTOR LinePos2, VECT
 	return Result ;
 }
 
+// 線と箱の当たり判定
+extern HITRESULT_LINE_D HitCheck_Line_CubeD( VECTOR_D LinePos1, VECTOR_D LinePos2, VECTOR_D CubePos1, VECTOR_D CubePos2 )
+{
+	double Tmp ;
+	HITRESULT_LINE_D HitResult ;
+	VECTOR_D CubePos[ 2 ][ 4 ] ;
+	HITRESULT_LINE_D Result ;
+	double MinDistanceSquare ;
+	double DistanceSquare ;
+	int i ;
+	static int PosIndex[ 12 ][ 3 ][ 2 ] =
+	{
+		{ { 0, 0 }, { 0, 1 }, { 0, 2 } },
+		{ { 0, 3 }, { 0, 2 }, { 0, 1 } },
+
+		{ { 1, 0 }, { 1, 1 }, { 1, 2 } },
+		{ { 1, 3 }, { 1, 2 }, { 1, 1 } },
+
+		{ { 0, 0 }, { 0, 2 }, { 1, 0 } },
+		{ { 1, 2 }, { 1, 0 }, { 0, 2 } },
+
+		{ { 0, 1 }, { 0, 3 }, { 1, 1 } },
+		{ { 1, 3 }, { 1, 1 }, { 0, 3 } },
+
+		{ { 0, 1 }, { 0, 0 }, { 1, 1 } },
+		{ { 1, 0 }, { 1, 1 }, { 0, 0 } },
+
+		{ { 0, 2 }, { 0, 3 }, { 1, 2 } },
+		{ { 1, 3 }, { 1, 2 }, { 0, 3 } },
+	} ;
+
+	// 戻り値を初期化
+	Result.HitFlag = FALSE ;
+	Result.Position = VGetD( -1.0, -1.0, -1.0 ) ;
+
+	// CubePos1 の値より CubePos2 の値のほうが小さくなっていたら入れ替える
+	if( CubePos1.x > CubePos2.x ){ Tmp = CubePos1.x ; CubePos1.x = CubePos2.x ; CubePos2.x = Tmp ; }
+	if( CubePos1.y > CubePos2.y ){ Tmp = CubePos1.y ; CubePos1.y = CubePos2.y ; CubePos2.y = Tmp ; }
+	if( CubePos1.z > CubePos2.z ){ Tmp = CubePos1.z ; CubePos1.z = CubePos2.z ; CubePos2.z = Tmp ; }
+
+	// 線分が箱の範囲外にあるか簡易チェック
+	if( ( LinePos1.x < CubePos1.x && LinePos2.x < CubePos1.x ) ||
+		( LinePos1.y < CubePos1.y && LinePos2.y < CubePos1.y ) ||
+		( LinePos1.z < CubePos1.z && LinePos2.z < CubePos1.z ) ||
+		( LinePos1.x > CubePos2.x && LinePos2.x > CubePos2.x ) ||
+		( LinePos1.y > CubePos2.y && LinePos2.y > CubePos2.y ) ||
+		( LinePos1.z > CubePos2.z && LinePos2.z > CubePos2.z ) )
+	{
+		return Result ;
+	}
+
+	// 線分が箱の範囲内にあるか簡易チェック
+	if( ( LinePos1.x >= CubePos1.x && LinePos1.x <= CubePos2.x && LinePos2.x >= CubePos1.x && LinePos2.x <= CubePos2.x ) &&
+		( LinePos1.y >= CubePos1.y && LinePos1.y <= CubePos2.y && LinePos2.y >= CubePos1.y && LinePos2.y <= CubePos2.y ) &&
+		( LinePos1.z >= CubePos1.z && LinePos1.z <= CubePos2.z && LinePos2.z >= CubePos1.z && LinePos2.z <= CubePos2.z ) )
+	{
+		Result.Position = LinePos1 ;
+		return Result ;
+	}
+
+	// 箱の面をポリゴンとして交差チェック
+	CubePos[ 0 ][ 0 ].x = CubePos1.x ;
+	CubePos[ 0 ][ 0 ].y = CubePos1.y ;
+	CubePos[ 0 ][ 0 ].z = CubePos1.z ;
+
+	CubePos[ 0 ][ 1 ].x = CubePos2.x ;
+	CubePos[ 0 ][ 1 ].y = CubePos1.y ;
+	CubePos[ 0 ][ 1 ].z = CubePos1.z ;
+
+	CubePos[ 0 ][ 2 ].x = CubePos1.x ;
+	CubePos[ 0 ][ 2 ].y = CubePos1.y ;
+	CubePos[ 0 ][ 2 ].z = CubePos2.z ;
+
+	CubePos[ 0 ][ 3 ].x = CubePos2.x ;
+	CubePos[ 0 ][ 3 ].y = CubePos1.y ;
+	CubePos[ 0 ][ 3 ].z = CubePos2.z ;
+
+	CubePos[ 1 ][ 0 ].x = CubePos1.x ;
+	CubePos[ 1 ][ 0 ].y = CubePos2.y ;
+	CubePos[ 1 ][ 0 ].z = CubePos1.z ;
+
+	CubePos[ 1 ][ 1 ].x = CubePos2.x ;
+	CubePos[ 1 ][ 1 ].y = CubePos2.y ;
+	CubePos[ 1 ][ 1 ].z = CubePos1.z ;
+
+	CubePos[ 1 ][ 2 ].x = CubePos1.x ;
+	CubePos[ 1 ][ 2 ].y = CubePos2.y ;
+	CubePos[ 1 ][ 2 ].z = CubePos2.z ;
+
+	CubePos[ 1 ][ 3 ].x = CubePos2.x ;
+	CubePos[ 1 ][ 3 ].y = CubePos2.y ;
+	CubePos[ 1 ][ 3 ].z = CubePos2.z ;
+
+	MinDistanceSquare = 0.0 ;
+
+	for( i = 0; i < 12; i ++ )
+	{
+		HitResult = HitCheck_Line_TriangleD(
+			LinePos1,
+			LinePos2,
+			CubePos[ PosIndex[ i ][ 0 ][ 0 ] ][ PosIndex[ i ][ 0 ][ 1 ] ],
+			CubePos[ PosIndex[ i ][ 1 ][ 0 ] ][ PosIndex[ i ][ 1 ][ 1 ] ],
+			CubePos[ PosIndex[ i ][ 2 ][ 0 ] ][ PosIndex[ i ][ 2 ][ 1 ] ]
+		) ;
+		if( HitResult.HitFlag )
+		{
+			DistanceSquare = VSquareSizeD( VSubD( LinePos1, HitResult.Position ) ) ;
+			if( Result.HitFlag == FALSE || MinDistanceSquare > DistanceSquare )
+			{
+				Result.HitFlag = TRUE ;
+				MinDistanceSquare = DistanceSquare ;
+				Result.Position = HitResult.Position ;
+			}
+		}
+	}
+
+	return Result ;
+}
+
+
 // 球と球の当たり判定( TRUE:当たっている  FALSE:当たっていない )
 extern int HitCheck_Sphere_Sphere( VECTOR Sphere1CenterPos, float Sphere1R, VECTOR Sphere2CenterPos, float Sphere2R )
 {
@@ -3150,6 +5896,30 @@ extern int HitCheck_Sphere_Sphere( VECTOR Sphere1CenterPos, float Sphere1R, VECT
 	Sa.y = Sphere1CenterPos.y - Sphere2CenterPos.y ;
 	Sa.z = Sphere1CenterPos.z - Sphere2CenterPos.z ;
 	return Sa.x * Sa.x + Sa.y * Sa.y + Sa.z * Sa.z <= ( Sphere1R + Sphere2R ) * ( Sphere1R + Sphere2R ) ? TRUE : FALSE ;
+}
+
+// 球と球の当たり判定( TRUE:当たっている  FALSE:当たっていない )
+extern int HitCheck_Sphere_SphereD( VECTOR_D Sphere1CenterPos, double Sphere1R, VECTOR_D Sphere2CenterPos, double Sphere2R )
+{
+	VECTOR_D Sa ;
+
+	// 二つの球の中心座標の距離が二つの球の半径を足した値より小さい場合は当たっている
+	Sa.x = Sphere1CenterPos.x - Sphere2CenterPos.x ;
+	Sa.y = Sphere1CenterPos.y - Sphere2CenterPos.y ;
+	Sa.z = Sphere1CenterPos.z - Sphere2CenterPos.z ;
+	return Sa.x * Sa.x + Sa.y * Sa.y + Sa.z * Sa.z <= ( Sphere1R + Sphere2R ) * ( Sphere1R + Sphere2R ) ? TRUE : FALSE ;
+}
+
+// 球とカプセルの当たり判定( TRUE:当たっている  FALSE:当たっていない )
+extern int HitCheck_Sphere_Capsule( VECTOR SphereCenterPos, float SphereR, VECTOR CapPos1, VECTOR CapPos2, float CapR )
+{
+	return Segment_Point_MinLength_Square( CapPos1, CapPos2, SphereCenterPos ) <= ( CapR + SphereR ) * ( CapR + SphereR ) ? TRUE : FALSE ;
+}
+
+// 球とカプセルの当たり判定( TRUE:当たっている  FALSE:当たっていない )
+extern int HitCheck_Sphere_CapsuleD( VECTOR_D SphereCenterPos, double SphereR, VECTOR_D CapPos1, VECTOR_D CapPos2, double CapR )
+{
+	return Segment_Point_MinLength_SquareD( CapPos1, CapPos2, SphereCenterPos ) <= ( CapR + SphereR ) * ( CapR + SphereR ) ? TRUE : FALSE ;
 }
 
 // 球と三角形の当たり判定( TRUE:当たっている  FALSE:当たっていない )
@@ -3167,6 +5937,21 @@ extern int HitCheck_Sphere_Triangle( VECTOR SphereCenterPos, float SphereR, VECT
 	return Sa.x * Sa.x + Sa.y * Sa.y + Sa.z * Sa.z <= SphereR * SphereR ? TRUE : FALSE ;
 }
 
+// 球と三角形の当たり判定( TRUE:当たっている  FALSE:当たっていない )
+extern int HitCheck_Sphere_TriangleD( VECTOR_D SphereCenterPos, double SphereR, VECTOR_D TrianglePos1, VECTOR_D TrianglePos2, VECTOR_D TrianglePos3 )
+{
+	VECTOR_D MinPosition, Sa ;
+
+	// 球と三角形の最近点を取得する
+	MinPosition = Get_Triangle_Point_MinPositionD( SphereCenterPos, TrianglePos1, TrianglePos2, TrianglePos3 ) ;
+
+	// 最近点との距離が球の半径より近いかどうかで当たっているかどうかを判定
+	Sa.x = MinPosition.x - SphereCenterPos.x ;
+	Sa.y = MinPosition.y - SphereCenterPos.y ;
+	Sa.z = MinPosition.z - SphereCenterPos.z ;
+	return Sa.x * Sa.x + Sa.y * Sa.y + Sa.z * Sa.z <= SphereR * SphereR ? TRUE : FALSE ;
+}
+
 // カプセル同士の当たり判定( TRUE:当たっている  FALSE:当たっていない )
 extern int HitCheck_Capsule_Capsule( VECTOR Cap1Pos1, VECTOR Cap1Pos2, float Cap1R, VECTOR Cap2Pos1, VECTOR Cap2Pos2, float Cap2R )
 {
@@ -3176,12 +5961,30 @@ extern int HitCheck_Capsule_Capsule( VECTOR Cap1Pos1, VECTOR Cap1Pos2, float Cap
 	return MinLength < ( Cap1R + Cap2R ) * ( Cap1R + Cap2R ) ? TRUE : FALSE ;
 }
 
+// カプセル同士の当たり判定( TRUE:当たっている  FALSE:当たっていない )
+extern int HitCheck_Capsule_CapsuleD( VECTOR_D Cap1Pos1, VECTOR_D Cap1Pos2, double Cap1R, VECTOR_D Cap2Pos1, VECTOR_D Cap2Pos2, double Cap2R )
+{
+	double MinLength ;
+
+	MinLength = Segment_Segment_MinLength_SquareD( Cap1Pos1, Cap1Pos2, Cap2Pos1, Cap2Pos2 ) ;
+	return MinLength < ( Cap1R + Cap2R ) * ( Cap1R + Cap2R ) ? TRUE : FALSE ;
+}
+
 // カプセルと三角形の当たり判定( TRUE:当たっている  FALSE:当たっていない )
 extern int HitCheck_Capsule_Triangle( VECTOR CapPos1, VECTOR CapPos2, float CapR, VECTOR TrianglePos1, VECTOR TrianglePos2, VECTOR TrianglePos3 )
 {
 	float MinLength ;
 
 	MinLength = Segment_Triangle_MinLength_Square( CapPos1, CapPos2, TrianglePos1, TrianglePos2, TrianglePos3 ) ;
+	return MinLength < CapR * CapR ? TRUE : FALSE ;
+}
+
+// カプセルと三角形の当たり判定( TRUE:当たっている  FALSE:当たっていない )
+extern int HitCheck_Capsule_TriangleD( VECTOR_D CapPos1, VECTOR_D CapPos2, double CapR, VECTOR_D TrianglePos1, VECTOR_D TrianglePos2, VECTOR_D TrianglePos3 )
+{
+	double MinLength ;
+
+	MinLength = Segment_Triangle_MinLength_SquareD( CapPos1, CapPos2, TrianglePos1, TrianglePos2, TrianglePos3 ) ;
 	return MinLength < CapR * CapR ? TRUE : FALSE ;
 }
 
@@ -3243,10 +6046,51 @@ extern MATRIX MGetIdent( void )
 	return Result ;
 }
 
+// 単位行列を得る
+extern MATRIX_D MGetIdentD( void )
+{
+	static MATRIX_D Result = 
+	{
+		1.0, 0.0, 0.0, 0.0,
+		0.0, 1.0, 0.0, 0.0,
+		0.0, 0.0, 1.0, 0.0,
+		0.0, 0.0, 0.0, 1.0 
+	} ;
+	return Result ;
+}
+
 // 行列の乗算を行う
 extern MATRIX MMult( MATRIX In1, MATRIX In2 )
 {
 	MATRIX Result =
+	{
+		In1.m[0][0] * In2.m[0][0] + In1.m[0][1] * In2.m[1][0] + In1.m[0][2] * In2.m[2][0] + In1.m[0][3] * In2.m[3][0],
+		In1.m[0][0] * In2.m[0][1] + In1.m[0][1] * In2.m[1][1] + In1.m[0][2] * In2.m[2][1] + In1.m[0][3] * In2.m[3][1],
+		In1.m[0][0] * In2.m[0][2] + In1.m[0][1] * In2.m[1][2] + In1.m[0][2] * In2.m[2][2] + In1.m[0][3] * In2.m[3][2],
+		In1.m[0][0] * In2.m[0][3] + In1.m[0][1] * In2.m[1][3] + In1.m[0][2] * In2.m[2][3] + In1.m[0][3] * In2.m[3][3],
+
+		In1.m[1][0] * In2.m[0][0] + In1.m[1][1] * In2.m[1][0] + In1.m[1][2] * In2.m[2][0] + In1.m[1][3] * In2.m[3][0],
+		In1.m[1][0] * In2.m[0][1] + In1.m[1][1] * In2.m[1][1] + In1.m[1][2] * In2.m[2][1] + In1.m[1][3] * In2.m[3][1],
+		In1.m[1][0] * In2.m[0][2] + In1.m[1][1] * In2.m[1][2] + In1.m[1][2] * In2.m[2][2] + In1.m[1][3] * In2.m[3][2],
+		In1.m[1][0] * In2.m[0][3] + In1.m[1][1] * In2.m[1][3] + In1.m[1][2] * In2.m[2][3] + In1.m[1][3] * In2.m[3][3],
+
+		In1.m[2][0] * In2.m[0][0] + In1.m[2][1] * In2.m[1][0] + In1.m[2][2] * In2.m[2][0] + In1.m[2][3] * In2.m[3][0],
+		In1.m[2][0] * In2.m[0][1] + In1.m[2][1] * In2.m[1][1] + In1.m[2][2] * In2.m[2][1] + In1.m[2][3] * In2.m[3][1],
+		In1.m[2][0] * In2.m[0][2] + In1.m[2][1] * In2.m[1][2] + In1.m[2][2] * In2.m[2][2] + In1.m[2][3] * In2.m[3][2],
+		In1.m[2][0] * In2.m[0][3] + In1.m[2][1] * In2.m[1][3] + In1.m[2][2] * In2.m[2][3] + In1.m[2][3] * In2.m[3][3],
+
+		In1.m[3][0] * In2.m[0][0] + In1.m[3][1] * In2.m[1][0] + In1.m[3][2] * In2.m[2][0] + In1.m[3][3] * In2.m[3][0],
+		In1.m[3][0] * In2.m[0][1] + In1.m[3][1] * In2.m[1][1] + In1.m[3][2] * In2.m[2][1] + In1.m[3][3] * In2.m[3][1],
+		In1.m[3][0] * In2.m[0][2] + In1.m[3][1] * In2.m[1][2] + In1.m[3][2] * In2.m[2][2] + In1.m[3][3] * In2.m[3][2],
+		In1.m[3][0] * In2.m[0][3] + In1.m[3][1] * In2.m[1][3] + In1.m[3][2] * In2.m[2][3] + In1.m[3][3] * In2.m[3][3]
+	} ;
+	return Result ;
+}
+
+// 行列の乗算を行う
+extern MATRIX_D MMultD( MATRIX_D In1, MATRIX_D In2 )
+{
+	MATRIX_D Result =
 	{
 		In1.m[0][0] * In2.m[0][0] + In1.m[0][1] * In2.m[1][0] + In1.m[0][2] * In2.m[2][0] + In1.m[0][3] * In2.m[3][0],
 		In1.m[0][0] * In2.m[0][1] + In1.m[0][1] * In2.m[1][1] + In1.m[0][2] * In2.m[2][1] + In1.m[0][3] * In2.m[3][1],
@@ -3284,10 +6128,36 @@ extern MATRIX MScale( MATRIX InM, float Scale )
 	return Result ;
 }
 
+// 行列のスケーリングを行う
+extern MATRIX_D MScaleD( MATRIX_D InM, double Scale )
+{
+	MATRIX_D Result =
+	{
+		InM.m[0][0] * Scale, InM.m[0][1] * Scale, InM.m[0][2] * Scale, InM.m[0][3] * Scale, 
+		InM.m[1][0] * Scale, InM.m[1][1] * Scale, InM.m[1][2] * Scale, InM.m[1][3] * Scale, 
+		InM.m[2][0] * Scale, InM.m[2][1] * Scale, InM.m[2][2] * Scale, InM.m[2][3] * Scale, 
+		InM.m[3][0] * Scale, InM.m[3][1] * Scale, InM.m[3][2] * Scale, InM.m[3][3] * Scale
+	} ;
+	return Result ;
+}
+
 // 行列の足し算を行う
 extern MATRIX MAdd( MATRIX In1, MATRIX In2 )
 {
 	MATRIX Result =
+	{
+		In1.m[0][0] + In2.m[0][0], In1.m[0][1] + In2.m[0][1], In1.m[0][2] + In2.m[0][2], In1.m[0][3] + In2.m[0][3], 
+		In1.m[1][0] + In2.m[1][0], In1.m[1][1] + In2.m[1][1], In1.m[1][2] + In2.m[1][2], In1.m[1][3] + In2.m[1][3], 
+		In1.m[2][0] + In2.m[2][0], In1.m[2][1] + In2.m[2][1], In1.m[2][2] + In2.m[2][2], In1.m[2][3] + In2.m[2][3], 
+		In1.m[3][0] + In2.m[3][0], In1.m[3][1] + In2.m[3][1], In1.m[3][2] + In2.m[3][2], In1.m[3][3] + In2.m[3][3]
+	} ;
+	return Result ;
+}
+
+// 行列の足し算を行う
+extern MATRIX_D MAddD( MATRIX_D In1, MATRIX_D In2 )
+{
+	MATRIX_D Result =
 	{
 		In1.m[0][0] + In2.m[0][0], In1.m[0][1] + In2.m[0][1], In1.m[0][2] + In2.m[0][2], In1.m[0][3] + In2.m[0][3], 
 		In1.m[1][0] + In2.m[1][0], In1.m[1][1] + In2.m[1][1], In1.m[1][2] + In2.m[1][2], In1.m[1][3] + In2.m[1][3], 
@@ -3310,6 +6180,19 @@ extern MATRIX MGetScale( VECTOR Scale )
 	return Result ;
 }
 
+// 拡大行列を得る
+extern MATRIX_D MGetScaleD( VECTOR_D Scale )
+{
+	MATRIX_D Result =
+	{
+		Scale.x,     0.0,     0.0, 0.0,
+		    0.0, Scale.y,     0.0, 0.0,
+		    0.0,     0.0, Scale.z, 0.0,
+		    0.0,     0.0,     0.0, 1.0
+	} ;
+	return Result ;
+}
+
 // Ｘ軸回転行列を得る
 extern MATRIX MGetRotX( float XAxisRotate )
 {
@@ -3322,6 +6205,22 @@ extern MATRIX MGetRotX( float XAxisRotate )
 		0.0f,  Cos,  Sin, 0.0f,
 		0.0f, -Sin,  Cos, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f
+	} ;
+	return Result ;
+}
+
+// Ｘ軸回転行列を得る
+extern MATRIX_D MGetRotXD( double XAxisRotate )
+{
+	double Sin, Cos ;
+	_SINCOSD( XAxisRotate, &Sin, &Cos ) ;
+
+	MATRIX_D Result =
+	{
+		1.0,  0.0,  0.0, 0.0,
+		0.0,  Cos,  Sin, 0.0,
+		0.0, -Sin,  Cos, 0.0,
+		0.0,  0.0,  0.0, 1.0
 	} ;
 	return Result ;
 }
@@ -3342,6 +6241,22 @@ extern MATRIX MGetRotY( float YAxisRotate )
 	return Result ;
 }
 
+// Ｙ軸回転行列を得る
+extern MATRIX_D MGetRotYD( double YAxisRotate )
+{
+	double Sin, Cos ;
+	_SINCOSD( YAxisRotate, &Sin, &Cos ) ;
+
+	MATRIX_D Result =
+	{
+		 Cos, 0.0, -Sin, 0.0,
+		 0.0, 1.0,  0.0, 0.0,
+		 Sin, 0.0,  Cos, 0.0,
+		 0.0, 0.0,  0.0, 1.0
+	} ;
+	return Result ;
+}
+
 // Ｚ軸回転行列を得る
 extern MATRIX MGetRotZ( float ZAxisRotate )
 {
@@ -3354,6 +6269,22 @@ extern MATRIX MGetRotZ( float ZAxisRotate )
 		-Sin,  Cos, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f
+	} ;
+	return Result ;
+}
+
+// Ｚ軸回転行列を得る
+extern MATRIX_D MGetRotZD( double ZAxisRotate )
+{
+	double Sin, Cos ;
+	_SINCOSD( ZAxisRotate, &Sin, &Cos ) ;
+
+	MATRIX_D Result =
+	{
+		 Cos,  Sin, 0.0, 0.0,
+		-Sin,  Cos, 0.0, 0.0,
+		 0.0,  0.0, 1.0, 0.0,
+		 0.0,  0.0, 0.0, 1.0
 	} ;
 	return Result ;
 }
@@ -3434,6 +6365,82 @@ extern MATRIX MGetRotAxis( VECTOR RotateAxis, float Rotate )
 	return Result ;
 }
 
+// 指定軸で指定角度回転する行列を得る
+extern MATRIX_D MGetRotAxisD( VECTOR_D RotateAxis, double Rotate )
+{
+	MATRIX_D Result ;
+	VECTOR_D xv = { 1.0, 0.0, 0.0 }, yv = { 0.0, 1.0, 0.0 }, zv = { 0.0, 0.0, 1.0 } ;
+	VECTOR_D xv2, yv2, zv2, xv3, yv3, zv3 ;
+	double f, Sin, Cos ;
+
+	zv2 = VNormD( RotateAxis ) ;
+	yv2 = VGetD( 0.0, 1.0, 0.0 ) ;
+	if( VSquareSizeD( VCrossD( yv2, zv2 ) ) < 0.00001 )
+		yv2 = VGetD( 0.0, 0.0, 1.0 ) ;
+	xv2 = VCrossD( zv2, yv2 ) ;
+	yv2 = VNormD( VCrossD( xv2, zv2 ) ) ;
+	xv2 = VNormD( xv2 ) ;
+
+	xv3.x = xv2.x * xv.x + xv2.y * xv.y + xv2.z * xv.z ;
+	xv3.y = yv2.x * xv.x + yv2.y * xv.y + yv2.z * xv.z ;
+	xv3.z = zv2.x * xv.x + zv2.y * xv.y + zv2.z * xv.z ;
+
+	yv3.x = xv2.x * yv.x + xv2.y * yv.y + xv2.z * yv.z ;
+	yv3.y = yv2.x * yv.x + yv2.y * yv.y + yv2.z * yv.z ;
+	yv3.z = zv2.x * yv.x + zv2.y * yv.y + zv2.z * yv.z ;
+
+	zv3.x = xv2.x * zv.x + xv2.y * zv.y + xv2.z * zv.z ;
+	zv3.y = yv2.x * zv.x + yv2.y * zv.y + yv2.z * zv.z ;
+	zv3.z = zv2.x * zv.x + zv2.y * zv.y + zv2.z * zv.z ;
+
+	_SINCOSD( Rotate, &Sin, &Cos ) ;
+	f     = xv3.x * Cos - xv3.y * Sin ;
+	xv3.y = xv3.x * Sin + xv3.y * Cos ;
+	xv3.x = f ;
+
+	f     = yv3.x * Cos - yv3.y * Sin ;
+	yv3.y = yv3.x * Sin + yv3.y * Cos ;
+	yv3.x = f ;
+
+	f     = zv3.x * Cos - zv3.y * Sin ;
+	zv3.y = zv3.x * Sin + zv3.y * Cos ;
+	zv3.x = f ;
+
+	xv.x = xv2.x * xv3.x + yv2.x * xv3.y + zv2.x * xv3.z ;
+	xv.y = xv2.y * xv3.x + yv2.y * xv3.y + zv2.y * xv3.z ;
+	xv.z = xv2.z * xv3.x + yv2.z * xv3.y + zv2.z * xv3.z ;
+
+	yv.x = xv2.x * yv3.x + yv2.x * yv3.y + zv2.x * yv3.z ;
+	yv.y = xv2.y * yv3.x + yv2.y * yv3.y + zv2.y * yv3.z ;
+	yv.z = xv2.z * yv3.x + yv2.z * yv3.y + zv2.z * yv3.z ;
+
+	zv.x = xv2.x * zv3.x + yv2.x * zv3.y + zv2.x * zv3.z ;
+	zv.y = xv2.y * zv3.x + yv2.y * zv3.y + zv2.y * zv3.z ;
+	zv.z = xv2.z * zv3.x + yv2.z * zv3.y + zv2.z * zv3.z ;
+
+	Result.m[ 0 ][ 0 ] = xv.x ;
+	Result.m[ 1 ][ 0 ] = xv.y ;
+	Result.m[ 2 ][ 0 ] = xv.z ;
+	Result.m[ 3 ][ 0 ] = 0.0 ;
+
+	Result.m[ 0 ][ 1 ] = yv.x ;
+	Result.m[ 1 ][ 1 ] = yv.y ;
+	Result.m[ 2 ][ 1 ] = yv.z ;
+	Result.m[ 3 ][ 1 ] = 0.0 ;
+
+	Result.m[ 0 ][ 2 ] = zv.x ;
+	Result.m[ 1 ][ 2 ] = zv.y ;
+	Result.m[ 2 ][ 2 ] = zv.z ;
+	Result.m[ 3 ][ 2 ] = 0.0 ;
+
+	Result.m[ 0 ][ 3 ] = 0.0 ;
+	Result.m[ 1 ][ 3 ] = 0.0 ;
+	Result.m[ 2 ][ 3 ] = 0.0 ;
+	Result.m[ 3 ][ 3 ] = 1.0 ;
+
+	return Result ;
+}
+
 // In1 の向きから In2 の向きへ変換する回転行列を得る
 extern MATRIX MGetRotVec2( VECTOR In1, VECTOR In2 )
 {
@@ -3447,6 +6454,19 @@ extern MATRIX MGetRotVec2( VECTOR In1, VECTOR In2 )
 	return MGetRotAxis( av, rad ) ;
 }
 
+// In1 の向きから In2 の向きへ変換する回転行列を得る
+extern MATRIX_D MGetRotVec2D( VECTOR_D In1, VECTOR_D In2 )
+{
+	VECTOR_D av ;
+	double rad ;
+
+	av = VCrossD( In1, In2 ) ;
+	if( VSquareSizeD( av ) < 0.0000001 )
+		av = VGetD( 1.0, 0.0, 0.0 ) ;
+	rad = VRadD( In1, In2 ) ;
+	return MGetRotAxisD( av, rad ) ;
+}
+
 // 平行移動行列を得る
 extern MATRIX MGetTranslate( VECTOR Trans )
 {
@@ -3456,6 +6476,20 @@ extern MATRIX MGetTranslate( VECTOR Trans )
 		0.0f, 1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
 		Trans.x, Trans.y, Trans.z, 1.0f
+	} ;
+
+	return Result ;
+}
+
+// 平行移動行列を得る
+extern MATRIX_D MGetTranslateD( VECTOR_D Trans )
+{
+	MATRIX_D Result =
+	{
+		1.0, 0.0, 0.0, 0.0,
+		0.0, 1.0, 0.0, 0.0,
+		0.0, 0.0, 1.0, 0.0,
+		Trans.x, Trans.y, Trans.z, 1.0
 	} ;
 
 	return Result ;
@@ -3473,6 +6507,22 @@ extern MATRIX MGetAxis1( VECTOR XAxis, VECTOR YAxis, VECTOR ZAxis, VECTOR Pos )
 		YAxis.x, YAxis.y, YAxis.z, 0.0f,
 		ZAxis.x, ZAxis.y, ZAxis.z, 0.0f,
 		Pos.x,   Pos.y,   Pos.z,   1.0f,
+	} ;
+	return Result ;
+}
+
+// 指定の３軸ローカルのベクトルを基本軸上のベクトルに変換する行列を得る
+// x' = XAxis.x * x + YAixs.x * y + ZAxis.z * z + Pos.x
+// y' = XAxis.y * x + YAixs.y * y + ZAxis.y * z + Pos.y
+// z' = XAxis.z * x + YAixs.z * y + ZAxis.z * z + Pos.z
+extern MATRIX_D MGetAxis1D( VECTOR_D XAxis, VECTOR_D YAxis, VECTOR_D ZAxis, VECTOR_D Pos )
+{
+	MATRIX_D Result =
+	{
+		XAxis.x, XAxis.y, XAxis.z, 0.0,
+		YAxis.x, YAxis.y, YAxis.z, 0.0,
+		ZAxis.x, ZAxis.y, ZAxis.z, 0.0,
+		Pos.x,   Pos.y,   Pos.z,   1.0,
 	} ;
 	return Result ;
 }
@@ -3495,10 +6545,41 @@ extern MATRIX MGetAxis2( VECTOR XAxis, VECTOR YAxis, VECTOR ZAxis, VECTOR Pos )
 	return Result ;
 }
 
+// 基本軸上のベクトルを指定の３軸上に投影したベクトルに変換する行列を得る
+// x' = XAxis.x * ( x - Pos.x ) + XAxis.y * ( x - Pos.x ) + XAxis.z * ( x - Pos.x )
+// y' = YAxis.x * ( x - Pos.x ) + YAxis.y * ( x - Pos.x ) + YAxis.z * ( x - Pos.x )
+// z' = ZAxis.x * ( x - Pos.x ) + ZAxis.y * ( x - Pos.x ) + ZAxis.z * ( x - Pos.x )
+extern MATRIX_D MGetAxis2D( VECTOR_D XAxis, VECTOR_D YAxis, VECTOR_D ZAxis, VECTOR_D Pos )
+{
+	MATRIX_D Result =
+	{
+		XAxis.x, YAxis.x, ZAxis.x, 0.0,
+		XAxis.y, YAxis.y, ZAxis.y, 0.0,
+		XAxis.z, YAxis.z, ZAxis.z, 0.0,
+		-( Pos.x * XAxis.x + Pos.y * XAxis.y + Pos.z * XAxis.z ),
+		-( Pos.x * YAxis.x + Pos.y * YAxis.y + Pos.z * YAxis.z ),
+		-( Pos.x * ZAxis.x + Pos.y * ZAxis.y + Pos.z * ZAxis.z ), 1.0
+	} ;
+	return Result ;
+}
+
 // 転置行列を得る
 extern MATRIX MTranspose( MATRIX InM )
 {
 	MATRIX Result =
+	{
+		InM.m[ 0 ][ 0 ], InM.m[ 1 ][ 0 ], InM.m[ 2 ][ 0 ], InM.m[ 3 ][ 0 ], 
+		InM.m[ 0 ][ 1 ], InM.m[ 1 ][ 1 ], InM.m[ 2 ][ 1 ], InM.m[ 3 ][ 1 ], 
+		InM.m[ 0 ][ 2 ], InM.m[ 1 ][ 2 ], InM.m[ 2 ][ 2 ], InM.m[ 3 ][ 2 ], 
+		InM.m[ 0 ][ 3 ], InM.m[ 1 ][ 3 ], InM.m[ 2 ][ 3 ], InM.m[ 3 ][ 3 ]
+	} ;
+	return Result ;
+}
+
+// 転置行列を得る
+extern MATRIX_D MTransposeD( MATRIX_D InM )
+{
+	MATRIX_D Result =
 	{
 		InM.m[ 0 ][ 0 ], InM.m[ 1 ][ 0 ], InM.m[ 2 ][ 0 ], InM.m[ 3 ][ 0 ], 
 		InM.m[ 0 ][ 1 ], InM.m[ 1 ][ 1 ], InM.m[ 2 ][ 1 ], InM.m[ 3 ][ 1 ], 
@@ -3521,6 +6602,19 @@ extern MATRIX MInverse( MATRIX InM )
 	return Result ;
 }
 
+// 逆行列を得る
+extern MATRIX_D MInverseD( MATRIX_D InM )
+{
+	MATRIX_D Result ;
+
+	if( CreateInverseMatrixD( &Result, &InM ) < 0 )
+	{
+		return MGetIdentD() ;
+	}
+	
+	return Result ;
+}
+
 // 拡大行列のＸ軸、Ｙ軸、Ｚ軸の拡大率を得る
 extern VECTOR MGetSize( MATRIX InM )
 {
@@ -3529,6 +6623,18 @@ extern VECTOR MGetSize( MATRIX InM )
 	Result.x = _SQRT( InM.m[ 0 ][ 0 ] * InM.m[ 0 ][ 0 ] + InM.m[ 1 ][ 0 ] * InM.m[ 1 ][ 0 ] + InM.m[ 2 ][ 0 ] * InM.m[ 2 ][ 0 ] ) ;
 	Result.y = _SQRT( InM.m[ 0 ][ 1 ] * InM.m[ 0 ][ 1 ] + InM.m[ 1 ][ 1 ] * InM.m[ 1 ][ 1 ] + InM.m[ 2 ][ 1 ] * InM.m[ 2 ][ 1 ] ) ;
 	Result.z = _SQRT( InM.m[ 0 ][ 2 ] * InM.m[ 0 ][ 2 ] + InM.m[ 1 ][ 2 ] * InM.m[ 1 ][ 2 ] + InM.m[ 2 ][ 2 ] * InM.m[ 2 ][ 2 ] ) ;
+
+	return Result ;
+}
+
+// 拡大行列のＸ軸、Ｙ軸、Ｚ軸の拡大率を得る
+extern VECTOR_D MGetSizeD( MATRIX_D InM )
+{
+	VECTOR_D Result ;
+
+	Result.x = _SQRTD( InM.m[ 0 ][ 0 ] * InM.m[ 0 ][ 0 ] + InM.m[ 1 ][ 0 ] * InM.m[ 1 ][ 0 ] + InM.m[ 2 ][ 0 ] * InM.m[ 2 ][ 0 ] ) ;
+	Result.y = _SQRTD( InM.m[ 0 ][ 1 ] * InM.m[ 0 ][ 1 ] + InM.m[ 1 ][ 1 ] * InM.m[ 1 ][ 1 ] + InM.m[ 2 ][ 1 ] * InM.m[ 2 ][ 1 ] ) ;
+	Result.z = _SQRTD( InM.m[ 0 ][ 2 ] * InM.m[ 0 ][ 2 ] + InM.m[ 1 ][ 2 ] * InM.m[ 1 ][ 2 ] + InM.m[ 2 ][ 2 ] * InM.m[ 2 ][ 2 ] ) ;
 
 	return Result ;
 }
@@ -3600,12 +6706,37 @@ extern VECTOR VNorm( VECTOR In )
 	return Result ;
 }
 
+// ベクトルの正規化
+extern VECTOR_D VNormD( VECTOR_D In )
+{
+	double Square ;
+	double Size ;
+
+	Square = In.x * In.x + In.y * In.y + In.z * In.z ;
+	if( Square < 0.0000001 )
+	{
+		return VGetD( -1.0, -1.0, -1.0 ) ;
+	}
+
+	Size = _SQRTD( Square ) ;
+	VECTOR_D Result = { In.x / Size, In.y / Size, In.z / Size } ;
+	return Result ;
+}
+
 // ベクトルのサイズ
 extern float  VSize( VECTOR In )
 {
 	float Square ;
 	Square = In.x * In.x + In.y * In.y + In.z * In.z ;
 	return Square < 0.0000001f ? 0.0f : _SQRT( Square ) ;
+}
+
+// ベクトルのサイズ
+extern double  VSizeD( VECTOR_D In )
+{
+	double Square ;
+	Square = In.x * In.x + In.y * In.y + In.z * In.z ;
+	return Square < 0.0000001 ? 0.0 : _SQRTD( Square ) ;
 }
 
 #if 0
@@ -3660,12 +6791,35 @@ extern float VCos( VECTOR In1, VECTOR In2 )
 	return Result ;
 }
 
+// 二つのベクトルが成す角のコサイン値を得る
+extern double VCosD( VECTOR_D In1, VECTOR_D In2 )
+{
+	double Result ;
+
+	Result = VDotD( VNormD( In1 ), VNormD( In2 ) ) ;
+	if( Result < -1.0 )
+	{
+		return -1.0 ;
+	}
+	else
+	if( Result > 1.0 )
+	{
+		return 1.0 ;
+	}
+	return Result ;
+}
+
 // 二つのベクトルが成す角の角度を得る( 単位：ラジアン )
 extern float VRad( VECTOR In1, VECTOR In2 )
 {
 	return _ACOS( VCos( In1, In2 ) ) ;
 }
 
+// 二つのベクトルが成す角の角度を得る( 単位：ラジアン )
+extern double VRadD( VECTOR_D In1, VECTOR_D In2 )
+{
+	return _ACOSD( VCosD( In1, In2 ) ) ;
+}
 
 
 
@@ -3674,8 +6828,13 @@ extern float VRad( VECTOR In1, VECTOR In2 )
 
 
 
+
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 
 

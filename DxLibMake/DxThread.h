@@ -2,34 +2,47 @@
 // 
 // 		ＤＸライブラリ		スレッド関係プログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 #ifndef __DXTHREAD_H__
 #define __DXTHREAD_H__
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxCompileConfig.h"
 
-#if !defined( __ANDROID )
+#ifdef __WINDOWS__
 #include "Windows/DxThreadWin.h"
+#endif
+
+#ifdef __PSVITA
+#include "PSVita/DxThreadPSVita.h"
+#endif
+
+#ifdef __PS4
+#include "PS4/DxThreadPS4.h"
 #endif
 
 #ifdef __ANDROID
 #include "Android/DxThreadAndroid.h"
 #endif
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
+
+// マクロ定義 --------------------------------------------------------------------
 
 // 優先順位
 #define DX_THREAD_PRIORITY_LOWEST			(0)
 #define DX_THREAD_PRIORITY_BELOW_NORMAL		(1)
 #define DX_THREAD_PRIORITY_NORMAL			(2)
 #define DX_THREAD_PRIORITY_HIGHEST			(3)
+#define DX_THREAD_PRIORITY_NUM				(4)
 
 #if !defined( __BCC ) || defined( _DEBUG )
 	#define CRITICALSECTION_LOCK( csection )			CriticalSection_Lock( (csection), __FILE__, __LINE__ )
@@ -39,7 +52,7 @@ namespace DxLib
 
 // 型定義 ------------------------------------------------------------------------
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // テーブル-----------------------------------------------------------------------
 
@@ -54,7 +67,7 @@ extern	int			Thread_IsValid( THREAD_INFO *pThreadInfo ) ;															// ス�
 extern	void		Thread_SetPriority( THREAD_INFO *pThreadInfo, int Priority /* DX_THREAD_PRIORITY_LOWEST など */ ) ;		// スレッドの実行優先順位を設定する
 extern	DWORD		Thread_GetCurrentId( void ) ;																			// カレントスレッドのＩＤを取得する
 extern	DWORD		Thread_GetId( THREAD_INFO *pThreadInfo ) ;																// スレッドのＩＤを取得する
-extern	void		Thread_Suspend( void ) ;																				// スレッドを休止状態にする
+extern	void		Thread_Suspend( THREAD_INFO *pThreadInfo ) ;															// スレッドを休止状態にする
 extern	int			Thread_Resume( THREAD_INFO *pThreadInfo ) ;																// スレッドの休止状態を解除する( 0:休止状態じゃなかった  1:休止状態だった )
 
 extern	void		Thread_Sleep( DWORD MiliSecond ) ;																		// 指定時間スレッドを停止する
@@ -69,6 +82,10 @@ extern	int			CriticalSection_Lock( DX_CRITICAL_SECTION *pCSection ) ;										/
 #endif
 extern	int			CriticalSection_Unlock( DX_CRITICAL_SECTION *pCSection ) ;										// クリティカルセクションのロックを解放する
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // __DXTHREAD_H__

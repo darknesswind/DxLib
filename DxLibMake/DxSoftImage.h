@@ -2,30 +2,34 @@
 // 
 // 		ＤＸライブラリ		ソフトウェアで扱う画像プログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 #ifndef __DXSOFTIMAGE_H__
 #define __DXSOFTIMAGE_H__
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxCompileConfig.h"
 
 #ifndef DX_NON_SOFTIMAGE
 #include "DxHandle.h"
 #include "DxBaseImage.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
+
+// マクロ定義 --------------------------------------------------------------------
 
 // ソフトイメージハンドルの有効性チェック
 #define SFTIMGCHK( HAND, SPOINT )			HANDLECHK(       DX_HANDLETYPE_SOFTIMAGE, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
 #define SFTIMGCHK_ASYNC( HAND, SPOINT )		HANDLECHK_ASYNC( DX_HANDLETYPE_SOFTIMAGE, HAND, *( ( HANDLEINFO ** )&SPOINT ) )
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // ソフトイメージの情報構造体
 struct SOFTIMAGE
@@ -53,10 +57,34 @@ extern	int		TerminateSoftImageManage( void ) ;										// ソフトイメージ
 // 読み込み関連
 extern	int		InitializeSoftImageHandle( HANDLEINFO *HandleInfo ) ;															// ソフトウエアイメージハンドルの初期化
 extern	int		TerminateSoftImageHandle( HANDLEINFO *HandleInfo ) ;															// ソフトウエアイメージハンドルの後始末
-extern	int		LoadSoftImage_UseGParam( const TCHAR *FileName, int ASyncLoadFlag = FALSE ) ;									// LoadSoftImage のグローバル変数にアクセスしないバージョン
+extern	int		LoadSoftImage_UseGParam( const wchar_t *FileName, int ASyncLoadFlag = FALSE ) ;									// LoadSoftImage のグローバル変数にアクセスしないバージョン
 extern	int		LoadSoftImageToMem_UseGParam( void *FileImage, int FileImageSize, int ASyncLoadFlag = FALSE ) ;					// LoadSoftImageToMem のグローバル変数にアクセスしないバージョン
 
+
+// wchar_t版関数
+extern	int		LoadSoftImage_WCHAR_T(              const wchar_t *FileName ) ;
+#ifndef DX_NON_FONT
+extern	int		BltStringSoftImage_WCHAR_T(         int x, int y, const wchar_t *StrData, int DestSIHandle, int DestEdgeSIHandle = -1 ,                                        int VerticalFlag = FALSE ) ;
+extern	int		BltStringSoftImageToHandle_WCHAR_T(	int x, int y, const wchar_t *StrData, int DestSIHandle, int DestEdgeSIHandle /* 縁が必要ない場合は -1 */ , int FontHandle, int VerticalFlag = FALSE ) ;
+#endif // DX_NON_FONT
+
+#ifndef DX_NON_SAVEFUNCTION
+extern	int		SaveSoftImageToBmp_WCHAR_T(         const wchar_t *FilePath, int SIHandle ) ;
+#ifndef DX_NON_PNGREAD
+extern	int		SaveSoftImageToPng_WCHAR_T(         const wchar_t *FilePath, int SIHandle, int CompressionLevel ) ;
+#endif // DX_NON_PNGREAD
+#ifndef DX_NON_JPEGREAD
+extern	int		SaveSoftImageToJpeg_WCHAR_T(        const wchar_t *FilePath, int SIHandle, int Quality, int Sample2x1 ) ;
+#endif // DX_NON_JPEGREAD
+#endif // DX_NON_SAVEFUNCTION
+
+
+
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // DX_NON_SOFTIMAGE
 

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		Ｘファイル読み込みプログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -14,13 +14,16 @@
 
 // インクルード ---------------------------------
 #include "DxLog.h"
+#include "DxChar.h"
 #include "DxMemory.h"
 #include "DxSystem.h"
-#include "Windows/DxWindow.h"
-#include "Windows/DxGuid.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 -----------------------------------
 
@@ -247,7 +250,9 @@ struct X_TEXTUREFILENAME
 struct X_MESHFACE
 {
 	DWORD					nFaceVertexIndices ;				// 面定義インデックスの数
-	DWORD					faceVertexIndices[ MAX_INDEXNUM ] ;	// 面定義インデックス
+	DWORD					faceVertexIndicesFixedLength[ MAX_INDEXNUM ] ;	// 面定義インデックス( 固定長バッファ )
+	DWORD					*faceVertexIndices ;				// 面定義インデックス( 固定長バッファに収まらないときに使用 )
+
 } ;
 
 // メッシュテクスチャー座標
@@ -405,6 +410,15 @@ struct X_SKINWEIGHTS
 	X_FRAME					*Frame ;							// 関わっているフレームのデータ位置
 } ;
 
+// 関連付けされているオブジェクトの情報
+struct X_RELATION_OBJECT
+{
+	char					*ObjectName ;						// 関連付けされているオブジェクトの名前
+	int						ObjectNum ;							// 関連付けされているオブジェクトの数
+	int						ObjectMaxNum ;						// 関連付けできるオブジェクトの最大数
+	struct X_OBJECT			**Object ;							// 関連付けされているオブジェクトへのポインタ
+} ;
+
 // オブジェクトデータ型
 struct X_OBJECT
 {
@@ -419,8 +433,9 @@ struct X_OBJECT
 
 	int						RelationObjectNum ;					// 関連付けがされているオブジェクトの数
 	int						RelationObjectMaxNum ;				// 関連付けができるオブジェクトの数
-	struct X_OBJECT			**RelationObject ;					// 関連付けがされているオブジェクトへのポインタ
-	char					**RelationObjectName ;				// 関連付けがされているオブジェクトの名前
+	X_RELATION_OBJECT		*RelationObject ;					// 関連付けがされているオブジェクトの情報の配列
+//	struct X_OBJECT			**RelationObject ;					// 関連付けがされているオブジェクトへのポインタ
+//	char					**RelationObjectName ;				// 関連付けがされているオブジェクトの名前
 
 	struct X_OBJECT			*NextData ;							// 次のオブジェクトデータへのポインタ
 } ;
@@ -507,13 +522,13 @@ extern	int		PStrMoveB(		X_PSTRING *PStrBuf, int Code ) ;											// 指定の�
 extern	int		PStrMovePB(		X_PSTRING *PStrBuf, int Code ) ;											// 指定のトークンの次のトークンまで読み飛ばす
 extern	int		PStrKakkoSkipB(	X_PSTRING *PString ) ;														// 次に出てくる『{...}』を読み飛ばす(バイナリバージョン)
 
-#define PSTRC(x)			((unsigned char)((x)->StrBuf[(x)->StrOffset]))									// ポイントしている文字を得る
-#define PSTRP(x,y)			(&((x)->StrBuf[(x)->StrOffset + (y)]))											// ポイントしているアドレスを得る
-#define PSTRWORD(x,y)		(*((unsigned short *)PSTRP((x),(y))))											// ポイントしているアドレスのワード値を得る
-#define PSTRDWORD(x,y)		(*((unsigned int   *)PSTRP((x),(y))))											// ポイントしているアドレスのダブルワード値を得る
-#define PSTRFLOAT(x,y)		(*((float          *)PSTRP((x),(y))))											// ポイントしているアドレスのフロート値を得る
-#define PSTRDOUBLE(x,y)		((float)(*((double *)PSTRP((x),(y)))))											// ポイントしているアドレスのダブル値を得る
-#define PSTRMOV(x,y)		((x)->StrOffset += (y))															// ポイントしているアドレスを移動する
+#define PSTRC(x)			( ( unsigned char )( (x)->StrBuf[ (x)->StrOffset ] ) )							// ポイントしている文字を得る
+#define PSTRP(x,y)			( &( (x)->StrBuf[ (x)->StrOffset + (y) ] ) )									// ポイントしているアドレスを得る
+#define PSTRWORD(x,y)		( *( ( unsigned short * )PSTRP( (x), (y) ) ) )									// ポイントしているアドレスのワード値を得る
+#define PSTRDWORD(x,y)		( *( ( unsigned int   * )PSTRP( (x), (y) ) ) )									// ポイントしているアドレスのダブルワード値を得る
+#define PSTRFLOAT(x,y)		( *( ( float          * )PSTRP( (x), (y) ) ) )									// ポイントしているアドレスのフロート値を得る
+#define PSTRDOUBLE(x,y)		( ( float )( *( ( double * )PSTRP( (x), (y) ) ) ) )								// ポイントしているアドレスのダブル値を得る
+#define PSTRMOV(x,y)		( (x)->StrOffset += (y) )														// ポイントしているアドレスを移動する
 
 // Ｘファイル解析データ処理関連
 static	X_OBJECT	*AddObject( int TempType, char *Name, X_OBJECT *Parents, X_MODEL *Model ) ;				// オブジェクトデータを追加する
@@ -698,7 +713,7 @@ int StrCmp2( char *String, int StrLength, char *StrBuffer )
 
 	j = 0 ;
 	while( j + i < StrLength && *( String - i - j ) != ' ' && *( String - i - j ) != '\n' ) j ++ ;
-	_MEMCPY( StrBuffer, String - i - j + 1, j ) ;
+	_MEMCPY( StrBuffer, String - i - j + 1, ( size_t )j ) ;
 	StrBuffer[j] = '\0' ;
 
 	return 0 ;
@@ -714,7 +729,7 @@ char *StrTorkn( char *SertchStr, const char *SkipString )
 	if( SertchStr != NULL ) SertchString = SertchStr ;
 	if( SertchString == NULL ) return NULL ;
 
-	Length = lstrlenA( SkipString ) ;
+	Length = _STRLEN( SkipString ) ;
 
 	for( i = -1 ; i != Length ; SertchString ++ )
 	{
@@ -804,14 +819,14 @@ extern int SetPStr( X_PSTRING *PStrBuf, char *String, int StrOffset, char *SkipS
 	{
 		PStrBuf->StrBuf = String ;
 		PStrBuf->StrOffset = StrOffset ;
-		if( StrSize == -1 && binf == false ) PStrBuf->StrSize = lstrlenA( String ) ;
+		if( StrSize == -1 && binf == false ) PStrBuf->StrSize = _STRLEN( String ) ;
 		else PStrBuf->StrSize = StrSize ;
 	}
 
 	if( SkipStr )
 	{
 		_STRCPY( PStrBuf->SkipStr, SkipStr ) ;
-		PStrBuf->SkipStrLen = lstrlenA( SkipStr ) ;
+		PStrBuf->SkipStrLen = _STRLEN( SkipStr ) ;
 	}
 
 	// 終了
@@ -824,7 +839,7 @@ extern int PStrGet( X_PSTRING *PStrBuf, char *StrBuf )
 	int i, j ;
 	int Len ;
 
-	Len = lstrlenA( PStrBuf->SkipStr ) ;
+	Len = _STRLEN( PStrBuf->SkipStr ) ;
 
 	// スキップ文字でない文字を検索する
 	while( PStrBuf->StrOffset != PStrBuf->StrSize )
@@ -835,7 +850,7 @@ extern int PStrGet( X_PSTRING *PStrBuf, char *StrBuf )
 			PStrBuf->StrOffset ++ ;
 			while( PStrBuf->StrOffset != PStrBuf->StrSize )
 			{
-				if( CheckMultiByteChar( PStrBuf->StrBuf[PStrBuf->StrOffset], DX_CHARSET_SHFTJIS ) )
+				if( CHECK_SHIFTJIS_2BYTE( PStrBuf->StrBuf[PStrBuf->StrOffset] ) )
 				{
 					PStrBuf->StrOffset += 2 ;
 				}
@@ -849,7 +864,7 @@ extern int PStrGet( X_PSTRING *PStrBuf, char *StrBuf )
 			if( PStrBuf->StrOffset == PStrBuf->StrSize ) return -1 ;
 		}
 
-		if( CheckMultiByteChar( PStrBuf->StrBuf[PStrBuf->StrOffset], DX_CHARSET_SHFTJIS ) == FALSE )
+		if( CHECK_SHIFTJIS_2BYTE( PStrBuf->StrBuf[PStrBuf->StrOffset] ) == FALSE )
 		{
 			for( i = 0 ; i < Len ; i ++ )
 			{
@@ -858,7 +873,7 @@ extern int PStrGet( X_PSTRING *PStrBuf, char *StrBuf )
 		}
 		break ;
 R1 :
-		if( CheckMultiByteChar( PStrBuf->StrBuf[PStrBuf->StrOffset], DX_CHARSET_SHFTJIS ) )
+		if( CHECK_SHIFTJIS_2BYTE( PStrBuf->StrBuf[PStrBuf->StrOffset] ) )
 		{
 			PStrBuf->StrOffset += 2 ;
 		}
@@ -873,7 +888,7 @@ R1 :
 	j = 0 ;
 	while( PStrBuf->StrOffset < PStrBuf->StrSize )
 	{
-		if( CheckMultiByteChar( PStrBuf->StrBuf[PStrBuf->StrOffset], DX_CHARSET_SHFTJIS ) )
+		if( CHECK_SHIFTJIS_2BYTE( PStrBuf->StrBuf[PStrBuf->StrOffset] ) )
 		{
 			StrBuf[j]     = PStrBuf->StrBuf[PStrBuf->StrOffset] ;
 			StrBuf[j + 1] = PStrBuf->StrBuf[PStrBuf->StrOffset + 1] ;
@@ -937,7 +952,7 @@ extern int PStrKakkoSkip( X_PSTRING *PString )
 	// '{'があるまで読み飛ばす
 	while( PString->StrOffset != PString->StrSize )
 	{
-		if( CheckMultiByteChar( PString->StrBuf[PString->StrOffset], DX_CHARSET_SHFTJIS ) )
+		if( CHECK_SHIFTJIS_2BYTE( PString->StrBuf[PString->StrOffset] ) )
 		{
 			PString->StrOffset += 2 ;
 		}
@@ -958,7 +973,7 @@ extern int PStrKakkoSkip( X_PSTRING *PString )
 			PString->StrOffset += 2 ;
 			while( PString->StrOffset != PString->StrSize )
 			{
-				if( CheckMultiByteChar( PString->StrBuf[PString->StrOffset], DX_CHARSET_SHFTJIS ) )
+				if( CHECK_SHIFTJIS_2BYTE( PString->StrBuf[PString->StrOffset] ) )
 				{
 					PString->StrOffset += 2 ;
 				}
@@ -984,7 +999,7 @@ extern int PStrKakkoSkip( X_PSTRING *PString )
 			break ;
 
 		default :
-			if( CheckMultiByteChar( PString->StrBuf[PString->StrOffset], DX_CHARSET_SHFTJIS ) )
+			if( CHECK_SHIFTJIS_2BYTE( PString->StrBuf[PString->StrOffset] ) )
 			{
 				PString->StrOffset += 2 ;
 			}
@@ -1010,7 +1025,7 @@ extern int PStrMove( X_PSTRING *PStrBuf, char *CmpStr )
 	int i ;
 	int Len ;
 
-	Len = lstrlenA( CmpStr ) ;
+	Len = _STRLEN( CmpStr ) ;
 
 	// スキップ文字でない文字を検索する
 	while( PStrBuf->StrOffset != PStrBuf->StrSize )
@@ -1020,7 +1035,7 @@ extern int PStrMove( X_PSTRING *PStrBuf, char *CmpStr )
 			PStrBuf->StrOffset += 2 ;
 			while( PStrBuf->StrOffset != PStrBuf->StrSize )
 			{
-				if( CheckMultiByteChar( PStrBuf->StrBuf[PStrBuf->StrOffset], DX_CHARSET_SHFTJIS ) )
+				if( CHECK_SHIFTJIS_2BYTE( PStrBuf->StrBuf[PStrBuf->StrOffset] ) )
 				{
 					PStrBuf->StrOffset += 2 ;
 				}
@@ -1032,7 +1047,7 @@ extern int PStrMove( X_PSTRING *PStrBuf, char *CmpStr )
 			}
 		}
 
-		if( CheckMultiByteChar( PStrBuf->StrBuf[PStrBuf->StrOffset], DX_CHARSET_SHFTJIS ) )
+		if( CHECK_SHIFTJIS_2BYTE( PStrBuf->StrBuf[PStrBuf->StrOffset] ) )
 		{
 			PStrBuf->StrOffset += 2 ;
 		}
@@ -1093,7 +1108,7 @@ extern int PStrGetNameB( X_PSTRING *PStrBuf, char *StrBuf )
 {
 	if( PSTRWORD(PStrBuf,0) != TOKEN_NAME ) return -1 ;
 
-	_STRNCPY( StrBuf, PSTRP(PStrBuf,6), PSTRDWORD(PStrBuf,2) + 1 ) ;
+	_STRNCPY( StrBuf, PSTRP(PStrBuf,6), ( int )( PSTRDWORD(PStrBuf,2) + 1 ) ) ;
 	StrBuf[PSTRDWORD(PStrBuf,2)] = '\0' ;
 
 	// 終了
@@ -1254,11 +1269,11 @@ static X_OBJECT *AddObject( int TempType, char *Name, X_OBJECT *Parents, X_MODEL
 	DWORD jbm ;
 
 	// メモリ領域の確保
-	NameLen = lstrlenA( Name ) + 1 ;
-	jbm = DataSize + NameLen ;
+	NameLen = _STRLEN( Name ) + 1 ;
+	jbm = ( DWORD )( DataSize + NameLen ) ;
 	if( ( O = ( X_OBJECT * )DXALLOC( jbm ) ) == NULL )
 	{
-		DXST_ERRORLOG_ADD( _T( "Load XFile : オブジェクトのメモリ領域の確保に失敗しました" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"Load XFile : オブジェクトのメモリ領域の確保に失敗しました" @*/ ) ;
 		return NULL ;
 	}
 
@@ -1266,7 +1281,7 @@ static X_OBJECT *AddObject( int TempType, char *Name, X_OBJECT *Parents, X_MODEL
 	Model->StringSize += ( NameLen + 3 ) / 4 * 4 ;
 
 	// データの初期化
-	_MEMSET( O, 0, DataSize + lstrlenA( Name ) + 1 ) ;
+	_MEMSET( O, 0, ( size_t )( DataSize + _STRLEN( Name ) + 1 ) ) ;
 	O->Type = TempType ;
 	O->ObjectDataSize = DataSize ;
 	O->Name = ( char * )( ( BYTE * )O + O->ObjectDataSize ) ;
@@ -1307,6 +1322,7 @@ static X_OBJECT *AddObject( int TempType, char *Name, X_OBJECT *Parents, X_MODEL
 static void *GetRelationObject( int Type, X_OBJECT *Object )
 {
 	int i ;
+	int j ;
 	X_OBJECT *SO ;
 
 	// 指定タイプのオブジェクトが子にいるか調べる
@@ -1322,12 +1338,18 @@ static void *GetRelationObject( int Type, X_OBJECT *Object )
 	{
 		for( i = 0 ; i < Object->RelationObjectNum ; i ++ )
 		{
-			if( Object->RelationObject[i] && Object->RelationObject[i]->Type == Type ) break ;
-		}
-
-		if( i != Object->RelationObjectNum )
-		{
-			SO = Object->RelationObject[i] ;
+			for( j = 0 ; j < Object->RelationObject[ i ].ObjectNum ; j ++ )
+			{
+				if( Object->RelationObject[ i ].Object[ j ]->Type == Type )
+				{
+					SO = Object->RelationObject[ i ].Object[ j ] ;
+					break ;
+				}
+			}
+			if( j != Object->RelationObject[ i ].ObjectNum )
+			{
+				break ;
+			}
 		}
 	}
 
@@ -1338,7 +1360,9 @@ static void *GetRelationObject( int Type, X_OBJECT *Object )
 // 指定のオブジェクトに関連のある指定のタイプのオブジェクトを列挙する
 static int EnumRelationObject( int Type, int *NumBuf, void **AddresBuf, X_OBJECT *Object )
 {
-	int i, Num ;
+	int i ;
+	int j ;
+	int Num ;
 	X_OBJECT *SO ;
 
 	// 指定タイプのオブジェクトが子にいるか調べる
@@ -1362,13 +1386,16 @@ static int EnumRelationObject( int Type, int *NumBuf, void **AddresBuf, X_OBJECT
 	// 関連付けされているオブジェクトからも探す
 	for( i = 0 ; i < Object->RelationObjectNum ; i ++ )
 	{
-		if( Object->RelationObject[i] && Object->RelationObject[i]->Type == Type )
+		for( j = 0 ; j < Object->RelationObject[ i ].ObjectNum ; j ++ )
 		{
-			Num ++ ;
-			if( AddresBuf != NULL )
+			if( Object->RelationObject[ i ].Object[ j ]->Type == Type )
 			{
-				*AddresBuf = ( void * )DOFF( Object->RelationObject[i] ) ;
-				AddresBuf ++ ;
+				Num ++ ;
+				if( AddresBuf != NULL )
+				{
+					*AddresBuf = ( void * )DOFF( Object->RelationObject[ i ].Object[ j ] ) ;
+					AddresBuf ++ ;
+				}
 			}
 		}
 	}
@@ -1436,7 +1463,7 @@ extern int AnalysXFile( char *StringBuffer, int StrSize, X_MODEL *Model )
 //	if( _STRNCMP( StringBuffer+ 4, "0302", 4 ) != 0 ) goto ERR ;
 	if( _STRNCMP( StringBuffer+ 8, "txt ", 4 ) != 0 && _STRNCMP( StringBuffer+ 8, "bin ", 4 ) != 0 )
 	{
-		DXST_ERRORLOG_ADD( _T( "対応している xファイル形式はテキスト形式と非圧縮バイナリ形式のみです\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\xfe\x5b\xdc\x5f\x57\x30\x66\x30\x44\x30\x8b\x30\x20\x00\x78\x00\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x62\x5f\x0f\x5f\x6f\x30\xc6\x30\xad\x30\xb9\x30\xc8\x30\x62\x5f\x0f\x5f\x68\x30\x5e\x97\x27\x57\x2e\x7e\xd0\x30\xa4\x30\xca\x30\xea\x30\x62\x5f\x0f\x5f\x6e\x30\x7f\x30\x67\x30\x59\x30\x0a\x00\x00"/*@ L"対応している xファイル形式はテキスト形式と非圧縮バイナリ形式のみです\n" @*/ ) ;
 		goto ERR ;
 	}
 //	if( _STRNCMP( StringBuffer+12, "0064", 4 ) != 0 ) goto ERR ;
@@ -1445,8 +1472,8 @@ extern int AnalysXFile( char *StringBuffer, int StrSize, X_MODEL *Model )
 	goto R1 ;
 
 ERR :
-//	return DXST_ERRORLOG_ADD( _T( "テキストのＸファイルではありません\n" ) ) ;
-//	return DXST_ERRORLOG_ADD( _T( "Ｘファイルではありません\n" ) ) ;
+//	return DXST_ERRORLOG_ADDW( L"テキストのＸファイルではありません\n" ) ;
+//	return DXST_ERRORLOG_ADDW( L"Ｘファイルではありません\n" ) ;
 	return -1 ;
 
 R1 :
@@ -1473,7 +1500,7 @@ R1 :
 				// ファイルの終端に来ていたらループから抜ける
 				if( Stack.StackNum != 1 )
 				{
-					DXST_ERRORLOG_ADD( _T( "予期しない EOF です\n" ) ) ;
+					DXST_ERRORLOG_ADDUTF16LE( "\x88\x4e\x1f\x67\x57\x30\x6a\x30\x44\x30\x20\x00\x45\x00\x4f\x00\x46\x00\x20\x00\x67\x30\x59\x30\x0a\x00\x00"/*@ L"予期しない EOF です\n" @*/ ) ;
 					return -1 ;
 				}
 				break ;
@@ -1486,7 +1513,7 @@ R1 :
 				// ファイルの終端に来ていたらループから抜ける
 				if( Stack.StackNum != 1 )
 				{
-					DXST_ERRORLOG_ADD( _T( "予期しない EOF です\n" ) ) ;
+					DXST_ERRORLOG_ADDUTF16LE( "\x88\x4e\x1f\x67\x57\x30\x6a\x30\x44\x30\x20\x00\x45\x00\x4f\x00\x46\x00\x20\x00\x67\x30\x59\x30\x0a\x00\x00"/*@ L"予期しない EOF です\n" @*/ ) ;
 					return -1 ;
 				}
 				break ;
@@ -1518,6 +1545,22 @@ R1 :
 			// 指定のオブジェクトの名前を保存する
 			if( O->RelationObjectMaxNum == O->RelationObjectNum )
 			{
+				void *OldRelationObject ;
+				int NewMaxNum ;
+
+				OldRelationObject     = O->RelationObject ;
+				NewMaxNum             = O->RelationObjectMaxNum + 32 ;
+				O->RelationObject     = ( X_RELATION_OBJECT * )ADDMEMAREA( sizeof( X_RELATION_OBJECT ) * NewMaxNum, &M->XModelMem ) ;
+				if( O->RelationObject == NULL )
+				{
+					return DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x93\x95\xa5\x63\xc2\x53\x67\x71\x28\x75\xdd\x30\xa4\x30\xf3\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 間接参照用ポインタを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
+				}
+				if( O->RelationObjectMaxNum != 0 )
+				{
+					_MEMCPY( O->RelationObject, OldRelationObject, sizeof( X_RELATION_OBJECT ) * O->RelationObjectMaxNum ) ;
+				}
+				O->RelationObjectMaxNum = NewMaxNum ;
+/*
 				void *OldRelationObject, *OldRelationObjectName ;
 				int NewMaxNum ;
 
@@ -1526,7 +1569,7 @@ R1 :
 				NewMaxNum             = O->RelationObjectMaxNum + 32 ;
 				O->RelationObject     = ( X_OBJECT ** )ADDMEMAREA( ( sizeof( X_OBJECT * ) + sizeof( char * ) ) * NewMaxNum, &M->XModelMem ) ;
 				if( O->RelationObject == NULL )
-					return DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 間接参照用ポインタを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+					return DXST_ERRORLOGFMT_ADDW(( L"Load XFile : 間接参照用ポインタを格納するメモリ領域の確保に失敗しました\n" )) ;
 				O->RelationObjectName = ( char ** )( O->RelationObject + NewMaxNum ) ;
 				if( O->RelationObjectMaxNum != 0 )
 				{
@@ -1534,13 +1577,24 @@ R1 :
 					_MEMCPY( O->RelationObjectName, OldRelationObjectName, sizeof( char * )     * O->RelationObjectMaxNum ) ;
 				}
 				O->RelationObjectMaxNum = NewMaxNum ;
+*/
 			}
 
-			Len = lstrlenA( Name ) ;
+			Len = _STRLEN( Name ) ;
+
+			O->RelationObject[ O->RelationObjectNum ].ObjectNum    = 0 ;
+			O->RelationObject[ O->RelationObjectNum ].ObjectMaxNum = 0 ;
+			O->RelationObject[ O->RelationObjectNum ].Object       = NULL ;
+			O->RelationObject[ O->RelationObjectNum ].ObjectName   = ( char * )ADDMEMAREA( ( size_t )( Len + 1 ), &M->XModelMem ) ;
+			if( O->RelationObject[ O->RelationObjectNum ].ObjectName == NULL )
+				return DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x93\x95\xa5\x63\xc2\x53\x67\x71\x6e\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x0d\x54\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"Load XFile : 間接参照のオブジェクト名を保存するメモリ領域の確保に失敗しました" @*/ )) ;
+			_STRCPY( O->RelationObject[ O->RelationObjectNum ].ObjectName, Name ) ;
+/*
 			O->RelationObjectName[ O->RelationObjectNum ] = ( char * )ADDMEMAREA( Len + 1, &M->XModelMem ) ;
 			if( O->RelationObjectName[ O->RelationObjectNum ] == NULL )
-				return DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 間接参照のオブジェクト名を保存するメモリ領域の確保に失敗しました" ) ) ) ;
+				return DXST_ERRORLOGFMT_ADDW(( L"Load XFile : 間接参照のオブジェクト名を保存するメモリ領域の確保に失敗しました" )) ;
 			_STRCPY( O->RelationObjectName[ O->RelationObjectNum ], Name ) ;
+*/
 			O->RelationObjectNum ++ ;
 		}
 		else
@@ -1585,7 +1639,7 @@ R1 :
 				// 各種テンプレート文字列と比較する
 				for( Temp = 0 ; Temp < TEMP_NUM ; Temp ++ )
 				{
-					if( TTable[Temp][0] != '\0' && _STRCMPI( StrB, TTable[Temp] ) == 0 ) break ;
+					if( TTable[Temp][0] != '\0' && _STRICMP( StrB, TTable[Temp] ) == 0 ) break ;
 				}
 
 				// もし対応していないテンプレートだった場合は次の『{...}』は飛ばす
@@ -1634,14 +1688,14 @@ R1 :
 					O = AddObject( Temp, Name, Stack.Stack[Stack.StackNum-1], Model ) ;
 					if( O == NULL )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "Load XFile : オブジェクト %s ( %s ) の追加に失敗しました", Name, TTable[ Temp ] ) ) ;
+						DXST_ERRORLOGFMT_ADDA( ( "Load XFile : \x83\x49\x83\x75\x83\x57\x83\x46\x83\x4e\x83\x67 %s ( %s ) \x82\xcc\x92\xc7\x89\xc1\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "Load XFile : オブジェクト %s ( %s ) の追加に失敗しました" @*/, Name, TTable[ Temp ] ) ) ;
 						return -1 ;
 					}
 
 					// スタックに積む
 					if( IncStackObject( &Stack, O ) == -1 )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "Load XFile : オブジェクト %s ( %s ) のネストが深すぎます", Name, TTable[ Temp ] ) ) ;
+						DXST_ERRORLOGFMT_ADDA( ( "Load XFile : \x83\x49\x83\x75\x83\x57\x83\x46\x83\x4e\x83\x67 %s ( %s ) \x82\xcc\x83\x6c\x83\x58\x83\x67\x82\xaa\x90\x5b\x82\xb7\x82\xac\x82\xdc\x82\xb7"/*@ "Load XFile : オブジェクト %s ( %s ) のネストが深すぎます" @*/, Name, TTable[ Temp ] ) ) ;
 						return -1 ;
 					}
 
@@ -1674,7 +1728,7 @@ R1 :
 					}
 					if( Ret == -1 )
 					{
-						DXST_ERRORLOGFMT_ADDA( ( "Load XFile : オブジェクト %s ( %s ) 解析中にエラーが発生しました", Name, TTable[ Temp ] ) ) ;
+						DXST_ERRORLOGFMT_ADDA( ( "Load XFile : \x83\x49\x83\x75\x83\x57\x83\x46\x83\x4e\x83\x67 %s ( %s ) \x89\xf0\x90\xcd\x92\x86\x82\xc9\x83\x47\x83\x89\x81\x5b\x82\xaa\x94\xad\x90\xb6\x82\xb5\x82\xdc\x82\xb5\x82\xbd"/*@ "Load XFile : オブジェクト %s ( %s ) 解析中にエラーが発生しました" @*/, Name, TTable[ Temp ] ) ) ;
 						return -1 ;
 					}
 				}
@@ -1688,23 +1742,57 @@ R1 :
 		// 間接参照の数だけ繰り返し
 		for( i = 0 ; i < O->RelationObjectNum ; i ++ )
 		{
-			// 既に参照先の情報がある場合は何もしない
-			if( O->RelationObject[ i ] ) continue ;
+//			// 既に参照先の情報がある場合は何もしない
+//			if( O->RelationObject[ i ] ) continue ;
+
+			// 名前が無い場合は何もしない
+			if( O->RelationObject[ i ].ObjectName == NULL || O->RelationObject[ i ].ObjectName[ 0 ] == '\0' )
+			{
+				continue ;
+			}
 
 			// 指定のオブジェクトと同じ名前のオブジェクトを探す
 			for( Ob = M->FirstObject ; Ob ; Ob = Ob->NextData )
 			{
-				if( _STRCMP( Ob->Name, O->RelationObjectName[ i ] ) != 0 )
+				void *OldRelationObject ;
+				int NewMaxNum ;
+
+				if( _STRCMP( Ob->Name, O->RelationObject[ i ].ObjectName ) != 0 )
 				{
 					continue ;
 				}
 
 				// 見つけたオブジェクトのアドレスを保存
-				O->RelationObject[ i ] = Ob ;
+				if( O->RelationObject[ i ].ObjectMaxNum == O->RelationObject[ i ].ObjectNum )
+				{
+					OldRelationObject = O->RelationObject[ i ].Object ;
+					NewMaxNum = O->RelationObject[ i ].ObjectMaxNum + 32 ;
+					O->RelationObject[ i ].Object = ( X_OBJECT ** )ADDMEMAREA( sizeof( X_OBJECT * ) * NewMaxNum, &M->XModelMem ) ;
+					if( O->RelationObject[ i ].Object == NULL )
+						return DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x93\x95\xa5\x63\xc2\x53\x67\x71\x28\x75\xdd\x30\xa4\x30\xf3\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 間接参照用ポインタを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
+					if( O->RelationObject[ i ].ObjectMaxNum != 0 )
+					{
+						_MEMCPY( O->RelationObject[ i ].Object, OldRelationObject, sizeof( X_OBJECT * ) * O->RelationObject[ i ].ObjectMaxNum ) ;
+					}
+					O->RelationObject[ i ].ObjectMaxNum = NewMaxNum ;
+				}
+				O->RelationObject[ i ].Object[ O->RelationObject[ i ].ObjectNum ] = Ob ;
+				O->RelationObject[ i ].ObjectNum ++ ;
 
 				// 相手先のオブジェクトと関連付けをする
 				if( Ob->RelationObjectMaxNum == Ob->RelationObjectNum )
 				{
+					OldRelationObject = Ob->RelationObject ;
+					NewMaxNum = Ob->RelationObjectMaxNum + 32 ;
+					Ob->RelationObject = ( X_RELATION_OBJECT * )ADDMEMAREA( sizeof( X_RELATION_OBJECT ) * NewMaxNum, &M->XModelMem ) ;
+					if( Ob->RelationObject == NULL )
+						return DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x93\x95\xa5\x63\xc2\x53\x67\x71\x28\x75\xdd\x30\xa4\x30\xf3\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 間接参照用ポインタを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
+					if( Ob->RelationObjectMaxNum != 0 )
+					{
+						_MEMCPY( Ob->RelationObject, OldRelationObject, sizeof( X_RELATION_OBJECT ) * Ob->RelationObjectMaxNum ) ;
+					}
+					Ob->RelationObjectMaxNum = NewMaxNum ;
+/*
 					void *OldRelationObject, *OldRelationObjectName ;
 					int NewMaxNum ;
 
@@ -1713,7 +1801,7 @@ R1 :
 					NewMaxNum = Ob->RelationObjectMaxNum + 32 ;
 					Ob->RelationObject = ( X_OBJECT ** )ADDMEMAREA( ( sizeof( X_OBJECT * ) + sizeof( char * ) ) * NewMaxNum, &M->XModelMem ) ;
 					if( Ob->RelationObject == NULL )
-						return DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 間接参照用ポインタを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+						return DXST_ERRORLOGFMT_ADDW(( L"Load XFile : 間接参照用ポインタを格納するメモリ領域の確保に失敗しました\n" )) ;
 					Ob->RelationObjectName = ( char ** )( Ob->RelationObject + NewMaxNum ) ;
 					if( Ob->RelationObjectMaxNum != 0 )
 					{
@@ -1721,8 +1809,18 @@ R1 :
 						_MEMCPY( Ob->RelationObjectName, OldRelationObjectName, sizeof( char * )     * Ob->RelationObjectMaxNum ) ;
 					}
 					Ob->RelationObjectMaxNum = NewMaxNum ;
+*/
 				}
-				Ob->RelationObject[ Ob->RelationObjectNum ] = O ;
+
+				NewMaxNum = 1 ;
+				Ob->RelationObject[ Ob->RelationObjectNum ].Object = ( X_OBJECT ** )ADDMEMAREA( sizeof( X_OBJECT * ) * NewMaxNum, &M->XModelMem ) ;
+				if( Ob->RelationObject[ Ob->RelationObjectNum ].Object == NULL )
+					return DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x93\x95\xa5\x63\xc2\x53\x67\x71\x28\x75\xdd\x30\xa4\x30\xf3\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 間接参照用ポインタを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
+				Ob->RelationObject[ Ob->RelationObjectNum ].ObjectMaxNum = NewMaxNum ;
+				Ob->RelationObject[ Ob->RelationObjectNum ].ObjectName = "" ;
+				Ob->RelationObject[ Ob->RelationObjectNum ].Object[ 0 ] = O ;
+				Ob->RelationObject[ Ob->RelationObjectNum ].ObjectNum ++ ;
+//				Ob->RelationObject[ Ob->RelationObjectNum ] = O ;
 				Ob->RelationObjectNum ++ ;
 			}
 /*
@@ -1732,7 +1830,7 @@ R1 :
 			// 指定のオブジェクトがなかったら何もしない
 			if( Ob == NULL ) 
 			{
-				DXST_ERRORLOG_ADD( _T( "Load XFile : 間接参照が失敗しました\n" ) ) ;
+				DXST_ERRORLOG_ADDW( L"Load XFile : 間接参照が失敗しました\n" ) ;
 			}	
 			else
 			{
@@ -1750,7 +1848,7 @@ R1 :
 					NewMaxNum = Ob->RelationObjectMaxNum + 32 ;
 					Ob->RelationObject = ( X_OBJECT ** )ADDMEMAREA( ( sizeof( X_OBJECT * ) + sizeof( char * ) ) * NewMaxNum, &M->XModelMem ) ;
 					if( Ob->RelationObject == NULL )
-						return DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 間接参照用ポインタを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+						return DXST_ERRORLOGFMT_ADDW(( L"Load XFile : 間接参照用ポインタを格納するメモリ領域の確保に失敗しました\n" )) ;
 					Ob->RelationObjectName = ( char ** )( Ob->RelationObject + NewMaxNum ) ;
 					if( Ob->RelationObjectMaxNum != 0 )
 					{
@@ -1820,7 +1918,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 				// 関連付けられているマテリアルのアドレスを格納するためのメモリ領域を確保
 				if( ( ML->MaterialList = ( X_MATERIAL ** )ADDMEMAREA( sizeof( X_MATERIAL *) * ML->nMaterials, &M->XModelMem ) ) == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : メッシュに関連付けられているマテリアルを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xe1\x30\xc3\x30\xb7\x30\xe5\x30\x6b\x30\xa2\x95\x23\x90\xd8\x4e\x51\x30\x89\x30\x8c\x30\x66\x30\x44\x30\x8b\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : メッシュに関連付けられているマテリアルを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 					return -1 ;
 				}
 
@@ -1830,7 +1928,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 				// 数が違ったらエラー
 				if( Num != ML->nMaterials )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : マテリアルリストのマテリアル数( %d )と実際のマテリアルの数( %d )が違いました\n" ), ML->nMaterials, Num ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\xea\x30\xb9\x30\xc8\x30\x6e\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x70\x65\x28\x00\x20\x00\x25\x00\x64\x00\x20\x00\x29\x00\x68\x30\x9f\x5b\x9b\x96\x6e\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x6e\x30\x70\x65\x28\x00\x20\x00\x25\x00\x64\x00\x20\x00\x29\x00\x4c\x30\x55\x90\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : マテリアルリストのマテリアル数( %d )と実際のマテリアルの数( %d )が違いました\n" @*/, ML->nMaterials, Num ) ) ;
 					return -1 ;
 				}
 			}
@@ -1849,7 +1947,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 				// テクスチャ座標と頂点座標の数が違う場合はエラー
 				if( MS->TextureCoord && MS->TextureCoord->nTextureCoords != MS->nVertices )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : テクスチャ座標の数( %d )と頂点座標の数( %d )が違いました\n" ), MS->TextureCoord->nTextureCoords, MS->nVertices ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xa7\x5e\x19\x6a\x6e\x30\x70\x65\x28\x00\x20\x00\x25\x00\x64\x00\x20\x00\x29\x00\x68\x30\x02\x98\xb9\x70\xa7\x5e\x19\x6a\x6e\x30\x70\x65\x28\x00\x20\x00\x25\x00\x64\x00\x20\x00\x29\x00\x4c\x30\x55\x90\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : テクスチャ座標の数( %d )と頂点座標の数( %d )が違いました\n" @*/, MS->TextureCoord->nTextureCoords, MS->nVertices ) ) ;
 					return -1 ;
 				}
 
@@ -1862,7 +1960,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 				// 面の数が違ったらエラー
 				if( MS->Normals && MS->nFaces != MS->Normals->nFaceNormals )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : メッシュリストの面の数( %d )と法線の面の数( %d )が違いました\n" ), MS->nFaces, MS->Normals->nFaceNormals ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xe1\x30\xc3\x30\xb7\x30\xe5\x30\xea\x30\xb9\x30\xc8\x30\x6e\x30\x62\x97\x6e\x30\x70\x65\x28\x00\x20\x00\x25\x00\x64\x00\x20\x00\x29\x00\x68\x30\xd5\x6c\xda\x7d\x6e\x30\x62\x97\x6e\x30\x70\x65\x28\x00\x20\x00\x25\x00\x64\x00\x20\x00\x29\x00\x4c\x30\x55\x90\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : メッシュリストの面の数( %d )と法線の面の数( %d )が違いました\n" @*/, MS->nFaces, MS->Normals->nFaceNormals ) ) ;
 					return -1 ;
 				}
 
@@ -1874,7 +1972,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 				{
 					if( ( MS->SkinWeights = ( X_SKINWEIGHTS ** )ADDMEMAREA( sizeof( X_SKINWEIGHTS * ) * MS->SkinWeightsNum, &M->XModelMem ) ) == NULL )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : スキンウエイトデータを格納するメモリの確保に失敗しました\n" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xb9\x30\xad\x30\xf3\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\xc7\x30\xfc\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : スキンウエイトデータを格納するメモリの確保に失敗しました\n" @*/ )) ;
 						return -1 ;
 					}
 
@@ -1923,7 +2021,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 				// 関連付けられているメッシュのリストを作成する
 				if( ( Frame->Mesh = ( X_MESH ** )ADDMEMAREA( sizeof( X_MESH * ) * Frame->MeshNum, &M->XModelMem ) ) == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : メッシュアドレス配列を格納するメモリの確保に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xe1\x30\xc3\x30\xb7\x30\xe5\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x4d\x91\x17\x52\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : メッシュアドレス配列を格納するメモリの確保に失敗しました\n" @*/ )) ;
 					return -1 ;
 				}
 				EnumRelationObject( TEMP_MESH, ( int * )&Frame->MeshNum, ( void ** )Frame->Mesh, O ) ;
@@ -1947,7 +2045,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 				// アニメーションキーのアドレスを保存するメモリ領域の確保
 				if( ( AN->AnimationKeys = ( X_ANIMATIONKEY ** )ADDMEMAREA( sizeof( X_ANIMATIONKEY * ) * AN->AnimationKeysNum, &M->XModelMem ) ) == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : アニメーションキーアドレス配列を格納するメモリの確保に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x4d\x91\x17\x52\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : アニメーションキーアドレス配列を格納するメモリの確保に失敗しました\n" @*/ )) ;
 					return -1 ;
 				}
 
@@ -1958,10 +2056,10 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 				Max = 0 ;
 				for( i = 0 ; ( DWORD )i < AN->AnimationKeysNum ; i ++ )
 				{
-					AN->AnimationKeys[ i ]->TotalCount = AN->AnimationKeys[ i ]->keys[ AN->AnimationKeys[ i ]->nKeys - 1 ].time ;
-					if( Max < ( DWORD )AN->AnimationKeys[ i ]->TotalCount ) Max = AN->AnimationKeys[ i ]->TotalCount ;
+					AN->AnimationKeys[ i ]->TotalCount = ( int )( AN->AnimationKeys[ i ]->keys[ AN->AnimationKeys[ i ]->nKeys - 1 ].time ) ;
+					if( Max < ( DWORD )AN->AnimationKeys[ i ]->TotalCount ) Max = ( DWORD )AN->AnimationKeys[ i ]->TotalCount ;
 				}
-				AN->MaxCount = Max ;
+				AN->MaxCount = ( int )Max ;
 
 				// アニメーションデータに関連しているフレームのデータアドレスを得る
 				AN->Frame = ( X_FRAME * )GetRelationObject( TEMP_FRAME, O ) ;
@@ -2002,7 +2100,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 				// アニメーションのアドレスを保存するメモリ領域の確保
 				if( ( AS->Animation = ( X_ANIMATION ** )ADDMEMAREA( sizeof( X_ANIMATION * ) * AS->AnimationNum, &M->XModelMem ) ) == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : アニメーションアドレス配列を格納するメモリの確保に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xa2\x30\xc9\x30\xec\x30\xb9\x30\x4d\x91\x17\x52\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : アニメーションアドレス配列を格納するメモリの確保に失敗しました\n" @*/ )) ;
 					return -1 ;
 				}
 
@@ -2029,7 +2127,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 					if( AS->Animation[i]->Frame == NULL ) continue ;
 
 					// 関連するフレームの名前を保存するためのメモリサイズを加算
-					Model->StringSize += lstrlenA( OOFF( AN->Frame )->Name ) + 1 ;
+					Model->StringSize += _STRLEN( OOFF( AN->Frame )->Name ) + 1 ;
 					Model->StringSize = ( Model->StringSize + 3 ) / 4 * 4 ;
 
 					// アニメーションキーセットの数を加算する
@@ -2038,7 +2136,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 					// 各キーの要素の数を加算する
 					for( j = 0 ; ( DWORD )j < AN->AnimationKeysNum ; j ++ )
 					{
-						int DataSize = 0 ;
+						DWORD DataSize = 0 ;
 						AK = AN->AnimationKeys[ j ] ;
 
 						// アニメーションキーの数を加算する
@@ -2090,7 +2188,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 			Material = MV1RAddMaterial( RModel, O->Name ) ;
 			if( Material == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : マテリアルオブジェクトの追加に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : マテリアルオブジェクトの追加に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 			
@@ -2100,7 +2198,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 				Texture = MV1RAddTexture( RModel, MT->TextureFileName->filename.String, MT->TextureFileName->filename.String ) ;
 				if( Texture == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : テクスチャオブジェクトの追加に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : テクスチャオブジェクトの追加に失敗しました\n" @*/ )) ;
 					return -1 ;
 				}
 
@@ -2160,7 +2258,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 			Frame = MV1RAddFrame( RModel, O->Name, O->ParentsData && O->ParentsData->ParentsData && O->ParentsData->Type == TEMP_FRAME ? ( ( X_FRAME * )DOFF( O->ParentsData ) )->MV1Frame : NULL ) ;
 			if( Frame == NULL )
 			{
-				DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : フレームオブジェクトの追加に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xd5\x30\xec\x30\xfc\x30\xe0\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : フレームオブジェクトの追加に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 
@@ -2228,14 +2326,14 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 					Mesh = MV1RAddMesh( RModel, Frame ) ;
 					if( Mesh == NULL )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : メッシュオブジェクトの追加に失敗しました\n" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xe1\x30\xc3\x30\xb7\x30\xe5\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : メッシュオブジェクトの追加に失敗しました\n" @*/ )) ;
 						return -1 ;
 					}
 
 					// マテリアル情報のコピー
 					if( MS->MaterialList == NULL )
 					{
-//						DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : メッシュにマテリアルの情報がありません\n" ) ) ) ;
+//						DXST_ERRORLOGFMT_ADDW(( L"Load XFile : メッシュにマテリアルの情報がありません\n" )) ;
 //						return -1 ;
 						// マテリアルが無かったら適当なマテリアルを追加する
 						Mesh->MaterialNum = 1 ;
@@ -2250,7 +2348,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 					}
 
 					// スキニング情報のコピー
-					Mesh->SkinWeightsNum = MS->SkinWeightsNum ;
+					Mesh->SkinWeightsNum = ( DWORD )MS->SkinWeightsNum ;
 					for( j = 0 ; j < ( int )Mesh->SkinWeightsNum ; j ++ )
 					{
 						SW = MS->SkinWeights[ j ] ;
@@ -2259,21 +2357,21 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 						SkinWeight = MV1RAddSkinWeight( RModel ) ;
 						if( SkinWeight == NULL )
 						{
-							DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : スキニングメッシュウエイト情報を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xb9\x30\xad\x30\xcb\x30\xf3\x30\xb0\x30\xe1\x30\xc3\x30\xb7\x30\xe5\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : スキニングメッシュウエイト情報を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 							return -1 ;
 						}
 						Mesh->SkinWeights[ j ] = SkinWeight ;
 
 						// パラメータのセット
 						SkinWeight->ModelLocalMatrix = SW->matrixOffset.ms ;
-						SkinWeight->TargetFrame = SW->Frame->MV1Frame->Index ;
+						SkinWeight->TargetFrame = ( DWORD )SW->Frame->MV1Frame->Index ;
 
 						// 頂点との対応表を格納するためのメモリの確保
 						SkinWeight->DataNum = SW->nWeights ;
 						SkinWeight->Data = ( MV1_SKIN_WEIGHT_ONE_R * )ADDMEMAREA( sizeof( MV1_SKIN_WEIGHT_ONE_R ) * SkinWeight->DataNum, &RModel->Mem ) ;
 						if( SkinWeight->Data == NULL )
 						{
-							DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : スキニングメッシュウエイト値を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xb9\x30\xad\x30\xcb\x30\xf3\x30\xb0\x30\xe1\x30\xc3\x30\xb7\x30\xe5\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\x24\x50\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : スキニングメッシュウエイト値を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 							return -1 ;
 						}
 
@@ -2291,7 +2389,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 					Mesh->Positions = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * Mesh->PositionNum, &RModel->Mem ) ;
 					if( Mesh->Positions == NULL )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 頂点座標を格納するメモリの確保に失敗しました\n" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\xa7\x5e\x19\x6a\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 頂点座標を格納するメモリの確保に失敗しました\n" @*/ )) ;
 						return -1 ;
 					}
 					_MEMCPY( Mesh->Positions, MS->vertices, sizeof( VECTOR ) * Mesh->PositionNum ) ;
@@ -2303,7 +2401,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 						Mesh->Normals = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * Mesh->NormalNum, &RModel->Mem ) ;
 						if( Mesh->Normals == NULL )
 						{
-							DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 法線を格納するメモリの確保に失敗しました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xd5\x6c\xda\x7d\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 法線を格納するメモリの確保に失敗しました\n" @*/ )) ;
 							return -1 ;
 						}
 						_MEMCPY( Mesh->Normals, MS->Normals->normals, sizeof( VECTOR ) * Mesh->NormalNum ) ;
@@ -2316,7 +2414,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 						Mesh->UVs[ 0 ] = ( FLOAT4 * )ADDMEMAREA( sizeof( FLOAT4 ) * Mesh->UVNum[ 0 ], &RModel->Mem ) ;
 						if( Mesh->UVs[ 0 ] == NULL )
 						{
-							DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : ＵＶ座標を格納するメモリの確保に失敗しました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x35\xff\x36\xff\xa7\x5e\x19\x6a\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : ＵＶ座標を格納するメモリの確保に失敗しました\n" @*/ )) ;
 							return -1 ;
 						}
 						for( j = 0 ; j < ( int )Mesh->UVNum[ 0 ] ; j ++ )
@@ -2329,9 +2427,9 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 					// 面情報の取得
 					{
 						// 面情報を格納するメモリ領域の確保
-						if( MV1RSetupMeshFaceBuffer( RModel, Mesh, MS->nFaces, 4 ) < 0 )
+						if( MV1RSetupMeshFaceBuffer( RModel, Mesh, ( int )MS->nFaces, 4 ) < 0 )
 						{
-							DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 面情報を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x62\x97\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 面情報を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 							return -1 ;
 						}
 
@@ -2342,9 +2440,9 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 							Mesh->Faces[ j ].IndexNum = MF->nFaceVertexIndices ;
 							if( Mesh->FaceUnitMaxIndexNum < Mesh->Faces[ j ].IndexNum )
 							{
-								if( MV1RSetupMeshFaceBuffer( RModel, Mesh, Mesh->FaceNum, Mesh->Faces[ j ].IndexNum ) < 0 )
+								if( MV1RSetupMeshFaceBuffer( RModel, Mesh, ( int )Mesh->FaceNum, ( int )Mesh->Faces[ j ].IndexNum ) < 0 )
 								{
-									DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 面情報を格納するメモリ領域の再確保に失敗しました\n" ) ) ) ;
+									DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x62\x97\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\x8d\x51\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 面情報を格納するメモリ領域の再確保に失敗しました\n" @*/ )) ;
 									return -1 ;
 								}
 							}
@@ -2352,11 +2450,27 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 							Mesh->Faces[ j ].MaterialIndex = MS->MaterialList == NULL || MS->nFaces != MS->MaterialList->nFaceIndexes ? 0 : MS->MaterialList->FaceIndexes[ j ] ;
 							for( k = 0 ; k < ( int )Mesh->Faces[ j ].IndexNum ; k ++ )
 							{
-								Mesh->Faces[ j ].VertexIndex[ k ] = MF->faceVertexIndices[ k ] ;
-								Mesh->Faces[ j ].UVIndex[ 0 ][ k ] = MF->faceVertexIndices[ k ] ;
+								if( MF->faceVertexIndices != NULL )
+								{
+									Mesh->Faces[ j ].VertexIndex[ k ]  = MF->faceVertexIndices[ k ] ;
+									Mesh->Faces[ j ].UVIndex[ 0 ][ k ] = MF->faceVertexIndices[ k ] ;
+								}
+								else
+								{
+									Mesh->Faces[ j ].VertexIndex[ k ]  = MF->faceVertexIndicesFixedLength[ k ] ;
+									Mesh->Faces[ j ].UVIndex[ 0 ][ k ] = MF->faceVertexIndicesFixedLength[ k ] ;
+								}
+
 								if( Mesh->Normals )
 								{
-									Mesh->Faces[ j ].NormalIndex[ k ] = MS->Normals->faceNormals[ j ].faceVertexIndices[ k ] ;
+									if( MS->Normals->faceNormals[ j ].faceVertexIndices != NULL )
+									{
+										Mesh->Faces[ j ].NormalIndex[ k ] = MS->Normals->faceNormals[ j ].faceVertexIndices[ k ] ;
+									}
+									else
+									{
+										Mesh->Faces[ j ].NormalIndex[ k ] = MS->Normals->faceNormals[ j ].faceVertexIndicesFixedLength[ k ] ;
+									}
 								}
 							}
 						}
@@ -2365,11 +2479,21 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 					// 頂点カラーのコピー
 					if( MS->VertexColor )
 					{
+						int TotalIndexNum ;
+						int *FaceUseVertexIndexBuffer ;
+						int *FaceUseVertexIndexList ;
+						int *pFUVIB ;
+						int *pFUVIL ;
+						int FaceUseVertexIndexBufferSize ;
+
+						// 頂点カラーの数をセット
 						Mesh->VertexColorNum = MS->VertexColor->nVertexColors ;
-						Mesh->VertexColors = ( COLOR_F * )ADDMEMAREA( sizeof( COLOR_F ) * ( Mesh->VertexColorNum + 1 ), &RModel->Mem ) ;
+
+						// 頂点カラーを格納するメモリ領域の確保
+						Mesh->VertexColors   = ( COLOR_F * )ADDMEMAREA( sizeof( COLOR_F ) * ( Mesh->VertexColorNum + 1 ), &RModel->Mem ) ;
 						if( Mesh->VertexColors == NULL )
 						{
-							DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 頂点カラーを格納するメモリの確保に失敗しました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\xab\x30\xe9\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 頂点カラーを格納するメモリの確保に失敗しました\n" @*/ )) ;
 							return -1 ;
 						}
 
@@ -2380,10 +2504,64 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 						Mesh->VertexColors[ Mesh->VertexColorNum ].a = 1.0f ;
 
 						// 面のカラー情報はデフォルトでは真っ白にする
+						// ついでに全インデックスの数も取得する
+						TotalIndexNum = 0 ;
 						for( j = 0 ; j < ( int )Mesh->FaceNum ; j ++ )
 						{
+							TotalIndexNum += ( int )Mesh->Faces[ j ].IndexNum ;
 							for( k = 0 ; k < ( int )Mesh->Faces[ j ].IndexNum ; k ++ )
+							{
 								Mesh->Faces[ j ].VertexColorIndex[ k ] = Mesh->VertexColorNum ;
+							}
+						}
+
+						// メッシュが使用している頂点のマップを作成する
+						{
+							FaceUseVertexIndexBufferSize = ( int )( sizeof( int ) * ( Mesh->PositionNum * 2 + TotalIndexNum * 2 ) ) ;
+							FaceUseVertexIndexBuffer     = ( int * )DXALLOC( ( size_t )FaceUseVertexIndexBufferSize ) ;
+							if( FaceUseVertexIndexBuffer == NULL )
+							{
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xe1\x30\xc3\x30\xb7\x30\xe5\x30\x4c\x30\x7f\x4f\x28\x75\x57\x30\x66\x30\x44\x30\x8b\x30\x02\x98\xb9\x70\x6e\x30\xde\x30\xc3\x30\xd7\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : メッシュが使用している頂点のマップを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
+								return -1 ;
+							}
+							_MEMSET( FaceUseVertexIndexBuffer, 0, ( size_t )FaceUseVertexIndexBufferSize ) ;
+							FaceUseVertexIndexList = FaceUseVertexIndexBuffer + Mesh->PositionNum * 2 ;
+
+							// まずは各頂点が使用されている数を取得
+							for( j = 0 ; j < ( int )Mesh->FaceNum ; j ++ )
+							{
+								for( l = 0 ; l < ( int )Mesh->Faces[ j ].IndexNum ; l ++ )
+								{
+									pFUVIB = &FaceUseVertexIndexBuffer[ Mesh->Faces[ j ].VertexIndex[ l ] * 2 ] ;
+									pFUVIB[ 0 ] ++ ;
+								}
+							}
+
+							// 各頂点が使用している面の情報が格納されているバッファ位置をセット
+							TotalIndexNum = 0 ;
+							pFUVIB = FaceUseVertexIndexBuffer ;
+							for( j = 0 ; j < ( int )Mesh->PositionNum ; j ++, pFUVIB += 2 )
+							{
+								pFUVIB[ 1 ] = TotalIndexNum ;
+								TotalIndexNum += pFUVIB[ 0 ] ;
+
+								// 次にカウンタとして使用するので面の数はリセットする
+								pFUVIB[ 0 ] = 0 ;
+							}
+
+							// 各頂点が使用している面の情報をセット
+							for( j = 0 ; j < ( int )Mesh->FaceNum ; j ++ )
+							{
+								for( l = 0 ; l < ( int )Mesh->Faces[ j ].IndexNum ; l ++ )
+								{
+									pFUVIB = &FaceUseVertexIndexBuffer[ Mesh->Faces[ j ].VertexIndex[ l ] * 2 ] ;
+									pFUVIL = &FaceUseVertexIndexList[ pFUVIB[ 1 ] * 2 ] ;
+
+									pFUVIL[ pFUVIB[ 0 ] * 2 + 0 ] = j ;
+									pFUVIL[ pFUVIB[ 0 ] * 2 + 1 ] = l ;
+									pFUVIB[ 0 ] ++ ;
+								}
+							}
 						}
 
 						// 頂点カラーデータのセット
@@ -2396,15 +2574,18 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 							Mesh->VertexColors[ j ].a = IC->indexColor.alpha / 255.0f ;
 
 							// 指定番号の頂点座標を使用している面の頂点カラーを j 番目の頂点カラーにする
-							for( k = 0 ; k < ( int )Mesh->FaceNum ; k ++ )
+							pFUVIB = &FaceUseVertexIndexBuffer[ IC->index * 2 ] ;
+							pFUVIL = &FaceUseVertexIndexList[ pFUVIB[ 1 ] * 2 ] ;
+							for( k = 0 ; k < pFUVIB[ 0 ] ; k ++ )
 							{
-								for( l = 0 ; l < ( int )Mesh->Faces[ k ].IndexNum ; l ++ )
-								{
-									if( Mesh->Faces[ k ].VertexIndex[ l ] == IC->index )
-										Mesh->Faces[ k ].VertexColorIndex[ l ] = j ;
-								}
+								Mesh->Faces[ pFUVIL[ 0 ] ].VertexColorIndex[ pFUVIL[ 1 ] ] = ( DWORD )j ;
+								pFUVIL += 2 ;
 							}
 						}
+
+						// メッシュが使用している頂点のマップ用に確保していたメモリを解放
+						DXFREE( FaceUseVertexIndexBuffer ) ;
+						FaceUseVertexIndexBuffer = NULL ;
 					}
 				}
 				break ;
@@ -2417,7 +2598,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 				AnimSet = MV1RAddAnimSet( RModel, O->Name ) ;
 				if( AnimSet == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : アニメーションセットオブジェクトの追加に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xbb\x30\xc3\x30\xc8\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : アニメーションセットオブジェクトの追加に失敗しました\n" @*/ )) ;
 					return -1 ;
 				}
 
@@ -2437,12 +2618,11 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 					Anim = MV1RAddAnim( RModel, AnimSet ) ;
 					if( Anim == NULL )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : アニメーションオブジェクトの追加に失敗しました\n" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : アニメーションオブジェクトの追加に失敗しました\n" @*/ )) ;
 						return -1 ;
 					}
 
 					// パラメータセット
-					Anim->TargetFrameName = MV1RAddString( RModel, OOFF( AN->Frame )->Name ) ;
 					Anim->TargetFrameIndex = AN->Frame->MV1Frame->Index ;
 					Anim->MaxTime = ( float )AN->MaxCount ;
 
@@ -2457,13 +2637,13 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 						AnimKeySet = MV1RAddAnimKeySet( RModel, Anim ) ;
 						if( AnimKeySet == NULL )
 						{
-							DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : アニメーションキーセットオブジェクトの追加に失敗しました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\xbb\x30\xc3\x30\xc8\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : アニメーションキーセットオブジェクトの追加に失敗しました\n" @*/ )) ;
 							return -1 ;
 						}
 
 						// パラメータのセット
 						AnimKeySet->TotalTime = ( float )AK->TotalCount ;
-						AnimKeySet->Num = AK->nKeys ;
+						AnimKeySet->Num       = ( int )AK->nKeys ;
 
 						// キータイプのセット
 						switch( AK->keyType )
@@ -2500,7 +2680,7 @@ extern int AnalysXData( X_MODEL *Model, MV1_MODEL_R *RModel )
 						AnimKeySet->KeyFloat4 = ( FLOAT4 * )ADDMEMAREA( ( AllocSize + sizeof( float ) ) * AnimKeySet->Num, &RModel->Mem ) ;
 						if( AnimKeySet->KeyFloat4 == NULL )
 						{
-							DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : アニメーションキーを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : アニメーションキーを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 							return -1 ;
 						}
 						AnimKeySet->KeyTime = ( float * )( ( BYTE * )AnimKeySet->KeyFloat4 + AllocSize * AnimKeySet->Num ) ;
@@ -2578,7 +2758,7 @@ static int IncStackObject( X_STACK *Stack, X_OBJECT *Object )
 	// 既に限界だった場合はエラー
 	if( Stack->StackNum == MAX_STACKNUM )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "階層構造の限界数 %d を超えました" ), MAX_STACKNUM )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x8e\x96\x64\x5c\xcb\x69\x20\x90\x6e\x30\x50\x96\x4c\x75\x70\x65\x20\x00\x25\x00\x64\x00\x20\x00\x92\x30\x85\x8d\x48\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"階層構造の限界数 %d を超えました" @*/, MAX_STACKNUM )) ;
 		return -1 ;
 	}
 
@@ -2644,16 +2824,16 @@ static int TempString( X_PSTRING *PStr, X_MODEL *Model, X_STRING *String )
 	{
 		PStrMoveB( PStr, TOKEN_STRING ) ;
 		if( PStr->StrOffset >= PStr->StrSize ) return -1 ;
-		_STRNCPY( StrB, PSTRP(PStr,6), PSTRDWORD(PStr,2) + 1 ) ;
+		_STRNCPY( StrB, PSTRP(PStr,6), ( int )( PSTRDWORD(PStr,2) + 1 ) ) ;
 		StrB[PSTRDWORD(PStr,2)] = '\0' ;
 
 		PStrMoveOneB(PStr) ;
 	}
 
 	// 文字列を格納するメモリ領域を確保
-	if( ( S->String = ( char * )ADDMEMAREA( lstrlenA( StrB ) + 1, &Model->XModelMem ) ) == NULL )
+	if( ( S->String = ( char * )ADDMEMAREA( ( size_t )( _STRLEN( StrB ) + 1 ), &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADDA( ( "Load XFile : 文字列 %s を格納するメモリ領域の確保に失敗しました\n", StrB ) ) ;
+		DXST_ERRORLOGFMT_ADDA( ( "Load XFile : \x95\xb6\x8e\x9a\x97\xf1 %s \x82\xf0\x8a\x69\x94\x5b\x82\xb7\x82\xe9\x83\x81\x83\x82\x83\x8a\x97\xcc\x88\xe6\x82\xcc\x8a\x6d\x95\xdb\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\n"/*@ "Load XFile : 文字列 %s を格納するメモリ領域の確保に失敗しました\n" @*/, StrB ) ) ;
 		return -1 ;
 	}
 
@@ -2690,7 +2870,7 @@ static int TempDword( X_PSTRING *PStr, X_MODEL * /*Model*/, X_DWORD *Dword )
 		PStrGet( PStr, StrB ) ;
 
 		// 数値に換える
-		Dword->d = _ATOI( StrB ) ;
+		Dword->d = ( DWORD )_ATOI( StrB ) ;
 	}
 	else
 	{
@@ -2822,12 +3002,12 @@ static int TempMaterial( X_PSTRING *PStr, X_MODEL *Model, X_MATERIAL *Material )
 	{
 		if( PSTRWORD(PStr,0) != TOKEN_FLOAT_LIST )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : Material FloadList\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : Material FloadList\n" )) ;
 			return -1 ;
 		}
 		if( PSTRDWORD(PStr,2) != 11 )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : Material Not 11\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : Material Not 11\n" )) ;
 			return -1 ;
 		}
 
@@ -2883,7 +3063,7 @@ static int TempTextureFilename( X_PSTRING *PStr, X_MODEL *Model, X_TEXTUREFILENA
 		Name = ( X_TEXTUREFILENAME_LIST * )ADDMEMAREA( sizeof( X_TEXTUREFILENAME_LIST ), &Model->XModelMem ) ; 
 		if( Name == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : テクスチャファイルネームリストオブジェクトを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xd5\x30\xa1\x30\xa4\x30\xeb\x30\xcd\x30\xfc\x30\xe0\x30\xea\x30\xb9\x30\xc8\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : テクスチャファイルネームリストオブジェクトを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 			return -1 ;
 		}
 
@@ -2923,19 +3103,36 @@ static int TempMeshFace( X_PSTRING *PStr, X_MODEL *Model, X_MESHFACE *MeshFace )
 		TempDword( PStr, Model, ( X_DWORD * )&MeshFace->nFaceVertexIndices ) ;	if( !PStr->binf ) PStrMoveP( PStr, ";," ) ;
 		if( MeshFace->nFaceVertexIndices > MAX_INDEXNUM )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 一つの面で使用できる頂点数の最大数 %d を超えた面がありました( %d 個の頂点 )" ), MAX_INDEXNUM, MeshFace->nFaceVertexIndices ) ) ;
-			return -1 ;
+			MeshFace->faceVertexIndices = ( DWORD * )ADDMEMAREA( sizeof( DWORD ) * MeshFace->nFaceVertexIndices, &Model->XModelMem ) ;
+			if( MeshFace->faceVertexIndices == NULL )
+			{
+	//			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : 一つの面で使用できる頂点数の最大数 %d を超えた面がありました( %d 個の頂点 )", MAX_INDEXNUM, MeshFace->nFaceVertexIndices ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xd5\x30\xa7\x30\xa4\x30\xb9\x30\x92\x30\xcb\x69\x10\x62\x59\x30\x8b\x30\x02\x98\xb9\x70\x6e\x30\xa4\x30\xf3\x30\xc7\x30\xc3\x30\xaf\x30\xb9\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x28\x00\x20\x00\x25\x00\x64\x00\x20\x00\x0b\x50\x6e\x30\x02\x98\xb9\x70\x20\x00\x29\x00\x00"/*@ L"Load XFile : フェイスを構成する頂点のインデックスを保存するメモリ領域の確保に失敗しました( %d 個の頂点 )" @*/, MeshFace->nFaceVertexIndices ) ) ;
+				return -1 ;
+			}
 		}
 
 		// フェイスの数だけインデックスを読み込む
 		if( MeshFace->nFaceVertexIndices != 0 )
 		{
-			for( i = 0 ; i < MeshFace->nFaceVertexIndices - 1 ; i ++ )
+			if( MeshFace->faceVertexIndices != NULL )
 			{
+				for( i = 0 ; i < MeshFace->nFaceVertexIndices - 1 ; i ++ )
+				{
+					TempDword( PStr, Model, ( X_DWORD * )&MeshFace->faceVertexIndices[i] ) ;
+					PStrMoveP( PStr, ";," ) ;
+				}
 				TempDword( PStr, Model, ( X_DWORD * )&MeshFace->faceVertexIndices[i] ) ;
-				PStrMoveP( PStr, ";," ) ;
 			}
-			TempDword( PStr, Model, ( X_DWORD * )&MeshFace->faceVertexIndices[i] ) ;
+			else
+			{
+				for( i = 0 ; i < MeshFace->nFaceVertexIndices - 1 ; i ++ )
+				{
+					TempDword( PStr, Model, ( X_DWORD * )&MeshFace->faceVertexIndicesFixedLength[i] ) ;
+					PStrMoveP( PStr, ";," ) ;
+				}
+				TempDword( PStr, Model, ( X_DWORD * )&MeshFace->faceVertexIndicesFixedLength[i] ) ;
+			}
 			PStrMoveP( PStr, ";," ) ;
 		}
 	}
@@ -2945,11 +3142,32 @@ static int TempMeshFace( X_PSTRING *PStr, X_MODEL *Model, X_MESHFACE *MeshFace )
 
 		// フェイスの数を読み込む
 		MeshFace->nFaceVertexIndices = PSTRDWORD(PStr,6) ;
+		if( MeshFace->nFaceVertexIndices > MAX_INDEXNUM )
+		{
+			MeshFace->faceVertexIndices = ( DWORD * )ADDMEMAREA( sizeof( DWORD ) * MeshFace->nFaceVertexIndices, &Model->XModelMem ) ;
+			if( MeshFace->faceVertexIndices == NULL )
+			{
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xd5\x30\xa7\x30\xa4\x30\xb9\x30\x92\x30\xcb\x69\x10\x62\x59\x30\x8b\x30\x02\x98\xb9\x70\x6e\x30\xa4\x30\xf3\x30\xc7\x30\xc3\x30\xaf\x30\xb9\x30\x92\x30\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x28\x00\x20\x00\x25\x00\x64\x00\x20\x00\x0b\x50\x6e\x30\x02\x98\xb9\x70\x20\x00\x29\x00\x00"/*@ L"Load XFile : フェイスを構成する頂点のインデックスを保存するメモリ領域の確保に失敗しました( %d 個の頂点 )" @*/, MeshFace->nFaceVertexIndices ) ) ;
+				return -1 ;
+			}
+		}
 
 		// フェイスの数だけインデックスを読み込む
 		j = 10 ;
-		for( i = 0 ; i < MeshFace->nFaceVertexIndices ; i ++, j += 4 )
-			MeshFace->faceVertexIndices[i] = PSTRDWORD(PStr,j) ;
+		if( MeshFace->faceVertexIndices != NULL )
+		{
+			for( i = 0 ; i < MeshFace->nFaceVertexIndices ; i ++, j += 4 )
+			{
+				MeshFace->faceVertexIndices[i] = PSTRDWORD(PStr,j) ;
+			}
+		}
+		else
+		{
+			for( i = 0 ; i < MeshFace->nFaceVertexIndices ; i ++, j += 4 )
+			{
+				MeshFace->faceVertexIndicesFixedLength[i] = PSTRDWORD(PStr,j) ;
+			}
+		}
 
 		PStrMoveOneB(PStr) ;
 	}
@@ -2971,7 +3189,7 @@ static int TempMeshTextureCoords( X_PSTRING *PStr, X_MODEL *Model, X_MESHTEXTURE
 	// テクスチャ座標を格納するメモリの確保
 	if( ( MeshTextureCoords->textureCoords = ( X_COORDS2D * )ADDMEMAREA( sizeof( X_COORDS2D ) * MeshTextureCoords->nTextureCoords, &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : UV座標を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x55\x00\x56\x00\xa7\x5e\x19\x6a\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : UV座標を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -2996,7 +3214,9 @@ static int TempMeshTextureCoords( X_PSTRING *PStr, X_MODEL *Model, X_MESHTEXTURE
 				}
 			}
 			TempCoords2d( PStr, Model, C ) ;
-			PStrMoveP( PStr, ";," ) ;
+
+			// 変な記述用に } も含める
+			PStrMoveP( PStr, "};," ) ;
 
 			// 変な記述用のプログラム
 			if( PStr->StrBuf[ PStr->StrOffset - 1 ] == '}' )
@@ -3009,12 +3229,12 @@ static int TempMeshTextureCoords( X_PSTRING *PStr, X_MODEL *Model, X_MESHTEXTURE
 	{
 		if( PSTRWORD(PStr, 0) != TOKEN_FLOAT_LIST )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : MeshTextureCorrds FloadList\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : MeshTextureCorrds FloadList\n" )) ;
 			return -1 ;
 		}
 		if( PSTRDWORD(PStr, 2) != MeshTextureCoords->nTextureCoords * 2 )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : MeshTextureCorrds Not %d ( %d )\n" ), MeshTextureCoords->nTextureCoords * 2, PSTRDWORD(PStr, 2) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : MeshTextureCorrds Not %d ( %d )\n", MeshTextureCoords->nTextureCoords * 2, PSTRDWORD(PStr, 2) ) ) ;
 			return -1 ;
 		}
 
@@ -3055,7 +3275,7 @@ static int TempMeshNormals( X_PSTRING *PStr, X_MODEL *Model, X_MESHNORMALS *Mesh
 	// 法線を格納するメモリの確保
 	if( ( MeshNormals->normals = ( X_VECTOR * )ADDMEMAREA( sizeof( X_VECTOR ) * MeshNormals->nNormals, &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 法線を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xd5\x6c\xda\x7d\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 法線を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -3078,12 +3298,12 @@ static int TempMeshNormals( X_PSTRING *PStr, X_MODEL *Model, X_MESHNORMALS *Mesh
 	{
 		if( PSTRWORD(PStr, 0) != TOKEN_FLOAT_LIST )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : MeshNormals FloadList\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : MeshNormals FloadList\n" )) ;
 			return -1 ;
 		}
 		if( PSTRDWORD(PStr, 2) != MeshNormals->nNormals * 3 )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : MeshNormals Not %d ( %d )\n" ), MeshNormals->nNormals * 3, PSTRDWORD(PStr, 2) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : MeshNormals Not %d ( %d )\n", MeshNormals->nNormals * 3, PSTRDWORD(PStr, 2) ) ) ;
 			return -1 ;
 		}
 
@@ -3124,7 +3344,7 @@ static int TempMeshNormals( X_PSTRING *PStr, X_MODEL *Model, X_MESHNORMALS *Mesh
 	// 法線フェイスを格納するメモリの確保
 	if( ( MeshNormals->faceNormals = ( X_MESHFACE * )ADDMEMAREA( sizeof( X_MESHFACE ) * MeshNormals->nFaceNormals, &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 法線面情報を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xd5\x6c\xda\x7d\x62\x97\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 法線面情報を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -3137,15 +3357,21 @@ static int TempMeshNormals( X_PSTRING *PStr, X_MODEL *Model, X_MESHNORMALS *Mesh
 			for( i = 0 ; i < MeshNormals->nFaceNormals - 1 ; i ++, MF ++ )
 			{
 				if( !PStr->binf ) PStrMoveNum( PStr );
-				TempMeshFace( PStr, Model, MF ) ;
+				if( TempMeshFace( PStr, Model, MF ) < 0 )
+				{
+					return -1 ;
+				}
 			}
 			if( !PStr->binf ) PStrMoveNum( PStr );
-			TempMeshFace( PStr, Model, MF ) ;
+			if( TempMeshFace( PStr, Model, MF ) < 0 )
+			{
+				return -1 ;
+			}
 		}
 	}
 	else
 	{
-//		if( PSTRWORD(PStr, 0) != TOKEN_INTEGER_LIST ) return DXST_ERRORLOG_ADD( _T( "Error aadfa;bb" ) ;
+//		if( PSTRWORD(PStr, 0) != TOKEN_INTEGER_LIST ) return DXST_ERRORLOG_ADDW( L"Error aadfa;bb" ) ;
 
 		j = 0 ;
 		switch( PSTRWORD(PStr,0) )
@@ -3158,8 +3384,20 @@ static int TempMeshNormals( X_PSTRING *PStr, X_MODEL *Model, X_MESHNORMALS *Mesh
 		for( i = 0 ; i < MeshNormals->nFaceNormals ; i ++, MF ++ )
 		{
 			MF->nFaceVertexIndices = PSTRDWORD(PStr,j) ; j += 4 ;
-			for( k = 0 ; k < MF->nFaceVertexIndices ; k ++, j += 4 )
-				MF->faceVertexIndices[k] = PSTRDWORD(PStr,j) ; 
+			if( MF->faceVertexIndices != NULL )
+			{
+				for( k = 0 ; k < MF->nFaceVertexIndices ; k ++, j += 4 )
+				{
+					MF->faceVertexIndices[k] = PSTRDWORD(PStr,j) ;
+				}
+			}
+			else
+			{
+				for( k = 0 ; k < MF->nFaceVertexIndices ; k ++, j += 4 )
+				{
+					MF->faceVertexIndicesFixedLength[k] = PSTRDWORD(PStr,j) ;
+				}
+			}
 		}
 		PStrMoveOneB( PStr ) ;
 	}
@@ -3188,7 +3426,7 @@ static int TempMeshMaterialList( X_PSTRING *PStr, X_MODEL *Model, X_MESHMATERIAL
 	{
 		if( PSTRWORD(PStr,0) != TOKEN_INTEGER_LIST )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : MeshMaterialList IntergerList\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : MeshMaterialList IntergerList\n" )) ;
 			return -1 ;
 		}
 
@@ -3202,7 +3440,7 @@ static int TempMeshMaterialList( X_PSTRING *PStr, X_MODEL *Model, X_MESHMATERIAL
 	// 適応面情報を格納するメモリの確保
 	if( ( MeshMaterialList->FaceIndexes = ( DWORD * )ADDMEMAREA( sizeof( DWORD ) * MeshMaterialList->nFaceIndexes, &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : マテリアルと面の関係情報を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x68\x30\x62\x97\x6e\x30\xa2\x95\xc2\x4f\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : マテリアルと面の関係情報を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -3240,8 +3478,8 @@ static int TempMeshMaterialList( X_PSTRING *PStr, X_MODEL *Model, X_MESHMATERIAL
 
 	if( MaxIndex + 1 > MeshMaterialList->nMaterials )
 	{
-//		DXST_ERRORLOG_ADD( _T( "Load XFile : nMaterials と実際に使用されているマテリアルの数が違います\n" ) ) ;
-		DXST_ERRORLOG_ADD( _T( "Load XFile : nMaterials より大きいマテリアルインデックスがありました\n" ) ) ;
+//		DXST_ERRORLOG_ADDW( L"Load XFile : nMaterials と実際に使用されているマテリアルの数が違います\n" ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x6e\x00\x4d\x00\x61\x00\x74\x00\x65\x00\x72\x00\x69\x00\x61\x00\x6c\x00\x73\x00\x20\x00\x88\x30\x8a\x30\x27\x59\x4d\x30\x44\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\xa4\x30\xf3\x30\xc7\x30\xc3\x30\xaf\x30\xb9\x30\x4c\x30\x42\x30\x8a\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : nMaterials より大きいマテリアルインデックスがありました\n" @*/ ) ;
 		return -1 ;
 	}
 
@@ -3262,7 +3500,7 @@ static int TempIndexedColor( X_PSTRING *PStr, X_MODEL *Model, X_INDEXEDCOLOR *In
 	{
 		if( PSTRWORD(PStr, 0) != TOKEN_FLOAT_LIST )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : IndexedColor FloadList\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : IndexedColor FloadList\n" )) ;
 			return -1 ;
 		}
 		if( PStr->f64f )
@@ -3298,7 +3536,7 @@ static int TempMeshVertexColors( X_PSTRING *PStr, X_MODEL *Model, X_MESHVERTEXCO
 	// カラーを格納するためのメモリの確保
 	if( ( MeshVertexColors->vertexColors = ( X_INDEXEDCOLOR * )ADDMEMAREA( sizeof( X_INDEXEDCOLOR ) * MeshVertexColors->nVertexColors, &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 頂点カラーを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\xab\x30\xe9\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 頂点カラーを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -3339,7 +3577,7 @@ static int TempMesh( X_PSTRING *PStr, X_MODEL *Model, X_MESH *Mesh )
 	// 頂点を格納するメモリの確保
 	if( ( Mesh->vertices = ( X_VECTOR * )ADDMEMAREA( sizeof( X_VECTOR ) * Mesh->nVertices, &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 頂点座標を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\xa7\x5e\x19\x6a\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 頂点座標を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -3362,12 +3600,12 @@ static int TempMesh( X_PSTRING *PStr, X_MODEL *Model, X_MESH *Mesh )
 	{
 		if( PSTRWORD(PStr, 0) != TOKEN_FLOAT_LIST )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : Mesh FloadList\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : Mesh FloadList\n" )) ;
 			return -1 ;
 		}
 		if( PSTRDWORD(PStr, 2) != Mesh->nVertices * 3 )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : Mesh Not %d ( %d )\n" ), Mesh->nVertices * 3, PSTRDWORD(PStr, 2) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : Mesh Not %d ( %d )\n", Mesh->nVertices * 3, PSTRDWORD(PStr, 2) ) ) ;
 			return -1 ;
 		}
 
@@ -3408,7 +3646,7 @@ static int TempMesh( X_PSTRING *PStr, X_MODEL *Model, X_MESH *Mesh )
 	// 頂点フェイスを格納するメモリの確保
 	if( ( Mesh->faces = ( X_MESHFACE * )ADDMEMAREA( sizeof( X_MESHFACE ) * Mesh->nFaces, &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 頂点面情報を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\x62\x97\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 頂点面情報を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 	Mesh->nTriangles = 0 ;
@@ -3422,17 +3660,23 @@ static int TempMesh( X_PSTRING *PStr, X_MODEL *Model, X_MESH *Mesh )
 			for( i = 0 ; i < Mesh->nFaces - 1 ; i ++, MF ++ )
 			{
 				if( !PStr->binf ) PStrMoveNum( PStr );
-				TempMeshFace( PStr, Model, MF ) ;
+				if( TempMeshFace( PStr, Model, MF ) < 0 )
+				{
+					return -1 ;
+				}
 				Mesh->nTriangles += MF->nFaceVertexIndices == 4 ? 2 : 1 ;
 			}
 			if( !PStr->binf ) PStrMoveNum( PStr );
-			TempMeshFace( PStr, Model, MF ) ;
+			if( TempMeshFace( PStr, Model, MF ) < 0 )
+			{
+				return -1 ;
+			}
 			Mesh->nTriangles += MF->nFaceVertexIndices == 4 ? 2 : 1 ;
 		}
 	}
 	else
 	{
-//		if( PSTRWORD(PStr, 0) != TOKEN_INTEGER_LIST ) return DXST_ERRORLOG_ADD( _T( "Error aadfa;bb" ) ) ;
+//		if( PSTRWORD(PStr, 0) != TOKEN_INTEGER_LIST ) return DXST_ERRORLOG_ADDW( L"Error aadfa;bb" ) ;
 
 		j = 0 ;
 		switch( PSTRWORD(PStr,0) )
@@ -3445,8 +3689,20 @@ static int TempMesh( X_PSTRING *PStr, X_MODEL *Model, X_MESH *Mesh )
 		for( i = 0 ; i < Mesh->nFaces ; i ++, MF ++ )
 		{
 			MF->nFaceVertexIndices = PSTRDWORD(PStr,j) ; j += 4 ;
-			for( k = 0 ; k < MF->nFaceVertexIndices ; k ++, j += 4 )
-				MF->faceVertexIndices[k] = PSTRDWORD(PStr,j) ; 
+			if( MF->faceVertexIndices != NULL )
+			{
+				for( k = 0 ; k < MF->nFaceVertexIndices ; k ++, j += 4 )
+				{
+					MF->faceVertexIndices[k] = PSTRDWORD(PStr,j) ; 
+				}
+			}
+			else
+			{
+				for( k = 0 ; k < MF->nFaceVertexIndices ; k ++, j += 4 )
+				{
+					MF->faceVertexIndicesFixedLength[k] = PSTRDWORD(PStr,j) ; 
+				}
+			}
 			Mesh->nTriangles += MF->nFaceVertexIndices == 4 ? 2 : 1 ;
 		}
 		PStrMoveOneB( PStr ) ;
@@ -3481,7 +3737,7 @@ static int TempFrameTransformMatrix( X_PSTRING *PStr, X_MODEL *Model, X_FRAMETRA
 
 		if( PSTRWORD(PStr,0) != TOKEN_FLOAT_LIST )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : FrameTransformMatrix FloadList\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : FrameTransformMatrix FloadList\n" )) ;
 			return -1 ;
 		}
 
@@ -3510,12 +3766,12 @@ static int TempFrameTransformMatrix( X_PSTRING *PStr, X_MODEL *Model, X_FRAMETRA
 			{
 				if( PSTRWORD(PStr,0) != TOKEN_FLOAT_LIST )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : FrameTransformMatrix MatrixLine No.%d FloadList\n" ), i ) ) ;
+					DXST_ERRORLOGFMT_ADDW(( L"Load XFile : FrameTransformMatrix MatrixLine No.%d FloadList\n", i ) ) ;
 					return -1 ;
 				}
 				if( PSTRDWORD(PStr,2) != 4 )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : FrameTransformMatrix MatrixLine No.%d Not 4 ( %d )\n" ), i, PSTRDWORD(PStr, 2) ) ) ;
+					DXST_ERRORLOGFMT_ADDW(( L"Load XFile : FrameTransformMatrix MatrixLine No.%d Not 4 ( %d )\n", i, PSTRDWORD(PStr, 2) ) ) ;
 					return -1 ;
 				}
 
@@ -3527,7 +3783,7 @@ static int TempFrameTransformMatrix( X_PSTRING *PStr, X_MODEL *Model, X_FRAMETRA
 		}
 		else
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : FrameTransformMatrix Not 16 ( %d )\n" ), PSTRDWORD(PStr, 2) ) ) ;
+			DXST_ERRORLOGFMT_ADDA(( "Load XFile : FrameTransformMatrix Not 16 ( %d )\n", PSTRDWORD(PStr, 2) ) ) ;
 			return -1 ;
 		}
 	}
@@ -3562,7 +3818,7 @@ static int TempFloatKeys( X_PSTRING *PStr, X_MODEL *Model, X_FLOATKEYS *FloatKey
 	// float 値を格納するメモリの確保
 	if( ( FloatKeys->values = ( FLOAT * )ADDMEMAREA( sizeof( FLOAT ) * FloatKeys->nValues, &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 浮動小数点リストを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x6e\x6d\xd5\x52\x0f\x5c\x70\x65\xb9\x70\xea\x30\xb9\x30\xc8\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 浮動小数点リストを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -3636,7 +3892,7 @@ static int TempTimedFloatKeys( X_PSTRING *PStr, X_MODEL *Model, X_TIMEDFLOATKEYS
 		// float 値を格納するメモリの確保
 		if( ( FloatKeys->values = ( FLOAT * )ADDMEMAREA( sizeof( FLOAT ) * FloatKeys->nValues, &Model->XModelMem ) ) == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : 浮動小数点キーデータを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x6e\x6d\xd5\x52\x0f\x5c\x70\x65\xb9\x70\xad\x30\xfc\x30\xc7\x30\xfc\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 浮動小数点キーデータを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 			return -1 ;
 		}
 
@@ -3709,7 +3965,7 @@ static int TempAnimationKey( X_PSTRING *PStr, X_MODEL *Model, X_ANIMATIONKEY *An
 	// キーを保存するメモリ領域の確保
 	if( ( AnimationKey->keys = ( X_TIMEDFLOATKEYS * )ADDMEMAREA( sizeof( X_TIMEDFLOATKEYS ) * AnimationKey->nKeys, &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : アニメーションキーリストを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\xea\x30\xb9\x30\xc8\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : アニメーションキーリストを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -3758,7 +4014,7 @@ static int TempAnimationKey( X_PSTRING *PStr, X_MODEL *Model, X_ANIMATIONKEY *An
 					// float 値を格納するメモリの確保
 					if( ( FloatKeys->values = ( FLOAT * )ADDMEMAREA( sizeof( FLOAT ) * FloatKeys->nValues, &Model->XModelMem ) ) == NULL )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : アニメーションキーの浮動小数点値を格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\x6e\x30\x6e\x6d\xd5\x52\x0f\x5c\x70\x65\xb9\x70\x24\x50\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : アニメーションキーの浮動小数点値を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 						return -1 ;
 					}
 
@@ -3848,12 +4104,12 @@ static int TempXSkinMeshHeader( X_PSTRING *PStr, X_MODEL *Model, X_XSKINMESHHEAD
 	{
 		if( PSTRWORD(PStr,0) != TOKEN_INTEGER_LIST )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : XSkinMeshHeader IntergerList\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : XSkinMeshHeader IntergerList\n" )) ;
 			return -1 ;
 		}
 		if( PSTRDWORD(PStr,2) != 3 )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : XSkinMeshHeader Not 3 ( %d )\n" ), PSTRDWORD(PStr,2) ) ) ;
+			DXST_ERRORLOGFMT_ADDA(( "Load XFile : XSkinMeshHeader Not 3 ( %d )\n", PSTRDWORD(PStr,2) ) ) ;
 			return -1 ;
 		}
 
@@ -3898,13 +4154,13 @@ static int TempSkinWeights( X_PSTRING *PStr, X_MODEL *Model, X_SKINWEIGHTS *Skin
 	// 頂点のインデックスを格納するメモリ領域とウエイト値を格納するメモリ領域を確保
 	if( ( SkinWeights->vertexIndices = ( DWORD * )ADDMEMAREA( sizeof( DWORD ) * ( SkinWeights->nWeights + 1 ), &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : スキンメッシュのウエイト値情報のターゲット頂点インデックスを格納するためのメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xb9\x30\xad\x30\xf3\x30\xe1\x30\xc3\x30\xb7\x30\xe5\x30\x6e\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\x24\x50\xc5\x60\x31\x58\x6e\x30\xbf\x30\xfc\x30\xb2\x30\xc3\x30\xc8\x30\x02\x98\xb9\x70\xa4\x30\xf3\x30\xc7\x30\xc3\x30\xaf\x30\xb9\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\x5f\x30\x81\x30\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : スキンメッシュのウエイト値情報のターゲット頂点インデックスを格納するためのメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
 	if( ( SkinWeights->weights = ( FLOAT * )ADDMEMAREA( sizeof( FLOAT ) * ( SkinWeights->nWeights + 1 ), &Model->XModelMem ) ) == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : スキンメッシュのウエイト値情報のウエイト値を格納するためのメモリ領域の確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xb9\x30\xad\x30\xf3\x30\xe1\x30\xc3\x30\xb7\x30\xe5\x30\x6e\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\x24\x50\xc5\x60\x31\x58\x6e\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\x24\x50\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\x5f\x30\x81\x30\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : スキンメッシュのウエイト値情報のウエイト値を格納するためのメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -3946,12 +4202,12 @@ static int TempSkinWeights( X_PSTRING *PStr, X_MODEL *Model, X_SKINWEIGHTS *Skin
 
 		if( PSTRWORD(PStr,0) != TOKEN_INTEGER_LIST )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : SkinWeights TargetVertex IntegerList\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : SkinWeights TargetVertex IntegerList\n" )) ;
 			return -1 ;
 		}
 		if( PSTRWORD(PStr,2) != 1 + SkinWeights->nWeights )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : SkinWeights TargetVertex Not %d ( %d )\n" ), 1 + SkinWeights->nWeights, PSTRDWORD(PStr,2) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : SkinWeights TargetVertex Not %d ( %d )\n", 1 + SkinWeights->nWeights, PSTRDWORD(PStr,2) ) ) ;
 			return -1 ;
 		}
 
@@ -3965,13 +4221,13 @@ static int TempSkinWeights( X_PSTRING *PStr, X_MODEL *Model, X_SKINWEIGHTS *Skin
 
 		if( PSTRWORD(PStr,0) != TOKEN_FLOAT_LIST )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : SkinWeights WeightValue FloatList\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : SkinWeights WeightValue FloatList\n" )) ;
 			return -1 ;
 		}
 
 		if( PSTRWORD(PStr,2) != 16 + SkinWeights->nWeights )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Load XFile : SkinWeights WeightValue Not %d ( %d )\n" ), 16 + SkinWeights->nWeights, PSTRDWORD(PStr,2) ) ) ;
+			DXST_ERRORLOGFMT_ADDW(( L"Load XFile : SkinWeights WeightValue Not %d ( %d )\n", 16 + SkinWeights->nWeights, PSTRDWORD(PStr,2) ) ) ;
 			return -1 ;
 		}
 
@@ -4033,11 +4289,12 @@ extern int MV1LoadModelToX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncThre
 	// 読み込み用モデルの初期化
 	MV1InitReadModel( &RModel ) ;
 
-	// モデル名とファイル名をセット
-	RModel.FilePath = ( TCHAR * )DXALLOC( ( lstrlen( LoadParam->FilePath ) + 1 ) * sizeof( TCHAR ) ) ;
-	RModel.Name     = ( TCHAR * )DXALLOC( ( lstrlen( LoadParam->Name     ) + 1 ) * sizeof( TCHAR ) ) ;
-	lstrcpy( RModel.FilePath, LoadParam->FilePath ) ;
-	lstrcpy( RModel.Name,     LoadParam->Name ) ;
+	// モデル名とファイル名とコードページをセット
+	RModel.CodePage = CHAR_CODEPAGE ;
+	RModel.FilePath = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->FilePath ) + 1 ) * sizeof( wchar_t ) ) ;
+	RModel.Name     = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->Name     ) + 1 ) * sizeof( wchar_t ) ) ;
+	_WCSCPY( RModel.FilePath, LoadParam->FilePath ) ;
+	_WCSCPY( RModel.Name,     LoadParam->Name ) ;
 
 	// Ｘファイルデータの読み込み
 	{
@@ -4064,7 +4321,7 @@ extern int MV1LoadModelToX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncThre
 	// 読み込みモデルの後始末
 	MV1TermReadModel( &RModel ) ;
 
-	// 返回句柄
+	// ハンドルを返す
 	return NewHandle ;
 
 ERRORLABEL :
@@ -4086,7 +4343,11 @@ ERRORLABEL :
 	return -1 ;
 }
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif
 

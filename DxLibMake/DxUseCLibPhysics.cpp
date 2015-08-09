@@ -2,18 +2,18 @@
 // 
 // 		ＤＸライブラリ		物理演算処理
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 #include "DxCompileConfig.h"
 
 #if !defined( DX_NON_MODEL ) && !defined( DX_NON_BULLET_PHYSICS )
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxUseCLib.h"
 #include "DxLib.h"
 #include "DxStatic.h"
@@ -24,8 +24,8 @@
 #include "DxModelLoader4.h"
 #include "Windows/DxGuid.h"
 
-namespace DxLib
-{
+//namespace DxLib
+//{
 
 // マクロ定義 -----------------------------------
 
@@ -547,7 +547,7 @@ static void Model_PhysicsMotionState_Flush( D_btKinematicMotionState *pbtMotionS
 	{
 		D_btTransform temp ;
 
-		ConvertMatrix4x4cToMatrix( &tempMatrix, &pRigidBody->TargetFrame->LocalWorldMatrix ) ;
+		ConvertMatrix4x4cToMatrixF( &tempMatrix, &pRigidBody->TargetFrame->LocalWorldMatrix ) ;
 		temp.setFromOpenGLMatrix( ( D_btScalar * )&tempMatrix ) ;
 		pbtMotionState->GraphicsWorldTrans = temp * BulletRigidBodyInfo->bttrBoneOffset ;
 	}
@@ -587,7 +587,7 @@ extern int SetupPhysicsObject_ModelPhysicsInfo( MV1_MODEL *Model )
 		BulletRigidBodyInfo = ( BULLET_RIGIDBODY_INFO * )RigidBody->BulletInfo ;
 		RigidBodyBase = RigidBody->BaseData ;
 
-		ConvertMatrix4x4cToMatrix( &InitializeMatrix, &RigidBody->TargetFrame->LocalWorldMatrix ) ;
+		ConvertMatrix4x4cToMatrixF( &InitializeMatrix, &RigidBody->TargetFrame->LocalWorldMatrix ) ;
 
 		// 剛体の初期化
 		RigidBodySetupInfo.RigidBodyGroupIndex = RigidBodyBase->RigidBodyGroupIndex ;
@@ -682,7 +682,7 @@ extern int ResetState_ModelPhysicsInfo( MV1_MODEL *Model )
 		if( PhysicsRigidBody->TargetFrame->ValidLocalWorldMatrixNM == false )
 		{
 			PhysicsRigidBody->TargetFrame->ValidLocalWorldMatrixNM = true ;
-			ConvertMatrix4x4cToMatrix( &PhysicsRigidBody->TargetFrame->LocalWorldMatrixNM, &PhysicsRigidBody->TargetFrame->LocalWorldMatrix ) ;
+			ConvertMatrix4x4cToMatrixF( &PhysicsRigidBody->TargetFrame->LocalWorldMatrixNM, &PhysicsRigidBody->TargetFrame->LocalWorldMatrix ) ;
 		}
 
 		BulleyPhysics_ResetRigidBody( BulletRigidBodyInfo, &PhysicsRigidBody->TargetFrame->LocalWorldMatrixNM ) ;
@@ -740,7 +740,7 @@ extern int StepSimulation_ModelPhysicsInfo( MV1_MODEL *Model, float TimeStep )
 		BulletRigidBodyInfo = ( BULLET_RIGIDBODY_INFO * )PhysicsRigidBody->BulletInfo ;
 
 		( BulletRigidBodyInfo->btRigdBody->getCenterOfMassTransform() * BulletRigidBodyInfo->bttrInvBoneOffset ).getOpenGLMatrix( ( float * )&tempMatrix );
-		ConvertMatrixToMatrix4x4c( &PhysicsRigidBody->TargetFrame->LocalWorldMatrix, &tempMatrix ) ;
+		ConvertMatrixFToMatrix4x4c( &PhysicsRigidBody->TargetFrame->LocalWorldMatrix, &tempMatrix ) ;
 	}
 
 	// 終了
@@ -885,14 +885,19 @@ extern int OneFrameProcess_PMDPhysicsInfo(
 	DX_MODELLOADER3_PMD_PHYSICS_INFO *MLPhysicsInfo,
 	int FrameNo,
 	int LoopNo,
-	bool FPS60
+	bool FPS60,
+	int ValidNextRate,
+	int TimeDivNum
 )
 {
 	BULLET_RIGIDBODY_INFO *BulletRigidBodyInfo ;
 	BULLET_PHYSICS *Bullet = ( BULLET_PHYSICS * )MLPhysicsInfo->BulletPhysicsDataBuffer ;
 	PMD_READ_PHYSICS_INFO *PhysicsInfo ;
+	float UnitTime ;
 	int j ;
 	int k ;
+
+	UnitTime = ( 1 / 60.0f ) / ( float )TimeDivNum ;
 
 	// 最初のフレームで初期位置にセット
 	if( FrameNo == 0 && LoopNo == 0 )
@@ -908,24 +913,29 @@ extern int OneFrameProcess_PMDPhysicsInfo(
 		}
 
 		// 最初のフレームは状態で落ち着かせるために３秒分回す
-		for( j = 0 ; j < 180 ; j ++ )
 		{
-			Bullet->World->stepSimulation( 1.0f / 60.0f, 1, 1.0f / 60.0f ) ;
+			int   LoopNum ;
 
-			// ボーン位置あわせ
-			PhysicsInfo = MLPhysicsInfo->PmdPhysicsInfoDim ;
-			for( k = 0 ; k < MLPhysicsInfo->PmdPhysicsNum ; k ++, PhysicsInfo ++ )
+			LoopNum  = 180 * TimeDivNum ;
+			for( j = 0 ; j < LoopNum ; j ++ )
 			{
-				BulletRigidBodyInfo = ( BULLET_RIGIDBODY_INFO * )PhysicsInfo->BulletInfo ;
+				Bullet->World->stepSimulation( UnitTime, 1, UnitTime ) ;
 
-				PMD_PhysicsMotionState_Flush( false, BulletRigidBodyInfo->btMotionState, PhysicsInfo ) ;
+				// ボーン位置あわせ
+				PhysicsInfo = MLPhysicsInfo->PmdPhysicsInfoDim ;
+				for( k = 0 ; k < MLPhysicsInfo->PmdPhysicsNum ; k ++, PhysicsInfo ++ )
+				{
+					BulletRigidBodyInfo = ( BULLET_RIGIDBODY_INFO * )PhysicsInfo->BulletInfo ;
+
+					PMD_PhysicsMotionState_Flush( false, BulletRigidBodyInfo->btMotionState, PhysicsInfo ) ;
+				}
 			}
 		}
 	}
 	else
 	{
 		// 物理処理を１フレーム分実行する
-		Bullet->World->stepSimulation( 1.0f / 60.0f, 1, 1.0f / 60.0f ) ;
+		Bullet->World->stepSimulation( UnitTime, 1, UnitTime ) ;
 
 		// ボーン位置あわせ
 		PhysicsInfo = MLPhysicsInfo->PmdPhysicsInfoDim ;
@@ -952,7 +962,7 @@ extern int OneFrameProcess_PMDPhysicsInfo(
 	// 物理演算を行うボーンの行列キーを算出する
 	if( MLPhysicsInfo->LoopMotionFlag == FALSE || LoopNo >= 2 )
 	{
-		if( FPS60 || ( FPS60 == false && FrameNo % 2 == 0 ) )
+		if( ValidNextRate == FALSE && ( FPS60 || ( FPS60 == false && FrameNo % 2 == 0 ) ) )
 		{
 			int DestIndex ;
 			MATRIX TempMatrix ;
@@ -1020,40 +1030,7 @@ extern int OneFrameProcess_PMDPhysicsInfo(
 					{
 						*DestMatrix = TempMatrix ;
 					}
-
-					/*
-					DestMatrix->m[ 0 ][ 0 ] += TempMatrix.m[ 0 ][ 0 ] * MulParam ;
-					DestMatrix->m[ 0 ][ 1 ] += TempMatrix.m[ 0 ][ 1 ] * MulParam ;
-					DestMatrix->m[ 0 ][ 2 ] += TempMatrix.m[ 0 ][ 2 ] * MulParam ;
-					DestMatrix->m[ 0 ][ 3 ] += TempMatrix.m[ 0 ][ 3 ] * MulParam ;
-					DestMatrix->m[ 1 ][ 0 ] += TempMatrix.m[ 1 ][ 0 ] * MulParam ;
-					DestMatrix->m[ 1 ][ 1 ] += TempMatrix.m[ 1 ][ 1 ] * MulParam ;
-					DestMatrix->m[ 1 ][ 2 ] += TempMatrix.m[ 1 ][ 2 ] * MulParam ;
-					DestMatrix->m[ 1 ][ 3 ] += TempMatrix.m[ 1 ][ 3 ] * MulParam ;
-					DestMatrix->m[ 2 ][ 0 ] += TempMatrix.m[ 2 ][ 0 ] * MulParam ;
-					DestMatrix->m[ 2 ][ 1 ] += TempMatrix.m[ 2 ][ 1 ] * MulParam ;
-					DestMatrix->m[ 2 ][ 2 ] += TempMatrix.m[ 2 ][ 2 ] * MulParam ;
-					DestMatrix->m[ 2 ][ 3 ] += TempMatrix.m[ 2 ][ 3 ] * MulParam ;
-					DestMatrix->m[ 3 ][ 0 ] += TempMatrix.m[ 3 ][ 0 ] * MulParam ;
-					DestMatrix->m[ 3 ][ 1 ] += TempMatrix.m[ 3 ][ 1 ] * MulParam ;
-					DestMatrix->m[ 3 ][ 2 ] += TempMatrix.m[ 3 ][ 2 ] * MulParam ;
-					DestMatrix->m[ 3 ][ 3 ] += TempMatrix.m[ 3 ][ 3 ] * MulParam ;
-					*/
 				}
-/*
-				if( PhysicsInfo->Bone->Frame->Parent )
-				{
-					MATRIX InvParentBoneLWM ;
-
-					// 物理演算から得られる行列はワールド行列なので、それをボーンのローカル行列に変換する
-					ModelLoader3_InverseMatrix( ( ( PMD_READ_BONE_INFO * )PhysicsInfo->Bone->Frame->Parent->UserData )->LocalWorldMatrix, InvParentBoneLWM ) ;
-					CreateMultiplyMatrix( &PhysicsInfo->Bone->KeyMatrix[ DestIndex ], &PhysicsInfo->Bone->LocalWorldMatrix, &InvParentBoneLWM ) ;
-				}
-				else
-				{
-					PhysicsInfo->Bone->KeyMatrix[ DestIndex ] = PhysicsInfo->Bone->LocalWorldMatrix ;
-				}
-*/
 			}
 		}
 	}
@@ -1209,14 +1186,19 @@ extern int OneFrameProcess_PMXPhysicsInfo(
 	DX_MODELLOADER3_PMX_PHYSICS_INFO *MLPhysicsInfo,
 	int FrameNo,
 	int LoopNo,
-	bool FPS60
+	bool FPS60,
+	int ValidNextRate,
+	int TimeDivNum
 )
 {
 	BULLET_RIGIDBODY_INFO *BulletRigidBodyInfo ;
 	BULLET_PHYSICS *Bullet = ( BULLET_PHYSICS * )MLPhysicsInfo->BulletPhysicsDataBuffer ;
 	PMX_READ_PHYSICS_INFO *PhysicsInfo ;
+	float UnitTime ;
 	int j ;
 	int k ;
+
+	UnitTime = ( 1 / 60.0f ) / ( float )TimeDivNum ;
 
 	// 最初のフレームで初期位置にセット
 	if( FrameNo == 0 && LoopNo == 0 )
@@ -1232,24 +1214,29 @@ extern int OneFrameProcess_PMXPhysicsInfo(
 		}
 
 		// 最初のフレームは状態で落ち着かせるために３秒分回す
-		for( j = 0 ; j < 180 ; j ++ )
 		{
-			Bullet->World->stepSimulation( 1.0f / 60.0f, 1, 1.0f / 60.0f ) ;
+			int   LoopNum ;
 
-			// ボーン位置あわせ
-			PhysicsInfo = MLPhysicsInfo->PmxPhysicsInfoDim ;
-			for( k = 0 ; k < MLPhysicsInfo->PmxPhysicsNum ; k ++, PhysicsInfo ++ )
+			LoopNum  = 180 * TimeDivNum ;
+			for( j = 0 ; j < LoopNum ; j ++ )
 			{
-				BulletRigidBodyInfo = ( BULLET_RIGIDBODY_INFO * )PhysicsInfo->BulletInfo ;
+				Bullet->World->stepSimulation( UnitTime, 1, UnitTime ) ;
 
-				PMX_PhysicsMotionState_Flush( false, BulletRigidBodyInfo->btMotionState, PhysicsInfo ) ;
+				// ボーン位置あわせ
+				PhysicsInfo = MLPhysicsInfo->PmxPhysicsInfoDim ;
+				for( k = 0 ; k < MLPhysicsInfo->PmxPhysicsNum ; k ++, PhysicsInfo ++ )
+				{
+					BulletRigidBodyInfo = ( BULLET_RIGIDBODY_INFO * )PhysicsInfo->BulletInfo ;
+
+					PMX_PhysicsMotionState_Flush( false, BulletRigidBodyInfo->btMotionState, PhysicsInfo ) ;
+				}
 			}
 		}
 	}
 	else
 	{
 		// 物理処理を１フレーム分実行する
-		Bullet->World->stepSimulation( 1.0f / 60.0f, 1, 1.0f / 60.0f ) ;
+		Bullet->World->stepSimulation( UnitTime, 1, UnitTime ) ;
 
 		// ボーン位置あわせ
 		PhysicsInfo = MLPhysicsInfo->PmxPhysicsInfoDim ;
@@ -1276,7 +1263,7 @@ extern int OneFrameProcess_PMXPhysicsInfo(
 	// 物理演算を行うボーンの行列キーを算出する
 	if( MLPhysicsInfo->LoopMotionFlag == FALSE || LoopNo >= 2 )
 	{
-		if( FPS60 || ( FPS60 == false && FrameNo % 2 == 0 ) )
+		if( ValidNextRate == FALSE && ( FPS60 || ( FPS60 == false && FrameNo % 2 == 0 ) ) )
 		{
 			int DestIndex ;
 			MATRIX TempMatrix ;
@@ -1401,9 +1388,7 @@ extern int CheckDisablePhysicsAnim_PMXPhysicsInfo(
 
 
 
-
-
-}
+//}
 
 #endif // defined( DX_NON_MODEL ) && defined( DX_NON_BULLET_PHYSICS )
 

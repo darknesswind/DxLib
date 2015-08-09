@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ＦＢＸモデルデータ読み込みプログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
@@ -15,12 +15,15 @@
 
 // インクルード ---------------------------------
 #include "DxLog.h"
-#include "Windows/DxGuid.h"
 
 #include "fbxsdk.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 -----------------------------------
 
@@ -51,6 +54,10 @@ static MV1_TEXTURE_R *FbxAddTexture( MV1_MODEL_R *RModel, FbxTexture *_FbxTextur
 	MV1_TEXTURE_R *Texture ;
 	FbxFileTexture *pFbxFileTexture ;
 	FbxProceduralTexture *pProceduralTexture ;
+//	char *ANSIBuffer ;
+//	char *ANSIBuffer2 ;
+//	size_t ANSISize ;
+//	size_t ANSISize2 ;
 	int i ;
 
 	pFbxFileTexture = FbxCast< FbxFileTexture >( _FbxTexture ) ;
@@ -67,12 +74,24 @@ static MV1_TEXTURE_R *FbxAddTexture( MV1_MODEL_R *RModel, FbxTexture *_FbxTextur
 		return Texture ;
 
 	// テクスチャの追加
+//	FbxUTF8ToAnsi( _FbxTexture->GetName(),                 ANSIBuffer,  &ANSISize  ) ;
+//	FbxUTF8ToAnsi( pFbxFileTexture->GetRelativeFileName(), ANSIBuffer2, &ANSISize2 ) ;
 	Texture = MV1RAddTexture( RModel, _FbxTexture->GetName(), pFbxFileTexture->GetRelativeFileName(), NULL, FALSE, 0.1f, false ) ;
 	if( Texture == NULL )
+	{
 		return NULL ;
+	}
 
 	// ＦＢＸのアドレスを保存
 	Texture->UserData = _FbxTexture ;
+
+	// ラップモードを保存
+	Texture->AddressModeU = _FbxTexture->GetWrapModeU() == FbxTexture::eRepeat ? DX_TEXADDRESS_WRAP : DX_TEXADDRESS_CLAMP ;
+	Texture->AddressModeV = _FbxTexture->GetWrapModeV() == FbxTexture::eRepeat ? DX_TEXADDRESS_WRAP : DX_TEXADDRESS_CLAMP ;
+
+	// ＵＶスケールを保存
+	Texture->ScaleU = ( float )_FbxTexture->GetScaleU() ;
+	Texture->ScaleV = ( float )_FbxTexture->GetScaleV() ;
 
 	// アドレスを返す
 	return Texture ;
@@ -113,7 +132,7 @@ static int GetFbxAnimInfo(
 		*AnimP = MV1RAddAnim( RModel, AnimSet ) ;
 		if( *AnimP == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : アニメーションオブジェクトの追加に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : アニメーションオブジェクトの追加に失敗しました\n" @*/ )) ;
 			return -1 ;
 		}
 	}
@@ -123,7 +142,7 @@ static int GetFbxAnimInfo(
 	KeySet = MV1RAddAnimKeySet( RModel, Anim ) ;
 	if( KeySet == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : アニメーションキーセットオブジェクトの追加に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\xbb\x30\xc3\x30\xc8\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : アニメーションキーセットオブジェクトの追加に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -137,7 +156,7 @@ static int GetFbxAnimInfo(
 	KeySet->KeyLinear = ( float * )ADDMEMAREA( ( sizeof( float ) + sizeof( float ) ) * KeyNum, &RModel->Mem ) ;
 	if( KeySet->KeyLinear == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : アニメーションキーを格納するためのメモリの確保に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\x5f\x30\x81\x30\x6e\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : アニメーションキーを格納するためのメモリの確保に失敗しました\n" @*/ )) ;
 		return -1 ;
 	}
 	KeySet->KeyTime = ( float * )( KeySet->KeyLinear + KeyNum ) ;
@@ -211,6 +230,8 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 	FbxBlendShape *_FbxBlendShape ;
 	FbxBlendShapeChannel *_FbxBlendShapeChannel ;
 	FbxGeometryElementNormal *FbxNormalElem ;
+	FbxGeometryElementBinormal *FbxBinormalElem ;
+	FbxGeometryElementTangent *FbxTangentElem ;
 	FbxGeometryElementVertexColor *FbxVertexColorElem ;
 	FbxGeometryElementUV *FbxUVElem ;
 	FbxGeometryElementMaterial *FbxMaterialElem ;
@@ -232,6 +253,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 	VECTOR *MeshPos ;
 	MATRIX ReverseMat ;
 	int i, j, k, l, Num, LayerNum, Index, MaterialNum ;
+	char UTF16LE_Buffer[ 1024 ] ;
 
 	// FbxNode が NULL だったらトップノードをセットアップする
 	if( pFbxNode == NULL )
@@ -245,7 +267,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 		Frame = MV1RAddFrame( RModel, pFbxNode->GetName(), ParentFrame ) ;
 		if( Frame == NULL )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : フレームオブジェクトの追加に失敗しました\n" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xd5\x30\xec\x30\xfc\x30\xe0\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : フレームオブジェクトの追加に失敗しました\n" @*/ )) ;
 			return -1 ;
 		}
 
@@ -314,7 +336,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 				Mesh = MV1RAddMesh( RModel, Frame ) ;
 				if( Mesh == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : メッシュオブジェクトの追加に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xe1\x30\xc3\x30\xb7\x30\xe5\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : メッシュオブジェクトの追加に失敗しました\n" @*/ )) ;
 					return -1 ;
 				}
 
@@ -329,7 +351,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 					// 面情報を格納するメモリ領域の確保
 					if( MV1RSetupMeshFaceBuffer( RModel, Mesh, _FbxMesh->GetPolygonCount(), 4 ) < 0 )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 面情報を格納するメモリの確保に失敗しました\n" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x62\x97\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 面情報を格納するメモリの確保に失敗しました\n" @*/ )) ;
 						return -1 ;
 					}
 
@@ -343,7 +365,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 						{
 							if( MV1RSetupMeshFaceBuffer( RModel, Mesh, Mesh->FaceNum, MeshFace->IndexNum ) < 0 )
 							{
-								DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 面情報を格納するメモリの再確保に失敗しました\n" ) ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x62\x97\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\x8d\x51\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 面情報を格納するメモリの再確保に失敗しました\n" @*/ )) ;
 								return -1 ;
 							}
 							MeshFace = Mesh->Faces + i ;
@@ -366,7 +388,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 					Mesh->Positions = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * Mesh->PositionNum, &RModel->Mem ) ;
 					if( Mesh->Positions == NULL )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 頂点座標を格納するメモリの確保に失敗しました\n" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\xa7\x5e\x19\x6a\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 頂点座標を格納するメモリの確保に失敗しました\n" @*/ )) ;
 						return -1 ;
 					}
 
@@ -403,7 +425,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							Mesh->Normals = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * Mesh->NormalNum, &RModel->Mem ) ;
 							if( Mesh->Normals == NULL )
 							{
-								DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 法線情報を格納するメモリの確保に失敗しました\n" ) ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xd5\x6c\xda\x7d\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 法線情報を格納するメモリの確保に失敗しました\n" @*/ )) ;
 								return -1 ;
 							}
 
@@ -424,7 +446,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							Mesh->Normals = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * Mesh->NormalNum, &RModel->Mem ) ;
 							if( Mesh->Normals == NULL )
 							{
-								DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 法線情報を格納するメモリの確保に失敗しました\n" ) ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xd5\x6c\xda\x7d\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 法線情報を格納するメモリの確保に失敗しました\n" @*/ )) ;
 								return -1 ;
 							}
 
@@ -439,7 +461,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							break ;
 
 						default :
-							DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 非対応の法線リファレンスモードが使用されていました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\xd5\x6c\xda\x7d\xea\x30\xd5\x30\xa1\x30\xec\x30\xf3\x30\xb9\x30\xe2\x30\xfc\x30\xc9\x30\x4c\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 非対応の法線リファレンスモードが使用されていました\n" @*/ )) ;
 							return -1 ;
 						}
 
@@ -479,7 +501,139 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							break ;
 
 						default :
-							DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 非対応の法線マッピングモードが使用されていました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\xd5\x6c\xda\x7d\xde\x30\xc3\x30\xd4\x30\xf3\x30\xb0\x30\xe2\x30\xfc\x30\xc9\x30\x4c\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 非対応の法線マッピングモードが使用されていました\n" @*/ )) ;
+							return -1 ;
+						}
+					}
+
+					// 従法線エレメントの数だけ繰り返し
+					for( i = 0 ; i < _FbxMesh->GetElementBinormalCount() ; i ++ )
+					{
+			            FbxBinormalElem = _FbxMesh->GetElementBinormal( i ) ;
+
+						// モードの取得
+						FbxRefMode     = FbxBinormalElem->GetReferenceMode() ;
+						FbxMappingMode = FbxBinormalElem->GetMappingMode() ;
+
+						switch( FbxRefMode )
+						{
+						case FbxGeometryElement::eDirect :
+							// 従法線情報の数が法線情報の数と異なっていたら無視
+							if( Mesh->NormalNum != FbxBinormalElem->GetDirectArray().GetCount() )
+							{
+								continue ;
+							}
+
+							// 従法線情報を格納するメモリ領域の確保
+							Mesh->Binormals = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * Mesh->NormalNum, &RModel->Mem ) ;
+							if( Mesh->Binormals == NULL )
+							{
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x93\x5f\xd5\x6c\xda\x7d\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 従法線情報を格納するメモリの確保に失敗しました\n" @*/ )) ;
+								return -1 ;
+							}
+
+							// 直接モードの場合はそのまま代入
+							for( j = 0 ; ( DWORD )j < Mesh->NormalNum ; j ++ )
+							{
+								Mesh->Binormals[ j ].x = ( float ) FbxBinormalElem->GetDirectArray().GetAt( j )[ 0 ] ;
+								Mesh->Binormals[ j ].y = ( float ) FbxBinormalElem->GetDirectArray().GetAt( j )[ 1 ] ;
+								Mesh->Binormals[ j ].z = ( float )-FbxBinormalElem->GetDirectArray().GetAt( j )[ 2 ] ;
+							}
+							break ;
+
+						case FbxGeometryElement::eIndexToDirect :
+							// インデックスの数が法線情報の数と異なっていたら無視
+							if( Mesh->NormalNum != FbxBinormalElem->GetIndexArray().GetCount() )
+							{
+								continue ;
+							}
+
+							// 従法線情報を格納するメモリ領域の確保
+							Mesh->Binormals = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * Mesh->NormalNum, &RModel->Mem ) ;
+							if( Mesh->Binormals == NULL )
+							{
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x93\x5f\xd5\x6c\xda\x7d\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 従法線情報を格納するメモリの確保に失敗しました\n" @*/ )) ;
+								return -1 ;
+							}
+
+							// インデックスモードの場合は間接参照代入
+							for( j = 0 ; ( DWORD )j < Mesh->NormalNum ; j ++ )
+							{
+								Index = FbxBinormalElem->GetIndexArray().GetAt( j ) ;
+								Mesh->Binormals[ j ].x = ( float ) FbxBinormalElem->GetDirectArray().GetAt( Index )[ 0 ] ;
+								Mesh->Binormals[ j ].y = ( float ) FbxBinormalElem->GetDirectArray().GetAt( Index )[ 1 ] ;
+								Mesh->Binormals[ j ].z = ( float )-FbxBinormalElem->GetDirectArray().GetAt( Index )[ 2 ] ;
+							}
+							break ;
+
+						default :
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\x93\x5f\xd5\x6c\xda\x7d\xea\x30\xd5\x30\xa1\x30\xec\x30\xf3\x30\xb9\x30\xe2\x30\xfc\x30\xc9\x30\x4c\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 非対応の従法線リファレンスモードが使用されていました\n" @*/ )) ;
+							return -1 ;
+						}
+					}
+
+					// 接線エレメントの数だけ繰り返し
+					for( i = 0 ; i < _FbxMesh->GetElementTangentCount() ; i ++ )
+					{
+			            FbxTangentElem = _FbxMesh->GetElementTangent( i ) ;
+
+						// モードの取得
+						FbxRefMode     = FbxTangentElem->GetReferenceMode() ;
+						FbxMappingMode = FbxTangentElem->GetMappingMode() ;
+
+						switch( FbxRefMode )
+						{
+						case FbxGeometryElement::eDirect :
+							// 接線情報の数が法線情報の数と異なっていたら無視
+							if( Mesh->NormalNum != FbxTangentElem->GetDirectArray().GetCount() )
+							{
+								continue ;
+							}
+
+							// 接線情報を格納するメモリ領域の確保
+							Mesh->Tangents = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * Mesh->NormalNum, &RModel->Mem ) ;
+							if( Mesh->Tangents == NULL )
+							{
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xa5\x63\xda\x7d\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 接線情報を格納するメモリの確保に失敗しました\n" @*/ )) ;
+								return -1 ;
+							}
+
+							// 直接モードの場合はそのまま代入
+							for( j = 0 ; ( DWORD )j < Mesh->NormalNum ; j ++ )
+							{
+								Mesh->Tangents[ j ].x = ( float ) FbxTangentElem->GetDirectArray().GetAt( j )[ 0 ] ;
+								Mesh->Tangents[ j ].y = ( float ) FbxTangentElem->GetDirectArray().GetAt( j )[ 1 ] ;
+								Mesh->Tangents[ j ].z = ( float )-FbxTangentElem->GetDirectArray().GetAt( j )[ 2 ] ;
+							}
+							break ;
+
+						case FbxGeometryElement::eIndexToDirect :
+							// インデックスの数が法線情報の数と異なっていたら無視
+							if( Mesh->NormalNum != FbxTangentElem->GetIndexArray().GetCount() )
+							{
+								continue ;
+							}
+
+							// 接線情報を格納するメモリ領域の確保
+							Mesh->Tangents = ( VECTOR * )ADDMEMAREA( sizeof( VECTOR ) * Mesh->NormalNum, &RModel->Mem ) ;
+							if( Mesh->Tangents == NULL )
+							{
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xa5\x63\xda\x7d\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 接線情報を格納するメモリの確保に失敗しました\n" @*/ )) ;
+								return -1 ;
+							}
+
+							// インデックスモードの場合は間接参照代入
+							for( j = 0 ; ( DWORD )j < Mesh->NormalNum ; j ++ )
+							{
+								Index = FbxTangentElem->GetIndexArray().GetAt( j ) ;
+								Mesh->Tangents[ j ].x = ( float ) FbxTangentElem->GetDirectArray().GetAt( Index )[ 0 ] ;
+								Mesh->Tangents[ j ].y = ( float ) FbxTangentElem->GetDirectArray().GetAt( Index )[ 1 ] ;
+								Mesh->Tangents[ j ].z = ( float )-FbxTangentElem->GetDirectArray().GetAt( Index )[ 2 ] ;
+							}
+							break ;
+
+						default :
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\xa5\x63\xda\x7d\xea\x30\xd5\x30\xa1\x30\xec\x30\xf3\x30\xb9\x30\xe2\x30\xfc\x30\xc9\x30\x4c\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 非対応の接線リファレンスモードが使用されていました\n" @*/ )) ;
 							return -1 ;
 						}
 					}
@@ -507,7 +661,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							Mesh->VertexColors = ( COLOR_F * )ADDMEMAREA( sizeof( COLOR_F ) * Mesh->VertexColorNum, &RModel->Mem ) ;
 							if( Mesh->VertexColors == NULL )
 							{
-								DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 頂点カラーを格納するメモリの確保に失敗しました\n" ) ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\xab\x30\xe9\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 頂点カラーを格納するメモリの確保に失敗しました\n" @*/ )) ;
 								return -1 ;
 							}
 
@@ -529,7 +683,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							Mesh->VertexColors = ( COLOR_F * )ADDMEMAREA( sizeof( COLOR_F ) * Mesh->VertexColorNum, &RModel->Mem ) ;
 							if( Mesh->VertexColors == NULL )
 							{
-								DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 頂点カラーを格納するメモリの確保に失敗しました\n" ) ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x02\x98\xb9\x70\xab\x30\xe9\x30\xfc\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 頂点カラーを格納するメモリの確保に失敗しました\n" @*/ )) ;
 								return -1 ;
 							}
 
@@ -545,7 +699,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							break ;
 
 						default :
-							DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 非対応の頂点カラーリファレンスモードが使用されていました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\x02\x98\xb9\x70\xab\x30\xe9\x30\xfc\x30\xea\x30\xd5\x30\xa1\x30\xec\x30\xf3\x30\xb9\x30\xe2\x30\xfc\x30\xc9\x30\x4c\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 非対応の頂点カラーリファレンスモードが使用されていました\n" @*/ )) ;
 							return -1 ;
 						}
 
@@ -576,7 +730,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							break ;
 
 						default :
-							DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 非対応の頂点カラーマッピングモードが使用されていました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\x02\x98\xb9\x70\xab\x30\xe9\x30\xfc\x30\xde\x30\xc3\x30\xd4\x30\xf3\x30\xb0\x30\xe2\x30\xfc\x30\xc9\x30\x4c\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 非対応の頂点カラーマッピングモードが使用されていました\n" @*/ )) ;
 							return -1 ;
 						}
 					}
@@ -593,9 +747,6 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 						FbxMappingMode = FbxUVElem->GetMappingMode() ;
 						FbxRefMode = FbxUVElem->GetReferenceMode() ;
 
-						// ＵＶセット名を保存する
-						Mesh->UVSetName[ i ] = FbxUVElem->GetName() ;
-
 						// ＵＶ情報の取得
 						switch( FbxRefMode )
 						{
@@ -607,7 +758,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							Mesh->UVs[ i ] = ( FLOAT4 * )ADDMEMAREA( sizeof( FLOAT4 ) * Mesh->UVNum[ i ], &RModel->Mem ) ;
 							if( Mesh->UVs[ i ] == NULL )
 							{
-								DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : UV座標を格納するメモリの確保に失敗しました\n" ) ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x55\x00\x56\x00\xa7\x5e\x19\x6a\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : UV座標を格納するメモリの確保に失敗しました\n" @*/ )) ;
 								return -1 ;
 							}
 
@@ -627,7 +778,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							Mesh->UVs[ i ] = ( FLOAT4 * )ADDMEMAREA( sizeof( FLOAT4 ) * Mesh->UVNum[ i ], &RModel->Mem ) ;
 							if( Mesh->UVs[ i ] == NULL )
 							{
-								DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : UV座標を格納するメモリの確保に失敗しました\n" ) ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x55\x00\x56\x00\xa7\x5e\x19\x6a\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : UV座標を格納するメモリの確保に失敗しました\n" @*/ )) ;
 								return -1 ;
 							}
 
@@ -641,7 +792,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							break ;
 
 						default :
-							DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 非対応のＵＶリファレンスモードが使用されていました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\x35\xff\x36\xff\xea\x30\xd5\x30\xa1\x30\xec\x30\xf3\x30\xb9\x30\xe2\x30\xfc\x30\xc9\x30\x4c\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 非対応のＵＶリファレンスモードが使用されていました\n" @*/ )) ;
 							return -1 ;
 						}
 
@@ -672,7 +823,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							break ;
 
 						default :
-							DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 非対応のＵＶマッピングモードが使用されていました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\x35\xff\x36\xff\xde\x30\xc3\x30\xd4\x30\xf3\x30\xb0\x30\xe2\x30\xfc\x30\xc9\x30\x4c\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 非対応のＵＶマッピングモードが使用されていました\n" @*/ )) ;
 							return -1 ;
 						}
 					}
@@ -702,12 +853,15 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							else
 							{
 								// マテリアルの追加
+//								FbxUTF8ToAnsi( FbxMaterial->GetName(), ANSIBuffer, &ANSISize ) ;
 								Material = MV1RAddMaterial( RModel, FbxMaterial->GetName() ) ;
 								if( Material == NULL )
 								{
-									DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : マテリアルオブジェクトの追加に失敗しました\n" ) ) ) ;
+									DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : マテリアルオブジェクトの追加に失敗しました\n" @*/ )) ;
 									return -1 ;
 								}
+								Material->SubName = FbxMaterial->GetName() ;
+
 								Mesh->Materials[ i ] = Material ;
 
 								// ＦＢＸのアドレスを保存
@@ -759,12 +913,13 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 
 										// 反射
 	//									Material->Reflection = FbxPhong->ReflectionFactor.Get() ;
-										Material->Power = ( float )FbxPhong->ReflectionFactor.Get() ;
+										//Material->Power = ( float )FbxPhong->ReflectionFactor.Get() ;
+										Material->Power = ( float )FbxPhong->Shininess.Get() ;
 									}
 								}
 								else
 								{
-									DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 非対応のマテリアルモードが使用されていました\n" ) ) ) ;
+									DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\xe2\x30\xfc\x30\xc9\x30\x4c\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 非対応のマテリアルモードが使用されていました\n" @*/ )) ;
 									return -1 ;
 								}
 
@@ -784,7 +939,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 											// ２個以上のレイヤーには対応していない
 											if( _FbxProperty.GetSrcObject< FbxLayeredTexture >( 1 ) != NULL )
 											{
-												DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : Diffuse マテリアルは１レイヤー以上には対応していません\n" ) ) ) ;
+												DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x44\x00\x69\x00\x66\x00\x66\x00\x75\x00\x73\x00\x65\x00\x20\x00\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x6f\x30\x11\xff\xec\x30\xa4\x30\xe4\x30\xfc\x30\xe5\x4e\x0a\x4e\x6b\x30\x6f\x30\xfe\x5b\xdc\x5f\x57\x30\x66\x30\x44\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"Fbx Load : Diffuse マテリアルは１レイヤー以上には対応していません\n" @*/ )) ;
 												return -1 ;
 											}
 
@@ -808,7 +963,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 													Material->DiffuseTexs[ Material->DiffuseTexNum ] = FbxAddTexture( RModel, _FbxTexture ) ;
 													if( Material->DiffuseTexs[ Material->DiffuseTexNum ] == NULL ) 
 													{
-														DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : Diffuse テクスチャオブジェクトの追加に失敗しました\n" ) ) ) ;
+														DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x44\x00\x69\x00\x66\x00\x66\x00\x75\x00\x73\x00\x65\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : Diffuse テクスチャオブジェクトの追加に失敗しました\n" @*/ )) ;
 														return -1 ;
 													}
 
@@ -845,7 +1000,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 													Material->DiffuseTexs[ j ] = FbxAddTexture( RModel, _FbxTexture ) ;
 													if( Material->DiffuseTexs[ j ] == NULL ) 
 													{
-														DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : Diffuse テクスチャオブジェクトの追加に失敗しました\n" ) ) ) ;
+														DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x44\x00\x69\x00\x66\x00\x66\x00\x75\x00\x73\x00\x65\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : Diffuse テクスチャオブジェクトの追加に失敗しました\n" @*/ )) ;
 														return -1 ;
 													}
 												}
@@ -864,7 +1019,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 											// ２個以上のレイヤーには対応していない
 											if( LayeredTexNum > 1 )
 											{
-												DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : Specular マテリアルは１レイヤー以上には対応していません\n" ) ) ) ;
+												DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x53\x00\x70\x00\x65\x00\x63\x00\x75\x00\x6c\x00\x61\x00\x72\x00\x20\x00\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x6f\x30\x11\xff\xec\x30\xa4\x30\xe4\x30\xfc\x30\xe5\x4e\x0a\x4e\x6b\x30\x6f\x30\xfe\x5b\xdc\x5f\x57\x30\x66\x30\x44\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"Fbx Load : Specular マテリアルは１レイヤー以上には対応していません\n" @*/ )) ;
 												return -1 ;
 											}
 
@@ -887,7 +1042,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 													Material->SpecularTexs[ Material->SpecularTexNum ] = FbxAddTexture( RModel, _FbxTexture ) ;
 													if( Material->SpecularTexs[ Material->SpecularTexNum ] == NULL ) 
 													{
-														DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : Specular テクスチャオブジェクトの追加に失敗しました\n" ) ) ) ;
+														DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x53\x00\x70\x00\x65\x00\x63\x00\x75\x00\x6c\x00\x61\x00\x72\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : Specular テクスチャオブジェクトの追加に失敗しました\n" @*/ )) ;
 														return -1 ;
 													}
 
@@ -924,7 +1079,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 													Material->SpecularTexs[ j ] = FbxAddTexture( RModel, _FbxTexture ) ;
 													if( Material->SpecularTexs[ j ] == NULL ) 
 													{
-														DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : Specular テクスチャオブジェクトの追加に失敗しました\n" ) ) ) ;
+														DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x53\x00\x70\x00\x65\x00\x63\x00\x75\x00\x6c\x00\x61\x00\x72\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : Specular テクスチャオブジェクトの追加に失敗しました\n" @*/ )) ;
 														return -1 ;
 													}
 												}
@@ -934,7 +1089,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 
 									// 法線マップマテリアルプロパティの取得
 									{
-										_FbxProperty = FbxMaterial->FindProperty( FbxSurfaceMaterial::sBump ) ;
+										_FbxProperty = FbxMaterial->FindProperty( FbxSurfaceMaterial::sNormalMap ) ;
 
 										// レイヤードテクスチャの場合とそれ以外で処理を分岐
 										LayeredTexNum = _FbxProperty.GetSrcObjectCount< FbxLayeredTexture >() ;
@@ -943,7 +1098,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 											// ２個以上のレイヤーには対応していない
 											if( LayeredTexNum > 1 )
 											{
-												DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : Bump マテリアルは１レイヤー以上には対応していません\n" ) ) ) ;
+												DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x42\x00\x75\x00\x6d\x00\x70\x00\x20\x00\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x6f\x30\x11\xff\xec\x30\xa4\x30\xe4\x30\xfc\x30\xe5\x4e\x0a\x4e\x6b\x30\x6f\x30\xfe\x5b\xdc\x5f\x57\x30\x66\x30\x44\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"Fbx Load : Bump マテリアルは１レイヤー以上には対応していません\n" @*/ )) ;
 												return -1 ;
 											}
 
@@ -966,7 +1121,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 													Material->NormalTexs[ Material->NormalTexNum ] = FbxAddTexture( RModel, _FbxTexture ) ;
 													if( Material->NormalTexs[ Material->NormalTexNum ] == NULL ) 
 													{
-														DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : Bump テクスチャオブジェクトの追加に失敗しました\n" ) ) ) ;
+														DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x42\x00\x75\x00\x6d\x00\x70\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : Bump テクスチャオブジェクトの追加に失敗しました\n" @*/ )) ;
 														return -1 ;
 													}
 
@@ -1003,7 +1158,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 													Material->NormalTexs[ j ] = FbxAddTexture( RModel, _FbxTexture ) ;
 													if( Material->NormalTexs[ j ] == NULL ) 
 													{
-														DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : Bump テクスチャオブジェクトの追加に失敗しました\n" ) ) ) ;
+														DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x42\x00\x75\x00\x6d\x00\x70\x00\x20\x00\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : Bump テクスチャオブジェクトの追加に失敗しました\n" @*/ )) ;
 														return -1 ;
 													}
 												}
@@ -1036,7 +1191,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 									FbxMaterialDim = ( FbxSurfaceMaterial ** )DXCALLOC( sizeof( FbxSurfaceMaterial * ) * MaterialNum ) ;
 									if( FbxMaterialDim == NULL ) 
 									{
-										DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : マテリアルリストを一時保存するバッファの確保に失敗しました\n" ) ) ) ;
+										DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\xea\x30\xb9\x30\xc8\x30\x92\x30\x00\x4e\x42\x66\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : マテリアルリストを一時保存するバッファの確保に失敗しました\n" @*/ )) ;
 										return -1 ;
 									}
 
@@ -1055,7 +1210,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 									FbxMaterialDim = ( FbxSurfaceMaterial ** )DXCALLOC( sizeof( FbxSurfaceMaterial * ) * MaterialNum ) ;
 									if( FbxMaterialDim == NULL ) 
 									{
-										DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : マテリアルリストを一時保存するバッファの確保に失敗しました\n" ) ) ) ;
+										DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\xea\x30\xb9\x30\xc8\x30\x92\x30\x00\x4e\x42\x66\xdd\x4f\x58\x5b\x59\x30\x8b\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : マテリアルリストを一時保存するバッファの確保に失敗しました\n" @*/ )) ;
 										return -1 ;
 									}
 
@@ -1068,7 +1223,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 									break ;
 
 								default :
-									DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 非対応のマテリアルリファレンスモードが使用されていました\n" ) ) ) ;
+									DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\xea\x30\xd5\x30\xa1\x30\xec\x30\xf3\x30\xb9\x30\xe2\x30\xfc\x30\xc9\x30\x4c\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 非対応のマテリアルリファレンスモードが使用されていました\n" @*/ )) ;
 									return -1 ;
 								}
 
@@ -1081,10 +1236,12 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 									for( j = 0 ; ( DWORD )j < Mesh->FaceNum ; j ++, MeshFace ++ )
 									{
 										// 割り当てられているマテリアルがモデル中のどのマテリアルに当たるのかを調べる
-										for( k = 0 ; ( DWORD )k < Mesh->MaterialNum && _STRCMP( Mesh->Materials[ k ]->Name, FbxMaterialDim[ j ]->GetName() ) != 0 ; k ++ ){}
+										for( k = 0 ; ( DWORD )k < Mesh->MaterialNum && _STRCMP( Mesh->Materials[ k ]->SubName, FbxMaterialDim[ j ]->GetName() ) != 0 ; k ++ ){}
 										if( k == Mesh->MaterialNum )
 										{
-											DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : ノード内に一致するマテリアルが見つかりませんでした eBY_CONTROL_POINT , %s \n" ), FbxMaterialDim[ j ]->GetName() ) ) ;
+//											FbxUTF8ToAnsi( FbxMaterialDim[ j ]->GetName(), ANSIBuffer, &ANSISize ) ;
+											ConvString( FbxMaterialDim[ j ]->GetName(), DX_CODEPAGE_UTF8, ( char * )UTF16LE_Buffer, DX_CODEPAGE_UTF16LE ) ; 
+											DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xce\x30\xfc\x30\xc9\x30\x85\x51\x6b\x30\x00\x4e\xf4\x81\x59\x30\x8b\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x4c\x30\x8b\x89\x64\x30\x4b\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x20\x00\x65\x00\x42\x00\x59\x00\x5f\x00\x43\x00\x4f\x00\x4e\x00\x54\x00\x52\x00\x4f\x00\x4c\x00\x5f\x00\x50\x00\x4f\x00\x49\x00\x4e\x00\x54\x00\x20\x00\x2c\x00\x20\x00\x25\x00\x73\x00\x20\x00\x0a\x00\x00"/*@ L"Fbx Load : ノード内に一致するマテリアルが見つかりませんでした eBY_CONTROL_POINT , %s \n" @*/, UTF16LE_Buffer )) ;
 											DXFREE( FbxMaterialDim ) ;
 											return -1 ;
 										}
@@ -1098,11 +1255,11 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 									// メッシュ全体で１マテリアル
 
 									// 割り当てられているマテリアルがモデル中のどのマテリアルに当たるのかを調べる
-									for( k = 0 ; ( DWORD )k < Mesh->MaterialNum && _STRCMP( Mesh->Materials[ k ]->Name, FbxMaterialDim[ 0 ]->GetName() ) != 0 ; k ++ ){}
+									for( k = 0 ; ( DWORD )k < Mesh->MaterialNum && _STRCMP( Mesh->Materials[ k ]->SubName, FbxMaterialDim[ 0 ]->GetName() ) != 0 ; k ++ ){}
 									if( k == Mesh->MaterialNum )
 									{
 										DXFREE( FbxMaterialDim ) ;
-										DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : ノード内に一致するマテリアルが見つかりませんでした eALL_SAME\n" ) ) ) ;
+										DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xce\x30\xfc\x30\xc9\x30\x85\x51\x6b\x30\x00\x4e\xf4\x81\x59\x30\x8b\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x4c\x30\x8b\x89\x64\x30\x4b\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x20\x00\x65\x00\x41\x00\x4c\x00\x4c\x00\x5f\x00\x53\x00\x41\x00\x4d\x00\x45\x00\x0a\x00\x00"/*@ L"Fbx Load : ノード内に一致するマテリアルが見つかりませんでした eALL_SAME\n" @*/ )) ;
 										return -1 ;
 									}
 
@@ -1117,7 +1274,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 
 								default :
 									DXFREE( FbxMaterialDim ) ;
-									DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 非対応のマテリアルマッピングモードが使用されていました\n" ) ) ) ;
+									DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x5e\x97\xfe\x5b\xdc\x5f\x6e\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\xde\x30\xc3\x30\xd4\x30\xf3\x30\xb0\x30\xe2\x30\xfc\x30\xc9\x30\x4c\x30\x7f\x4f\x28\x75\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 非対応のマテリアルマッピングモードが使用されていました\n" @*/ )) ;
 									return -1 ;
 								}
 
@@ -1140,7 +1297,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 					// ２個以上のスキンには未対応
 					if( _FbxMesh->GetDeformerCount( FbxDeformer::eSkin ) > 1 )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : １メッシュに複数のスキンメッシュには対応していません\n" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x11\xff\xe1\x30\xc3\x30\xb7\x30\xe5\x30\x6b\x30\x07\x89\x70\x65\x6e\x30\xb9\x30\xad\x30\xf3\x30\xe1\x30\xc3\x30\xb7\x30\xe5\x30\x6b\x30\x6f\x30\xfe\x5b\xdc\x5f\x57\x30\x66\x30\x44\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"Fbx Load : １メッシュに複数のスキンメッシュには対応していません\n" @*/ )) ;
 						return -1 ;
 					}
 
@@ -1154,7 +1311,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 					PositionFillFlag = ( BYTE * )ADDMEMAREA( ( Mesh->PositionNum + 31 ) / 32 * 4, &RModel->Mem ) ;
 					if( PositionFillFlag == NULL )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : 座標に対するスキンウエイトが存在するかどうかを確認するためのメモリ領域の確保に失敗しました\n" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xa7\x5e\x19\x6a\x6b\x30\xfe\x5b\x59\x30\x8b\x30\xb9\x30\xad\x30\xf3\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\x4c\x30\x58\x5b\x28\x57\x59\x30\x8b\x30\x4b\x30\x69\x30\x46\x30\x4b\x30\x92\x30\xba\x78\x8d\x8a\x59\x30\x8b\x30\x5f\x30\x81\x30\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : 座標に対するスキンウエイトが存在するかどうかを確認するためのメモリ領域の確保に失敗しました\n" @*/ )) ;
 						return -1 ;
 					}
 					_MEMSET( PositionFillFlag, 0, ( Mesh->PositionNum + 31 ) / 32 * 4 ) ;
@@ -1179,7 +1336,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 						SkinWeight->Data = ( MV1_SKIN_WEIGHT_ONE_R * )ADDMEMAREA( sizeof( MV1_SKIN_WEIGHT_ONE_R ) * SkinWeight->DataNum, &RModel->Mem ) ;
 						if( SkinWeight->Data == NULL )
 						{
-							DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : スキンウエイト情報を格納するメモリの確保に失敗しました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xb9\x30\xad\x30\xf3\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : スキンウエイト情報を格納するメモリの確保に失敗しました\n" @*/ )) ;
 							return -1 ;
 						}
 
@@ -1303,7 +1460,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 							SkinWeight->Data = ( MV1_SKIN_WEIGHT_ONE_R * )ADDMEMAREA( sizeof( MV1_SKIN_WEIGHT_ONE_R ) * SkinWeight->DataNum, &RModel->Mem ) ;
 							if( SkinWeight->Data == NULL )
 							{
-								DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : スキンウエイト情報を格納するメモリの確保に失敗しました 2\n" ) ) ) ;
+								DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xb9\x30\xad\x30\xf3\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x32\x00\x0a\x00\x00"/*@ L"Fbx Load : スキンウエイト情報を格納するメモリの確保に失敗しました 2\n" @*/ )) ;
 								return -1 ;
 							}
 
@@ -1347,7 +1504,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 					// ２個以上のシェイプには未対応
 					if( _FbxMesh->GetDeformerCount( FbxDeformer::eBlendShape ) > 1 )
 					{
-						DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : １メッシュに複数のブレンドシェイプには対応していません\n" ) ) ) ;
+						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x11\xff\xe1\x30\xc3\x30\xb7\x30\xe5\x30\x6b\x30\x07\x89\x70\x65\x6e\x30\xd6\x30\xec\x30\xf3\x30\xc9\x30\xb7\x30\xa7\x30\xa4\x30\xd7\x30\x6b\x30\x6f\x30\xfe\x5b\xdc\x5f\x57\x30\x66\x30\x44\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"Fbx Load : １メッシュに複数のブレンドシェイプには対応していません\n" @*/ )) ;
 						return -1 ;
 					}
 
@@ -1357,7 +1514,6 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 
 					for( i = 0 ; i < ChannelCount ; i ++ )
 					{
-
 						_FbxBlendShapeChannel = _FbxBlendShape->GetBlendShapeChannel( i ) ;
 						if( _FbxBlendShapeChannel == NULL )
 						{
@@ -1371,6 +1527,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 						}
 
 						// シェイプ情報の追加
+//						FbxUTF8ToAnsi( _FbxShape->GetName(), ANSIBuffer, &ANSISize ) ;
 						Shape = MV1RAddShape( RModel, _FbxShape->GetName(), Frame ) ; 
 
 						// 対象メッシュのセット
@@ -1386,7 +1543,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 						Shape->Vertex = ( MV1_SHAPE_VERTEX_R * )ADDMEMAREA( sizeof( MV1_SHAPE_VERTEX_R ) * Shape->VertexNum, &RModel->Mem ) ;
 						if( Shape->Vertex == NULL )
 						{
-							DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : シェイプ頂点データを格納するメモリ領域の確保に失敗しました\n" ) ) ) ;
+							DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xb7\x30\xa7\x30\xa4\x30\xd7\x30\x02\x98\xb9\x70\xc7\x30\xfc\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : シェイプ頂点データを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 							return -1 ;
 						}
 
@@ -1416,10 +1573,11 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 				_FbxLight = ( FbxLight * )FbxAttr ;
 
 				// ライトの追加
-				Frame->Light = MV1RAddLight( RModel, _FbxLight->GetName() ) ;
+//				FbxUTF8ToAnsi( pFbxNode->GetName(), ANSIBuffer, &ANSISize ) ;
+				Frame->Light = MV1RAddLight( RModel, pFbxNode->GetName() ) ;
 				if( Frame->Light == NULL )
 				{
-					DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : ライトオブジェクトの追加に失敗しました\n" ) ) ) ;
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xe9\x30\xa4\x30\xc8\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : ライトオブジェクトの追加に失敗しました\n" @*/ )) ;
 					return -1 ;
 				}
 
@@ -1474,11 +1632,13 @@ static int AnalyseFbx( MV1_MODEL_R *RModel, FBX_MODEL *Model )
 	MV1_FRAME_R *TargetFrame ;
 	MV1_SKIN_WEIGHT_R *SkinWeight ;
 	void *Node ;
+//	char *ANSIBuffer ;
+//	size_t ANSISize ;
 
 	// ノードの解析
 	if( AnalyseFbxNode( RModel, Model, NULL, NULL ) == -1 )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : ノードの解析でエラーが発生しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xce\x30\xfc\x30\xc9\x30\x6e\x30\xe3\x89\x90\x67\x67\x30\xa8\x30\xe9\x30\xfc\x30\x4c\x30\x7a\x76\x1f\x75\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : ノードの解析でエラーが発生しました\n" @*/ )) ;
 		return -1 ;
 	}
 
@@ -1533,11 +1693,12 @@ static int AnalyseFbx( MV1_MODEL_R *RModel, FBX_MODEL *Model )
 			if( lFbxAnimStack->GetMemberCount< FbxAnimLayer >() == 0 ) continue ;
 
 			// アニメーションセットを追加
+//			FbxUTF8ToAnsi( lFbxAnimStack->GetName(), ANSIBuffer, &ANSISize ) ;
 			AnimSet = MV1RAddAnimSet( RModel, lFbxAnimStack->GetName() ) ;
 			if( AnimSet == NULL )
 			{
 //				DeleteAndClear( FbxTakeName ) ;
-				DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : アニメーションセットオブジェクトの追加に失敗しました\n" ) ) ) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xbb\x30\xc3\x30\xc8\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x6e\x30\xfd\x8f\xa0\x52\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : アニメーションセットオブジェクトの追加に失敗しました\n" @*/ )) ;
 				return -1 ;
 			}
 
@@ -1574,7 +1735,6 @@ static int AnalyseFbx( MV1_MODEL_R *RModel, FBX_MODEL *Model )
 				Anim->MaxTime = AnimSet->EndTime ;
 
 				// ノードの名前を保存
-				Anim->TargetFrameName = MV1RAddString( RModel, Frame->Name ) ;
 				Anim->TargetFrameIndex = Frame->Index ;
 
 				// 回転オーダーのセット
@@ -1594,16 +1754,18 @@ extern int MV1LoadModelToFBX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	int ErrorFlag = 1 ;
 	FBX_MODEL FbxModel ;
 	MV1_MODEL_R RModel ;
+	char UTF8Buffer[ 512 * 3 + 16 ] ;
 
 	// 読み込みようデータの初期化
 	MV1InitReadModel( &RModel ) ;
 	RModel.MeshFaceRightHand = TRUE ;
 
-	// モデル名とファイル名をセット
-	RModel.FilePath = ( TCHAR * )DXALLOC( ( lstrlen( LoadParam->FilePath ) + 1 ) * sizeof( TCHAR ) ) ;
-	RModel.Name     = ( TCHAR * )DXALLOC( ( lstrlen( LoadParam->Name     ) + 1 ) * sizeof( TCHAR ) ) ;
-	lstrcpy( RModel.FilePath, LoadParam->FilePath ) ;
-	lstrcpy( RModel.Name,     LoadParam->Name ) ;
+	// モデル名とファイル名とコードページをセット
+	RModel.CodePage = DX_CODEPAGE_UTF8 ;
+	RModel.FilePath = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->FilePath ) + 1 ) * sizeof( wchar_t ) ) ;
+	RModel.Name     = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->Name     ) + 1 ) * sizeof( wchar_t ) ) ;
+	_WCSCPY( RModel.FilePath, LoadParam->FilePath ) ;
+	_WCSCPY( RModel.Name,     LoadParam->Name ) ;
 
 	// FBXモデルデータを０初期化
 	_MEMSET( &FbxModel, 0, sizeof( FbxModel ) ) ;
@@ -1612,7 +1774,7 @@ extern int MV1LoadModelToFBX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	FbxModel.pManager = FbxManager::Create();
 	if( FbxModel.pManager == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : FBX Manager の作成に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x46\x00\x42\x00\x58\x00\x20\x00\x4d\x00\x61\x00\x6e\x00\x61\x00\x67\x00\x65\x00\x72\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : FBX Manager の作成に失敗しました\n" @*/ )) ;
 		goto FUNCTIONEND ;
 	}
 	
@@ -1630,7 +1792,7 @@ extern int MV1LoadModelToFBX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	FbxModel.pScene = FbxScene::Create( FbxModel.pManager, "Scene" ) ;
 	if( FbxModel.pScene == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : FBX Scene の作成に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\x46\x00\x42\x00\x58\x00\x20\x00\x53\x00\x63\x00\x65\x00\x6e\x00\x65\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : FBX Scene の作成に失敗しました\n" @*/ )) ;
 		goto FUNCTIONEND ;
 	}
 
@@ -1638,17 +1800,22 @@ extern int MV1LoadModelToFBX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	FbxModel.pImporter = FbxImporter::Create( FbxModel.pManager, "" ) ;
 	if( FbxModel.pImporter == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : インポーターの作成に失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xa4\x30\xf3\x30\xdd\x30\xfc\x30\xbf\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : インポーターの作成に失敗しました\n" @*/ )) ;
 		goto FUNCTIONEND ;
 	}
 
-	// FBXフォーマットのチェック 
-	if( FbxModel.pManager->GetIOPluginRegistry()->DetectReaderFileFormat( LoadParam->FilePath, iFileFormat ) == false )
+	// FBXフォーマットのチェック
+	ConvString( ( const char * )LoadParam->FilePath, WCHAR_T_CODEPAGE, ( char * )UTF8Buffer, DX_CODEPAGE_UTF8 ) ;
+	if( FbxModel.pManager->GetIOPluginRegistry()->DetectReaderFileFormat( UTF8Buffer, iFileFormat ) == false )
+	{
 		goto FUNCTIONEND ;
+	}
 
-	// 读取
-	if( FbxModel.pImporter->Initialize( LoadParam->FilePath, iFileFormat, FbxModel.pIOSettings ) == false )
+	// 読み込み
+	if( FbxModel.pImporter->Initialize( UTF8Buffer, iFileFormat, FbxModel.pIOSettings ) == false )
+	{
 		goto FUNCTIONEND ;
+	}
 
 	// ＦＢＸかチェック
 	if( FbxModel.pImporter->IsFBX() == false )
@@ -1666,7 +1833,7 @@ extern int MV1LoadModelToFBX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	// インポート
 	if( FbxModel.pImporter->Import( FbxModel.pScene ) == false )
 	{
-		DXST_ERRORLOGFMT_ADD( ( _T( "Fbx Load : シーンのインポートに失敗しました\n" ) ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xb7\x30\xfc\x30\xf3\x30\x6e\x30\xa4\x30\xf3\x30\xdd\x30\xfc\x30\xc8\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Fbx Load : シーンのインポートに失敗しました\n" @*/ )) ;
 		goto FUNCTIONEND ;
 	}
 
@@ -1724,11 +1891,15 @@ FUNCTIONEND :
 	// 読み込みモデルの後始末
 	MV1TermReadModel( &RModel ) ;
 
-	// 返回句柄
+	// ハンドルを返す
 	return NewHandle ;
 }
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif
 

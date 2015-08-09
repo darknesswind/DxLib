@@ -2,36 +2,41 @@
 // 
 // 		ＤＸライブラリ		ＢａｓｅＩｍａｇｅプログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 #ifndef __DXBASEIMAGE_H__
 #define __DXBASEIMAGE_H__
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxCompileConfig.h"
 #include "DxLib.h"
 #include "DxStatic.h"
 #include "DxThread.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
+
+// マクロ定義 --------------------------------------------------------------------
 
 // キューブマップの面の数
 #define CUBEMAP_SURFACE_NUM					(6)
 
 #define BASEIM								BaseImageManage
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // 汎用画像読み込みに必要なグローバルデータを集めた構造体
 struct CREATEBASEIMAGETYPE2_GPARAM
 {
-	int						( *UserImageLoadFunc4[ MAX_USERIMAGEREAD_FUNCNUM ] )( STREAMDATA *Src, BASEIMAGE *Image ) ;	// ユーザー画像読み込み関数Ver4
+	int						( *UserImageLoadFunc4[ MAX_USERIMAGEREAD_FUNCNUM ] )( STREAMDATA *Src, BASEIMAGE *BaseImage ) ;	// ユーザー画像読み込み関数Ver4
 	int						UserImageLoadFuncNum4 ;																		// ユーザー画像読み込み関数Ver4の数
+	int						GetFormatOnly ;																				// フォーマットの取得のみを行うかどうか( TRUE:フォーマットの取得のみ行う  FALSE:データも読み込む )
 } ;
 
 // 画像の読み込みに必要なグローバルデータを纏めた構造体
@@ -39,7 +44,7 @@ struct LOADBASEIMAGE_GPARAM
 {
 	CREATEBASEIMAGETYPE2_GPARAM CreateGraphImageType2GParam ;		// CreateGraphImageType2_UseGParam で使用するデータ
 
-	STREAMDATASHREDTYPE2	StreamDataShred2 ;						// ストリームデータアクセス用関数２
+	STREAMDATASHREDTYPE2W	StreamDataShred2 ;						// ストリームデータアクセス用関数２
 	STREAMDATASHRED			FileStreamDataShred ;					// ファイルデータアクセス用関数
 	STREAMDATASHRED			MemStreamDataShred ;					// メモリデータアクセス用関数
 
@@ -51,10 +56,10 @@ struct LOADBASEIMAGE_GPARAM
 // BASEIMAGE + DIB 関係の情報構造体
 struct BASEIMAGEMANAGE
 {
-	int						( *UserImageLoadFunc4[ MAX_USERIMAGEREAD_FUNCNUM ] )( STREAMDATA *Src, BASEIMAGE *Image ) ;																									// ユーザー画像読み込み関数Ver4
+	int						( *UserImageLoadFunc4[ MAX_USERIMAGEREAD_FUNCNUM ] )( STREAMDATA *Src, BASEIMAGE *BaseImage ) ;																									// ユーザー画像読み込み関数Ver4
 	int						UserImageLoadFuncNum4 ;																																										// ユーザー画像読み込み関数Ver4の数
 /*
-	int						( *UserImageLoadFunc3[ MAX_USERIMAGEREAD_FUNCNUM ] )( void *DataImage, int DataImageSize, int DataImageType, int BmpFlag, BASEIMAGE *Image, BITMAPINFO **BmpInfo, void **GraphData ) ;		// ユーザー画像読み込み関数Ver3
+	int						( *UserImageLoadFunc3[ MAX_USERIMAGEREAD_FUNCNUM ] )( void *DataImage, int DataImageSize, int DataImageType, int BmpFlag, BASEIMAGE *BaseImage, BITMAPINFO **BmpInfo, void **GraphData ) ;		// ユーザー画像読み込み関数Ver3
 	int						UserImageLoadFuncNum3 ;																																										// ユーザー画像読み込み関数Ver3の数
 
 	int						( *UserImageLoadFunc2[ MAX_USERIMAGEREAD_FUNCNUM ] )( void *Image, int ImageSize, int ImageType, BITMAPINFO **BmpInfo, void **GraphData ) ;													// ユーザー画像読み込み関数Ver2
@@ -110,16 +115,62 @@ extern	int		ConvertYUY2ToXRGB32( void *YUY2Image, int Width, int Height, BASEIMA
 extern	int		ConvertUYVYToXRGB32( void *UYVYImage, int Width, int Height, BASEIMAGE *DestBaseImage ) ;				// UYVY フォーマットのイメージを XRGB32 のビットマップイメージに変換する
 extern	int		ConvertYVYUToXRGB32( void *YVYUImage, int Width, int Height, BASEIMAGE *DestBaseImage ) ;				// YVYU フォーマットのイメージを XRGB32 のビットマップイメージに変換する
 
-extern	void	InitCreateBaseImageType2GParam( CREATEBASEIMAGETYPE2_GPARAM *GParam ) ;											// CREATEBASEIMAGETYPE2_GPARAM のデータをセットする
-extern	void	InitLoadBaseImageGParam( LOADBASEIMAGE_GPARAM *GParam ) ;														// LOADBASEIMAGE_GPARAM のデータをセットする
+extern	void	InitCreateBaseImageType2GParam( CREATEBASEIMAGETYPE2_GPARAM *GParam, int GetFormatOnly ) ;				// CREATEBASEIMAGETYPE2_GPARAM のデータをセットする
+extern	void	InitLoadBaseImageGParam( LOADBASEIMAGE_GPARAM *GParam, int GetFormatOnly ) ;							// LOADBASEIMAGE_GPARAM のデータをセットする
 
-extern	int		CreateGraphImageType2_UseGParam( CREATEBASEIMAGETYPE2_GPARAM *GParam, STREAMDATA *Src, BASEIMAGE *Dest ) ;																																													// CreateGraphImageType2 のグローバル変数にアクセスしないバージョン
-extern	int		CreateGraphImageOrDIBGraph_UseGParam( LOADBASEIMAGE_GPARAM *GParam, const TCHAR *FileName, const void *DataImage, int DataImageSize, int DataImageType, int BmpFlag, int ReverseFlag,
-														BASEIMAGE *Image, BITMAPINFO **BmpInfo, void **GraphData ) ;																																														// CreateGraphImageOrDIBGraph のグローバル変数にアクセスしないバージョン
-extern	int		CreateGraphImage_plus_Alpha_UseGParam( LOADBASEIMAGE_GPARAM *GParam, const TCHAR *FileName, const void *RgbImage, int RgbImageSize, int RgbImageType,
-													const void *AlphaImage, int AlphaImageSize, int AlphaImageType,
-													BASEIMAGE *RgbGraphImage, BASEIMAGE *AlphaGraphImage, int ReverseFlag ) ;																																												// CreateGraphImage_plus_Alpha のグローバル変数にアクセスしないバージョン
+// CreateGraphImageType2 のグローバル変数にアクセスしないバージョン
+extern	int		CreateGraphImageType2_UseGParam( CREATEBASEIMAGETYPE2_GPARAM *GParam, STREAMDATA *Src, BASEIMAGE *Dest ) ;
+
+// CreateGraphImageOrDIBGraph のグローバル変数にアクセスしないバージョン
+extern	int		CreateGraphImageOrDIBGraph_UseGParam(
+					LOADBASEIMAGE_GPARAM *GParam,
+					const wchar_t *FileName,
+					const void *DataImage, int DataImageSize, int DataImageType,
+					int BmpFlag, int ReverseFlag,
+					BASEIMAGE *BaseImage, BITMAPINFO **BmpInfo, void **GraphData
+				) ;
+
+// CreateGraphImage_plus_Alpha のグローバル変数にアクセスしないバージョン
+extern	int		CreateGraphImage_plus_Alpha_UseGParam(
+					LOADBASEIMAGE_GPARAM *GParam,
+					const wchar_t *FileName,
+					const void *RgbImage, int RgbImageSize, int RgbImageType,
+					const void *AlphaImage, int AlphaImageSize, int AlphaImageType,
+					BASEIMAGE *RgbGraphImage, BASEIMAGE *AlphaGraphImage, int ReverseFlag
+				) ;
+
+
+// wchar_t版関数
+extern	int		CreateGraphImageOrDIBGraph_WCHAR_T(    const wchar_t *FileName, const void *DataImage, int DataImageSize, int DataImageType /* LOADIMAGE_TYPE_FILE 等 */ , int BmpFlag, int ReverseFlag, BASEIMAGE *BaseImage, BITMAPINFO **BmpInfo, void **GraphData ) ;
+extern	int		GetImageSize_File_WCHAR_T(             const wchar_t *FileName, int *SizeX, int *SizeY ) ;
+extern	int		CreateGraphImage_plus_Alpha_WCHAR_T(   const wchar_t *FileName, const void *RgbBaseImage, int RgbImageSize, int RgbImageType, const void *AlphaImage, int AlphaImageSize, int AlphaImageType, BASEIMAGE *RgbGraphImage, BASEIMAGE *AlphaGraphImage, int ReverseFlag ) ;
+#ifdef __WINDOWS__
+extern	HBITMAP	CreateDIBGraph_WCHAR_T(                const wchar_t *FileName,                                                                                                                                        int ReverseFlag,          COLORDATA *SrcColor ) ;
+extern	int		CreateDIBGraph_plus_Alpha_WCHAR_T(     const wchar_t *FileName, HBITMAP *RGBBmp, HBITMAP *AlphaBmp,                                                                                                    int ReverseFlag = FALSE , COLORDATA *SrcColor = NULL ) ;
+extern	HBITMAP	CreateDIBGraphVer2_WCHAR_T(            const wchar_t *FileName, const void *MemImage, int MemImageSize,                                             int ImageType,                                     int ReverseFlag,          COLORDATA *SrcColor ) ;
+extern	int		CreateDIBGraphVer2_plus_Alpha_WCHAR_T( const wchar_t *FileName, const void *MemImage, int MemImageSize, const void *AlphaImage, int AlphaImageSize, int ImageType, HBITMAP *RGBBmp, HBITMAP *AlphaBmp, int ReverseFlag,          COLORDATA *SrcColor ) ;
+#endif // __WINDOWS__
+extern	int		CreateBaseImage_WCHAR_T(               const wchar_t *FileName, const void *FileImage, int FileImageSize, int DataType /*=LOADIMAGE_TYPE_FILE*/ , BASEIMAGE *BaseImage,  int ReverseFlag ) ;
+extern	int		CreateBaseImageToFile_WCHAR_T(         const wchar_t *FileName,                                                                                   BASEIMAGE *BaseImage,  int ReverseFlag = FALSE ) ;
+
+
+#ifndef DX_NON_SAVEFUNCTION
+
+extern	int		SaveBaseImageToBmp_WCHAR_T(            const wchar_t *FilePath, const BASEIMAGE *BaseImage ) ;
+#ifndef DX_NON_PNGREAD
+extern	int		SaveBaseImageToPng_WCHAR_T(            const wchar_t *FilePath,       BASEIMAGE *BaseImage, int CompressionLevel ) ;
+#endif // DX_NON_PNGREAD
+#ifndef DX_NON_JPEGREAD
+extern	int		SaveBaseImageToJpeg_WCHAR_T(           const wchar_t *FilePath,       BASEIMAGE *BaseImage, int Quality, int Sample2x1 ) ;
+#endif // DX_NON_JPEGREAD
+
+#endif // DX_NON_SAVEFUNCTION
+
+
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // __DXBASEIMAGE_H__

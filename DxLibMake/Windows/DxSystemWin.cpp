@@ -2,17 +2,18 @@
 // 
 // 		ＤＸライブラリ		Windows用システムプログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 #include "DxSystemWin.h"
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxWindow.h"
+#include "DxGraphicsWin.h"
 #include "../DxLib.h"
 #include "../DxSystem.h"
 #include "../DxGraphics.h"
@@ -25,7 +26,6 @@
 #include "../DxSoundConvert.h"
 #include "../DxBaseImage.h"
 #include "../DxSoftImage.h"
-#include "../DxGraphicsBase.h"
 #include "../DxMovie.h"
 #include "../DxFont.h"
 #include "../DxLog.h"
@@ -40,12 +40,16 @@
 #include "DxGuid.h"
 
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
+
+// 構造体定義 --------------------------------------------------------------------
 
 // テーブル-----------------------------------------------------------------------
 
@@ -61,11 +65,20 @@ extern int NS_DxLib_Init( void )
 	// 既に初期化済みの場合は何もせず終了
 	if( DxSysData.DxLib_InitializeFlag == TRUE ) return 0 ;
 
+	DXST_ERRORLOGFMT_ADDUTF16LE(( "\x24\xff\x38\xff\xe9\x30\xa4\x30\xd6\x30\xe9\x30\xea\x30\x6e\x30\x1d\x52\x1f\x67\x16\x53\xe6\x51\x06\x74\x8b\x95\xcb\x59\x00"/*@ L"ＤＸライブラリの初期化処理開始" @*/ )) ;
+	DXST_ERRORLOG_TABADD ;
+
 	// 初期化中フラグを立てる
 	DxSysData.DxLib_RunInitializeFlag = TRUE ;
 
 	// DxSysData の共通初期化処理
 	DxLib_SysInit() ;
+
+	// キャラクターコード関係の初期化を行う
+	InitCharCode() ;
+
+	// 使用する文字セットをセット
+	_SET_DEFAULT_CODEPAGE() ;
 
 	// API を読み込む
 	LoadWinAPI() ;
@@ -87,12 +100,6 @@ extern int NS_DxLib_Init( void )
 	FGETDIR( WinData.CurrentDirectory ) ; 
 
 #ifndef DX_NON_LOG
-	// ログ出力フォルダが指定されていない場合はカレントディレクトリにする
-	if( LogData.LogOutDirectory[ 0 ] == TEXT( '\0' ) )
-	{
-		lstrcpy( LogData.LogOutDirectory, WinData.CurrentDirectory ) ;
-	}
-
 	// エラーログ排出の初期化
 	ErrorLogInitialize() ;
 #endif
@@ -101,44 +108,35 @@ extern int NS_DxLib_Init( void )
 	if( WinData.WindowModeFlag == FALSE )
 	{
 		int Num, i, Width, Height, ColorBitDepth ;
+		int DisplayIndex ;
 		DISPLAYMODEDATA Mode ;
 
 SCREENMODECHECK:
 		ColorBitDepth = NS_GetColorBitDepth() ;
 		NS_GetDrawScreenSize( &Width, &Height ) ; 
 
-		DXST_ERRORLOGFMT_ADD( ( _T( "設定されている画面設定 %dx%d %dbit color" ), Width, Height, ColorBitDepth ) ) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x2d\x8a\x9a\x5b\x55\x30\x8c\x30\x66\x30\x44\x30\x8b\x30\x3b\x75\x62\x97\x2d\x8a\x9a\x5b\x20\x00\x25\x00\x64\x00\x78\x00\x25\x00\x64\x00\x20\x00\x25\x00\x64\x00\x62\x00\x69\x00\x74\x00\x20\x00\x63\x00\x6f\x00\x6c\x00\x6f\x00\x72\x00\x00"/*@ L"設定されている画面設定 %dx%d %dbit color" @*/, Width, Height, ColorBitDepth ) ) ;
 
-		Num = NS_GetDisplayModeNum() ;
+		DisplayIndex = GSYS.Screen.ValidUseDisplayIndex ? GSYS.Screen.UseDisplayIndex : 0 ;
+
+		Num = NS_GetDisplayModeNum( DisplayIndex ) ;
 		for( i = 0 ; i < Num ; i ++ )
 		{
-			Mode = NS_GetDisplayMode( i ) ;
-//			DXST_ERRORLOGFMT_ADD( ( _T( "%dx%d %dbit color" ), Mode.Width, Mode.Height, Mode.ColorBitDepth ) ) ;
+			Mode = NS_GetDisplayMode( i, DisplayIndex ) ;
+//			DXST_ERRORLOGFMT_ADDUTF16LE(( L"%dx%d %dbit color", Mode.Width, Mode.Height, Mode.ColorBitDepth ) ) ;
 			if( Mode.Width == Width && Mode.Height == Height && Mode.ColorBitDepth == ColorBitDepth )
 				break ;
 		}
 		if( i == Num )
 		{
-			DXST_ERRORLOGFMT_ADD( ( _T( "対応している画面モードなし" ) ) ) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xfe\x5b\xdc\x5f\x57\x30\x66\x30\x44\x30\x8b\x30\x3b\x75\x62\x97\xe2\x30\xfc\x30\xc9\x30\x6a\x30\x57\x30\x00"/*@ L"対応している画面モードなし" @*/ )) ;
 
 			// 640x480 16bitがだめだった場合は 32bitを試してみる
 			if( Width == 640 && Height == 480 && ColorBitDepth == 16 )
 			{
-				NS_SetGraphMode( Width, Height, 32, GRA2.MainScreenRefreshRate ) ;
+				NS_SetGraphMode( Width, Height, 32, GSYS.Screen.MainScreenRefreshRate ) ;
 				goto SCREENMODECHECK ;
 			}
-
-			if( !( Width == 320 && Height == 240 && GRA2.NotUseHardWare == FALSE ) )
-			{
-				NS_ChangeWindowMode( TRUE ) ;
-			}
-		}
-
-		// 320x240 の解像度の場合は640x480の解像度で320x240の画面をエミュレーションする
-		if( GRA2.MainScreenSizeX == 320 && GRA2.MainScreenSizeY == 240 && WinData.WindowModeFlag == FALSE )
-		{
-			GRH.FullScreenEmulation320x240 = TRUE ;
-			SetMainScreenSize( 640, 480 ) ;
 		}
 	}
 
@@ -158,7 +156,10 @@ SCREENMODECHECK:
 		if( ( CrBitNum == 24 && WinData.WindowModeFlag == TRUE ) ||
 			( NS_GetColorBitDepth() == 24 ) )
 		{
-			DXST_ERRORLOG_ADD( _T( "ＤＸライブラリは２４ビットカラーモードに対応していません\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x24\xff\x38\xff\xe9\x30\xa4\x30\xd6\x30\xe9\x30\xea\x30\x6f\x30\x12\xff\x14\xff\xd3\x30\xc3\x30\xc8\x30\xab\x30\xe9\x30\xfc\x30\xe2\x30\xfc\x30\xc9\x30\x6b\x30\xfe\x5b\xdc\x5f\x57\x30\x66\x30\x44\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"ＤＸライブラリは２４ビットカラーモードに対応していません\n" @*/ ) ;
+
+			DXST_ERRORLOG_TABSUB ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x24\xff\x38\xff\xe9\x30\xa4\x30\xd6\x30\xe9\x30\xea\x30\x6e\x30\x1d\x52\x1f\x67\x16\x53\xe6\x51\x06\x74\x31\x59\x57\x65\x00"/*@ L"ＤＸライブラリの初期化処理失敗" @*/ ) ) ;
 			return -1 ;
 		}
 	}
@@ -190,7 +191,7 @@ SCREENMODECHECK:
 	if( DxSysData.NotInputFlag == FALSE )
 	{
 #ifndef DX_NON_INPUT
-		if( InitializeDirectInput() == -1 ) goto ERROR_DX ;			// ＤｉｒｅｃｔＩｎｐｕｔ関係の初期化
+		if( InitializeInputSystem() == -1 ) goto ERROR_DX ;			// 入力システムの初期化
 #endif // DX_NON_INPUT
 	}
 
@@ -198,7 +199,7 @@ SCREENMODECHECK:
 	{
 		InitializeSoundConvert() ;									// サウンド変換処理の初期化
 #ifndef DX_NON_SOUND
-		InitializeDirectSound() ;									// ＤｉｒｅｃｔＳｏｕｎｄ関係の初期化
+		InitializeSoundSystem() ;									// サウンドシステムのの初期化
 #endif // DX_NON_SOUND
 	}
 	if( DxSysData.NotDrawFlag == FALSE )
@@ -211,7 +212,7 @@ SCREENMODECHECK:
 		InitializeMovieManage() ;
 #endif
 
-		if( InitializeGraphics2() < 0 ) goto ERROR_DX ;
+		if( Graphics_Initialize() < 0 ) goto ERROR_DX ;
 	}
 #ifndef DX_NON_INPUTSTRING
 	InitializeInputCharBuf() ;									// 文字コードバッファの初期化
@@ -240,7 +241,10 @@ SCREENMODECHECK:
 	{
 #ifndef DX_NON_MODEL
 		// モデルバージョン１の初期化
-		MV1Initialize() ;
+		if( MV1Initialize() < 0 )
+		{
+			goto ERROR_DX ;
+		}
 #endif
 	}
 
@@ -253,11 +257,17 @@ SCREENMODECHECK:
 		WinData.WindowSizeValid = FALSE ;
 	}
 
+	DXST_ERRORLOG_TABSUB ;
+	DXST_ERRORLOGFMT_ADDUTF16LE(( "\x24\xff\x38\xff\xe9\x30\xa4\x30\xd6\x30\xe9\x30\xea\x30\x6e\x30\x1d\x52\x1f\x67\x16\x53\xe6\x51\x06\x74\x42\x7d\x86\x4e\x00"/*@ L"ＤＸライブラリの初期化処理終了" @*/ ) ) ;
+
 	// 終了
 	return 0 ;
 
 ERROR_DX:
 	NS_DxLib_End() ;
+
+	DXST_ERRORLOG_TABSUB ;
+	DXST_ERRORLOGFMT_ADDUTF16LE(( "\x24\xff\x38\xff\xe9\x30\xa4\x30\xd6\x30\xe9\x30\xea\x30\x6e\x30\x1d\x52\x1f\x67\x16\x53\xe6\x51\x06\x74\x31\x59\x57\x65\x00"/*@ L"ＤＸライブラリの初期化処理失敗" @*/ ) ) ;
 
 	// 初期化中フラグを倒す
 	DxSysData.DxLib_RunInitializeFlag = FALSE ;
@@ -300,7 +310,7 @@ extern int NS_DxLib_End( void )
 	NS_InitModel() ;			// モデルデータの削除
 #endif
 #endif
-	TerminateGraphics2() ;
+	Graphics_Terminate() ;
 	TerminateBaseImageManage() ;
 
 #ifndef DX_NON_SOFTIMAGE
@@ -312,14 +322,15 @@ extern int NS_DxLib_End( void )
 #endif
 
 #ifndef DX_NON_INPUT
-	TerminateDirectInput() ;	// ＤｉｒｅｃｔＩｎｐｕｔの終了
+	TerminateInputSystem() ;	// 入力システムの終了
 #endif // DX_NON_INPUT
 
 #ifndef DX_NON_SOUND
-	TerminateDirectSound() ;	// ＤｉｒｅｃｔＳｏｕｎｄの終了
+	TerminateSoundSystem() ;	// サウンドシステムの後始末
 #endif // DX_NON_SOUND
 
 	TerminateSoundConvert() ;	// サウンド変換処理の終了
+
 	TerminateWindow() ;			// Ｗｉｎｄｏｗ関係の終了処理
 
 	TerminateCom() ;			// ＣＯＭの終了
@@ -337,10 +348,10 @@ extern int NS_DxLib_End( void )
 		while( NS_ProcessMessage() == 0 && WinData.QuitMessageFlag == FALSE && WinData.DestroyMessageCatchFlag == FALSE ){}
 
 	// ウインドウクラスの登録を抹消
-	UnregisterClass( WinData.ClassName, WinData.Instance ) ;
+	UnregisterClassW( WinData.ClassName, WinData.Instance ) ;
 
 	// ウインドウ閉じ待ち
-	while( DxSysData.NotWinFlag == FALSE && FindWindow( WinData.ClassName, NULL ) == WinData.MainWindow )
+	while( DxSysData.NotWinFlag == FALSE && FindWindowW( WinData.ClassName, NULL ) == WinData.MainWindow )
 	{
 		DestroyWindow( WinData.MainWindow ) ;
 		Sleep( 100 ) ;
@@ -359,6 +370,9 @@ extern int NS_DxLib_End( void )
 	NS_DxDumpAlloc() ;
 #endif
 
+	// メモリの後始末を行う
+	MemoryTerminate() ;
+
 	// WinAPI を解放する
 	ReleaseWinAPI() ;
 
@@ -369,12 +383,12 @@ extern int NS_DxLib_End( void )
 // ライブラリの内部で使用している構造体をゼロ初期化して、DxLib_Init の前に行った設定を無効化する( DxLib_Init の前でのみ有効 )
 extern int NS_DxLib_GlobalStructInitialize( void )
 {
-	_MEMSET( &GRA2, 0, sizeof( GRA2 ) ) ;
-	_MEMSET( &GraphicsBaseData, 0, sizeof( GraphicsBaseData ) );
+//	_MEMSET( &GRA2, 0, sizeof( GRA2 ) ) ;
+	_MEMSET( &GraphicsSysData, 0, sizeof( GraphicsSysData ) );
 	_MEMSET( &BaseImageManage, 0, sizeof( BaseImageManage ) ) ;
 	_MEMSET( &WinData, 0, sizeof( WinData ) );
 #ifndef DX_NON_SOUND
-	_MEMSET( &DX_DirectSoundData, 0, sizeof( DX_DirectSoundData ) );
+	_MEMSET( &SoundSysData, 0, sizeof( SoundSysData ) );
 #endif // DX_NON_SOUND
 
 	return 0;
@@ -385,7 +399,7 @@ extern int NS_ProcessMessage( void )
 {
 	int	EventCon ;
 	int LoopCount ;
-    MSG msg;
+	MSG msg = { 0 } ;
 	int Flag = FALSE, hr, hr2, StopCheckFlag ;
 	static int EndFlag = FALSE ;
 
@@ -482,25 +496,25 @@ extern int NS_ProcessMessage( void )
 					}
 				}
 
-				hr = 1 ;
+				hr  = 1 ;
 				hr2 = 0 ;
 				while( hr )
 				{
 					MSG msg2 ;
 					if(
-//						( hr2 = ( PeekMessage( &msg2, NULL, 0, 0, PM_NOREMOVE ) != 0 && msg2.message == WM_SYSCOMMAND && msg2.wParam == SC_SCREENSAVE ) ) ||
-						( hr2 = ( PeekMessage( &msg2, NULL, 0, 0, PM_NOREMOVE ) != 0 /*&& msg2.message == WM_SYSCOMMAND && msg2.wParam == SC_SCREENSAVE*/ ) ) || // ←ATOKの場合スクリーンセーバーメッセージに限定すると半角／全角キーで日本語入力モードに移行できなかったので、無条件に。何か問題があったらそのとき考えよう・・・
-						( hr = ( PeekMessage( &msg, ( HWND )-1, 0, 0, PM_REMOVE ) || PeekMessage( &msg, WinData.MainWindow, 0, 0, PM_REMOVE ) ) )
+//						( hr2 = ( PeekMessageW( &msg2, NULL, 0, 0, PM_NOREMOVE ) != 0 && msg2.message == WM_SYSCOMMAND && msg2.wParam == SC_SCREENSAVE ) ) ||
+						( hr2 = ( PeekMessageW( &msg2,       NULL, 0, 0, PM_NOREMOVE ) != 0 /*&& msg2.message == WM_SYSCOMMAND && msg2.wParam == SC_SCREENSAVE*/ ) ) || // ←ATOKの場合スクリーンセーバーメッセージに限定すると半角／全角キーで日本語入力モードに移行できなかったので、無条件に。何か問題があったらそのとき考えよう・・・
+						( hr  = ( PeekMessageW( &msg,  ( HWND )-1, 0, 0, PM_REMOVE   ) || PeekMessageW( &msg, WinData.MainWindow, 0, 0, PM_REMOVE ) ) )
 					  )
 					{
 						if( hr2 != 0 )
 						{
-							PeekMessage( &msg2, NULL, 0, 0, PM_REMOVE ) ;
+							PeekMessageW( &msg2, NULL, 0, 0, PM_REMOVE ) ;
 							msg = msg2 ;
 						}
 
 						// ダイアログボックス用のメッセージか調べる
-						if( WinData.DialogBoxHandle == NULL || IsDialogMessage( WinData.DialogBoxHandle, &msg ) == 0 )
+						if( WinData.DialogBoxHandle == NULL || IsDialogMessageW( WinData.DialogBoxHandle, &msg ) == 0 )
 						{
 							// ダイアログボックスのメッセージではなかったら普通に処理
 							// (ウインドウモードの時のみ)
@@ -518,13 +532,13 @@ extern int NS_ProcessMessage( void )
 							}
 
 							// アクセラレータが有効な場合はアクセラレータキーを処理する
-							if( TranslateAccelerator( WinData.MainWindow, WinData.Accel, &msg ) == 0 )
+							if( TranslateAcceleratorW( WinData.MainWindow, WinData.Accel, &msg ) == 0 )
 							{
-//								DXST_ERRORLOGFMT_ADD(( _T( "DispatchMessage\n" ) )) ;
+//								DXST_ERRORLOGFMT_ADDUTF16LE(( L"DispatchMessage\n" )) ;
 
 								// アクセラレータキーメッセージではなかったら普通に処理する
 								TranslateMessage( &msg );
-								DispatchMessage( &msg );
+								DispatchMessageW( &msg );
 							}
 							EventCon ++ ;
 							if ( EventCon >= MAX_EVENTPROCESS_NUM )
@@ -546,9 +560,9 @@ extern int NS_ProcessMessage( void )
 					// ダイアログボックスのメッセージ処理
 					if( WinData.DialogBoxHandle != NULL )
 					{
-						if( PeekMessage( &msg, WinData.DialogBoxHandle, 0, 0, PM_REMOVE ) )
+						if( PeekMessageW( &msg, WinData.DialogBoxHandle, 0, 0, PM_REMOVE ) )
 						{
-							IsDialogMessage( WinData.DialogBoxHandle, &msg );
+							IsDialogMessageW( WinData.DialogBoxHandle, &msg );
 						}
 					}
 
@@ -558,10 +572,10 @@ extern int NS_ProcessMessage( void )
 
 						for( i = 0 ; i < WinData.MesTakeOverWindowNum ; i ++ )
 						{
-							if( PeekMessage( &msg, WinData.MesTakeOverWindow[i], 0, 0, PM_REMOVE ) )
+							if( PeekMessageW( &msg, WinData.MesTakeOverWindow[i], 0, 0, PM_REMOVE ) )
 							{
 								TranslateMessage( &msg );
-								DispatchMessage( &msg );
+								DispatchMessageW( &msg );
 							}
 						}
 					}
@@ -570,6 +584,9 @@ extern int NS_ProcessMessage( void )
 		R2 :
 				if( ( WinData.ActiveFlag == FALSE || WinData.WindowMinSizeFlag == TRUE ) && WinData.NonActiveRunFlag == FALSE )
 				{
+					// メモリ関係の周期的処理を行う
+					MemoryProcess() ;
+
 #ifndef DX_NON_NETWORK
 					// 通信関係のメッセージ処理を行う
 					NS_ProcessNetMessage( TRUE ) ;
@@ -594,11 +611,8 @@ extern int NS_ProcessMessage( void )
 					}
 #endif // DX_NON_SOUND
 
-					// 管理テクスチャへの転送用のシステムメモリテクスチャの定期処理を行う
-					SysMemTextureProcess() ;
-
-					// 管理テクスチャへの転送用のシステムメモリサーフェスの定期処理を行う
-					SysMemSurfaceProcess() ;
+					// 描画処理のメッセージループ時に行うべき処理を実行する
+					Graphics_Win_MessageLoop_Process() ;
 
 #ifndef DX_NON_ASYNCLOAD
 					// メインスレッドが処理する非同期読み込みの処理を行う
@@ -666,13 +680,15 @@ extern int NS_ProcessMessage( void )
 			while( WinData.WM_ACTIVATE_StockNum != 0 )
 			{
 				WPARAM wParam ;
+				LPARAM lParam ;
 				int APPMes ;
 
 				wParam = WinData.WM_ACTIVATE_wParam[ WinData.WM_ACTIVATE_StartIndex ] ;
+				lParam = WinData.WM_ACTIVATE_lParam[ WinData.WM_ACTIVATE_StartIndex ] ;
 				APPMes = WinData.WM_ACTIVATE_APPMes[ WinData.WM_ACTIVATE_StartIndex ] ;
 				WinData.WM_ACTIVATE_StartIndex = ( WinData.WM_ACTIVATE_StartIndex + 1 ) % 512 ;
 				WinData.WM_ACTIVATE_StockNum -- ;
-				WM_ACTIVATEProcess( wParam, APPMes ) ;
+				WM_ACTIVATEProcess( wParam, lParam, APPMes ) ;
 			}
 		}
 	}
@@ -694,11 +710,8 @@ extern int NS_ProcessMessage( void )
 	}
 #endif // DX_NON_SOUND
 
-	// 管理テクスチャへの転送用のシステムメモリテクスチャの定期処理を行う
-	SysMemTextureProcess() ;
-
-	// 管理テクスチャへの転送用のシステムメモリサーフェスの定期処理を行う
-	SysMemSurfaceProcess() ;
+	// 描画処理のメッセージループ時に行うべき処理を実行する
+	Graphics_Win_MessageLoop_Process() ;
 
 #ifndef DX_NON_ASYNCLOAD
 	// メインスレッドが処理する非同期読み込みの処理を行う
@@ -715,7 +728,7 @@ extern int NS_ProcessMessage( void )
 
 #ifndef DX_NON_INPUT
 	// キーボードの周期的処理を行う
-	//NS_KeyboradBufferProcess() ;
+	//KeyboradBufferProcess() ;
 
 	// キーボード入力の更新処理を行う
 	UpdateKeyboardInputState( FALSE ) ;
@@ -733,6 +746,9 @@ extern int NS_ProcessMessage( void )
 	HTTP_ProcessAll() ;
 #endif
 #endif
+
+	// メモリ関係の周期的処理を行う
+	MemoryProcess() ;
 
 #ifndef DX_NON_KEYEX
 	// キー入力処理を行う
@@ -766,11 +782,11 @@ END :
 // エラー処理関数
 
 // エラー処理
-extern int DxLib_Error( const TCHAR *ErrorStr )
+extern int DxLib_Error( const wchar_t *ErrorStr )
 {
 	// エラーログの排出
-	DXST_ERRORLOG_ADD( ErrorStr ) ;
-	DXST_ERRORLOG_ADD( _T( "\n" ) ) ;
+	DXST_ERRORLOG_ADDW( ErrorStr ) ;
+	DXST_ERRORLOG_ADDW( L"\n" ) ;
 
 	// 各処理系の終了
 	NS_DxLib_End() ;
@@ -799,12 +815,26 @@ extern int DxLib_Error( const TCHAR *ErrorStr )
 
 //	while( WinData.QuitMessageFlag == FALSE && NS_ProcessMessage() == 0 ){}
 
-//	DXST_ERRORLOG_ADD( _T( "ソフトをエラー終了します" ) ) ;
+//	DXST_ERRORLOG_ADDW( L"ソフトをエラー終了します" ) ;
 	ExitProcess( (DWORD)-1 ) ;
 
 	return -1 ;
 }
 
+// ライブラリのエラー処理を行う( UTF16LE版 )
+extern int DxLib_ErrorUTF16LE( const char *ErrorStr )
+{
+	int Result ;
+
+	CHAR_TO_WCHAR_T_STRING_BEGIN( ErrorStr )
+	CHAR_TO_WCHAR_T_STRING_SETUP( ErrorStr, return -1, DX_CODEPAGE_UTF16LE )
+
+	Result = DxLib_Error( UseErrorStrBuffer ) ;
+
+	CHAR_TO_WCHAR_T_STRING_END( ErrorStr )
+
+	return Result ;
+}
 
 
 
@@ -826,16 +856,16 @@ extern int DxLib_Error( const TCHAR *ErrorStr )
 
 
 // ワイド文字列をマルチバイト文字列に変換する
-extern int WCharToMBChar( int CodePage, const DXWCHAR *Src, char *Dest, int DestSize )
-{
-	return WideCharToMultiByte( CodePage, 0, ( wchar_t * )Src, -1, Dest, DestSize, NULL, NULL ) ;
-}
+//extern int WCharToMBChar( int CodePage, const DXWCHAR *Src, char *Dest, int DestSize )
+//{
+//	return WideCharToMultiByte( ( UINT )CodePage, 0, ( wchar_t * )Src, -1, Dest, DestSize, NULL, NULL ) ;
+//}
 
 // マルチバイト文字列をワイド文字列に変換する
-extern int MBCharToWChar( int CodePage, const char *Src, DXWCHAR *Dest, int DestSize )
-{
-	return MultiByteToWideChar( CodePage, 0, Src, -1, ( wchar_t * )Dest, DestSize ) ;
-}
+//extern int MBCharToWChar( int CodePage, const char *Src, DXWCHAR *Dest, int DestSize )
+//{
+//	return MultiByteToWideChar( ( UINT )CodePage, 0, Src, -1, ( wchar_t * )Dest, DestSize ) ;
+//}
 
 
 
@@ -900,12 +930,14 @@ extern int NS_GetNowCount( int /*UseRDTSCFlag*/ )
 	{
 		if( WinAPIData.Win32Func.WinMMDLL == NULL )
 		{
-			return -1 ;
+			LoadWinAPI() ;
+			if( WinAPIData.Win32Func.WinMMDLL == NULL )
+			{
+				return -1 ;
+			}
 		}
-		else
-		{
-			return ( int )( WinAPIData.Win32Func.timeGetTimeFunc() & 0x7fffffff ) ;
-		}
+
+		return ( int )( WinAPIData.Win32Func.timeGetTimeFunc() & 0x7fffffff ) ;
 	}
 }
 
@@ -1051,7 +1083,65 @@ extern int NS_GetDateTime( DATEDATA *DateBuf )
 
 
 
+// 乱数取得
+
+#ifndef DX_NON_MERSENNE_TWISTER
+
+// 乱数の初期値を設定する
+extern int NS_SRand( int Seed )
+{
+	// 初期値セット
+	srandMT( ( unsigned long )Seed ) ;
+
+	// 終了
+	return 0 ;
 }
+
+// 乱数を取得する( RandMax : 返って来る値の最大値 )
+extern int NS_GetRand( int RandMax )
+{
+	int Result ;
+
+	RandMax ++ ;
+	Result = ( int )( ( ( LONGLONG )randMT() * ( LONGLONG )RandMax ) >> 32 ) ;
+
+	return Result ;
+}
+
+#else // DX_NON_MERSENNE_TWISTER
+
+// 乱数の初期値を設定する
+extern int NS_SRand( int Seed )
+{
+	// 初期値セット
+	srand( Seed ) ;
+
+	// 終了
+	return 0 ;
+}
+
+// 乱数を取得する( RandMax : 返って来る値の最大値 )
+extern int NS_GetRand( int RandMax )
+{
+	int Result ;
+
+	RandMax ++ ;
+	Result = ( int )( ( ( LONGLONG )rand() * ( LONGLONG )RandMax ) / ( RAND_MAX + 1 ) ) ;
+
+	return Result ;
+}
+
+#endif // DX_NON_MERSENNE_TWISTER
+
+
+
+
+
+#ifdef DX_USE_NAMESPACE
+
+}
+
+#endif // DX_USE_NAMESPACE
 
 
 

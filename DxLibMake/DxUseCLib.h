@@ -2,14 +2,14 @@
 // 
 // 		ＤＸライブラリ		標準Ｃライブラリ使用プログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 #ifndef __DXUSECLIB_H__
 #define __DXUSECLIB_H__
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxCompileConfig.h"
 
 #ifndef DX_NON_OGGTHEORA
@@ -23,12 +23,12 @@
 #include "DxFile.h"
 #include "DxBaseFunc.h"
 
-namespace DxLib
-{
+//namespace DxLib
+//{
 
-// 宏定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // テーブル-----------------------------------------------------------------------
 
@@ -37,23 +37,55 @@ namespace DxLib
 // 関数プロトタイプ宣言-----------------------------------------------------------
 
 
+
+
+
+
+
+
+
+
+#ifndef DX_NON_MERSENNE_TWISTER
+
+// Copyright SYN
+extern unsigned long	CheckMMX(void) ;
+extern void				srandMT(unsigned long seed) ;
+extern void				generateMT(void) ;
+extern unsigned long	randMT(void) ;
+
+#endif // DX_NON_MERSENNE_TWISTER
+
+
+
+
+
+
+#ifndef DX_NON_TIFFREAD
+extern	int		LoadTiffImage( STREAMDATA *Src, BASEIMAGE *BaseImage, int GetFormatOnly ) ;						// ＴＩＦＦ画像の読みこみ
+#endif
 #ifndef DX_NON_PNGREAD
-extern	int		LoadPngImage( STREAMDATA *Src, BASEIMAGE *Image ) ;											// ＰＮＧ画像の読みこみ
+extern	int		LoadPngImage(     STREAMDATA *Src, BASEIMAGE *BaseImage, int GetFormatOnly ) ;					// ＰＮＧ画像の読みこみ
 #ifndef DX_NON_SAVEFUNCTION
-extern	int		SaveBaseImageToPngBase( const DXWCHAR *FilePathW, const char *FilePathA, BASEIMAGE *BaseImage, int CompressionLevel ) ;																					// 基本画像データをＰＮＧ画像として保存する
+extern	int		SaveBaseImageToPngBase( const char *FilePathW, const char *FilePathA, BASEIMAGE *BaseImage, int CompressionLevel ) ;																					// 基本画像データをＰＮＧ画像として保存する
 #endif
 #endif
 #ifndef DX_NON_JPEGREAD
-extern	int		LoadJpegImage( STREAMDATA *Src, BASEIMAGE *Image ) ;										// ＪＰＥＧ画像の読みこみ (実体は DxUseCLib.cpp の中)
+extern	int		LoadJpegImage( STREAMDATA *Src, BASEIMAGE *BaseImage, int GetFormatOnly ) ;						// ＪＰＥＧ画像の読みこみ (実体は DxUseCLib.cpp の中)
 #ifndef DX_NON_SAVEFUNCTION
-extern	int		SaveBaseImageToJpegBase( const DXWCHAR *FilePathW, const char *FilePathA, BASEIMAGE *BaseImage, int Quality, int Sample2x1 ) ;																			// 基本画像データをＪＰＥＧ画像として保存する
+extern	int		SaveBaseImageToJpegBase( const char *FilePathW, const char *FilePathA, BASEIMAGE *BaseImage, int Quality, int Sample2x1 ) ;																			// 基本画像データをＪＰＥＧ画像として保存する
 #endif
 #endif
 
 
 
-extern	int			FileRead_scanf_base( DWORD_PTR FileHandle, const char *Format, va_list Param ) ;		// ファイルから書式化されたデータを読み出す
-extern	int			FileRead_scanf_baseW( DWORD_PTR FileHandle, const DXWCHAR *Format, va_list Param ) ;	// ファイルから書式化されたデータを読み出す
+
+extern	int			INT64DIV(  const BYTE *Int64,  int   DivNum ) ;
+extern	DWORD		UINT64DIV( const BYTE *UInt64, DWORD DivNum ) ;
+extern	int			INT64MOD(  const BYTE *Int64,  int   ModNum ) ;
+extern	DWORD		UINT64MOD( const BYTE *UInt64, DWORD ModNum ) ;
+
+
+
 
 
 
@@ -84,7 +116,7 @@ extern	int GetSoundConvertDestSize_Fast_OGG( SOUNDCONV *SoundConv ) ;								// 
 
 extern int	TheoraDecode_GrobalInitialize( void ) ;																					// ソフト的に一度だけ呼ぶべき初期化関数
 
-extern DWORD_PTR  TheoraDecode_InitializeStream( STREAMDATASHREDTYPE2 *StreamShred, DWORD_PTR StreamData, int StockFrameNum = 10, int ASyncTrhead = FALSE ) ;	// Ogg Theora 読み込み処理の準備を行う( 戻り値  0:失敗  1以上:初期化成功 )
+extern DWORD_PTR  TheoraDecode_InitializeStream( STREAMDATASHREDTYPE2W *StreamShred, DWORD_PTR StreamData, int StockFrameNum = 10, int NotUseYUVFormatSurface = FALSE, int ASyncTrhead = FALSE ) ;	// Ogg Theora 読み込み処理の準備を行う( 戻り値  0:失敗  1以上:初期化成功 )
 extern int	TheoraDecode_Terminate( DWORD_PTR Handle ) ;																			// Ogg Theora 読み込み処理の後始末を行う
 extern int	TheoraDecode_SurfaceTerminate( DWORD_PTR Handle ) ;																		// Ogg Theora で使用しているサーフェスを解放する
 
@@ -96,13 +128,19 @@ extern int	TheoraDecode_SeekToFrame( DWORD_PTR Handle, int Frame ) ;												
 extern int	TheoraDecode_SeekToTime( DWORD_PTR Handle, LONGLONG Time ) ;															// カレントフレームを指定の再生時間に移動する( 単位はマイクロ秒 )
 
 extern int	TheoraDecode_SetupImage( DWORD_PTR Handle, int BaseImage = 0, int YUVImage = 0, int ASyncThread = FALSE ) ;				// カレントフレームのRGB画像を作成する( 戻り値  1:作成された  0:されなかった )
-extern const BASEIMAGE           *TheoraDecode_GetBaseImage( DWORD_PTR Handle ) ;													// 一時バッファのアドレスを取得する
-extern const DX_DIRECT3DSURFACE9 *TheoraDecode_GetYUVImage( DWORD_PTR Handle ) ;													// 一時バッファの YUV フォーマットのサーフェスを得る
+extern const BASEIMAGE *	TheoraDecode_GetBaseImage( DWORD_PTR Handle ) ;													// 一時バッファのアドレスを取得する
+extern const void *			TheoraDecode_GetYUVImage( DWORD_PTR Handle ) ;													// 一時バッファの YUV フォーマットのサーフェスを得る
 
 extern int	TheoraDecode_IsIdle( DWORD_PTR Handle ) ;																				// デコードスレッドがアイドル状態かどうかを調べる( 戻り値  1:アイドル状態  0:稼動中 )
 
 #endif
 
-}
+
+
+
+
+
+
+//}
 
 #endif // __DXUSECLIB_H__

@@ -2,23 +2,28 @@
 // 
 // 		ＤＸライブラリ		ウインドウプログラムヘッダファイル
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 #ifndef __DXWINDOW_H__
 #define __DXWINDOW_H__
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "../DxCompileConfig.h"
 #include "../DxLib.h"
 #include "../DxMemory.h"
+#include "../DxFile.h"
 #include "../DxThread.h"
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
+
+// マクロ定義 --------------------------------------------------------------------
 
 #define WIN_MOUSEINPUT_LOG_NUM		(32)				// 保持するマウスのクリック情報
 
@@ -35,7 +40,7 @@ typedef HHOOK 						( *MSGFUNC )( HWND MainWindow, HHOOK *pKeyboardHookHandle ) 
 
 #define WSA_WINSOCKMESSAGE 			(WM_USER + 261)
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // メニュー項目の情報
 struct WINMENUITEMINFO
@@ -43,7 +48,7 @@ struct WINMENUITEMINFO
 	HMENU					Menu ;								// メニュー
 	short					Index ;								// ナンバー
 	unsigned short			ID ;								// ＩＤ
-	TCHAR					Name[128] ;							// 名前
+	wchar_t					Name[128] ;							// 名前
 } ;
 
 // ツールバー項目の情報
@@ -59,14 +64,14 @@ struct WINTOOLBARITEMINFO
 // ＰＣの情報
 struct PCINFO
 {
-	TCHAR					OSString[256] ;						// ＯＳの記述
-	TCHAR					DirectXString[256] ;				// ＤｉｒｅｃｔＸの記述
-	TCHAR					CPUString[256] ;					// ＣＰＵの記述
+	wchar_t					OSString[256] ;						// ＯＳの記述
+	wchar_t					DirectXString[256] ;				// ＤｉｒｅｃｔＸの記述
+	wchar_t					CPUString[256] ;					// ＣＰＵの記述
 	int						CPUSpeed ;							// ＣＰＵの速度(単位MHz)
 	LONGLONG				FreeMemorySize ;					// 空きメモリサイズ(単位byte)
 	LONGLONG				TotalMemorySize ;					// 総メモリサイズ(単位byte)
-	TCHAR					VideoDriverFileName[256] ;			// ビデオカードドライバファイル名
-	TCHAR					VideoDriverString[256] ;			// ビデオカードドライバの記述
+	wchar_t					VideoDriverFileName[256] ;			// ビデオカードドライバファイル名
+	wchar_t					VideoDriverString[256] ;			// ビデオカードドライバの記述
 	unsigned int			VideoFreeMemorySize ;				// 空きＶＲＡＭサイズ(単位byte)
 	unsigned int			VideoTotalMemorySize ;				// ＶＲＡＭの総サイズ(単位byte)
 } ;
@@ -100,6 +105,7 @@ struct WINDATA
 
 	HRGN					WindowRgn ;							// メインウインドウのリージョン
 	int						WindowStyle ;						// ウインドウのスタイルタイプインデックス値
+	int						WindowZType ;						// ウインドウのＺオーダータイプ( DX_WIN_ZTYPE_NORMAL など )
 	int						UserWindowFlag ;					// MainWindow はＤＸライブラリが作成したウインドウではないか、フラグ(ＴＲＵＥ：ユーザーから渡されたウインドウ  ＦＡＬＳＥ：ＤＸライブラリが作成したウインドウ)
 	int						NotUserWindowMessageProcessDXLibFlag ;	// UserWindowFlag が立っている場合、ウインドウのメッセージ処理をＤＸライブラリが行わないかどうか、フラグ(ＴＲＵＥ：ＤＸライブラリは何もせずユーザーがメッセージ処理を行う　ＦＡＬＳＥ：ＤＸライブラリが行う)
 	WNDPROC					DefaultUserWindowProc ;				// ＤＸライブラリのプロシージャを設定する前にユーザーのウインドウに設定されていたプロシージャ
@@ -113,6 +119,8 @@ struct WINDATA
 	int						UseChangeWindowModeFlag ;			// ALT+ENTER によるフルスクリーン←→ウインドウの変更機能が有効であるかフラグ
 	void					(*ChangeWindowModeCallBackFunction)(void *) ; // フルスクリーン←→ウインドウの変更が起きたときに呼ぶ関数
 	void					*ChangeWindowModeCallBackFunctionData ;	// コールバック関数に渡すデータ
+
+	wchar_t					InputSysChara ;						// 入力されたシステム文字コード
 
 	int						QuitMessageFlag ;					// WM_QUITメッセージが送られてきたかどうかのフラグ変数
 	int						CloseMessagePostFlag ;				// WM_CLOSEメッセージを送った時にＴＲＵＥになるフラグ変数
@@ -147,13 +155,16 @@ struct WINDATA
 	int						WM_ACTIVATE_StartIndex ;			// WM_ACTIVATE メッセージリングバッファの開始インデックス
 	int						WM_ACTIVATE_EndIndex ;				// WM_ACTIVATE メッセージリングバッファの終了インデックス
 	WPARAM					WM_ACTIVATE_wParam[ 512 ] ;			// WM_ACTIVATE にメッセージが来た祭の wParam
+	LPARAM					WM_ACTIVATE_lParam[ 512 ] ;			// WM_ACTIVATE にメッセージが来た祭の lParam
 	int						WM_ACTIVATE_APPMes[ 512 ] ;			// WM_ACTIVATEAPP の肩代わりか
+	int						WM_ACTIVATE_Dummy[ 512 ] ;			// WM_ACTIVATE のダミーメッセージかどうか
 
 	int						PerformanceTimerFlag ;				// パフォーマンスカウンターが使えるかフラグ
 	LONGLONG				PerformanceClock ;					// パフォーマンスカウンターの周波数
 
-	SIZE					DefaultScreenSize ;					// 起動時のデスクトップの画面サイズ
-	int						DefaultColorBitCount ;				// 起動時のデスクトップのカラービット数
+//	SIZE					DefaultScreenSize ;					// 起動時のデスクトップの画面サイズ
+//	int						DefaultColorBitCount ;				// 起動時のデスクトップのカラービット数
+//	int						DefaultRefreshRate ;				// 起動時のデスクトップのリフレッシュレート
 
 	int						ComInitializeFlag ;					// ＣＯＭを初期化したか、のフラグ
 	int						WindowCreateFlag ;					// ウインドウ作成中か、フラグ
@@ -165,12 +176,13 @@ struct WINDATA
 	int						(*ActiveStateChangeCallBackFunction)( int ActiveState, void *UserData ) ;	// ウインドウのアクティブ状態に変化があったときに呼ばれる関数
 	void					*ActiveStateChangeCallBackFunctionData ;	// ActiveStateChangeCallBackFunction に渡すデータアドレス
 
-	TCHAR					CurrentDirectory[ MAX_PATH ] ;		// 起動時のカレントディレクトリ
+	wchar_t					CurrentDirectory[ FILEPATH_MAX ] ;	// 起動時のカレントディレクトリ
 	int						EnableWindowText ;					// WindowText が有効かどうか
-	TCHAR					WindowText[ 256 ] ;					// メインウインドウテキスト
-	TCHAR					ClassName[ 256 ] ;					// メインウインドウのクラス名
+	wchar_t					WindowText[ 256 ] ;					// メインウインドウテキスト
+	wchar_t					ClassName[ 256 ] ;					// メインウインドウのクラス名
 
 	int						NonActiveRunFlag ;					// ウインドウがアクティブではなくても処理を実行するかどうかのフラグ
+	int						DrawBackGraphFlag ;					// DrawBackGraph 関数を実行中かどうか( TRUE:実行中  FALSE:実行中ではない )
 
 	int						IconID ;							// 使用するアイコンのＩＤ
 	HICON					IconHandle ;						// 使用するアイコンのハンドル
@@ -212,7 +224,10 @@ struct WINDATA
 	int						NotWindowVisibleFlag ;				// ウインドウを表示しないフラグ
 	int						WindowMinimizeFlag ;				// ウインドウを最小化状態にするかどうかのフラグ
 	int						WindowMaximizeFlag ;				// ウインドウを最大化状態にするかどうかのフラグ
-	RECT					WindowMaximizedClientRect ;			// ウインドウ最大化状態でのクライアント領域のサイズ
+	RECT					WindowMaximizedClientRect ;			// ウインドウ最大化状態でのクライアント矩形
+	RECT					WindowMaximizedRect ;				// ウインドウ最大化状態でのウインドウ矩形
+	int						ValidFirstWindowMaximizedRect ;		// 一番最初の最大化状態でのウインドウの矩形が有効化どうか( TRUE:有効  FALSE:無効 )
+	RECT					FirstWindowMaximizedRect ;			// 一番最初の最大化状態でのウインドウの矩形
 	int						NotMoveMousePointerOutClientAreaFlag ;	// ウインドウのクライアントエリア外にマウスポインタが移動できないようにするかどうかのフラグ
 	int						NotActive_WindowMoveOrSystemMenu ;	// WM_ENTERSIZEMOVE や WM_ENTERMENULOOP によって非アクティブになっている
 	int						SetClipCursorFlag ;					// ClipCursor の設定が有効になっているかどうかフラグ
@@ -221,13 +236,12 @@ struct WINDATA
 	HHOOK					GetMessageHookHandle ;				// WH_GETMESSAGE フックハンドル
 	HHOOK					KeyboardHookHandle ;				// WH_KEYBOARD_LL フックハンドル
 	int						LockInitializeFlag ;				// ロックをかけろというフラグ
-	TCHAR					HookDLLFilePath[MAX_PATH] ;			// フック処理をするＤＬＬファイルへのパス
+	wchar_t					HookDLLFilePath[FILEPATH_MAX] ;		// フック処理をするＤＬＬファイルへのパス
 	int						NotUseUserHookDllFlag ;				// ユーザー指定のＤＬＬを使用していないかどうかフラグ
 	HMODULE					LoadResourModule ;					// リソースから読み込む系で使用するモジュール( NULL の場合は GetModuleHandle( NULL ) を使用 )
 
 	int						BackBufferTransColorFlag ;			// バックバッファの透過色の部分を透過させるかどうかのフラグ( TRUE:透過させる  FALSE:透過させない )
 	int						UseUpdateLayerdWindowFlag ;			// UpdateLayerdWindow を使用するかどうかのフラグ( TRUE;使用する  FALSE:使用しない )
-	BOOL					( WINAPI *UpdateLayeredWindow )( HWND, HDC, POINT*, SIZE*, HDC, POINT*, COLORREF, BLENDFUNCTION*, DWORD ) ;		// UpdateLayeredWindow のＡＰＩポインタ
 	HBITMAP					BackBufferTransBitmap ;				// バックバッファの透過色の部分を透過させるためのビットマップ
 	void					*BackBufferTransBitmapImage ;		// BackBufferTransBitmap のイメージの先頭アドレス
 	SIZE					BackBufferTransBitmapSize ;			// BackBufferTransBitmap のサイズ
@@ -257,7 +271,7 @@ struct WINDATA
 	HWND					DialogBoxHandle ;					// ダイアログボックスのハンドル
 	
 	int						DragFileValidFlag ;					// ファイルのドラッグ＆ドロップを許すかフラグ
-	TCHAR					*DragFileName[MAX_DRAGFILE_NUM] ;	// ドラッグ＆ドロップされたファイル名
+	wchar_t					*DragFileName[MAX_DRAGFILE_NUM] ;	// ドラッグ＆ドロップされたファイル名
 	int						DragFileNum ;						// ドラッグ＆ドロップされたファイルの数
 
 //	WINFILEACCESS			*ReadOnlyFileAccessFirst ;			// ファイルアクセス構造体リストの先頭へのポインタ
@@ -303,11 +317,39 @@ extern	void		PostConflictProcessDxFunction( void ) ;									// CheckConfictAndW
 // ソフトのウインドウにフォーカスを移す
 extern	void		SetAbsoluteForegroundWindow( HWND hWnd, int Flag = TRUE ) ;
 
-// Copyright SYN
-extern unsigned long CheckMMX(void) ;
-extern void srandMT(unsigned long seed) ;
-extern void generateMT(void) ;
-extern unsigned long randMT(void) ;
+
+// wchar_t版関数
+extern	int			GetResourceInfo_WCHAR_T(			const wchar_t *ResourceName , const wchar_t *ResourceType , void **DataPointerP , int *DataSizeP ) ;
+extern	int			GetPcInfo_WCHAR_T(					wchar_t *OSString , wchar_t *DirectXString , wchar_t *CPUString , int *CPUSpeed /* 単位MHz */ , double *FreeMemorySize /* 単位MByte */ , double *TotalMemorySize , wchar_t *VideoDriverFileName , wchar_t *VideoDriverString , double *FreeVideoMemorySize /* 単位MByte */ , double *TotalVideoMemorySize ) ;
+extern	wchar_t		GetInputSystemChar_WCHAR_T(			int DeleteFlag ) ;
+extern	int			LoadPauseGraph_WCHAR_T(				const wchar_t *FileName ) ;
+extern	int			SetMainWindowText_WCHAR_T(			const wchar_t *WindowText ) ;
+extern	int			SetMainWindowClassName_WCHAR_T(		const wchar_t *ClassName ) ;
+extern	int			SetSysCommandOffFlag_WCHAR_T(		int Flag , const wchar_t *HookDllPath = NULL ) ;
+extern	int			GetClipboardText_WCHAR_T(			wchar_t *DestBuffer ) ;
+extern	int			SetClipboardText_WCHAR_T(			const wchar_t *Text ) ;
+extern	int			GetDragFilePath_WCHAR_T(			wchar_t *FilePathBuffer ) ;
+extern	int			SetWindowRgnGraph_WCHAR_T(			const wchar_t *FileName ) ;
+extern	int			SetupToolBar_WCHAR_T(				const wchar_t *BitmapName , int DivNum , int ResourceID = -1 ) ;
+extern	int			AddKeyAccel_WCHAR_T(				const wchar_t *ItemName , int ItemID , int KeyCode , int CtrlFlag , int AltFlag , int ShiftFlag ) ;
+extern	int			AddKeyAccel_Name_WCHAR_T(			const wchar_t *ItemName , int KeyCode , int CtrlFlag , int AltFlag , int ShiftFlag ) ;
+extern	int			AddMenuItem_WCHAR_T(				int AddType /* MENUITEM_ADD_CHILD等 */ , const wchar_t *ItemName, int ItemID, int SeparatorFlag, const wchar_t *NewItemName = NULL , int NewItemID = -1 ) ;
+extern	int			DeleteMenuItem_WCHAR_T(				const wchar_t *ItemName, int ItemID ) ;
+extern	int			CheckMenuItemSelect_WCHAR_T(		const wchar_t *ItemName, int ItemID ) ;
+extern	int			SetMenuItemEnable_WCHAR_T(			const wchar_t *ItemName, int ItemID, int EnableFlag ) ;
+extern	int			SetMenuItemMark_WCHAR_T(			const wchar_t *ItemName, int ItemID, int Mark ) ;
+extern	int			AddMenuItem_Name_WCHAR_T(			const wchar_t *ParentItemName, const wchar_t *NewItemName ) ;
+extern	int			AddMenuLine_Name_WCHAR_T(			const wchar_t *ParentItemName ) ;
+extern	int			InsertMenuItem_Name_WCHAR_T(		const wchar_t *ItemName, const wchar_t *NewItemName ) ;
+extern	int			InsertMenuLine_Name_WCHAR_T(		const wchar_t *ItemName ) ;
+extern	int			DeleteMenuItem_Name_WCHAR_T(		const wchar_t *ItemName ) ;
+extern	int			CheckMenuItemSelect_Name_WCHAR_T(	const wchar_t *ItemName ) ;
+extern	int			SetMenuItemEnable_Name_WCHAR_T(		const wchar_t *ItemName, int EnableFlag ) ;
+extern	int			SetMenuItemMark_Name_WCHAR_T(		const wchar_t *ItemName, int Mark ) ;
+extern	int			AddMenuItem_ID_WCHAR_T(				int ParentItemID, const wchar_t *NewItemName, int NewItemID = -1 ) ;
+extern	int			GetMenuItemID_WCHAR_T(				const wchar_t *ItemName ) ;
+extern	int			GetMenuItemName_WCHAR_T(			int ItemID, wchar_t *NameBuffer ) ;
+
 
 /*
 extern __inline void PreparationDxFunction( void )
@@ -322,7 +364,7 @@ extern __inline void PreparationDxFunction( void )
 
 // 設定系関数
 extern	int			SetWindowModeFlag( int Flag ) ;											// ウインドウモードで起動するかをセット
-extern	int			SetWindowStyle( void ) ;												// ウインドウのスタイルをセットする
+extern	int			SetWindowStyle( int CenterPosition = TRUE ) ;							// ウインドウのスタイルをセットする
 extern	int			RefreshDragFileValidFlag( void ) ;										// ファイルのドラッグ＆ドロップ機能を有効にするかどうかの設定を再設定する
 
 
@@ -340,8 +382,8 @@ extern	HWND		GetDisplayWindowHandle( void ) ;										// 表示に使用する�
 extern	void		DxActiveWait( void ) ;													// アクティブになるまで何もしない
 extern	int			CheckActiveWait( void ) ;												// 非アクティブかどうかをチェックする
 extern	int			GetQuitMessageFlag( void ) ;											// WM_QUIT が発行されているかどうかを取得する
-extern	int			WM_ACTIVATEProcessUseStock( WPARAM wParam, int APPMes = FALSE ) ;
-extern	int			WM_ACTIVATEProcess( WPARAM wParam, int APPMes = FALSE ) ;
+extern	int			WM_ACTIVATEProcessUseStock( WPARAM wParam, LPARAM lParam, int APPMes = FALSE, int Dummy = FALSE ) ;
+extern	int			WM_ACTIVATEProcess(         WPARAM wParam, LPARAM lParam, int APPMes = FALSE, int Dummy = FALSE ) ;
 
 // Aero の有効、無効設定
 extern	int			SetEnableAero( int Flag ) ;
@@ -359,6 +401,10 @@ extern	int			UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const 
 // リソース関係
 extern	int			GetBmpImageToResource( int ResourceID, BITMAPINFO **BmpInfoP, void **GraphDataP ) ;					// ＢＭＰリソースから BITMAPINFO と画像イメージを構築する
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // __DXWINDOW_H__

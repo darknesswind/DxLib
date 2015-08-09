@@ -2,16 +2,19 @@
 // 
 // 		ＤＸライブラリ		標準関数の互換関数プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxBaseFunc.h"
+#include "DxArchive_.h"
 #include "DxLib.h"
+#include "DxUseCLib.h"
+#include "DxChar.h"
 #include <wchar.h>
 #include <math.h>
 
@@ -20,402 +23,377 @@
   #include <math.h>
 #endif
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
+
+// 構造体定義 --------------------------------------------------------------------
 
 // テーブル-----------------------------------------------------------------------
 
 // 内部大域変数宣言 --------------------------------------------------------------
 
-static int UseCharSet ;		// 使用する文字列セット
-static int UseCodePage ;	// 使用する文字コードページ
+BASEFUNCSYSTEM g_BaseFuncSystem ;
 
 // 関数プロトタイプ宣言-----------------------------------------------------------
 
 // プログラム --------------------------------------------------------------------
 
-// 文字コード関連
 extern void _SET_CHARSET( int CharSet )
 {
-	UseCharSet = CharSet ;
+	g_BaseFuncSystem.UseCharSet = CharSet ;
 }
 
 extern int _GET_CHARSET( void )
 {
-	return UseCharSet ;
+	return g_BaseFuncSystem.UseCharSet ;
 }
 
-extern void _SET_CODEPAGE( int CodePage )
+extern void _SET_CHAR_CODEPAGE( int CodePage )
 {
-	UseCodePage = CodePage ;
+	g_BaseFuncSystem.Use_char_CodePage = CodePage ;
 }
 
-extern int _GET_CODEPAGE( void )
+extern int _GET_CHAR_CODEPAGE( void )
 {
-	return UseCodePage ;
+	return g_BaseFuncSystem.Use_char_CodePage ;
 }
 
-
-// サロゲートペアかどうかの判定( TRUE:４バイト文字上位  FALSE:２バイト文字 )
-extern int CheckUTF16H( wchar_t c )
+extern void _SET_WCHAR_T_CODEPAGE( int CodePage )
 {
-	return ( DWORD )c >= 0xd800 && ( DWORD )c <= 0xdbff ? TRUE : FALSE ;
+	g_BaseFuncSystem.Use_wchar_t_CodePage = CodePage ;
 }
 
-// 指定の文字列の指定の位置の文字のタイプを返す( 0:１キャラ文字  1:２キャラ文字の１キャラ目  2:２キャラ文字の２キャラ目 )
-extern int CheckDoubleChar( const TCHAR *String, int CharPosition, int CharSet /* DX_CHARSET_SHFTJIS */ )
+extern int _GET_WCHAR_T_CODEPAGE( void )
 {
-	int i ;
-
-	for( i = 0 ; String[ i ] != _T( '\0' ) ; )
-	{
-		if( _TMULT( String[ i ], CharSet ) == TRUE )
-		{
-			if( i     == CharPosition ) return 1 ;
-			if( i + 1 == CharPosition ) return 2 ;
-			i += 2 ;
-		}
-		else
-		{
-			if( i == CharPosition ) return 0 ;
-			i ++ ;
-		}
-	}
-
-	return -1 ;
+	return g_BaseFuncSystem.Use_wchar_t_CodePage ;
 }
-
-// ２バイト文字か調べる( TRUE:２バイト文字  FALSE:１バイト文字 )
-extern int CheckMultiByteChar( char CharCode, int CharSet /* DX_CHARSET_SHFTJIS */ )
-{
-	switch( CharSet )
-	{
-	case DX_CHARSET_HANGEUL :
-	case DX_CHARSET_BIG5 :
-	case DX_CHARSET_GB2312 :
-		return ( (unsigned char)CharCode & 0x80 ) != 0 ;
-	}
-
-	return (unsigned char)(( ((unsigned char)CharCode) ^ 0x20) - (unsigned char)0xa1) < 0x3c;
-//	return ( (unsigned char)CharCode >= 0x81 && (unsigned char)CharCode <= 0x9F ) || ( (unsigned char)CharCode >= 0xE0 && (unsigned char)CharCode <= 0xFC ) ;
-}
-
-// 指定の文字列の指定の位置の文字のタイプを返す( 0:１バイト文字  1:２バイト文字の１バイト目  2:２バイト文字の２バイト目 )
-extern int CheckMultiByteString( const char *String, int BytePosition, int CharSet /* DX_CHARSET_SHFTJIS */ )
-{
-	int i ;
-
-	for( i = 0 ; String[ i ] != '\0' ; )
-	{
-		if( CheckMultiByteChar( String[ i ], CharSet ) == TRUE )
-		{
-			if( i     == BytePosition ) return 1 ;
-			if( i + 1 == BytePosition ) return 2 ;
-			i += 2 ;
-		}
-		else
-		{
-			if( i == BytePosition ) return 0 ;
-			i ++ ;
-		}
-	}
-
-	return -1 ;
-}
-
-// 指定の文字列の指定の位置の文字のタイプを返す( 0:非サロゲートペア文字  1:サロゲートペア文字の１キャラ目  2:サロゲートペア文字の２キャラ目 )
-extern int CheckUTF16HChar( const wchar_t *String, int CharPosition )
-{
-	int i ;
-
-	for( i = 0 ; String[ i ] != L'\0' ; )
-	{
-		if( CheckUTF16H( String[ i ] ) == TRUE )
-		{
-			if( i     == CharPosition ) return 1 ;
-			if( i + 1 == CharPosition ) return 2 ;
-			i += 2 ;
-		}
-		else
-		{
-			if( i == CharPosition ) return 0 ;
-			i ++ ;
-		}
-	}
-
-	return -1 ;
-}
-
 
 // 文字列処理関数
 extern void _STRCPY( char *Dest, const char *Src )
 {
-	int i ;
-	for( i = 0 ; Src[i] != '\0' ; i ++ ) Dest[i] = Src[i] ;
-	Dest[i] = '\0' ;
+	CL_strcpy( CHAR_CODEPAGE, Dest, Src ) ;
+//	int i ;
+//	for( i = 0 ; Src[i] != '\0' ; i ++ ) Dest[i] = Src[i] ;
+//	Dest[i] = '\0' ;
 }
 
 extern void _WCSCPY( wchar_t *Dest, const wchar_t *Src )
 {
-	int i ;
-	for( i = 0 ; Src[i] != L'\0' ; i ++ ) Dest[i] = Src[i] ;
-	Dest[i] = L'\0' ;
+	CL_strcpy( WCHAR_T_CODEPAGE, ( char * )Dest, ( const char * )Src ) ;
+//	int i ;
+//	for( i = 0 ; Src[i] != L'\0' ; i ++ ) Dest[i] = Src[i] ;
+//	Dest[i] = L'\0' ;
 }
 
 extern void _STRNCPY( char *Dest, const char *Src, int Num )
 {
-	int i ;
-	for( i = 0 ; i < Num && Src[i] != '\0' ; i ++ ) Dest[i] = Src[i] ;
-	Dest[i] = '\0' ;
+	CL_strncpy( CHAR_CODEPAGE, Dest, Src, Num ) ;
+//	int i ;
+//	for( i = 0 ; i < Num && Src[i] != '\0' ; i ++ ) Dest[i] = Src[i] ;
+//	Dest[i] = '\0' ;
 }
 
 extern void _WCSNCPY( wchar_t *Dest, const wchar_t *Src, int Num )
 {
-	int i ;
-	for( i = 0 ; i < Num && Src[i] != L'\0' ; i ++ ) Dest[i] = Src[i] ;
-	Dest[i] = L'\0' ;
+	CL_strncpy( WCHAR_T_CODEPAGE, ( char * )Dest, ( const char * )Src, Num ) ;
+//	int i ;
+//	for( i = 0 ; i < Num && Src[i] != L'\0' ; i ++ ) Dest[i] = Src[i] ;
+//	Dest[i] = L'\0' ;
 }
 
 extern void _STRCAT( char *Dest, const char *Src )
 {
-	int i ;
-	for( i = 0 ; Dest[i] != '\0' ; i ++ ){}
-	_STRCPY( &Dest[i], Src ) ;
+	CL_strcat( CHAR_CODEPAGE, Dest, Src ) ;
+//	int i ;
+//	for( i = 0 ; Dest[i] != '\0' ; i ++ ){}
+//	_STRCPY( &Dest[i], Src ) ;
 }
 
 extern void _WCSCAT( wchar_t *Dest, const wchar_t *Src )
 {
-	int i ;
-	for( i = 0 ; Dest[i] != L'\0' ; i ++ ){}
-	_WCSCPY( &Dest[i], Src ) ;
+	CL_strcat( WCHAR_T_CODEPAGE, ( char * )Dest, ( const char * )Src ) ;
+//	int i ;
+//	for( i = 0 ; Dest[i] != L'\0' ; i ++ ){}
+//	_WCSCPY( &Dest[i], Src ) ;
 }
 
-extern char *_STRSTR( const char *Str1, const char *Str2 )
+extern const char *_STRSTR( const char *Str1, const char *Str2 )
 {
-	int i, j ;
-	for( i = 0 ; Str1[i] != '\0' ; i ++ )
-	{
-		for( j = 0 ; Str2[j] != '\0' && Str1[i+j] != '\0' && Str1[i+j] == Str2[j] ; j ++ ){}
-		if( Str2[j] == '\0' ) return (char *)&Str1[i] ;
-		if( Str1[i+j] == '\0' ) return NULL ;
-	}
-	return NULL ;
+	return CL_strstr( CHAR_CODEPAGE, Str1, Str2 ) ;
+//	int i, j ;
+//	for( i = 0 ; Str1[i] != '\0' ; i ++ )
+//	{
+//		for( j = 0 ; Str2[j] != '\0' && Str1[i+j] != '\0' && Str1[i+j] == Str2[j] ; j ++ ){}
+//		if( Str2[j] == '\0' ) return (char *)&Str1[i] ;
+//		if( Str1[i+j] == '\0' ) return NULL ;
+//	}
+//	return NULL ;
 }
 
-extern wchar_t *_WCSSTR( const wchar_t *Str1, const wchar_t *Str2 )
+extern const wchar_t *_WCSSTR( const wchar_t *Str1, const wchar_t *Str2 )
 {
-	int i, j ;
-	for( i = 0 ; Str1[i] != L'\0' ; i ++ )
-	{
-		for( j = 0 ; Str2[j] != L'\0' && Str1[i+j] != L'\0' && Str1[i+j] == Str2[j] ; j ++ ){}
-		if( Str2[j] == L'\0' ) return (wchar_t *)&Str1[i] ;
-		if( Str1[i+j] == L'\0' ) return NULL ;
-	}
-	return NULL ;
+	return ( const wchar_t * )CL_strstr( WCHAR_T_CODEPAGE, ( const char * )Str1, ( const char * )Str2 ) ;
+//	int i, j ;
+//	for( i = 0 ; Str1[i] != L'\0' ; i ++ )
+//	{
+//		for( j = 0 ; Str2[j] != L'\0' && Str1[i+j] != L'\0' && Str1[i+j] == Str2[j] ; j ++ ){}
+//		if( Str2[j] == L'\0' ) return (wchar_t *)&Str1[i] ;
+//		if( Str1[i+j] == L'\0' ) return NULL ;
+//	}
+//	return NULL ;
 }
 
 extern int _STRLEN( const char *Str )
 {
-	int i ;
-
-	for( i = 0 ; Str[ i ] ; i ++ ){}
-	return i ;
+	return CL_strlen( CHAR_CODEPAGE, Str ) ;
+//	int i ;
+//
+//	for( i = 0 ; Str[ i ] ; i ++ ){}
+//	return i ;
 }
 
 extern int _WCSLEN( const wchar_t *Str )
 {
-	int i ;
-
-	for( i = 0 ; Str[ i ] ; i ++ ){}
-	return i ;
+	return CL_strlen( WCHAR_T_CODEPAGE, ( const char * )Str ) ;
+//	int i ;
+//
+//	for( i = 0 ; Str[ i ] ; i ++ ){}
+//	return i ;
 }
 
-extern char *_STRCHR( const char *Str1, char Char )
+extern const char *_STRCHR( const char *Str, int Char )
 {
-	while( *Str1 != '\0' )
-	{
-		if( CheckMultiByteChar( *Str1, UseCharSet ) == TRUE )
-		{
-			Str1 += 2 ;
-		}
-		else
-		{
-			if( *Str1 == Char ) return (char *)Str1 ;
-			Str1 ++ ;
-		}
-	}
-	return NULL ;
+	return CL_strchr( CHAR_CODEPAGE, Str, ( DWORD )Char ) ;
+//	while( *Str1 != '\0' )
+//	{
+//		if( CheckMultiByteChar( *Str1, g_BaseFuncSystem.UseCharSet ) == TRUE )
+//		{
+//			Str1 += 2 ;
+//		}
+//		else
+//		{
+//			if( *Str1 == Char ) return (char *)Str1 ;
+//			Str1 ++ ;
+//		}
+//	}
+//	return NULL ;
 }
 
-extern wchar_t *_WCSCHR( const wchar_t *Str1, wchar_t Char )
+extern const wchar_t *_WCSCHR( const wchar_t *Str, wchar_t Char )
 {
-	while( *Str1 != L'\0' )
-	{
-		if( CheckUTF16H( *Str1 ) == TRUE )
-		{
-			Str1 += 2 ;
-		}
-		else
-		{
-			if( *Str1 == Char ) return (wchar_t *)Str1 ;
-			Str1 ++ ;
-		}
-	}
-	return NULL ;
+	return ( const wchar_t * )CL_strchr( WCHAR_T_CODEPAGE, ( const char * )Str, ( DWORD )Char ) ;
+//	while( *Str1 != L'\0' )
+//	{
+//		if( CheckUTF16H( *Str1 ) == TRUE )
+//		{
+//			Str1 += 2 ;
+//		}
+//		else
+//		{
+//			if( *Str1 == Char ) return (wchar_t *)Str1 ;
+//			Str1 ++ ;
+//		}
+//	}
+//	return NULL ;
 }
 
-extern char *_STRRCHR( const char *Str1, char Char )
+extern const char *_STRRCHR( const char *Str, int Char )
 {
-	char *lastp;
-
-	lastp = NULL;
-	while( *Str1 != '\0' )
-	{
-		if( CheckMultiByteChar( *Str1, UseCharSet ) == TRUE )
-		{
-			Str1 += 2 ;
-		}
-		else
-		{
-			if( *Str1 == Char )
-			{
-				lastp = (char *)Str1 ;
-			}
-			Str1 ++ ;
-		}
-	}
-	return lastp ;
+	return CL_strrchr( CHAR_CODEPAGE, Str, ( DWORD )Char ) ;
+//	char *lastp;
+//
+//	lastp = NULL;
+//	while( *Str1 != '\0' )
+//	{
+//		if( CheckMultiByteChar( *Str1, g_BaseFuncSystem.UseCharSet ) == TRUE )
+//		{
+//			Str1 += 2 ;
+//		}
+//		else
+//		{
+//			if( *Str1 == Char )
+//			{
+//				lastp = (char *)Str1 ;
+//			}
+//			Str1 ++ ;
+//		}
+//	}
+//	return lastp ;
 }
 
-extern wchar_t *_WCSRCHR( const wchar_t *Str1, wchar_t Char )
+extern const wchar_t *_WCSRCHR( const wchar_t *Str, wchar_t Char )
 {
-	wchar_t *lastp;
-
-	lastp = NULL;
-	while( *Str1 != L'\0' )
-	{
-		if( CheckUTF16H( *Str1 ) == TRUE )
-		{
-			Str1 += 2 ;
-		}
-		else
-		{
-			if( *Str1 == Char )
-			{
-				lastp = (wchar_t *)Str1 ;
-			}
-			Str1 ++ ;
-		}
-	}
-	return lastp ;
+	return ( const wchar_t * )CL_strrchr( WCHAR_T_CODEPAGE, ( const char * )Str, ( DWORD )Char ) ;
+//	wchar_t *lastp;
+//
+//	lastp = NULL;
+//	while( *Str1 != L'\0' )
+//	{
+//		if( CheckUTF16H( *Str1 ) == TRUE )
+//		{
+//			Str1 += 2 ;
+//		}
+//		else
+//		{
+//			if( *Str1 == Char )
+//			{
+//				lastp = (wchar_t *)Str1 ;
+//			}
+//			Str1 ++ ;
+//		}
+//	}
+//	return lastp ;
 }
 
 extern int _STRCMP( const char *Str1, const char *Str2 )
 {
-	int i ;
-	for( i = 0 ; Str1[i] != '\0' && Str2[i] != '\0' && Str1[i] == Str2[i] ; i ++ ){}
-	return ( Str1[i] != Str2[i] ) ? 1 : 0 ;
+	return CL_strcmp( CHAR_CODEPAGE, Str1, Str2 ) ;
+//	int i ;
+//	for( i = 0 ; Str1[i] != '\0' && Str2[i] != '\0' && Str1[i] == Str2[i] ; i ++ ){}
+//	return ( Str1[i] != Str2[i] ) ? 1 : 0 ;
 }
 
 extern int _WCSCMP( const wchar_t *Str1, const wchar_t *Str2 )
 {
-	int i ;
-	for( i = 0 ; Str1[i] != L'\0' && Str2[i] != L'\0' && Str1[i] == Str2[i] ; i ++ ){}
-	return ( Str1[i] != Str2[i] ) ? 1 : 0 ;
+	return CL_strcmp( WCHAR_T_CODEPAGE, ( const char * )Str1, ( const char * )Str2 ) ;
+//	int i ;
+//	for( i = 0 ; Str1[i] != L'\0' && Str2[i] != L'\0' && Str1[i] == Str2[i] ; i ++ ){}
+//	return ( Str1[i] != Str2[i] ) ? 1 : 0 ;
 }
 
-extern int _STRCMPI( const char *Str1, const char *Str2 )
+extern int _STRICMP( const char *Str1, const char *Str2 )
 {
-	int i ;
-	char c1, c2;
-	for( i = 0 ; Str1[i] != '\0' && Str2[i] != '\0'; i ++ )
-	{
-		c1 = Str1[i] >= 'a' && Str1[i] <= 'z' ? Str1[i] - 'a' + 'A' : Str1[i] ;
-		c2 = Str2[i] >= 'a' && Str2[i] <= 'z' ? Str2[i] - 'a' + 'A' : Str2[i] ;
-		if( c1 != c2 ) break;
-	}
-	return ( Str1[i] != Str2[i] ) ? 1 : 0 ;
+	return CL_stricmp( CHAR_CODEPAGE, Str1, Str2 ) ;
+//	int i ;
+//	char c1, c2;
+//	for( i = 0 ; Str1[i] != '\0' && Str2[i] != '\0'; i ++ )
+//	{
+//		c1 = Str1[i] >= 'a' && Str1[i] <= 'z' ? Str1[i] - 'a' + 'A' : Str1[i] ;
+//		c2 = Str2[i] >= 'a' && Str2[i] <= 'z' ? Str2[i] - 'a' + 'A' : Str2[i] ;
+//		if( c1 != c2 ) break;
+//	}
+//	return ( Str1[i] != Str2[i] ) ? 1 : 0 ;
+}
+
+extern int _WCSICMP( const wchar_t *Str1, const wchar_t *Str2 )
+{
+	return CL_stricmp( WCHAR_T_CODEPAGE, ( const char * )Str1, ( const char * )Str2 ) ;
 }
 
 extern char *_STRUPR( char *Str )
 {
-	while( *Str != '\0' )
-	{
-		if( CheckMultiByteChar( *Str, UseCharSet ) == TRUE )
-		{
-			Str += 2 ;
-		}
-		else
-		{
-			if( *Str >= 'a' && *Str <= 'z' ) *Str = *Str - 'a' + 'A' ;
-			Str ++ ;
-		}
-	}
-
-	return Str ;
+	return CL_strupr( CHAR_CODEPAGE, Str ) ;
+//	char *OrigStr = Str ;
+//
+//	while( *Str != '\0' )
+//	{
+//		if( CheckMultiByteChar( *Str, g_BaseFuncSystem.UseCharSet ) == TRUE )
+//		{
+//			Str += 2 ;
+//		}
+//		else
+//		{
+//			if( *Str >= 'a' && *Str <= 'z' ) *Str = *Str - 'a' + 'A' ;
+//			Str ++ ;
+//		}
+//	}
+//
+//	return OrigStr ;
 }
 
 extern wchar_t *_WCSUPR( wchar_t *Str )
 {
-	while( *Str != L'\0' )
-	{
-		if( CheckUTF16H( *Str ) == TRUE )
-		{
-			Str += 2 ;
-		}
-		else
-		{
-			if( *Str >= L'a' && *Str <= L'z' ) *Str = *Str - L'a' + L'A' ;
-			Str ++ ;
-		}
-	}
-
-	return Str ;
+	return ( wchar_t * )CL_strupr( WCHAR_T_CODEPAGE, ( char * )Str ) ;
+//	while( *Str != L'\0' )
+//	{
+//		if( CheckUTF16H( *Str ) == TRUE )
+//		{
+//			Str += 2 ;
+//		}
+//		else
+//		{
+//			if( *Str >= L'a' && *Str <= L'z' ) *Str = ( wchar_t )( *Str - L'a' + L'A' ) ;
+//			Str ++ ;
+//		}
+//	}
+//
+//	return Str ;
 }
 
 extern int _STRNCMP( const char *Str1, const char *Str2, int Size )
 {
-	int i ;
-	for( i = 0 ; i < Size && Str1[i] == Str2[i] ; i ++ ){}
-	return i != Size ? 1 : 0 ;
+	return CL_strncmp( CHAR_CODEPAGE, Str1, Str2, Size ) ;
+//	int i ;
+//	for( i = 0 ; i < Size && Str1[i] == Str2[i] ; i ++ ){}
+//	return i != Size ? 1 : 0 ;
 }
 
 extern int _WCSNCMP( const wchar_t *Str1, const wchar_t *Str2, int Size )
 {
-	int i ;
-	for( i = 0 ; i < Size && Str1[i] == Str2[i] ; i ++ ){}
-	return i != Size ? 1 : 0 ;
+	return CL_strncmp( WCHAR_T_CODEPAGE, ( const char * )Str1, ( const char * )Str2, Size ) ;
+//	int i ;
+//	for( i = 0 ; i < Size && Str1[i] == Str2[i] ; i ++ ){}
+//	return i != Size ? 1 : 0 ;
 }
 
 extern int _VSPRINTF( char *Buffer, const char *FormatString, va_list Arg )
 {
-	return vsprintf( Buffer, FormatString, Arg ) ;
+	return CL_vsprintf( CHAR_CODEPAGE, FALSE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, Buffer, FormatString, Arg ) ;
+//	return vsprintf( Buffer, FormatString, Arg ) ;
+}
+
+extern int _VSWPRINTF( wchar_t *Buffer, const wchar_t *FormatString, va_list Arg )
+{
+	return CL_vsprintf( WCHAR_T_CODEPAGE, TRUE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, ( char * )Buffer, ( const char * )FormatString, Arg ) ;
+//#ifdef __ANDROID
+//	return vswprintf( ( wchar_t * )Buffer, 4096, ( wchar_t * )FormatWString, Arg ) ;
+//#else
+//	return vswprintf( ( wchar_t * )Buffer, ( wchar_t * )FormatWString, Arg ) ;
+//#endif
 }
 
 extern int _SPRINTF( char *Buffer, const char *FormatString, ... )
 {
 	va_list VaList ;
+	int Result ;
 
 	va_start( VaList, FormatString ) ;
-	vsprintf( Buffer, FormatString, VaList ) ;
+	Result = CL_vsprintf( CHAR_CODEPAGE, FALSE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, Buffer, FormatString, VaList ) ;
 	va_end( VaList ) ;
 	
-	return 0 ;
+	return Result ;
+//	va_list VaList ;
+//
+//	va_start( VaList, FormatString ) ;
+//	vsprintf( Buffer, FormatString, VaList ) ;
+//	va_end( VaList ) ;
+//	
+//	return 0 ;
 }
 
-extern int _SWPRINTF( DXWCHAR *Buffer, const DXWCHAR *FormatWString, ... )
+extern int _SWPRINTF( wchar_t *Buffer, const wchar_t *FormatString, ... )
 {
 	va_list VaList ;
+	int Result ;
 
-	va_start( VaList, FormatWString ) ;
-	_VSWPRINTF( Buffer, FormatWString, VaList ) ;
+	va_start( VaList, FormatString ) ;
+	Result = CL_vsprintf( WCHAR_T_CODEPAGE, TRUE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, ( char * )Buffer, ( const char * )FormatString, VaList ) ;
 	va_end( VaList ) ;
 	
-	return 0 ;
+	return Result ;
+//	va_list VaList ;
+//
+//	va_start( VaList, FormatWString ) ;
+//	_VSWPRINTF( Buffer, FormatWString, VaList ) ;
+//	va_end( VaList ) ;
+//	
+//	return 0 ;
 }
 
 extern void _MEMSET( void *Memory, unsigned char Char, size_t Size )
@@ -489,7 +467,7 @@ extern int _MEMCMP( const void *Buffer1, const void *Buffer2, int Size )
 		MOV res, EAX
 	END:
 	}
-	return res ;
+	return ( int )res ;
 #else
 	do
 	{
@@ -581,7 +559,7 @@ LABEL_END:
 #endif
 }
 
-extern void _SINCOS_DOUBLE( double Angle, double *DestSin, double *DestCos )
+extern void _SINCOSD( double Angle, double *DestSin, double *DestCos )
 {
 #ifndef DX_NON_INLINE_ASM
 	double TempSin, TempCos ;
@@ -628,9 +606,19 @@ extern float _POW( float x, float y )
 	return ( float )pow( x, y ) ;
 }
 
+extern double _POWD( double x, double y )
+{
+	return pow( x, y ) ;
+}
+
 extern float _ATAN2( float y, float x )
 {
 	return ( float )atan2( ( double )y, ( double )x ) ;
+}
+
+extern double _ATAN2D( double y, double x )
+{
+	return atan2( y, x ) ;
 }
 
 extern float _EXPF( float x )
@@ -638,9 +626,19 @@ extern float _EXPF( float x )
 	return ( float )exp( ( double )x ) ;
 }
 
+extern double _EXPF( double x )
+{
+	return exp( x ) ;
+}
+
 extern float _ASIN( float Real )
 {
 	return ( float )asin( ( double )Real ) ;
+}
+
+extern double _ASIND( double Real )
+{
+	return asin( Real ) ;
 }
 
 extern float _ACOS( float Real )
@@ -660,6 +658,23 @@ extern float _ACOS( float Real )
 	return ( float )acos( ( double )Real ) ;
 }
 
+extern double _ACOSD( double Real )
+{
+#ifdef __BCC
+	if( Real < -1.0 )
+	{
+		Real = -1.0 ;
+	}
+	else
+	if( Real > 1.0 )
+	{
+		Real = 1.0 ;
+	}
+#endif
+
+	return acos( Real ) ;
+}
+
 extern	double _LOG10( double Real )
 {
 	return log10( Real ) ;
@@ -673,6 +688,11 @@ extern int _ABS( int Number )
 extern float _FABS( float Real )
 {
 	return Real < 0.0F ? -Real : Real ;
+}
+
+extern double _DABS( double Real )
+{
+	return Real < 0.0 ? -Real : Real ;
 }
 
 extern int _FTOL( float Real )
@@ -691,7 +711,7 @@ extern int _FTOL( float Real )
 		fistp	Result
 		fldcw	STFlag
 	}
-	return Result ;
+	return ( int )Result ;
 #else
 	return ( int )Real ;
 #endif
@@ -713,7 +733,7 @@ extern int _DTOL( double Real )
 		fistp	Result
 		fldcw	STFlag
 	}
-	return Result ;
+	return ( int )Result ;
 #else
 	return ( int )Real ;
 #endif
@@ -824,398 +844,39 @@ extern float _SQRT( float Real )
 #endif
 }
 
-extern int _ATOI( const char *String )
+extern double _SQRTD( double Real )
 {
-	int i, AddNum, Num, Number[32], Total, Minus ;
-	const unsigned char *p = (const unsigned char *)String ;
-	
-	// 数字を探す
-	while( *p != '\0' )
-	{
-		if( ( *p >= '0' && *p <= '9' ) || *p == '-' ) break ;
-		p ++ ;
-	}
-	if( *p == '\0' ) return -1 ;
-	if( *p == '-' )
-	{
-		Minus = 1 ;
-		p ++ ;
-	}
-	else
-	{
-		Minus = 0 ;
-	}
-	
-	// 数字を取得
-	for( Num = 0 ; *p != '\0' && ( *p >= '0' && *p <= '9' ) ; Num ++, p ++ )
-	{
-		Number[Num] = *p - '0' ;
-	}
-	
-	// 数値に変換
-	AddNum = 1 ;
-	Total = 0 ;
-	for( i = 0 ; i < Num ; i ++, AddNum *= 10 )
-	{
-		Total += Number[Num-i-1] * AddNum ;
-	}
-
-	if( Minus == 1 ) Total = -Total ;
-
-	// 数値を返す
-	return Total ;
+	return sqrt( Real ) ;
 }
 
-extern int _ATOIW( const DXWCHAR *String )
+extern int _ATOI( const char *String )
 {
-	int i, AddNum, Num, Number[32], Total, Minus ;
-	const DXWCHAR *p = (const DXWCHAR *)String ;
-	
-	// 数字を探す
-	while( *p != L'\0' )
-	{
-		if( ( *p >= L'0' && *p <= L'9' ) || *p == L'-' ) break ;
-		p ++ ;
-	}
-	if( *p == L'\0' ) return -1 ;
-	if( *p == L'-' )
-	{
-		Minus = 1 ;
-		p ++ ;
-	}
-	else
-	{
-		Minus = 0 ;
-	}
-	
-	// 数字を取得
-	for( Num = 0 ; *p != L'\0' && ( *p >= L'0' && *p <= L'9' ) ; Num ++, p ++ )
-	{
-		Number[Num] = *p - L'0' ;
-	}
-	
-	// 数値に変換
-	AddNum = 1 ;
-	Total = 0 ;
-	for( i = 0 ; i < Num ; i ++, AddNum *= 10 )
-	{
-		Total += Number[Num-i-1] * AddNum ;
-	}
+	return CL_atoi( CHAR_CODEPAGE, String ) ;
+}
 
-	if( Minus == 1 ) Total = -Total ;
-
-	// 数値を返す
-	return Total ;
+extern int _ATOIW( const wchar_t *String )
+{
+	return CL_atoi( WCHAR_T_CODEPAGE, ( const char * )String ) ;
 }
 
 extern double _ATOF( const char *String )
 {
-	int MinusFlag ;
-	int MinusFlag2 ;
-	int TenFlag ;
-	int SisuuFlag ;
-	int i, j, k ;
-	int num, num2, num3 ;
-	char Number[128], Number2[128], Number3[128] ;
-	double doubleNum, doubleNum2, doubleNum3, doubleCount ;
-	LONGLONG int64Num, int64Count ;
-
-	MinusFlag = FALSE;
-	TenFlag = FALSE;
-	SisuuFlag = FALSE;
-	MinusFlag2 = FALSE;
-
-	if( *String == '\0' ) return 0.0f ;
-	if( *String == '-' )
-	{
-		String ++ ;
-		if( *String == '\0' ) return 0.0f ;
-		MinusFlag = TRUE;
-	}
-
-	i = 0;	//自然数
-	j = 0;	//小数
-	k = 0;	//指数
-	for( ; *String != '\0' ; String ++ )
-	{
-		if( *String == '.' )
-		{
-			if( TenFlag ) return 0.0f ;
-			TenFlag = TRUE;
-		}
-		else if( *String == 'e' || *String == 'E' )
-		{
-			if( SisuuFlag ) return 0.0f ;
-			SisuuFlag = TRUE;
-		}
-		else if( *String == '-' || *String == '+' )
-		{
-			if( SisuuFlag == FALSE || k != 0 ) return 0.0f ;
-			if( *String == '-' ) MinusFlag2 = TRUE;
-		}
-		else if( *String >= '0' && *String <= '9' )
-		{
-			if( SisuuFlag )
-			{
-				if( k >= 127 ) return 0.0f ;
-				Number3[ k ] = *String - '0';
-				k ++ ;
-			}
-			else if( TenFlag )
-			{
-				if( j >= 127 ) return 0.0f ;
-				Number2[j] = *String - '0';
-				j ++ ;
-			}
-			else
-			{
-				if( i >= 127 ) return 0.0f ;
-				Number[i] = *String - '0';
-				i ++ ;
-			}
-		}
-		else return 0.0f ;
-	}
-	if( i == 0 && j == 0 )
-		return 0.0f ;
-	num = i ;
-	num2 = j ;
-	num3 = k ;
-
-	doubleCount = 1.0 ;
-	doubleNum = 0 ;
-	for( i = num - 1 ; i >= 0; i --, doubleCount *= 10.0 )
-	{
-		if( Number[i] != 0 )
-			doubleNum += Number[i] * doubleCount ;
-	}
-	if( MinusFlag ) doubleNum = -doubleNum ;
-
-	doubleCount = 0.1 ;
-	doubleNum2 = 0 ;
-	for( i = 0 ; i < num2 ; i ++, doubleCount /= 10.0 )
-	{
-		if( Number2[i] != 0 )
-			doubleNum2 += Number2[i] * doubleCount ;
-	}
-	if( MinusFlag ) doubleNum2 = -doubleNum2 ;
-
-	int64Count = 1 ;
-	int64Num = 0 ;
-	for( i = num3 - 1; i >= 0; i --, int64Count *= 10 )
-	{
-		int64Num += Number3[i] * int64Count ;
-	}
-	if( MinusFlag2 ) int64Num = -int64Num ;
-
-	doubleNum3 = 1.0 ;
-	if( int64Num != 0 )
-	{
-		if( int64Num < 0 )
-		{
-			int64Num = -int64Num ;
-			for( i = 0 ; i < int64Num ; i ++ )
-				doubleNum3 /= 10.0 ;
-		}
-		else
-		{
-			for( i = 0 ; i < int64Num ; i++ )
-				doubleNum3 *= 10.0 ;
-		}
-	}
-
-	return ( doubleNum + doubleNum2 ) * doubleNum3 ;
+	return CL_atof( CHAR_CODEPAGE, String ) ;
 }
 
-extern double _ATOFW( const DXWCHAR *String )
+extern double _ATOFW( const wchar_t *String )
 {
-	int MinusFlag ;
-	int MinusFlag2 ;
-	int TenFlag ;
-	int SisuuFlag ;
-	int i, j, k ;
-	int num, num2, num3 ;
-	DXWCHAR Number[128], Number2[128], Number3[128] ;
-	double doubleNum, doubleNum2, doubleNum3, doubleCount ;
-	LONGLONG int64Num, int64Count ;
-
-	MinusFlag = FALSE;
-	TenFlag = FALSE;
-	SisuuFlag = FALSE;
-	MinusFlag2 = FALSE;
-
-	if( *String == L'\0' ) return 0.0f ;
-	if( *String == L'-' )
-	{
-		String ++ ;
-		if( *String == L'\0' ) return 0.0f ;
-		MinusFlag = TRUE;
-	}
-
-	i = 0;	//自然数
-	j = 0;	//小数
-	k = 0;	//指数
-	for( ; *String != L'\0' ; String ++ )
-	{
-		if( *String == L'.' )
-		{
-			if( TenFlag ) return 0.0f ;
-			TenFlag = TRUE;
-		}
-		else if( *String == L'e' || *String == L'E' )
-		{
-			if( SisuuFlag ) return 0.0f ;
-			SisuuFlag = TRUE;
-		}
-		else if( *String == L'-' || *String == L'+' )
-		{
-			if( SisuuFlag == FALSE || k != 0 ) return 0.0f ;
-			if( *String == L'-' ) MinusFlag2 = TRUE;
-		}
-		else if( *String >= L'0' && *String <= L'9' )
-		{
-			if( SisuuFlag )
-			{
-				if( k >= 127 ) return 0.0f ;
-				Number3[ k ] = *String - L'0';
-				k ++ ;
-			}
-			else if( TenFlag )
-			{
-				if( j >= 127 ) return 0.0f ;
-				Number2[j] = *String - L'0';
-				j ++ ;
-			}
-			else
-			{
-				if( i >= 127 ) return 0.0f ;
-				Number[i] = *String - L'0';
-				i ++ ;
-			}
-		}
-		else return 0.0f ;
-	}
-	if( i == 0 && j == 0 )
-		return 0.0f ;
-	num = i ;
-	num2 = j ;
-	num3 = k ;
-
-	doubleCount = 1.0 ;
-	doubleNum = 0 ;
-	for( i = num - 1 ; i >= 0; i --, doubleCount *= 10.0 )
-	{
-		if( Number[i] != 0 )
-			doubleNum += Number[i] * doubleCount ;
-	}
-	if( MinusFlag ) doubleNum = -doubleNum ;
-
-	doubleCount = 0.1 ;
-	doubleNum2 = 0 ;
-	for( i = 0 ; i < num2 ; i ++, doubleCount /= 10.0 )
-	{
-		if( Number2[i] != 0 )
-			doubleNum2 += Number2[i] * doubleCount ;
-	}
-	if( MinusFlag ) doubleNum2 = -doubleNum2 ;
-
-	int64Count = 1 ;
-	int64Num = 0 ;
-	for( i = num3 - 1; i >= 0; i --, int64Count *= 10 )
-	{
-		int64Num += Number3[i] * int64Count ;
-	}
-	if( MinusFlag2 ) int64Num = -int64Num ;
-
-	doubleNum3 = 1.0 ;
-	if( int64Num != 0 )
-	{
-		if( int64Num < 0 )
-		{
-			int64Num = -int64Num ;
-			for( i = 0 ; i < int64Num ; i ++ )
-				doubleNum3 /= 10.0 ;
-		}
-		else
-		{
-			for( i = 0 ; i < int64Num ; i++ )
-				doubleNum3 *= 10.0 ;
-		}
-	}
-
-	return ( doubleNum + doubleNum2 ) * doubleNum3 ;
+	return CL_atof( WCHAR_T_CODEPAGE, ( const char * )String ) ;
 }
 
 extern char *_ITOA( int Value, char *Buffer, int Radix )
 {
-	int j, i, Number[64], *ip ;
-	unsigned char *p = (unsigned char *)Buffer ;
-
-	if( Value == 0 )
-	{
-		Buffer[0] = '0' ;
-		Buffer[1] = '\0' ;
-	}
-	else
-	{
-		if( Value < 0 )
-		{
-			*p = '-' ;
-			p ++ ;
-			Value = -Value ;
-		}
-		
-		for( i = 0 ; Value != 0 ; i ++, Value /= Radix )
-		{
-			Number[i] = Value % Radix ;
-		}
-
-		ip = &Number[i-1] ;	
-		for( j = 0 ; j < i ; j ++, p ++, ip -- )
-		{
-			if( *ip <= 9 )	*p = ( unsigned char )( '0' + *ip ) ;
-			else			*p = ( unsigned char )( 'a' + *ip - 10 ) ;
-		}
-		*p = '\0' ;
-	}
-	
-	return Buffer ;
+	return CL_itoa( CHAR_CODEPAGE, Value, Buffer, Radix ) ;
 }
 
 extern wchar_t *_ITOAW( int Value, wchar_t *Buffer, int Radix )
 {
-	int j, i, Number[64], *ip ;
-	wchar_t *p = Buffer ;
-
-	if( Value == 0 )
-	{
-		Buffer[0] = L'0' ;
-		Buffer[1] = L'\0' ;
-	}
-	else
-	{
-		if( Value < 0 )
-		{
-			*p = L'-' ;
-			p ++ ;
-			Value = -Value ;
-		}
-		
-		for( i = 0 ; Value != 0 ; i ++, Value /= Radix )
-		{
-			Number[i] = Value % Radix ;
-		}
-
-		ip = &Number[i-1] ;	
-		for( j = 0 ; j < i ; j ++, p ++, ip -- )
-		{
-			if( *ip <= 9 )	*p = ( wchar_t )( L'0' + *ip ) ;
-			else			*p = ( wchar_t )( L'a' + *ip - 10 ) ;
-		}
-		*p = L'\0' ;
-	}
-	
-	return Buffer ;
+	return ( wchar_t * )CL_itoa( WCHAR_T_CODEPAGE, Value, ( char * )Buffer, Radix ) ;
 }
 
 extern void _SHR64( DWORD *Number64, int ShftNum )
@@ -1592,6 +1253,8 @@ LOOPEND:
 #endif
 }
 
-
+#ifdef DX_USE_NAMESPACE
 
 }
+
+#endif // DX_USE_NAMESPACE

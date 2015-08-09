@@ -2,12 +2,12 @@
 // 
 // 		ＤＸライブラリ		アーカイブ制御プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
 // インクルード-------------------------------------------------------------------
@@ -17,23 +17,26 @@
 #include "DxFile.h"
 #include "DxFont.h"
 #include "DxLog.h"
+#include "DxChar.h"
+#include "DxThread.h"
 #include "DxSystem.h"
 #include <stdio.h>
 
-#ifdef __WINDOWS__
-#include "Windows/DxWindow.h"
-#endif // __WINDOWS__
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
+#endif // DX_USE_NAMESPACE
+
 #ifndef DX_NON_DXA
 
-// 宏定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
 
 #define DXARCD						DX_ArchiveDirData
 //#define CHECKMULTIBYTECHAR(CP)		(( (unsigned char)*(CP) >= 0x81 && (unsigned char)*(CP) <= 0x9F ) || ( (unsigned char)*(CP) >= 0xE0 && (unsigned char)*(CP) <= 0xFC ))	// TRUE:２バイト文字  FALSE:１バイト文字
-#define CHARUP(C)					((C) >= _T( 'a' ) && (C) <= _T( 'z' ) ? (C) - _T( 'a' ) + _T( 'A' ) : (C))
+#define CHARUP(C)					( (C) >= 'a' && (C) <= 'z' ? (C) - 'a' + 'A' : (C))
 
 #define DXARC_ID_AND_VERSION_SIZE	(sizeof( WORD ) * 2)
 
@@ -51,7 +54,7 @@ namespace DxLib
 #define NONE_PAL		(0xffffffffffffffff)
 #endif
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // DXA_DIR_FindFirst 等の処理で使用する構造体
 struct DXA_DIR_FINDDATA
@@ -65,7 +68,7 @@ struct DXA_DIR_FINDDATA
 struct DXA_FINDDATA
 {
 	DXARC						*Container;						// 検索対象のＤＸＡファイル
-	char						SearchStr[MAX_PATH];			// 検索文字列
+	BYTE						SearchStr[ FILEPATH_MAX ] ;		// 検索文字列
 	union
 	{
 		DXARC_DIRECTORY			*Directory;						// 検索対象のディレクトリ
@@ -76,30 +79,67 @@ struct DXA_FINDDATA
 
 // 内部大域変数宣言 --------------------------------------------------------------
 
+static unsigned char BinToChar128Table[ 128 ] =
+{
+	0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40,
+	0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50,
+	0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F, 0x60,
+	0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70,
+	0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0xA1, 0xA2,
+	0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30,
+	0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2,
+	0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2,
+} ;
+
+static unsigned char Char128ToBinTable[ 256 ] =
+{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e,
+	0x5f, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+	0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e,
+	0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
+	0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e,
+	0x3f, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x4e, 0x4f, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c,
+	0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7b, 0x7c,
+	0x7d, 0x7e, 0x7f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+} ;
+
+BYTE Ascii_DotStr[ 2 ]       = { '.',       0 } ;
+BYTE Ascii_DoubleDotStr[ 3 ] = { '.',  '.', 0 } ;
+BYTE Ascii_EnStr[ 2 ]        = { '\\',      0 } ;
+BYTE Ascii_SlashStr[ 2 ]     = { '/',       0 } ;
+
 // アーカイブをディレクトリに見立てる為のデータ
 DXARC_DIR DX_ArchiveDirData ;
 
 // 関数プロトタイプ宣言-----------------------------------------------------------
 
-static DXARC_FILEHEAD_VER5 *DXA_GetFileInfoV5(		DXARC *DXA, const char *FilePath ) ;													// ファイルの情報を得る
-static DXARC_FILEHEAD      *DXA_GetFileInfo(		DXARC *DXA, const char *FilePath ) ;													// ファイルの情報を得る
-static int		DXA_ConvSearchData(					DXARC *DXA, DXARC_SEARCHDATA *Dest, const char *Src, int *Length ) ;					// 文字列を検索用のデータに変換( ヌル文字か \ があったら終了 )
+static DXARC_FILEHEAD_VER5 *DXA_GetFileHeaderV5(	DXARC *DXA, const BYTE *FilePath ) ;													// ファイルの情報を得る
+static DXARC_FILEHEAD      *DXA_GetFileHeader(		DXARC *DXA, const BYTE *FilePath ) ;													// ファイルの情報を得る
+static int		DXA_ConvSearchData(					DXARC *DXA, DXARC_SEARCHDATA *Dest, const BYTE *Src, int *Length ) ;					// 文字列を検索用のデータに変換( ヌル文字か \ があったら終了 )
 static int		DXA_ChangeCurrentDirectoryFast(		DXARC *DXA, DXARC_SEARCHDATA *SearchData ) ;											// アーカイブ内のディレクトリパスを変更する( 0:成功  -1:失敗 )
-static int		DXA_ChangeCurrentDirectoryBase(		DXARC *DXA, const char *DirectoryPath, bool ErrorIsDirectoryReset, DXARC_SEARCHDATA *LastSearchData = NULL ) ;		// アーカイブ内のディレクトリパスを変更する( 0:成功  -1:失敗 )
+static int		DXA_ChangeCurrentDirectoryBase(		DXARC *DXA, const BYTE *DirectoryPath, bool ErrorIsDirectoryReset, DXARC_SEARCHDATA *LastSearchData = NULL ) ;		// アーカイブ内のディレクトリパスを変更する( 0:成功  -1:失敗 )
 //static int	DXA_Decode(							void *Src, void *Dest ) ;																// データを解凍する( 戻り値:解凍後のデータサイズ )
 static void		DXA_KeyCreate(						const char *Source, unsigned char *Key ) ;												// 鍵文字列を作成
 static void		DXA_KeyConv(						void *Data, LONGLONG  SizeLL, LONGLONG  PositionLL,  unsigned char *Key ) ;				// 鍵文字列を使用して Xor 演算( Key は必ず DXA_KEYSTR_LENGTH の長さがなければならない )
 static void		DXA_KeyConvFileRead(				void *Data, ULONGLONG Size,   DWORD_PTR FilePointer, unsigned char *Key, LONGLONG Position = -1 ) ;	// ファイルから読み込んだデータを鍵文字列を使用して Xor 演算する関数( Key は必ず DXA_KEYSTR_LENGTH の長さがなければならない )
-static int		DXA_FindProcess(					DXA_FINDDATA *FindData, FILEINFO *FileInfo );											// 条件に適合するオブジェクトを検索する(検索対象は ObjectCount をインデックスとしたところから)(戻り値 -1:エラー 0:成功)
+static int		DXA_FindProcess(					DXA_FINDDATA *FindData, FILEINFOW *FileInfo );											// 条件に適合するオブジェクトを検索する(検索対象は ObjectCount をインデックスとしたところから)(戻り値 -1:エラー 0:成功)
 
-static int		DXA_DIR_OpenArchive(				const TCHAR *FilePath, void *FileImage = NULL, int FileSize = -1, int FileImageCopyFlag = FALSE, int FileImageReadOnly = FALSE, int ArchiveIndex = -1, int OnMemory = FALSE, int ASyncThread = FALSE ) ;	// アーカイブファイルを開く
-static int		DXA_DIR_GetArchive(					const TCHAR *FilePath, void *FileImage = NULL ) ;										// 既に開かれているアーカイブのハンドルを取得する( 戻り値: -1=無かった 0以上:ハンドル )
+static int		DXA_DIR_OpenArchive(				const wchar_t *FilePath, void *FileImage = NULL, int FileSize = -1, int FileImageCopyFlag = FALSE, int FileImageReadOnly = FALSE, int ArchiveIndex = -1, int OnMemory = FALSE, int ASyncThread = FALSE ) ;	// アーカイブファイルを開く
+static int		DXA_DIR_GetArchive(					const wchar_t *FilePath, void *FileImage = NULL ) ;										// 既に開かれているアーカイブのハンドルを取得する( 戻り値: -1=無かった 0以上:ハンドル )
 static int		DXA_DIR_CloseArchive(				int ArchiveHandle ) ;																	// アーカイブファイルを閉じる
 static void		DXA_DIR_CloseWaitArchive(			void ) ;																				// 使用されるのを待っているアーカイブファイルを全て閉じる
-static int		DXA_DIR_ConvertFullPath(			const TCHAR *Src, TCHAR *Dest ) ;														// 全ての英字小文字を大文字にしながら、フルパスに変換する
-static int		DXA_DIR_AnalysisFileNameAndDirPath( DXARC *DXA, const char *Src, char *FileName = 0, char *DirPath = 0 ) ;					// ファイル名も一緒になっていると分かっているパス中からファイル名とディレクトリパスを分割する。フルパスである必要は無い、ファイル名だけでも良い、DirPath の終端に ￥ マークは付かない
-static int		DXA_DIR_FileNameCmp(				DXARC *DXA, const char *Src, const char *CmpStr );										// CmpStr の条件に Src が適合するかどうかを調べる( 0:適合する  -1:適合しない )
-static int		DXA_DIR_OpenTest(					const TCHAR *FilePath, int *ArchiveIndex, char *ArchivePath, char *ArchiveFilePath );	// アーカイブファイルをフォルダに見立ててファイルを開く時の情報を得る( -1:アーカイブとしては存在しなかった  0:存在した )
+static int		DXA_DIR_ConvertFullPath(			const wchar_t *Src, wchar_t *Dest ) ;													// 全ての英字小文字を大文字にしながら、フルパスに変換する
+static int		DXA_DIR_AnalysisFileNameAndDirPath( DXARC *DXA, const BYTE *Src, BYTE *FileName = 0, BYTE *DirPath = 0 ) ;					// ファイル名も一緒になっていると分かっているパス中からファイル名とディレクトリパスを分割する。フルパスである必要は無い、ファイル名だけでも良い、DirPath の終端に ￥ マークは付かない
+static int		DXA_DIR_FileNameCmp(				DXARC *DXA, const BYTE *Src, const BYTE *CmpStr );										// CmpStr の条件に Src が適合するかどうかを調べる( 0:適合する  -1:適合しない )
+static int		DXA_DIR_OpenTest(					const wchar_t *FilePath, int *ArchiveIndex, BYTE *ArchiveFilePath ) ;					// アーカイブファイルをフォルダに見立ててファイルを開く時の情報を得る( -1:アーカイブとしては存在しなかった  0:存在した )
 
 static int		DXA_DirectoryKeyConv(				DXARC *DXA, DXARC_DIRECTORY *Dir ) ;													// 指定のディレクトリデータの暗号化を解除する( 丸ごとメモリに読み込んだ場合用 )
 static int		DXA_DirectoryKeyConvV5(				DXARC *DXA, DXARC_DIRECTORY_VER5 *Dir ) ;												// 指定のディレクトリデータの暗号化を解除する( 丸ごとメモリに読み込んだ場合用 )
@@ -107,7 +147,7 @@ static int		DXA_DirectoryKeyConvV5(				DXARC *DXA, DXARC_DIRECTORY_VER5 *Dir ) ;
 // プログラム --------------------------------------------------------------------
 
 // ファイルの情報を得る
-static DXARC_FILEHEAD_VER5 *DXA_GetFileInfoV5( DXARC *DXA, const char *FilePath )
+static DXARC_FILEHEAD_VER5 *DXA_GetFileHeaderV5( DXARC *DXA, const BYTE *FilePath )
 {
 	DXARC_DIRECTORY_VER5 *OldDir ;
 	DXARC_FILEHEAD_VER5 *FileH ;
@@ -120,7 +160,8 @@ static DXARC_FILEHEAD_VER5 *DXA_GetFileInfoV5( DXARC *DXA, const char *FilePath 
 	OldDir = DXA->CurrentDirectoryV5 ;
 
 	// ファイルパスに \ or / が含まれている場合、ディレクトリ変更を行う
-	if( _STRCHR( FilePath, '\\' ) != NULL || _STRCHR( FilePath, '/' ) != NULL )
+	if( CL_strchr( DXA->CodePage, ( const char * )FilePath, '\\' ) != NULL ||
+		CL_strchr( DXA->CodePage, ( const char * )FilePath, '/'  ) != NULL )
 	{
 		// カレントディレクトリを目的のファイルがあるディレクトリに変更する
 		if( DXA_ChangeCurrentDirectoryBase( DXA, FilePath, false, &SearchData ) >= 0 )
@@ -136,29 +177,47 @@ static DXARC_FILEHEAD_VER5 *DXA_GetFileInfoV5( DXARC *DXA, const char *FilePath 
 	}
 
 	// 同名のファイルを探す
-	FileHeadSize = DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ;
+	FileHeadSize = ( DWORD )( DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ) ;
 	FileH        = ( DXARC_FILEHEAD_VER5 * )( DXA->Table.FileTable + DXA->CurrentDirectoryV5->FileHeadAddress ) ;
 	Num          = ( int )DXA->CurrentDirectoryV5->FileHeadNum ;
 	for( i = 0 ; i < Num ; i ++, FileH = (DXARC_FILEHEAD_VER5 *)( (BYTE *)FileH + FileHeadSize ) )
 	{
 		// ディレクトリチェック
-		if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 ) continue ;
+		if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 )
+		{
+			continue ;
+		}
 
 		// 文字列数とパリティチェック
 		NameData = DXA->Table.NameTable + FileH->NameAddress ;
-		if( SearchData.PackNum != ((WORD *)NameData)[0] || SearchData.Parity != ((WORD *)NameData)[1] ) continue ;
+		if( SearchData.PackNum != ( ( WORD * )NameData )[ 0 ] ||
+			SearchData.Parity  != ( ( WORD * )NameData )[ 1 ] )
+		{
+			continue ;
+		}
 
 		// 文字列チェック
 		NameData += 4 ;
 		for( j = 0, k = 0 ; j < SearchData.PackNum ; j ++, k += 4 )
-			if( *((DWORD *)&SearchData.FileName[k]) != *((DWORD *)&NameData[k]) ) break ;
+		{
+			if( *( ( DWORD * )&SearchData.FileName[ k ]) != *( ( DWORD * )&NameData[ k ] ) )
+			{
+				break ;
+			}
+		}
 
 		// 適合したファイルがあったらここで終了
-		if( SearchData.PackNum == j ) break ;
+		if( SearchData.PackNum == j )
+		{
+			break ;
+		}
 	}
 
 	// 無かったらエラー
-	if( i == Num ) goto ERR ;
+	if( i == Num )
+	{
+		goto ERR ;
+	}
 	
 	// ディレクトリを元に戻す
 	DXA->CurrentDirectoryV5 = OldDir ;
@@ -175,7 +234,7 @@ ERR :
 }
 
 // ファイルの情報を得る
-static DXARC_FILEHEAD *DXA_GetFileInfo( DXARC *DXA, const char *FilePath )
+static DXARC_FILEHEAD *DXA_GetFileHeader( DXARC *DXA, const BYTE *FilePath )
 {
 	DXARC_DIRECTORY *OldDir ;
 	DXARC_FILEHEAD *FileH ;
@@ -188,7 +247,8 @@ static DXARC_FILEHEAD *DXA_GetFileInfo( DXARC *DXA, const char *FilePath )
 	OldDir = DXA->CurrentDirectory ;
 
 	// ファイルパスに \ or / が含まれている場合、ディレクトリ変更を行う
-	if( _STRCHR( FilePath, '\\' ) != NULL || _STRCHR( FilePath, '/' ) != NULL )
+	if( CL_strchr( DXA->CodePage, ( const char * )FilePath, '\\' ) != NULL ||
+		CL_strchr( DXA->CodePage, ( const char * )FilePath, '/'  ) != NULL )
 	{
 		// カレントディレクトリを目的のファイルがあるディレクトリに変更する
 		if( DXA_ChangeCurrentDirectoryBase( DXA, FilePath, false, &SearchData ) >= 0 )
@@ -210,23 +270,41 @@ static DXARC_FILEHEAD *DXA_GetFileInfo( DXARC *DXA, const char *FilePath )
 	for( i = 0 ; i < Num ; i ++, FileH = (DXARC_FILEHEAD *)( (BYTE *)FileH + FileHeadSize ) )
 	{
 		// ディレクトリチェック
-		if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 ) continue ;
+		if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 )
+		{
+			continue ;
+		}
 
 		// 文字列数とパリティチェック
 		NameData = DXA->Table.NameTable + FileH->NameAddress ;
-		if( SearchData.PackNum != ((WORD *)NameData)[0] || SearchData.Parity != ((WORD *)NameData)[1] ) continue ;
+		if( SearchData.PackNum != ( ( WORD * )NameData )[ 0 ] ||
+			SearchData.Parity  != ( ( WORD * )NameData )[ 1 ] )
+		{
+			continue ;
+		}
 
 		// 文字列チェック
 		NameData += 4 ;
 		for( j = 0, k = 0 ; j < SearchData.PackNum ; j ++, k += 4 )
-			if( *((DWORD *)&SearchData.FileName[k]) != *((DWORD *)&NameData[k]) ) break ;
+		{
+			if( *( ( DWORD * )&SearchData.FileName[ k ] ) != *( ( DWORD * )&NameData[ k ] ) )
+			{
+				break ;
+			}
+		}
 
 		// 適合したファイルがあったらここで終了
-		if( SearchData.PackNum == j ) break ;
+		if( SearchData.PackNum == j )
+		{
+			break ;
+		}
 	}
 
 	// 無かったらエラー
-	if( i == Num ) goto ERR ;
+	if( i == Num )
+	{
+		goto ERR ;
+	}
 	
 	// ディレクトリを元に戻す
 	DXA->CurrentDirectory = OldDir ;
@@ -244,37 +322,93 @@ ERR :
 
 
 // 文字列を検索用のデータに変換( ヌル文字か \ があったら終了 )
-static int DXA_ConvSearchData( DXARC *DXA, DXARC_SEARCHDATA *Dest, const char *Src, int *Length )
+static int DXA_ConvSearchData( DXARC *DXA, DXARC_SEARCHDATA *Dest, const BYTE *Src, int *Length )
 {
-	int i, StringLength ;
-	WORD ParityData ;
+	int i, j ;
+	int StringLength ;
+	WORD  ParityData ;
+	DWORD CharCode ;
+	int CharBytes ;
 
 	ParityData = 0 ;
-	for( i = 0 ; Src[i] != '\0' && Src[i] != '\\' && Src[i] != '/' ; )
+	i          = 0 ;
+	for(;;)
 	{
-		if( CheckMultiByteChar( Src[i], DXA->CharSet ) == TRUE )
+		CharCode = GetCharCode( ( const char * )&Src[ i ], DXA->CodePage, &CharBytes ) ;
+		if( CharCode == '\0' || CharCode == '\\' || CharCode == '/' )
 		{
-			// ２バイト文字の場合はそのままコピー
-			*((WORD *)&Dest->FileName[i]) = *((WORD *)&Src[i]) ;
-			ParityData += (BYTE)Src[i] + (BYTE)Src[i+1] ;
-			i += 2 ;
+			break ;
+		}
+
+		// 小文字の場合は大文字に変換
+		if( CharCode >= 'a' && CharCode <= 'z' )
+		{
+			CharCode = CharCode - 'a' + 'A' ;
+			PutCharCode( CharCode, DXA->CodePage, ( char * )&Dest->FileName[ i ] ) ;
+
+			switch( CharBytes )
+			{
+			case 1 :
+				ParityData += Dest->FileName[ i ] ;
+				break ;
+
+			case 2 :
+				ParityData += Dest->FileName[ i ] + Dest->FileName[ i + 1 ] ;
+				break ;
+
+			case 4 :
+				ParityData += Dest->FileName[ i ] + Dest->FileName[ i + 1 ] + Dest->FileName[ i + 2 ] + Dest->FileName[ i + 3 ] ;
+				break ;
+
+			default :
+				for( j = 0 ; j < CharBytes ; j ++ )
+				{
+					ParityData += Dest->FileName[ i + j ] ;
+				}
+				break ;
+			}
 		}
 		else
 		{
-			// 小文字の場合は大文字に変換
-			if( Src[i] >= 'a' && Src[i] <= 'z' )	Dest->FileName[i] = (BYTE)Src[i] - 'a' + 'A' ;
-			else									Dest->FileName[i] = Src[i] ;
-			ParityData += ( WORD )Dest->FileName[i] ;
-			i ++ ;
+			switch( CharBytes )
+			{
+			case 1 :
+				Dest->FileName[ i ] = Src[ i ] ;
+				ParityData += Src[ i ] ;
+				break ;
+
+			case 2 :
+				*( ( WORD * )&Dest->FileName[ i ] ) = *( ( WORD * )&Src[ i ] ) ;
+				ParityData += Src[ i ] + Src[ i + 1 ] ;
+				break ;
+
+			case 4 :
+				*( ( DWORD * )&Dest->FileName[ i ] ) = *( ( DWORD * )&Src[ i ] ) ;
+				ParityData += Src[ i ] + Src[ i + 1 ] + Src[ i + 2 ] + Src[ i + 3 ] ;
+				break ;
+
+			default :
+				for( j = 0 ; j < CharBytes ; j ++ )
+				{
+					Dest->FileName[ i + j ] = Src[ i + j ] ;
+					ParityData += Src[ i + j ] ;
+				}
+				break ;
+			}
 		}
+
+		i += CharBytes ;
 	}
 
 	// 文字列の長さを保存
-	if( Length != NULL ) *Length = i ;
+	if( Length != NULL )
+	{
+		*Length = i ;
+	}
 
 	// ４の倍数の位置まで０を代入
 	StringLength = ( ( i + 1 ) + 3 ) / 4 * 4 ;
-	_MEMSET( &Dest->FileName[i], 0, StringLength - i ) ;
+	_MEMSET( &Dest->FileName[ i ], 0, ( size_t )( StringLength - i ) ) ;
 
 	// パリティデータの保存
 	Dest->Parity = ParityData ;
@@ -302,7 +436,7 @@ void DXA_KeyCreate( const char *Source, unsigned char *Key )
 	}
 	else
 	{
-		Len = strlen( Source ) ;
+		Len = ( size_t )CL_strlen( DX_CODEPAGE_ASCII, Source ) ;
 		if( Len > DXA_KEYSTR_LENGTH )
 		{
 			_MEMCPY( Key, Source, DXA_KEYSTR_LENGTH ) ;
@@ -313,22 +447,27 @@ void DXA_KeyCreate( const char *Source, unsigned char *Key )
 			size_t i ;
 
 			for( i = 0 ; i + Len <= DXA_KEYSTR_LENGTH ; i += Len )
+			{
 				_MEMCPY( Key + i, Source, Len ) ;
+			}
+
 			if( i < DXA_KEYSTR_LENGTH )
+			{
 				_MEMCPY( Key + i, Source, DXA_KEYSTR_LENGTH - i ) ;
+			}
 		}
 	}
 
-	Key[0] = ( unsigned char )( ~Key[0] ) ;
-	Key[1] = ( unsigned char )( ( Key[1] >> 4 ) | ( Key[1] << 4 ) ) ;
-	Key[2] = ( unsigned char )( Key[2] ^ 0x8a ) ;
-	Key[3] = ( unsigned char )( ~( ( Key[3] >> 4 ) | ( Key[3] << 4 ) ) ) ;
-	Key[4] = ( unsigned char )( ~Key[4] ) ;
-	Key[5] = ( unsigned char )( Key[5] ^ 0xac ) ;
-	Key[6] = ( unsigned char )( ~Key[6] ) ;
-	Key[7] = ( unsigned char )( ~( ( Key[7] >> 3 ) | ( Key[7] << 5 ) ) ) ;
-	Key[8] = ( unsigned char )( ( Key[8] >> 5 ) | ( Key[8] << 3 ) ) ;
-	Key[9] = ( unsigned char )( Key[9] ^ 0x7f ) ;
+	Key[ 0] = ( unsigned char )( ~Key[0] ) ;
+	Key[ 1] = ( unsigned char )( ( Key[1] >> 4 ) | ( Key[1] << 4 ) ) ;
+	Key[ 2] = ( unsigned char )( Key[2] ^ 0x8a ) ;
+	Key[ 3] = ( unsigned char )( ~( ( Key[3] >> 4 ) | ( Key[3] << 4 ) ) ) ;
+	Key[ 4] = ( unsigned char )( ~Key[4] ) ;
+	Key[ 5] = ( unsigned char )( Key[5] ^ 0xac ) ;
+	Key[ 6] = ( unsigned char )( ~Key[6] ) ;
+	Key[ 7] = ( unsigned char )( ~( ( Key[7] >> 3 ) | ( Key[7] << 5 ) ) ) ;
+	Key[ 8] = ( unsigned char )( ( Key[8] >> 5 ) | ( Key[8] << 3 ) ) ;
+	Key[ 9] = ( unsigned char )( Key[9] ^ 0x7f ) ;
 	Key[10] = ( unsigned char )( ( ( Key[10] >> 4 ) | ( Key[10] << 4 ) ) ^ 0xd6 ) ;
 	Key[11] = ( unsigned char )( Key[11] ^ 0xcc ) ;
 }
@@ -543,61 +682,99 @@ void DXA_KeyConvFileRead( void *Data, ULONGLONG  Size, DWORD_PTR FilePointer, un
 	LONGLONG pos ;
 
 	// ファイルの位置を取得しておく
-	if( Position == -1 ) pos = ReadOnlyFileAccessTell( FilePointer ) ;
-	else                 pos = Position ;
+	if( Position == -1 )
+	{
+		pos = ReadOnlyFileAccessTell( FilePointer ) ;
+	}
+	else
+	{
+		pos = Position ;
+	}
 
 	// 読み込む
 	ReadOnlyFileAccessRead( Data, ( size_t )Size, 1, FilePointer ) ;
-	while( ReadOnlyFileAccessIdleCheck( FilePointer ) == FALSE ) Sleep(1);
+	while( ReadOnlyFileAccessIdleCheck( FilePointer ) == FALSE )
+	{
+		Thread_Sleep( 1 ) ;
+	}
 
 	// データを鍵文字列を使って Xor 演算
-	DXA_KeyConv( Data, Size, pos, Key ) ;
+	DXA_KeyConv( Data, ( LONGLONG )Size, pos, Key ) ;
 }
 
 // 条件に適合するオブジェクトを検索する(検索対象は ObjectCount をインデックスとしたところから)(戻り値 -1:エラー 0:成功)
-static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFO *FileInfo )
+static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFOW *FileInfo )
 {
-	BYTE *nameTable;
-	DXARC *DXA;
-	char *str, *name;
-	DWORD fileHeadSize;
-	char TempName[ 1024 ] ;
+	BYTE  *nameTable ;
+	DXARC *DXA ;
+	BYTE  *str ;
+	BYTE  *name ;
+	DWORD fileHeadSize ;
+	BYTE  TempName[ 1024 ] ;
+	BYTE  DotStr[ 16 ] ;
+	BYTE  DoubleDotStr[ 16 ] ;
 
-	DXA = FindData->Container;
+	DXA       = FindData->Container;
 	nameTable = DXA->Table.NameTable;
-	str = FindData->SearchStr;
+	str       = FindData->SearchStr;
+
+	ConvString( ( const char * )Ascii_DotStr,       DX_CODEPAGE_ASCII, ( char * )DotStr,       DXA->CodePage ) ;
+	ConvString( ( const char * )Ascii_DoubleDotStr, DX_CODEPAGE_ASCII, ( char * )DoubleDotStr, DXA->CodePage ) ;
 
 	if( DXA->V5Flag )
 	{
-		int i, num, addnum;
+		int i, num, addnum ;
 
-		DXARC_DIRECTORY_VER5 *dir;
-		DXARC_FILEHEAD_VER5 *file;
+		DXARC_DIRECTORY_VER5 *dir ;
+		DXARC_FILEHEAD_VER5  *file ;
 
-		dir = FindData->DirectoryV5;
-		num = dir->FileHeadNum;
-		addnum = dir->ParentDirectoryAddress == 0xffffffff ? 1 : 2;
-		fileHeadSize = DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ;
+		dir          = FindData->DirectoryV5 ;
+		num          = ( int )dir->FileHeadNum ;
+		addnum       = dir->ParentDirectoryAddress == 0xffffffff ? 1 : 2 ;
+		fileHeadSize = ( DWORD )( DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ) ;
 
-		if( FindData->ObjectCount == (DWORD)( num + addnum ) ) return -1;
+		if( FindData->ObjectCount == ( DWORD )( num + addnum ) )
+		{
+			return -1 ;
+		}
 
-		file = ( DXARC_FILEHEAD_VER5 * )( DXA->Table.FileTable + dir->FileHeadAddress + fileHeadSize * ( FindData->ObjectCount - addnum ) ) ;
-		for( i = FindData->ObjectCount; i < num + addnum; i ++, file = (DXARC_FILEHEAD_VER5 *)( (BYTE *)file + fileHeadSize ) )
+		file = ( DXARC_FILEHEAD_VER5 * )( DXA->Table.FileTable + dir->FileHeadAddress + fileHeadSize * FindData->ObjectCount ) ;
+		for( i = ( int )FindData->ObjectCount; i < num + addnum; i ++ )
 		{
 			if( i < addnum )
 			{
-					 if( i == 0 ){ if( DXA_DIR_FileNameCmp( DXA, ".",  str ) == 0 ) break; }
-				else if( i == 1 ){ if( DXA_DIR_FileNameCmp( DXA, "..", str ) == 0 ) break; }
+				if( i == 0 )
+				{
+					if( DXA_DIR_FileNameCmp( DXA, DotStr, str ) == 0 )
+					{
+						break ;
+					}
+				}
+				else
+				if( i == 1 )
+				{
+					if( DXA_DIR_FileNameCmp( DXA, DoubleDotStr, str ) == 0 )
+					{
+						break ;
+					}
+				}
 			}
 			else
 			{
-				name = (char *)( nameTable + file->NameAddress + 4 );
-				if( DXA_DIR_FileNameCmp( DXA, name, str ) == 0 ) break;
+				name = ( BYTE * )( nameTable + file->NameAddress + 4 ) ;
+				if( DXA_DIR_FileNameCmp( DXA, name, str ) == 0 )
+				{
+					break ;
+				}
+
+				file = (DXARC_FILEHEAD_VER5 *)( (BYTE *)file + fileHeadSize ) ;
 			}
 		}
-		FindData->ObjectCount = i;
+		FindData->ObjectCount = ( DWORD )i ;
 		if( i == num + addnum )
-			return -1;
+		{
+			return -1 ;
+		}
 
 		if( FileInfo )
 		{
@@ -605,61 +782,91 @@ static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFO *FileInfo )
 			{
 				switch( i )
 				{
-				case 0: _STRCPY( TempName, "."  ); break;
-				case 1: _STRCPY( TempName, ".." ); break;
+				default :
+				case 0 :
+					CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )DotStr  ) ;
+					break ;
+
+				case 1 :
+					CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )DoubleDotStr ) ;
+					break ;
 				}
-				FileInfo->DirFlag = 1;
-				FileInfo->Size    = 0;
-				_MEMSET( &FileInfo->CreationTime,  0, sizeof( FileInfo->CreationTime  ) );
-				_MEMSET( &FileInfo->LastWriteTime, 0, sizeof( FileInfo->LastWriteTime ) );
+				FileInfo->DirFlag = 1 ;
+				FileInfo->Size    = 0 ;
+				_MEMSET( &FileInfo->CreationTime,  0, sizeof( FileInfo->CreationTime  ) ) ;
+				_MEMSET( &FileInfo->LastWriteTime, 0, sizeof( FileInfo->LastWriteTime ) ) ;
 			}
 			else
 			{
-				name = (char *)( nameTable + file->NameAddress );
-				_STRCPY( TempName, name + ((WORD *)name)[0] * 4 + 4 );
-				FileInfo->DirFlag = (file->Attributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ? TRUE : FALSE;
-				FileInfo->Size = (LONGLONG)file->DataSize;
-				_FileTimeToLocalDateData( (FILETIME *)&file->Time.Create,    &FileInfo->CreationTime  );
-				_FileTimeToLocalDateData( (FILETIME *)&file->Time.LastWrite, &FileInfo->LastWriteTime );
+				name = ( BYTE * )( nameTable + file->NameAddress ) ;
+				CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )( name + ( ( WORD * )name )[ 0 ] * 4 + 4 ) ) ;
+				FileInfo->DirFlag = ( file->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 ? TRUE : FALSE ;
+				FileInfo->Size    = ( LONGLONG )file->DataSize ;
+#ifdef __WINDOWS__
+				_FileTimeToLocalDateData( ( FILETIME * )&file->Time.Create,    &FileInfo->CreationTime  ) ;
+				_FileTimeToLocalDateData( ( FILETIME * )&file->Time.LastWrite, &FileInfo->LastWriteTime ) ;
+#else // __WINDOWS__
+				_MEMSET( &FileInfo->CreationTime,  0, sizeof( FileInfo->CreationTime  ) ) ;
+				_MEMSET( &FileInfo->LastWriteTime, 0, sizeof( FileInfo->LastWriteTime ) ) ;
+#endif // __WINDOWS__
 			}
 
-#ifdef UNICODE
-			MBCharToWChar( DXA->HeadV5.CodePage, TempName, ( DXWCHAR * )FileInfo->Name, 260 ) ;
-#else
-			lstrcpy( FileInfo->Name, TempName );
-#endif
+			ConvString( ( const char * )TempName, DXA->CodePage, ( char * )FileInfo->Name, WCHAR_T_CODEPAGE ) ;
 		}
 	}
 	else
 	{
-		ULONGLONG i, num, addnum;
-		DXARC_DIRECTORY *dir;
-		DXARC_FILEHEAD *file;
+		ULONGLONG i, num, addnum ;
+		DXARC_DIRECTORY *dir ;
+		DXARC_FILEHEAD *file ;
 
-		dir = FindData->Directory;
-		num = dir->FileHeadNum;
-		addnum = dir->ParentDirectoryAddress == NONE_PAL ? 1 : 2;
+		dir          = FindData->Directory ;
+		num          = dir->FileHeadNum ;
+		addnum       = ( ULONGLONG )( dir->ParentDirectoryAddress == NONE_PAL ? 1 : 2 ) ;
 		fileHeadSize = DXARC_FILEHEAD_VER6_SIZE ;
 
-		if( FindData->ObjectCount == (DWORD)( num + addnum ) ) return -1;
+		if( FindData->ObjectCount == ( DWORD )( num + addnum ) )
+		{
+			return -1 ;
+		}
 
-		file = ( DXARC_FILEHEAD * )( DXA->Table.FileTable + dir->FileHeadAddress + fileHeadSize * ( FindData->ObjectCount - addnum ) ) ;
-		for( i = FindData->ObjectCount; i < num + addnum; i ++, file = (DXARC_FILEHEAD *)( (BYTE *)file + fileHeadSize ) )
+		file = ( DXARC_FILEHEAD * )( DXA->Table.FileTable + dir->FileHeadAddress + fileHeadSize * FindData->ObjectCount ) ;
+		for( i = FindData->ObjectCount; i < num + addnum; i ++ )
 		{
 			if( i < addnum )
 			{
-					 if( i == 0 ){ if( DXA_DIR_FileNameCmp( DXA, ".",  str ) == 0 ) break; }
-				else if( i == 1 ){ if( DXA_DIR_FileNameCmp( DXA, "..", str ) == 0 ) break; }
+				if( i == 0 )
+				{
+					if( DXA_DIR_FileNameCmp( DXA, DotStr,       str ) == 0 )
+					{
+						break ;
+					}
+				}
+				else
+				if( i == 1 )
+				{
+					if( DXA_DIR_FileNameCmp( DXA, DoubleDotStr, str ) == 0 )
+					{
+						break;
+					}
+				}
 			}
 			else
 			{
-				name = (char *)( nameTable + file->NameAddress + 4 );
-				if( DXA_DIR_FileNameCmp( DXA, name, str ) == 0 ) break;
+				name = ( BYTE * )( nameTable + file->NameAddress + 4 ) ;
+				if( DXA_DIR_FileNameCmp( DXA, name, str ) == 0 )
+				{
+					break ;
+				}
+
+				file = (DXARC_FILEHEAD *)( (BYTE *)file + fileHeadSize ) ;
 			}
 		}
-		FindData->ObjectCount = ( DWORD )i;
+		FindData->ObjectCount = ( DWORD )i ;
 		if( i == num + addnum )
-			return -1;
+		{
+			return -1 ;
+		}
 
 		if( FileInfo )
 		{
@@ -667,33 +874,40 @@ static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFO *FileInfo )
 			{
 				switch( i )
 				{
-				case 0: _STRCPY( TempName, "."  ); break;
-				case 1: _STRCPY( TempName, ".." ); break;
+				default :
+				case 0:
+					CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )DotStr       ) ;
+					break ;
+
+				case 1 :
+					CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )DoubleDotStr ) ;
+					break ;
 				}
-				FileInfo->DirFlag = 1;
-				FileInfo->Size    = 0;
-				_MEMSET( &FileInfo->CreationTime,  0, sizeof( FileInfo->CreationTime  ) );
-				_MEMSET( &FileInfo->LastWriteTime, 0, sizeof( FileInfo->LastWriteTime ) );
+				FileInfo->DirFlag = 1 ;
+				FileInfo->Size    = 0 ;
+				_MEMSET( &FileInfo->CreationTime,  0, sizeof( FileInfo->CreationTime  ) ) ;
+				_MEMSET( &FileInfo->LastWriteTime, 0, sizeof( FileInfo->LastWriteTime ) ) ;
 			}
 			else
 			{
-				name = (char *)( nameTable + file->NameAddress );
-				_STRCPY( TempName, name + ((WORD *)name)[0] * 4 + 4 );
-				FileInfo->DirFlag = (file->Attributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ? TRUE : FALSE;
-				FileInfo->Size = (LONGLONG)file->DataSize;
-				_FileTimeToLocalDateData( (FILETIME *)&file->Time.Create,    &FileInfo->CreationTime  );
-				_FileTimeToLocalDateData( (FILETIME *)&file->Time.LastWrite, &FileInfo->LastWriteTime );
+				name = ( BYTE * )( nameTable + file->NameAddress ) ;
+				CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )( name + ( ( WORD * )name )[ 0 ] * 4 + 4 ) ) ;
+				FileInfo->DirFlag = ( file->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 ? TRUE : FALSE ;
+				FileInfo->Size    = ( LONGLONG)file->DataSize ;
+#ifdef __WINDOWS__
+				_FileTimeToLocalDateData( ( FILETIME * )&file->Time.Create,    &FileInfo->CreationTime  ) ;
+				_FileTimeToLocalDateData( ( FILETIME * )&file->Time.LastWrite, &FileInfo->LastWriteTime ) ;
+#else // __WINDOWS__
+				_MEMSET( &FileInfo->CreationTime,  0, sizeof( FileInfo->CreationTime  ) ) ;
+				_MEMSET( &FileInfo->LastWriteTime, 0, sizeof( FileInfo->LastWriteTime ) ) ;
+#endif // __WINDOWS__
 			}
 
-#ifdef UNICODE
-			MBCharToWChar( DXA->Head.CodePage, TempName, ( DXWCHAR * )FileInfo->Name, 260 ) ;
-#else
-			lstrcpy( FileInfo->Name, TempName );
-#endif
+			ConvString( ( const char * )TempName, DXA->CodePage, ( char * )FileInfo->Name, WCHAR_T_CODEPAGE ) ;
 		}
 	}
 
-	return 0;
+	return 0 ;
 }
 
 
@@ -761,12 +975,12 @@ static int DXA_DirectoryKeyConv( DXARC *DXA, DXARC_DIRECTORY *Dir )
 					if( File->PressDataSize != NONE_PAL )
 					{
 						// 圧縮されている場合
-						DXA_KeyConv( DataP, File->PressDataSize, File->DataSize, DXA->Key ) ;
+						DXA_KeyConv( DataP, ( LONGLONG )File->PressDataSize, ( LONGLONG )File->DataSize, DXA->Key ) ;
 					}
 					else
 					{
 						// 圧縮されていない場合
-						DXA_KeyConv( DataP, File->DataSize, File->DataSize, DXA->Key ) ;
+						DXA_KeyConv( DataP, ( LONGLONG )File->DataSize, ( LONGLONG )File->DataSize, DXA->Key ) ;
 					}
 				}
 			}
@@ -782,11 +996,15 @@ static int DXA_DirectoryKeyConvV5( DXARC *DXA, DXARC_DIRECTORY_VER5 *Dir )
 {
 	// メモリイメージではない場合はエラー
 	if( DXA->MemoryOpenFlag == FALSE )
+	{
 		return -1 ;
+	}
 
 	// バージョン 0x0005 より前では何もしない
 	if( DXA->HeadV5.Version < 0x0005 )
+	{
 		return 0 ;
+	}
 	
 	// 暗号化解除処理開始
 	{
@@ -794,7 +1012,7 @@ static int DXA_DirectoryKeyConvV5( DXARC *DXA, DXARC_DIRECTORY_VER5 *Dir )
 		DXARC_FILEHEAD_VER5 *File ;
 
 		// 格納されているファイルの数だけ繰り返す
-		FileHeadSize = DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ;
+		FileHeadSize = ( DWORD )( DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ) ;
 		File = ( DXARC_FILEHEAD_VER5 * )( DXA->Table.FileTable + Dir->FileHeadAddress ) ;
 		for( i = 0 ; i < Dir->FileHeadNum ; i ++, File = ( DXARC_FILEHEAD_VER5 * )( ( BYTE * )File + FileHeadSize ) )
 		{
@@ -837,7 +1055,7 @@ static int DXA_DirectoryKeyConvV5( DXARC *DXA, DXARC_DIRECTORY_VER5 *Dir )
 }
 
 // メモリ上にあるアーカイブファイルイメージを開く( 0:成功  -1:失敗 )
-extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSize, int ArchiveImageCopyFlag, int ArchiveImageReadOnlyFlag, const char *KeyString, const TCHAR *EmulateArchivePath )
+extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSize, int ArchiveImageCopyFlag, int ArchiveImageReadOnlyFlag, const char *KeyString, const wchar_t *EmulateArchivePath )
 {
 	BYTE *datp ;
 
@@ -856,24 +1074,26 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 	// ファイルパスを保存
 	if( EmulateArchivePath != NULL )
 	{
-		lstrcpy( DXA->FilePath, EmulateArchivePath ) ;
+		_WCSCPY( DXA->FilePath, EmulateArchivePath ) ;
 	}
 	else
 	{
 		_MEMSET( DXA->FilePath, 0, sizeof( DXA->FilePath ) ) ;
 	}
 
-	DXA->Table.Top = NULL ;
+	DXA->Table.Top   = NULL ;
 	DXA->MemoryImage = NULL ;
 	if( ArchiveImageCopyFlag )
 	{
 		// イメージをコピーするフラグが立っている場合はコピー先のメモリ領域を確保
 		DXA->MemoryImage = DXALLOC( ( size_t )ArchiveSize ) ;
 		if( DXA->MemoryImage == NULL )
+		{
 			return -1 ;
+		}
 
 		// アーカイブファイルイメージの内容を確保したメモリにコピー
-		_MEMCPY( DXA->MemoryImage, ArchiveImage, ArchiveSize ) ;
+		_MEMCPY( DXA->MemoryImage, ArchiveImage, ( size_t )ArchiveSize ) ;
 
 		// コピーしたメモリイメージを使用する
 		DXA->MemoryImageOriginal = ArchiveImage ;
@@ -903,7 +1123,9 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 
 		// バージョン２以前でもない場合はエラー
 		if( DXA->Head.Head != DXAHEAD )
+		{
 			goto ERR ;
+		}
 	}
 
 	// バージョン6以降かどうかで処理を分岐
@@ -919,26 +1141,45 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 			DXA_KeyConv( &DXA->Head, DXARC_HEAD_VER6_SIZE, 0, DXA->Key ) ;
 
 			// ＩＤの検査
-			if( DXA->Head.Head != DXAHEAD ) goto ERR ;
+			if( DXA->Head.Head != DXAHEAD )
+			{
+				goto ERR ;
+			}
 			
 			// バージョン検査
-			if( DXA->Head.Version > DXAVER ) goto ERR ;
+			if( DXA->Head.Version > DXAVER )
+			{
+				goto ERR ;
+			}
 
 			// コードページをセット
 			switch( DXA->Head.CodePage )
 			{
-			case 949 : DXA->CharSet = DX_CHARSET_HANGEUL ; break ;
-			case 950 : DXA->CharSet = DX_CHARSET_BIG5 ;    break ;
-			case 936 : DXA->CharSet = DX_CHARSET_GB2312 ;  break ;
-			case 932 : DXA->CharSet = DX_CHARSET_SHFTJIS ; break ;
-			default :  DXA->CharSet = DX_CHARSET_DEFAULT ; break ;
+			case DX_CODEPAGE_UHC :
+			case DX_CODEPAGE_BIG5 :
+			case DX_CODEPAGE_GB2312 :
+			case DX_CODEPAGE_SHIFTJIS :
+			case DX_CODEPAGE_UTF16LE :
+			case DX_CODEPAGE_UTF16BE :
+			case DX_CODEPAGE_UTF8 :
+			case DX_CODEPAGE_UTF32LE :
+			case DX_CODEPAGE_UTF32BE :
+				DXA->CodePage = ( int )DXA->Head.CodePage ;
+				break ;
+
+			default :
+				DXA->CodePage = DX_CHARSET_SHFTJIS ;
+				break ;
 			}
 
 			// 読み取り専用の場合は情報テーブルのサイズ分のメモリを確保する
 			if( ArchiveImageReadOnlyFlag )
 			{
 				DXA->Table.Top = ( BYTE * )DXALLOC( DXA->Head.HeadSize ) ;
-				if( DXA->Table.Top == NULL ) goto ERR ;
+				if( DXA->Table.Top == NULL )
+				{
+					goto ERR ;
+				}
 
 				_MEMCPY( DXA->Table.Top,  (BYTE *)DXA->MemoryImage + DXA->Head.FileNameTableStartAddress, DXA->Head.HeadSize ) ;
 			}
@@ -974,7 +1215,10 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 		DXA->V5Flag = TRUE ;
 
 		// バージョン検査
-		if( DXA->HeadV5.Version > DXAVER_VER5 ) goto ERR ;
+		if( DXA->HeadV5.Version > DXAVER_VER5 )
+		{
+			goto ERR ;
+		}
 
 		// メモリを読み取り専用とするかどうかで処理を分岐
 		if( ArchiveImageReadOnlyFlag )
@@ -986,11 +1230,21 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 				DXA_KeyConv( &DXA->HeadV5, DXARC_HEAD_VER4_SIZE, 0, DXA->Key ) ;
 				switch( DXA->HeadV5.CodePage )
 				{
-				case 949 : DXA->CharSet = DX_CHARSET_HANGEUL ; break ;
-				case 950 : DXA->CharSet = DX_CHARSET_BIG5 ;    break ;
-				case 936 : DXA->CharSet = DX_CHARSET_GB2312 ;  break ;
-				case 932 : DXA->CharSet = DX_CHARSET_SHFTJIS ; break ;
-				default :  DXA->CharSet = DX_CHARSET_DEFAULT ; break ;
+				case DX_CODEPAGE_UHC :
+				case DX_CODEPAGE_BIG5 :
+				case DX_CODEPAGE_GB2312 :
+				case DX_CODEPAGE_SHIFTJIS :
+				case DX_CODEPAGE_UTF16LE :
+				case DX_CODEPAGE_UTF16BE :
+				case DX_CODEPAGE_UTF8 :
+				case DX_CODEPAGE_UTF32LE :
+				case DX_CODEPAGE_UTF32BE :
+					DXA->CodePage = ( int )DXA->HeadV5.CodePage ;
+					break ;
+
+				default :
+					DXA->CodePage = DX_CHARSET_SHFTJIS ;
+					break ;
 				}
 			}
 			else
@@ -998,16 +1252,19 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 				_MEMCPY( &DXA->HeadV5, ArchiveImage, DXARC_HEAD_VER3_SIZE ) ;
 				DXA_KeyConv( &DXA->HeadV5, DXARC_HEAD_VER3_SIZE, 0, DXA->Key ) ;
 
-				DXA->HeadV5.CodePage = 0 ;
-				DXA->CharSet = DX_CHARSET_DEFAULT ;
+				DXA->HeadV5.CodePage = DX_CHARSET_SHFTJIS ;
+				DXA->CodePage        = DX_CHARSET_SHFTJIS ;
 			}
 
 			// 情報テーブルのサイズ分のメモリを確保する
 			DXA->Table.Top = ( BYTE * )DXALLOC( DXA->HeadV5.HeadSize ) ;
-			if( DXA->Table.Top == NULL ) goto ERR ;
+			if( DXA->Table.Top == NULL )
+			{
+				goto ERR ;
+			}
 			
 			// 情報テーブルをメモリに読み込む
-			_MEMCPY( DXA->Table.Top, (BYTE *)DXA->MemoryImage + DXA->HeadV5.FileNameTableStartAddress, DXA->HeadV5.HeadSize ) ;
+			_MEMCPY( DXA->Table.Top, ( BYTE * )DXA->MemoryImage + DXA->HeadV5.FileNameTableStartAddress, DXA->HeadV5.HeadSize ) ;
 			if( DXA->HeadV5.Version >= 0x0005 )
 			{
 				DXA_KeyConv( DXA->Table.Top, DXA->HeadV5.HeadSize,                                     0, DXA->Key ) ;
@@ -1041,10 +1298,16 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 				datp += DXARC_HEAD_VER3_SIZE ;
 
 				// ＩＤの検査
-				if( DXA->HeadV5.Head != DXAHEAD ) goto ERR ;
+				if( DXA->HeadV5.Head != DXAHEAD )
+				{
+					goto ERR ;
+				}
 				
 				// バージョン検査
-				if( DXA->HeadV5.Version > DXAVER_VER5 ) goto ERR ;
+				if( DXA->HeadV5.Version > DXAVER_VER5 )
+				{
+					goto ERR ;
+				}
 
 				// バージョンが 4以上だったらコードページを読み込む
 				if( DXA->HeadV5.Version >= 0x0004 )
@@ -1056,17 +1319,27 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 					}
 					switch( DXA->HeadV5.CodePage )
 					{
-					case 949 : DXA->CharSet = DX_CHARSET_HANGEUL ; break ;
-					case 950 : DXA->CharSet = DX_CHARSET_BIG5 ;    break ;
-					case 936 : DXA->CharSet = DX_CHARSET_GB2312 ;  break ;
-					case 932 : DXA->CharSet = DX_CHARSET_SHFTJIS ; break ;
-					default :  DXA->CharSet = DX_CHARSET_DEFAULT ; break ;
+					case DX_CODEPAGE_UHC :
+					case DX_CODEPAGE_BIG5 :
+					case DX_CODEPAGE_GB2312 :
+					case DX_CODEPAGE_SHIFTJIS :
+					case DX_CODEPAGE_UTF16LE :
+					case DX_CODEPAGE_UTF16BE :
+					case DX_CODEPAGE_UTF8 :
+					case DX_CODEPAGE_UTF32LE :
+					case DX_CODEPAGE_UTF32BE :
+						DXA->CodePage = ( int )DXA->HeadV5.CodePage ;
+						break ;
+
+					default :
+						DXA->CodePage = DX_CHARSET_SHFTJIS ;
+						break ;
 					}
 				}
 				else
 				{
-					DXA->HeadV5.CodePage = 0 ;
-					DXA->CharSet = DX_CHARSET_DEFAULT ;
+					DXA->HeadV5.CodePage = DX_CHARSET_SHFTJIS ;
+					DXA->CodePage        = DX_CHARSET_SHFTJIS ;
 				}
 
 				// 情報テーブルのアドレスをセットする
@@ -1143,10 +1416,16 @@ ERR :
 extern int DXA_CheckIdle( DXARC *DXA )
 {
 	// 非同期オープン中ではなければ特にやることはない
-	if( DXA->ASyncOpenFlag == FALSE ) return TRUE ;
+	if( DXA->ASyncOpenFlag == FALSE )
+	{
+		return TRUE ;
+	}
 
 	// ファイル読み込みが完了しているか調べる
-	if( ReadOnlyFileAccessIdleCheck( DXA->ASyncOpenFilePointer ) == FALSE ) return FALSE ;
+	if( ReadOnlyFileAccessIdleCheck( DXA->ASyncOpenFilePointer ) == FALSE )
+	{
+		return FALSE ;
+	}
 
 	// ファイルを閉じる
 	ReadOnlyFileAccessClose( DXA->ASyncOpenFilePointer ) ;
@@ -1177,22 +1456,28 @@ extern int DXA_CheckIdle( DXARC *DXA )
 }
 
 // アーカイブファイルを開き最初にすべてメモリ上に読み込んでから処理する( 0:成功  -1:失敗 )
-extern int DXA_OpenArchiveFromFileUseMem( DXARC *DXA, const TCHAR *ArchivePath, const char *KeyString , int ASyncThread )
+extern int DXA_OpenArchiveFromFileUseMem( DXARC *DXA, const wchar_t *ArchivePath, const char *KeyString , int ASyncThread )
 {
 	// 既になんらかのアーカイブを開いていた場合はエラー
-	if( DXA->WinFilePointer__ != 0 || DXA->MemoryImage ) return -1 ;
+	if( DXA->WinFilePointer__ != 0 || DXA->MemoryImage )
+	{
+		return -1 ;
+	}
 
 	// 鍵の作成
 	DXA_KeyCreate( KeyString, DXA->Key ) ;
 
 	// ヘッダ部分だけ先に読み込む
 	DXA->ASyncOpenFilePointer = 0 ;
-	DXA->MemoryImage = NULL ;
+	DXA->MemoryImage          = NULL ;
 	DXA->ASyncOpenFilePointer = ReadOnlyFileAccessOpen( ArchivePath, FALSE, TRUE, FALSE ) ;
-	if( DXA->ASyncOpenFilePointer == 0 ) return -1 ;
+	if( DXA->ASyncOpenFilePointer == 0 )
+	{
+		return -1 ;
+	}
 
 	// ファイルパスを保存
-	lstrcpy( DXA->FilePath, ArchivePath ) ;
+	_WCSCPY( DXA->FilePath, ArchivePath ) ;
 
 	// ファイルのサイズを取得する
 	ReadOnlyFileAccessSeek( DXA->ASyncOpenFilePointer, 0L, SEEK_END ) ;
@@ -1216,7 +1501,9 @@ extern int DXA_OpenArchiveFromFileUseMem( DXARC *DXA, const TCHAR *ArchivePath, 
 
 		// バージョン２以前でもない場合はエラー
 		if( DXA->Head.Head != DXAHEAD )
+		{
 			goto ERR ;
+		}
 	}
 
 	// バージョン6以降かどうかで処理を分岐
@@ -1225,25 +1512,41 @@ extern int DXA_OpenArchiveFromFileUseMem( DXARC *DXA, const TCHAR *ArchivePath, 
 		DXA->V5Flag = FALSE ;
 
 		// バージョン検査
-		if( DXA->Head.Version > DXAVER ) goto ERR ;
+		if( DXA->Head.Version > DXAVER )
+		{
+			goto ERR ;
+		}
 
 		// バージョンが４以上かどうかで読み込む残りのヘッダサイズを変更
 		DXA_KeyConvFileRead( ( BYTE * )&DXA->Head + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER6_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
 		switch( DXA->Head.CodePage )
 		{
-		case 949 : DXA->CharSet = DX_CHARSET_HANGEUL ; break ;
-		case 950 : DXA->CharSet = DX_CHARSET_BIG5 ;    break ;
-		case 936 : DXA->CharSet = DX_CHARSET_GB2312 ;  break ;
-		case 932 : DXA->CharSet = DX_CHARSET_SHFTJIS ; break ;
-		default :  DXA->CharSet = DX_CHARSET_DEFAULT ; break ;
+		case DX_CODEPAGE_UHC :
+		case DX_CODEPAGE_BIG5 :
+		case DX_CODEPAGE_GB2312 :
+		case DX_CODEPAGE_SHIFTJIS :
+		case DX_CODEPAGE_UTF16LE :
+		case DX_CODEPAGE_UTF16BE :
+		case DX_CODEPAGE_UTF8 :
+		case DX_CODEPAGE_UTF32LE :
+		case DX_CODEPAGE_UTF32BE :
+			DXA->CodePage = ( int )DXA->Head.CodePage ;
+			break ;
+
+		default :
+			DXA->CodePage = DX_CHARSET_SHFTJIS ;
+			break ;
 		}
 		
 		// 情報テーブルのサイズ分のメモリを確保する
 		DXA->Table.Top = ( BYTE * )DXALLOC( DXA->Head.HeadSize ) ;
-		if( DXA->Table.Top == NULL ) goto ERR ;
+		if( DXA->Table.Top == NULL )
+		{
+			goto ERR ;
+		}
 		
 		// 情報テーブルをメモリに読み込む
-		ReadOnlyFileAccessSeek( DXA->ASyncOpenFilePointer, DXA->Head.FileNameTableStartAddress, SEEK_SET ) ;
+		ReadOnlyFileAccessSeek( DXA->ASyncOpenFilePointer, ( LONGLONG )DXA->Head.FileNameTableStartAddress, SEEK_SET ) ;
 		DXA_KeyConvFileRead( DXA->Table.Top, DXA->Head.HeadSize, DXA->ASyncOpenFilePointer, DXA->Key, 0 ) ;
 
 		// 情報テーブルのアドレスをセットする
@@ -1259,7 +1562,10 @@ extern int DXA_OpenArchiveFromFileUseMem( DXARC *DXA, const TCHAR *ArchivePath, 
 		DXA->V5Flag = TRUE ;
 
 		// バージョン検査
-		if( DXA->HeadV5.Version > DXAVER_VER5 ) goto ERR ;
+		if( DXA->HeadV5.Version > DXAVER_VER5 )
+		{
+			goto ERR ;
+		}
 
 		// バージョンが４以上かどうかで読み込む残りのヘッダサイズを変更
 		if( DXA->HeadV5.Version >= 0x0004 )
@@ -1267,23 +1573,36 @@ extern int DXA_OpenArchiveFromFileUseMem( DXARC *DXA, const TCHAR *ArchivePath, 
 			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER4_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
 			switch( DXA->HeadV5.CodePage )
 			{
-			case 949 : DXA->CharSet = DX_CHARSET_HANGEUL ; break ;
-			case 950 : DXA->CharSet = DX_CHARSET_BIG5 ;    break ;
-			case 936 : DXA->CharSet = DX_CHARSET_GB2312 ;  break ;
-			case 932 : DXA->CharSet = DX_CHARSET_SHFTJIS ; break ;
-			default :  DXA->CharSet = DX_CHARSET_DEFAULT ; break ;
+			case DX_CODEPAGE_UHC :
+			case DX_CODEPAGE_BIG5 :
+			case DX_CODEPAGE_GB2312 :
+			case DX_CODEPAGE_SHIFTJIS :
+			case DX_CODEPAGE_UTF16LE :
+			case DX_CODEPAGE_UTF16BE :
+			case DX_CODEPAGE_UTF8 :
+			case DX_CODEPAGE_UTF32LE :
+			case DX_CODEPAGE_UTF32BE :
+				DXA->CodePage = ( int )DXA->HeadV5.CodePage ;
+				break ;
+
+			default :
+				DXA->CodePage = DX_CHARSET_SHFTJIS ;
+				break ;
 			}
 		}
 		else
 		{
 			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER3_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
-			DXA->HeadV5.CodePage = 0 ;
-			DXA->CharSet = DX_CHARSET_DEFAULT ;
+			DXA->HeadV5.CodePage = DX_CHARSET_SHFTJIS ;
+			DXA->CodePage        = DX_CHARSET_SHFTJIS ;
 		}
 		
 		// 情報テーブルのサイズ分のメモリを確保する
 		DXA->Table.Top = ( BYTE * )DXALLOC( DXA->HeadV5.HeadSize ) ;
-		if( DXA->Table.Top == NULL ) goto ERR ;
+		if( DXA->Table.Top == NULL )
+		{
+			goto ERR ;
+		}
 		
 		// 情報テーブルをメモリに読み込む
 		ReadOnlyFileAccessSeek( DXA->ASyncOpenFilePointer, DXA->HeadV5.FileNameTableStartAddress, SEEK_SET ) ;
@@ -1320,7 +1639,10 @@ extern int DXA_OpenArchiveFromFileUseMem( DXARC *DXA, const TCHAR *ArchivePath, 
 	// 同期オープンの場合はここで開き終わるのを待つ
 	if( ASyncThread == FALSE )
 	{
-		while( DXA_CheckIdle( DXA ) == FALSE ) Sleep(0);
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
 	}
 
 	// 終了
@@ -1346,20 +1668,26 @@ ERR :
 }
 
 // アーカイブファイルを開く( 0:成功  -1:失敗 )
-extern int DXA_OpenArchiveFromFile( DXARC *DXA, const TCHAR *ArchivePath, const char *KeyString )
+extern int DXA_OpenArchiveFromFile( DXARC *DXA, const wchar_t *ArchivePath, const char *KeyString )
 {
 	// 既になんらかのアーカイブを開いていた場合はエラー
-	if( DXA->WinFilePointer__ != 0 || DXA->MemoryImage ) return -1 ;
+	if( DXA->WinFilePointer__ != 0 || DXA->MemoryImage )
+	{
+		return -1 ;
+	}
 
 	// ヘッダの初期化
 	_MEMSET( &DXA->Head, 0, sizeof( DXA->Head ) ) ;
 
 	// アーカイブファイルを開こうと試みる
 	DXA->WinFilePointer__ = ReadOnlyFileAccessOpen( ArchivePath, FALSE, TRUE, FALSE ) ;
-	if( DXA->WinFilePointer__ == 0 ) return -1 ;
+	if( DXA->WinFilePointer__ == 0 )
+	{
+		return -1 ;
+	}
 
 	// ファイルパスを保存
-	lstrcpy( DXA->FilePath, ArchivePath ) ;
+	_WCSCPY( DXA->FilePath, ArchivePath ) ;
 
 	// 鍵文字列の作成
 	DXA_KeyCreate( KeyString, DXA->Key ) ;
@@ -1378,7 +1706,9 @@ extern int DXA_OpenArchiveFromFile( DXARC *DXA, const TCHAR *ArchivePath, const 
 
 		// バージョン２以前でもない場合はエラー
 		if( DXA->Head.Head != DXAHEAD )
+		{
 			goto ERR ;
+		}
 	}
 
 	// バージョン6以降かどうかで処理を分岐
@@ -1387,25 +1717,41 @@ extern int DXA_OpenArchiveFromFile( DXARC *DXA, const TCHAR *ArchivePath, const 
 		DXA->V5Flag = FALSE ;
 
 		// バージョン検査
-		if( DXA->Head.Version > DXAVER ) goto ERR ;
+		if( DXA->Head.Version > DXAVER )
+		{
+			goto ERR ;
+		}
 
 		// バージョンが４以上かどうかで読み込む残りのヘッダサイズを変更
 		DXA_KeyConvFileRead( ( BYTE * )&DXA->Head + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER6_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
 		switch( DXA->Head.CodePage )
 		{
-		case 949 : DXA->CharSet = DX_CHARSET_HANGEUL ; break ;
-		case 950 : DXA->CharSet = DX_CHARSET_BIG5 ;    break ;
-		case 936 : DXA->CharSet = DX_CHARSET_GB2312 ;  break ;
-		case 932 : DXA->CharSet = DX_CHARSET_SHFTJIS ; break ;
-		default :  DXA->CharSet = DX_CHARSET_DEFAULT ; break ;
+		case DX_CODEPAGE_UHC :
+		case DX_CODEPAGE_BIG5 :
+		case DX_CODEPAGE_GB2312 :
+		case DX_CODEPAGE_SHIFTJIS :
+		case DX_CODEPAGE_UTF16LE :
+		case DX_CODEPAGE_UTF16BE :
+		case DX_CODEPAGE_UTF8 :
+		case DX_CODEPAGE_UTF32LE :
+		case DX_CODEPAGE_UTF32BE :
+			DXA->CodePage = ( int )DXA->Head.CodePage ;
+			break ;
+
+		default :
+			DXA->CodePage = DX_CHARSET_SHFTJIS ;
+			break ;
 		}
 
 		// 情報テーブルのサイズ分のメモリを確保する
 		DXA->Table.Top = ( BYTE * )DXALLOC( DXA->Head.HeadSize ) ;
-		if( DXA->Table.Top == NULL ) goto ERR ;
+		if( DXA->Table.Top == NULL )
+		{
+			goto ERR ;
+		}
 		
 		// 情報テーブルをメモリに読み込む
-		ReadOnlyFileAccessSeek( DXA->WinFilePointer__, DXA->Head.FileNameTableStartAddress, SEEK_SET ) ;
+		ReadOnlyFileAccessSeek( DXA->WinFilePointer__, ( LONGLONG )DXA->Head.FileNameTableStartAddress, SEEK_SET ) ;
 		DXA_KeyConvFileRead( DXA->Table.Top, DXA->Head.HeadSize, DXA->WinFilePointer__, DXA->Key, 0 ) ;
 
 		// 情報テーブルのアドレスをセットする
@@ -1421,7 +1767,10 @@ extern int DXA_OpenArchiveFromFile( DXARC *DXA, const TCHAR *ArchivePath, const 
 		DXA->V5Flag = TRUE ;
 
 		// バージョン検査
-		if( DXA->HeadV5.Version > DXAVER_VER5 ) goto ERR ;
+		if( DXA->HeadV5.Version > DXAVER_VER5 )
+		{
+			goto ERR ;
+		}
 
 		// バージョンが４以上かどうかで読み込む残りのヘッダサイズを変更
 		if( DXA->HeadV5.Version >= 0x0004 )
@@ -1429,23 +1778,36 @@ extern int DXA_OpenArchiveFromFile( DXARC *DXA, const TCHAR *ArchivePath, const 
 			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER4_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
 			switch( DXA->HeadV5.CodePage )
 			{
-			case 949 : DXA->CharSet = DX_CHARSET_HANGEUL ; break ;
-			case 950 : DXA->CharSet = DX_CHARSET_BIG5 ;    break ;
-			case 936 : DXA->CharSet = DX_CHARSET_GB2312 ;  break ;
-			case 932 : DXA->CharSet = DX_CHARSET_SHFTJIS ; break ;
-			default :  DXA->CharSet = DX_CHARSET_DEFAULT ; break ;
+			case DX_CODEPAGE_UHC :
+			case DX_CODEPAGE_BIG5 :
+			case DX_CODEPAGE_GB2312 :
+			case DX_CODEPAGE_SHIFTJIS :
+			case DX_CODEPAGE_UTF16LE :
+			case DX_CODEPAGE_UTF16BE :
+			case DX_CODEPAGE_UTF8 :
+			case DX_CODEPAGE_UTF32LE :
+			case DX_CODEPAGE_UTF32BE :
+				DXA->CodePage = ( int )DXA->HeadV5.CodePage ;
+				break ;
+
+			default :
+				DXA->CodePage = DX_CHARSET_SHFTJIS ;
+				break ;
 			}
 		}
 		else
 		{
 			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER3_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
-			DXA->HeadV5.CodePage = 0 ;
-			DXA->CharSet = DX_CHARSET_DEFAULT ;
+			DXA->HeadV5.CodePage = DX_CHARSET_SHFTJIS ;
+			DXA->CodePage        = DX_CHARSET_SHFTJIS ;
 		}
 
 		// 情報テーブルのサイズ分のメモリを確保する
 		DXA->Table.Top = ( BYTE * )DXALLOC( DXA->HeadV5.HeadSize ) ;
-		if( DXA->Table.Top == NULL ) goto ERR ;
+		if( DXA->Table.Top == NULL )
+		{
+			goto ERR ;
+		}
 		
 		// 情報テーブルをメモリに読み込む
 		ReadOnlyFileAccessSeek( DXA->WinFilePointer__, DXA->HeadV5.FileNameTableStartAddress, SEEK_SET ) ;
@@ -1496,12 +1858,18 @@ ERR :
 extern int DXA_CloseArchive( DXARC *DXA )
 {
 	// 既に閉じていたら何もせず終了
-	if( DXA->WinFilePointer__ == 0 && DXA->MemoryImage == NULL ) return 0 ;
+	if( DXA->WinFilePointer__ == 0 && DXA->MemoryImage == NULL )
+	{
+		return 0 ;
+	}
 
 	// 非同期同期オープン中の場合はここで開き終わるのを待つ
 	if( DXA->ASyncOpenFlag == TRUE )
 	{
-		while( DXA_CheckIdle( DXA ) == FALSE ) Sleep(0);
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
 	}
 
 	// メモリから開いているかどうかで処理を分岐
@@ -1592,7 +1960,10 @@ static int DXA_ChangeCurrentDirectoryFast( DXARC *DXA, DXARC_SEARCHDATA *SearchD
 	// 非同期同期オープン中の場合はここで開き終わるのを待つ
 	if( DXA->ASyncOpenFlag == TRUE )
 	{
-		while( DXA_CheckIdle( DXA ) == FALSE ) Sleep(0);
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
 	}
 
 	PackNum  = SearchData->PackNum ;
@@ -1604,29 +1975,47 @@ static int DXA_ChangeCurrentDirectoryFast( DXARC *DXA, DXARC_SEARCHDATA *SearchD
 	{
 		DXARC_FILEHEAD_VER5 *FileH ;
 
-		FileH = ( DXARC_FILEHEAD_VER5 * )( DXA->Table.FileTable + DXA->CurrentDirectoryV5->FileHeadAddress ) ;
-		Num = (int)DXA->CurrentDirectoryV5->FileHeadNum ;
-		FileHeadSize = DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ;
+		FileH        = ( DXARC_FILEHEAD_VER5 * )( DXA->Table.FileTable + DXA->CurrentDirectoryV5->FileHeadAddress ) ;
+		Num          = ( int )DXA->CurrentDirectoryV5->FileHeadNum ;
+		FileHeadSize = ( DWORD )( DXA->HeadV5.Version >= 0x0002 ? DXARC_FILEHEAD_VER2_SIZE : DXARC_FILEHEAD_VER1_SIZE ) ;
 		for( i = 0 ; i < Num ; i ++, FileH = (DXARC_FILEHEAD_VER5 *)( (BYTE *)FileH + FileHeadSize ) )
 		{
 			// ディレクトリチェック
-			if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) == 0 ) continue ;
+			if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) == 0 )
+			{
+				continue ;
+			}
 
 			// 文字列数とパリティチェック
 			NameData = DXA->Table.NameTable + FileH->NameAddress ;
-			if( PackNum != ((WORD *)NameData)[0] || Parity != ((WORD *)NameData)[1] ) continue ;
+			if( PackNum != ( ( WORD * )NameData )[ 0 ] ||
+				Parity  != ( ( WORD * )NameData )[ 1 ] )
+			{
+				continue ;
+			}
 
 			// 文字列チェック
 			NameData += 4 ;
 			for( j = 0, k = 0 ; j < PackNum ; j ++, k += 4 )
-				if( *((DWORD *)&PathData[k]) != *((DWORD *)&NameData[k]) ) break ;
+			{
+				if( *( ( DWORD * )&PathData[ k ] ) != *( ( DWORD * )&NameData[ k ] ) )
+				{
+					break ;
+				}
+			}
 
 			// 適合したディレクトリがあったらここで終了
-			if( PackNum == j ) break ;
+			if( PackNum == j )
+			{
+				break ;
+			}
 		}
 
 		// 無かったらエラー
-		if( i == Num ) return -1 ;
+		if( i == Num )
+		{
+			return -1 ;
+		}
 
 		// 在ったらカレントディレクトリを変更
 		DXA->CurrentDirectoryV5 = ( DXARC_DIRECTORY_VER5 * )( DXA->Table.DirectoryTable + FileH->DataAddress ) ;
@@ -1635,29 +2024,47 @@ static int DXA_ChangeCurrentDirectoryFast( DXARC *DXA, DXARC_SEARCHDATA *SearchD
 	{
 		DXARC_FILEHEAD *FileH ;
 
-		FileH = ( DXARC_FILEHEAD * )( DXA->Table.FileTable + DXA->CurrentDirectory->FileHeadAddress ) ;
-		Num = (int)DXA->CurrentDirectory->FileHeadNum ;
+		FileH        = ( DXARC_FILEHEAD * )( DXA->Table.FileTable + DXA->CurrentDirectory->FileHeadAddress ) ;
+		Num          = ( int )DXA->CurrentDirectory->FileHeadNum ;
 		FileHeadSize = DXARC_FILEHEAD_VER6_SIZE ;
 		for( i = 0 ; i < Num ; i ++, FileH = (DXARC_FILEHEAD *)( (BYTE *)FileH + FileHeadSize ) )
 		{
 			// ディレクトリチェック
-			if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) == 0 ) continue ;
+			if( ( FileH->Attributes & FILE_ATTRIBUTE_DIRECTORY ) == 0 )
+			{
+				continue ;
+			}
 
 			// 文字列数とパリティチェック
 			NameData = DXA->Table.NameTable + FileH->NameAddress ;
-			if( PackNum != ((WORD *)NameData)[0] || Parity != ((WORD *)NameData)[1] ) continue ;
+			if( PackNum != ( ( WORD * )NameData )[ 0 ] ||
+				Parity  != ( ( WORD * )NameData )[ 1 ] )
+			{
+				continue ;
+			}
 
 			// 文字列チェック
 			NameData += 4 ;
 			for( j = 0, k = 0 ; j < PackNum ; j ++, k += 4 )
-				if( *((DWORD *)&PathData[k]) != *((DWORD *)&NameData[k]) ) break ;
+			{
+				if( *( ( DWORD * )&PathData[ k ] ) != *( ( DWORD * )&NameData[ k ] ) )
+				{
+					break ;
+				}
+			}
 
 			// 適合したディレクトリがあったらここで終了
-			if( PackNum == j ) break ;
+			if( PackNum == j )
+			{
+				break ;
+			}
 		}
 
 		// 無かったらエラー
-		if( i == Num ) return -1 ;
+		if( i == Num )
+		{
+			return -1 ;
+		}
 
 		// 在ったらカレントディレクトリを変更
 		DXA->CurrentDirectory = ( DXARC_DIRECTORY * )( DXA->Table.DirectoryTable + FileH->DataAddress ) ;
@@ -1668,13 +2075,27 @@ static int DXA_ChangeCurrentDirectoryFast( DXARC *DXA, DXARC_SEARCHDATA *SearchD
 }
 
 // アーカイブ内のディレクトリパスを変更する( 0:成功  -1:失敗 )
-extern int DXA_ChangeCurrentDir( DXARC *DXA, const char *DirPath )
+extern int DXA_ChangeCurrentDir( DXARC *DXA, int CodePage, const char *DirPath )
 {
-	return DXA_ChangeCurrentDirectoryBase( DXA, DirPath, true ) ;
+	BYTE TempBuffer[ 2048 ] ;
+	const BYTE *DirPathB ;
+
+	// コードページが異なる場合は変換する
+	if( CodePage != DXA->CodePage )
+	{
+		ConvString( DirPath, CodePage, ( char * )TempBuffer, DXA->CodePage ) ;
+		DirPathB = TempBuffer ;
+	}
+	else
+	{
+		DirPathB = ( const BYTE * )DirPath ;
+	}
+
+	return DXA_ChangeCurrentDirectoryBase( DXA, DirPathB, true ) ;
 }
 
 // アーカイブ内のディレクトリパスを変更する( 0:成功  -1:失敗 )
-static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const char *DirectoryPath, bool ErrorIsDirectoryReset, DXARC_SEARCHDATA *LastSearchData )
+static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const BYTE *DirectoryPath, bool ErrorIsDirectoryReset, DXARC_SEARCHDATA *LastSearchData )
 {
 	DXARC_DIRECTORY *OldDir ;
 	DXARC_SEARCHDATA SearchData ;
@@ -1682,14 +2103,21 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const char *DirectoryPath
 	// 非同期同期オープン中の場合はここで開き終わるのを待つ
 	if( DXA->ASyncOpenFlag == TRUE )
 	{
-		while( DXA_CheckIdle( DXA ) == FALSE ) Sleep(0);
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
 	}
 
 	// ここに留まるパスだったら無視
-	if( _STRCMP( DirectoryPath, "." ) == 0 ) return 0 ;
+	if( CL_strcmp_str2_ascii( DXA->CodePage, ( const char * )DirectoryPath, ( const char * )Ascii_DotStr ) == 0 )
+	{
+		return 0 ;
+	}
 
 	// 『\ or /』だけの場合はルートディレクトリに戻る
-	if( _STRCMP( DirectoryPath, "\\" ) == 0 || _STRCMP( DirectoryPath, "/" ) == 0 )
+	if( CL_strcmp_str2_ascii( DXA->CodePage, ( const char * )DirectoryPath, ( const char * )Ascii_EnStr    ) == 0 ||
+		CL_strcmp_str2_ascii( DXA->CodePage, ( const char * )DirectoryPath, ( const char * )Ascii_SlashStr ) == 0 )
 	{
 		if( DXA->V5Flag )
 		{
@@ -1703,7 +2131,7 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const char *DirectoryPath
 	}
 
 	// 下に一つ下がるパスだったら処理を分岐
-	if( _STRCMP( DirectoryPath, ".." ) == 0 )
+	if( CL_strcmp_str2_ascii( DXA->CodePage, ( const char * )DirectoryPath, ( const char * )Ascii_DoubleDotStr ) == 0 )
 	{
 		if( DXA->V5Flag )
 		{
@@ -1730,7 +2158,8 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const char *DirectoryPath
 	OldDir = DXA->CurrentDirectory ;
 
 	// パス中に『\』があるかどうかで処理を分岐
-	if( _STRCHR( DirectoryPath, '\\' ) == NULL && _STRCHR( DirectoryPath, '/' ) == NULL )
+	if( CL_strchr( DXA->CodePage, ( const char * )DirectoryPath, '\\' ) == NULL &&
+		CL_strchr( DXA->CodePage, ( const char * )DirectoryPath, '/'  ) == NULL )
 	{
 		// ファイル名を検索専用の形式に変換する
 		DXA_ConvSearchData( DXA, &SearchData, DirectoryPath, NULL ) ;
@@ -1741,20 +2170,30 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const char *DirectoryPath
 	else
 	{
 		// \ or / がある場合は繋がったディレクトリを一つづつ変更してゆく
-		int Point, StrLength ;
+		int i ;
+		int StrLength ;
+		int CharBytes ;
+		int CharBytes2 ;
+		DWORD CharCode ;
+		DWORD CharCode2 ;
 
-		Point = 0 ;
+		i = 0 ;
+
 		// ループ
 		for(;;)
 		{
 			// 文字列を取得する
-			DXA_ConvSearchData( DXA, &SearchData, &DirectoryPath[Point], &StrLength ) ;
-			Point += StrLength ;
+			DXA_ConvSearchData( DXA, &SearchData, &DirectoryPath[ i ], &StrLength ) ;
+			i += StrLength ;
 
 			// もし初っ端が \ or / だった場合はルートディレクトリに落とす
-			if( StrLength == 0 && ( DirectoryPath[Point] == '\\' || DirectoryPath[Point] == '/' ) )
+			CharCode = GetCharCode( ( const char * )&DirectoryPath[ i ], DXA->CodePage, &CharBytes ) ;
+			if( StrLength == 0 && ( CharCode == '\\' || CharCode == '/' ) )
 			{
-				DXA_ChangeCurrentDirectoryBase( DXA, "\\", false ) ;
+				BYTE EnStr[ 16 ] ;
+
+				ConvString( ( const char * )Ascii_EnStr, DX_CODEPAGE_ASCII, ( char * )EnStr, DXA->CodePage ) ;
+				DXA_ChangeCurrentDirectoryBase( DXA, EnStr, false ) ;
 			}
 			else
 			{
@@ -1763,7 +2202,10 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const char *DirectoryPath
 				{
 					// エラーが起きて、更にエラーが起きた時に元のディレクトリに戻せの
 					// フラグが立っている場合は元のディレクトリに戻す
-					if( ErrorIsDirectoryReset == true ) DXA->CurrentDirectory = OldDir ;
+					if( ErrorIsDirectoryReset == true )
+					{
+						DXA->CurrentDirectory = OldDir ;
+					}
 
 					// エラー終了
 					goto ERR ;
@@ -1772,16 +2214,26 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const char *DirectoryPath
 
 			// もし終端文字で終了した場合はループから抜ける
 			// 又はあと \ or / しかない場合もループから抜ける
-			if( DirectoryPath[Point] == '\0' ||
-				( ( DirectoryPath[Point] == '\\' && DirectoryPath[Point+1] == '\0' ) ||
-				  ( DirectoryPath[Point] == '/' && DirectoryPath[Point+1] == '\0' ) ) ) break ;
-			Point ++ ;
+			if( CharCode == '\0' )
+			{
+				break ;
+			}
+			else
+			{
+				CharCode2 = GetCharCode( ( const char * )&DirectoryPath[ i + CharBytes ], DXA->CodePage, &CharBytes2 ) ;
+				if( ( CharCode == '\\' && CharCode2 == '\0' ) ||
+					( CharCode == '/'  && CharCode2 == '\0' ) )
+				{
+					break ;
+				}
+			}
+			i += CharBytes ;
 		}
 	}
 
 	if( LastSearchData != NULL )
 	{
-		_MEMCPY( LastSearchData->FileName, SearchData.FileName, SearchData.PackNum * 4 ) ;
+		_MEMCPY( LastSearchData->FileName, SearchData.FileName, ( size_t )( SearchData.PackNum * 4 ) ) ;
 		LastSearchData->Parity  = SearchData.Parity ;
 		LastSearchData->PackNum = SearchData.PackNum ;
 	}
@@ -1792,7 +2244,7 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const char *DirectoryPath
 ERR:
 	if( LastSearchData != NULL )
 	{
-		_MEMCPY( LastSearchData->FileName, SearchData.FileName, SearchData.PackNum * 4 ) ;
+		_MEMCPY( LastSearchData->FileName, SearchData.FileName, ( size_t )( SearchData.PackNum * 4 ) ) ;
 		LastSearchData->Parity  = SearchData.Parity ;
 		LastSearchData->PackNum = SearchData.PackNum ;
 	}
@@ -1802,104 +2254,115 @@ ERR:
 }
 		
 // アーカイブ内のカレントディレクトリパスを取得する
-extern int DXA_GetCurrentDir( DXARC *DXA, char *DirPathBuffer, int BufferSize )
-{
-	char DirPath[256] ;
-	int Depth, i ;
-
-	// 非同期同期オープン中の場合はここで開き終わるのを待つ
-	if( DXA->ASyncOpenFlag == TRUE )
-	{
-		while( DXA_CheckIdle( DXA ) == FALSE ) Sleep(0);
-	}
-
-	if( DXA->V5Flag )
-	{
-		DXARC_DIRECTORY_VER5 *Dir[200], *DirTempP ;
-
-		// ルートディレクトリに着くまで検索する
-		Depth = 0 ;
-		DirTempP = DXA->CurrentDirectoryV5 ;
-		while( DirTempP->DirectoryAddress != 0xffffffff && DirTempP->DirectoryAddress != 0 )
-		{
-			Dir[Depth] = DirTempP ;
-			DirTempP = ( DXARC_DIRECTORY_VER5 * )( DXA->Table.DirectoryTable + DirTempP->ParentDirectoryAddress ) ;
-			Depth ++ ;
-		}
-		
-		// パス名を連結する
-		DirPath[0] = '\0' ;
-		for( i = Depth - 1 ; i >= 0 ; i -- )
-		{
-			_STRCAT( DirPath, "\\" ) ;
-			_STRCAT( DirPath, (char *)DXA->Table.NameTable + ((DXARC_FILEHEAD_VER5 *)( DXA->Table.FileTable + Dir[i]->DirectoryAddress ))->NameAddress ) ;
-		}
-	}
-	else
-	{
-		DXARC_DIRECTORY *Dir[200], *DirTempP ;
-
-		// ルートディレクトリに着くまで検索する
-		Depth = 0 ;
-		DirTempP = DXA->CurrentDirectory ;
-		while( DirTempP->DirectoryAddress != 0xffffffff && DirTempP->DirectoryAddress != 0 )
-		{
-			Dir[Depth] = DirTempP ;
-			DirTempP = ( DXARC_DIRECTORY * )( DXA->Table.DirectoryTable + DirTempP->ParentDirectoryAddress ) ;
-			Depth ++ ;
-		}
-		
-		// パス名を連結する
-		DirPath[0] = '\0' ;
-		for( i = Depth - 1 ; i >= 0 ; i -- )
-		{
-			_STRCAT( DirPath, "\\" ) ;
-			_STRCAT( DirPath, (char *)DXA->Table.NameTable + ((DXARC_FILEHEAD *)( DXA->Table.FileTable + Dir[i]->DirectoryAddress ))->NameAddress ) ;
-		}
-	}
-
-	// バッファの長さが０か、長さが足りないときはディレクトリ名の長さを返す
-	if( BufferSize == 0 || BufferSize < (int)lstrlenA( DirPath ) )
-	{
-		return lstrlenA( DirPath ) + 1 ;
-	}
-	else
-	{
-		// ディレクトリ名をバッファに転送する
-		_STRCPY( DirPathBuffer, DirPath ) ;
-	}
-
-	// 終了
-	return 0 ;
-}
+//extern int DXA_GetCurrentDir( DXARC *DXA, char *DirPathBuffer, int BufferSize )
+//{
+//	char DirPath[FILEPATH_MAX] ;
+//	int Depth, i ;
+//
+//	// 非同期同期オープン中の場合はここで開き終わるのを待つ
+//	if( DXA->ASyncOpenFlag == TRUE )
+//	{
+//		while( DXA_CheckIdle( DXA ) == FALSE )
+//		{
+//			Thread_Sleep( 0 ) ;
+//		}
+//	}
+//
+//	if( DXA->V5Flag )
+//	{
+//		DXARC_DIRECTORY_VER5 *Dir[200], *DirTempP ;
+//
+//		// ルートディレクトリに着くまで検索する
+//		Depth = 0 ;
+//		DirTempP = DXA->CurrentDirectoryV5 ;
+//		while( DirTempP->DirectoryAddress != 0xffffffff && DirTempP->DirectoryAddress != 0 )
+//		{
+//			Dir[Depth] = DirTempP ;
+//			DirTempP = ( DXARC_DIRECTORY_VER5 * )( DXA->Table.DirectoryTable + DirTempP->ParentDirectoryAddress ) ;
+//			Depth ++ ;
+//		}
+//		
+//		// パス名を連結する
+//		DirPath[0] = '\0' ;
+//		for( i = Depth - 1 ; i >= 0 ; i -- )
+//		{
+//			_STRCAT( DirPath, "\\" ) ;
+//			_STRCAT( DirPath, (char *)DXA->Table.NameTable + ((DXARC_FILEHEAD_VER5 *)( DXA->Table.FileTable + Dir[i]->DirectoryAddress ))->NameAddress ) ;
+//		}
+//	}
+//	else
+//	{
+//		DXARC_DIRECTORY *Dir[200], *DirTempP ;
+//
+//		// ルートディレクトリに着くまで検索する
+//		Depth = 0 ;
+//		DirTempP = DXA->CurrentDirectory ;
+//		while( DirTempP->DirectoryAddress != 0xffffffff && DirTempP->DirectoryAddress != 0 )
+//		{
+//			Dir[Depth] = DirTempP ;
+//			DirTempP = ( DXARC_DIRECTORY * )( DXA->Table.DirectoryTable + DirTempP->ParentDirectoryAddress ) ;
+//			Depth ++ ;
+//		}
+//		
+//		// パス名を連結する
+//		DirPath[0] = '\0' ;
+//		for( i = Depth - 1 ; i >= 0 ; i -- )
+//		{
+//			_STRCAT( DirPath, "\\" ) ;
+//			_STRCAT( DirPath, (char *)DXA->Table.NameTable + ((DXARC_FILEHEAD *)( DXA->Table.FileTable + Dir[i]->DirectoryAddress ))->NameAddress ) ;
+//		}
+//	}
+//
+//	// バッファの長さが０か、長さが足りないときはディレクトリ名の長さを返す
+//	if( BufferSize == 0 || BufferSize < (int)_STRLEN( DirPath ) )
+//	{
+//		return _STRLEN( DirPath ) + 1 ;
+//	}
+//	else
+//	{
+//		// ディレクトリ名をバッファに転送する
+//		_STRCPY( DirPathBuffer, DirPath ) ;
+//	}
+//
+//	// 終了
+//	return 0 ;
+//}
 
 // アーカイブ内のオブジェクトを検索する( -1:エラー -1以外:DXA検索ハンドル )
-extern DWORD_PTR DXA_FindFirst( DXARC *DXA, const char *FilePath, FILEINFO *Buffer )
+extern DWORD_PTR DXA_FindFirst( DXARC *DXA, const BYTE *FilePath, FILEINFOW *Buffer )
 {
-	DXA_FINDDATA *find;
-	char Dir[256], Name[256];
+	DXA_FINDDATA *find ;
+	BYTE Dir[  FILEPATH_MAX ] ;
+	BYTE Name[ FILEPATH_MAX ] ;
+	int CharBytes ;
 
 	// 非同期同期オープン中の場合はここで開き終わるのを待つ
 	if( DXA->ASyncOpenFlag == TRUE )
 	{
-		while( DXA_CheckIdle( DXA ) == FALSE ) Sleep(0);
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
 	}
 
 	// メモリの確保
-	find = (DXA_FINDDATA *)DXALLOC( sizeof( *find ) );
-	if( find == NULL ) return ( DWORD_PTR )-1;
+	find = ( DXA_FINDDATA * )DXALLOC( sizeof( *find ) ) ;
+	if( find == NULL )
+	{
+		return ( DWORD_PTR )-1 ;
+	}
 
 	find->Container = DXA;
 	DXA_DIR_AnalysisFileNameAndDirPath( DXA, FilePath, Name, Dir );
 
 	// 全て大文字にする
-	_STRUPR( Dir );
-	_STRUPR( Name );
+	CL_strupr( DXA->CodePage, ( char * )Dir  ) ;
+	CL_strupr( DXA->CodePage, ( char * )Name ) ;
 
 	// 検索対象のディレクトリを取得
-	if( Dir[0] == '\0' )
+	if( GetCharCode( ( const char * )Dir, DXA->CodePage, &CharBytes ) == '\0' )
 	{
-		find->Directory = DXA->CurrentDirectory;
+		find->Directory = DXA->CurrentDirectory ;
 	}
 	else
 	{
@@ -1910,36 +2373,39 @@ extern DWORD_PTR DXA_FindFirst( DXARC *DXA, const char *FilePath, FILEINFO *Buff
 		// 指定のディレクトリが無い場合はエラー
 		if( DXA_ChangeCurrentDirectoryBase( DXA, Dir, false ) == -1 )
 		{
-			DXFREE( find );
-			return ( DWORD_PTR )-1;
+			DXFREE( find ) ;
+			return ( DWORD_PTR )-1 ;
 		}
 
-		find->Directory = DXA->CurrentDirectory;
-		DXA->CurrentDirectory = OldDir;
+		find->Directory       = DXA->CurrentDirectory ;
+		DXA->CurrentDirectory = OldDir ;
 	}
 
 	find->ObjectCount = 0;
-	_STRCPY( find->SearchStr, Name );
+	CL_strcpy( DXA->CodePage, ( char * )find->SearchStr, ( const char * )Name ) ;
 
 	// 適合する最初のファイルを検索する
 	if( DXA_FindProcess( find, Buffer ) == -1 )
 	{
 		DXFREE( find );
-		return ( DWORD_PTR )-1;
+		return ( DWORD_PTR )-1 ;
 	}
 	find->ObjectCount ++ ;
 
-	// 返回句柄
-	return (DWORD_PTR)find;
+	// ハンドルを返す
+	return ( DWORD_PTR )find ;
 }
 
 // アーカイブ内のオブジェクトを検索する( -1:エラー 0:成功 )
-extern int DXA_FindNext( DWORD_PTR DxaFindHandle, FILEINFO *Buffer )
+extern int DXA_FindNext( DWORD_PTR DxaFindHandle, FILEINFOW *Buffer )
 {
 	DXA_FINDDATA *find;
 
-	find = (DXA_FINDDATA *)DxaFindHandle;
-	if( DXA_FindProcess( find, Buffer ) == -1 ) return -1;
+	find = ( DXA_FINDDATA * )DxaFindHandle ;
+	if( DXA_FindProcess( find, Buffer ) == -1 )
+	{
+		return -1 ;
+	}
 	find->ObjectCount ++ ;
 
 	return 0;
@@ -1948,248 +2414,251 @@ extern int DXA_FindNext( DWORD_PTR DxaFindHandle, FILEINFO *Buffer )
 // アーカイブ内のオブジェクト検索を終了する
 extern int DXA_FindClose( DWORD_PTR DxaFindHandle )
 {
-	DXA_FINDDATA *find;
+	DXA_FINDDATA *find ;
 
-	find = (DXA_FINDDATA *)DxaFindHandle;
-	DXFREE( find );
+	find = ( DXA_FINDDATA * )DxaFindHandle ;
+	DXFREE( find ) ;
 
-	return 0;
+	return 0 ;
 }
 
 // アーカイブファイル中の指定のファイルをメモリに読み込む( -1:エラー 0以上:ファイルサイズ )
-extern int DXA_LoadFile( DXARC *DXA, const char *FilePath, void *Buffer, ULONGLONG BufferSize )
-{
-	// 非同期同期オープン中の場合はここで開き終わるのを待つ
-	if( DXA->ASyncOpenFlag == TRUE )
-	{
-		while( DXA_CheckIdle( DXA ) == FALSE ) Sleep(0);
-	}
-
-	if( DXA->V5Flag )
-	{
-		DXARC_FILEHEAD_VER5 *FileH ;
-
-		// 指定のファイルの情報を得る
-		FileH = DXA_GetFileInfoV5( DXA, FilePath ) ;
-		if( FileH == NULL ) return -1 ;
-
-		// ファイルサイズが足りているか調べる、足りていないか、バッファ、又はサイズが０だったらサイズを返す
-		if( BufferSize < FileH->DataSize || BufferSize == 0 || Buffer == NULL )
-		{
-			return ( int )FileH->DataSize ;
-		}
-		
-		// 足りている場合はバッファーに読み込む
-
-		// ファイルが圧縮されているかどうかで処理を分岐
-		if( DXA->HeadV5.Version >= 0x0002 && FileH->PressDataSize != 0xffffffff )
-		{
-			// 圧縮されている場合
-
-			// メモリ上に読み込んでいるかどうかで処理を分岐
-			if( DXA->MemoryOpenFlag == TRUE )
-			{
-				if( DXA->MemoryImageReadOnlyFlag )
-				{
-					void *temp ;
-
-					// 圧縮データをメモリに読み込んでから解凍する
-
-					// 圧縮データが収まるメモリ領域の確保
-					temp = DXALLOC( FileH->PressDataSize ) ;
-
-					// 圧縮データの転送
-					_MEMCPY( temp, (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, FileH->DataSize ) ;
-					if( DXA->HeadV5.Version >= 0x0005 )
-					{
-						DXA_KeyConv( temp, FileH->PressDataSize,                                   FileH->DataSize, DXA->Key ) ;
-					}
-					else
-					{
-						DXA_KeyConv( temp, FileH->PressDataSize, DXA->HeadV5.DataStartAddress + FileH->DataAddress, DXA->Key ) ;
-					}
-					
-					// 解凍
-					DXA_Decode( temp, Buffer ) ;
-					
-					// メモリの解放
-					DXFREE( temp ) ;
-				}
-				else
-				{
-					// メモリ上の圧縮データを解凍する
-					DXA_Decode( (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, Buffer ) ;
-				}
-			}
-			else
-			{
-				void *temp ;
-
-				// 圧縮データをメモリに読み込んでから解凍する
-
-				// 圧縮データが収まるメモリ領域の確保
-				temp = DXALLOC( FileH->PressDataSize ) ;
-
-				// 圧縮データの読み込み
-				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, DXA->HeadV5.DataStartAddress + FileH->DataAddress, SEEK_SET ) ;
-				if( DXA->HeadV5.Version >= 0x0005 )
-				{
-					DXA_KeyConvFileRead( temp, FileH->PressDataSize, DXA->WinFilePointer__, DXA->Key, FileH->DataSize ) ;
-				}
-				else
-				{
-					DXA_KeyConvFileRead( temp, FileH->PressDataSize, DXA->WinFilePointer__, DXA->Key ) ;
-				}
-				
-				// 解凍
-				DXA_Decode( temp, Buffer ) ;
-				
-				// メモリの解放
-				DXFREE( temp ) ;
-			}
-		}
-		else
-		{
-			if( DXA->MemoryOpenFlag == TRUE )
-			{
-				if( DXA->MemoryImageReadOnlyFlag )
-				{
-					// ファイルポインタを移動
-					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, FileH->DataSize ) ;
-
-					// 读取
-					if( DXA->HeadV5.Version >= 0x0005 )
-					{
-						DXA_KeyConv( Buffer, FileH->DataSize,                                   FileH->DataSize, DXA->Key ) ;
-					}
-					else
-					{
-						DXA_KeyConv( Buffer, FileH->DataSize, DXA->HeadV5.DataStartAddress + FileH->DataAddress, DXA->Key ) ;
-					}
-				}
-				else
-				{
-					// コピー
-					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, FileH->DataSize ) ;
-				}
-			}
-			else
-			{
-				// ファイルポインタを移動
-				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, DXA->HeadV5.DataStartAddress + FileH->DataAddress, SEEK_SET ) ;
-
-				// 读取
-				if( DXA->HeadV5.Version >= 0x0005 )
-				{
-					DXA_KeyConvFileRead( Buffer, FileH->DataSize, DXA->WinFilePointer__, DXA->Key, FileH->DataSize ) ;
-				}
-				else
-				{
-					DXA_KeyConvFileRead( Buffer, FileH->DataSize, DXA->WinFilePointer__, DXA->Key ) ;
-				}
-			}
-		}
-	}
-	else
-	{
-		DXARC_FILEHEAD *FileH ;
-
-		// 指定のファイルの情報を得る
-		FileH = DXA_GetFileInfo( DXA, FilePath ) ;
-		if( FileH == NULL ) return -1 ;
-
-		// ファイルサイズが足りているか調べる、足りていないか、バッファ、又はサイズが０だったらサイズを返す
-		if( BufferSize < FileH->DataSize || BufferSize == 0 || Buffer == NULL )
-		{
-			return ( int )FileH->DataSize ;
-		}
-		
-		// 足りている場合はバッファーに読み込む
-
-		// ファイルが圧縮されているかどうかで処理を分岐
-		if( FileH->PressDataSize != NONE_PAL )
-		{
-			// 圧縮されている場合
-
-			// メモリ上に読み込んでいるかどうかで処理を分岐
-			if( DXA->MemoryOpenFlag == TRUE )
-			{
-				if( DXA->MemoryImageReadOnlyFlag )
-				{
-					void *temp ;
-
-					// 圧縮データをメモリに読み込んでから解凍する
-
-					// 圧縮データが収まるメモリ領域の確保
-					temp = DXALLOC( ( size_t )FileH->PressDataSize ) ;
-
-					// 圧縮データの読み込み
-					_MEMCPY( temp, (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, ( size_t )FileH->DataSize ) ;
-					DXA_KeyConv( temp, FileH->DataSize, ( LONGLONG )FileH->DataSize, DXA->Key ) ;
-					
-					// 解凍
-					DXA_Decode( temp, Buffer ) ;
-					
-					// メモリの解放
-					DXFREE( temp ) ;
-				}
-				else
-				{
-					// メモリ上の圧縮データを解凍する
-					DXA_Decode( (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, Buffer ) ;
-				}
-			}
-			else
-			{
-				void *temp ;
-
-				// 圧縮データをメモリに読み込んでから解凍する
-
-				// 圧縮データが収まるメモリ領域の確保
-				temp = DXALLOC( ( size_t )FileH->PressDataSize ) ;
-
-				// 圧縮データの読み込み
-				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, DXA->Head.DataStartAddress + FileH->DataAddress, SEEK_SET ) ;
-				DXA_KeyConvFileRead( temp, FileH->PressDataSize, DXA->WinFilePointer__, DXA->Key, ( LONGLONG )FileH->DataSize ) ;
-				
-				// 解凍
-				DXA_Decode( temp, Buffer ) ;
-				
-				// メモリの解放
-				DXFREE( temp ) ;
-			}
-		}
-		else
-		{
-			if( DXA->MemoryOpenFlag == TRUE )
-			{
-				if( DXA->MemoryImageReadOnlyFlag )
-				{
-					// コピー
-					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, ( size_t )FileH->DataSize ) ;
-
-					DXA_KeyConv( Buffer, FileH->DataSize, FileH->DataSize, DXA->Key ) ;
-				}
-				else
-				{
-					// コピー
-					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, ( size_t )FileH->DataSize ) ;
-				}
-			}
-			else
-			{
-				// ファイルポインタを移動
-				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, DXA->Head.DataStartAddress + FileH->DataAddress, SEEK_SET ) ;
-
-				// 读取
-				DXA_KeyConvFileRead( Buffer, FileH->DataSize, DXA->WinFilePointer__, DXA->Key, FileH->DataSize ) ;
-			}
-		}
-	}
-	
-	// 終了
-	return 0 ;
-}
+//extern int DXA_LoadFile( DXARC *DXA, const char *FilePath, void *Buffer, ULONGLONG BufferSize )
+//{
+//	// 非同期同期オープン中の場合はここで開き終わるのを待つ
+//	if( DXA->ASyncOpenFlag == TRUE )
+//	{
+//		while( DXA_CheckIdle( DXA ) == FALSE )
+//		{
+//			Thread_Sleep( 0 ) ;
+//		}
+//	}
+//
+//	if( DXA->V5Flag )
+//	{
+//		DXARC_FILEHEAD_VER5 *FileH ;
+//
+//		// 指定のファイルの情報を得る
+//		FileH = DXA_GetFileHeaderV5( DXA, FilePath ) ;
+//		if( FileH == NULL ) return -1 ;
+//
+//		// ファイルサイズが足りているか調べる、足りていないか、バッファ、又はサイズが０だったらサイズを返す
+//		if( BufferSize < FileH->DataSize || BufferSize == 0 || Buffer == NULL )
+//		{
+//			return ( int )FileH->DataSize ;
+//		}
+//		
+//		// 足りている場合はバッファーに読み込む
+//
+//		// ファイルが圧縮されているかどうかで処理を分岐
+//		if( DXA->HeadV5.Version >= 0x0002 && FileH->PressDataSize != 0xffffffff )
+//		{
+//			// 圧縮されている場合
+//
+//			// メモリ上に読み込んでいるかどうかで処理を分岐
+//			if( DXA->MemoryOpenFlag == TRUE )
+//			{
+//				if( DXA->MemoryImageReadOnlyFlag )
+//				{
+//					void *temp ;
+//
+//					// 圧縮データをメモリに読み込んでから解凍する
+//
+//					// 圧縮データが収まるメモリ領域の確保
+//					temp = DXALLOC( FileH->PressDataSize ) ;
+//
+//					// 圧縮データの転送
+//					_MEMCPY( temp, (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, FileH->DataSize ) ;
+//					if( DXA->HeadV5.Version >= 0x0005 )
+//					{
+//						DXA_KeyConv( temp, FileH->PressDataSize,                                   FileH->DataSize, DXA->Key ) ;
+//					}
+//					else
+//					{
+//						DXA_KeyConv( temp, FileH->PressDataSize, DXA->HeadV5.DataStartAddress + FileH->DataAddress, DXA->Key ) ;
+//					}
+//					
+//					// 解凍
+//					DXA_Decode( temp, Buffer ) ;
+//					
+//					// メモリの解放
+//					DXFREE( temp ) ;
+//				}
+//				else
+//				{
+//					// メモリ上の圧縮データを解凍する
+//					DXA_Decode( (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, Buffer ) ;
+//				}
+//			}
+//			else
+//			{
+//				void *temp ;
+//
+//				// 圧縮データをメモリに読み込んでから解凍する
+//
+//				// 圧縮データが収まるメモリ領域の確保
+//				temp = DXALLOC( FileH->PressDataSize ) ;
+//
+//				// 圧縮データの読み込み
+//				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, DXA->HeadV5.DataStartAddress + FileH->DataAddress, SEEK_SET ) ;
+//				if( DXA->HeadV5.Version >= 0x0005 )
+//				{
+//					DXA_KeyConvFileRead( temp, FileH->PressDataSize, DXA->WinFilePointer__, DXA->Key, FileH->DataSize ) ;
+//				}
+//				else
+//				{
+//					DXA_KeyConvFileRead( temp, FileH->PressDataSize, DXA->WinFilePointer__, DXA->Key ) ;
+//				}
+//				
+//				// 解凍
+//				DXA_Decode( temp, Buffer ) ;
+//				
+//				// メモリの解放
+//				DXFREE( temp ) ;
+//			}
+//		}
+//		else
+//		{
+//			if( DXA->MemoryOpenFlag == TRUE )
+//			{
+//				if( DXA->MemoryImageReadOnlyFlag )
+//				{
+//					// ファイルポインタを移動
+//					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, FileH->DataSize ) ;
+//
+//					// 読み込み
+//					if( DXA->HeadV5.Version >= 0x0005 )
+//					{
+//						DXA_KeyConv( Buffer, FileH->DataSize,                                   FileH->DataSize, DXA->Key ) ;
+//					}
+//					else
+//					{
+//						DXA_KeyConv( Buffer, FileH->DataSize, DXA->HeadV5.DataStartAddress + FileH->DataAddress, DXA->Key ) ;
+//					}
+//				}
+//				else
+//				{
+//					// コピー
+//					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->HeadV5.DataStartAddress + FileH->DataAddress, FileH->DataSize ) ;
+//				}
+//			}
+//			else
+//			{
+//				// ファイルポインタを移動
+//				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, DXA->HeadV5.DataStartAddress + FileH->DataAddress, SEEK_SET ) ;
+//
+//				// 読み込み
+//				if( DXA->HeadV5.Version >= 0x0005 )
+//				{
+//					DXA_KeyConvFileRead( Buffer, FileH->DataSize, DXA->WinFilePointer__, DXA->Key, FileH->DataSize ) ;
+//				}
+//				else
+//				{
+//					DXA_KeyConvFileRead( Buffer, FileH->DataSize, DXA->WinFilePointer__, DXA->Key ) ;
+//				}
+//			}
+//		}
+//	}
+//	else
+//	{
+//		DXARC_FILEHEAD *FileH ;
+//
+//		// 指定のファイルの情報を得る
+//		FileH = DXA_GetFileHeader( DXA, FilePath ) ;
+//		if( FileH == NULL ) return -1 ;
+//
+//		// ファイルサイズが足りているか調べる、足りていないか、バッファ、又はサイズが０だったらサイズを返す
+//		if( BufferSize < FileH->DataSize || BufferSize == 0 || Buffer == NULL )
+//		{
+//			return ( int )FileH->DataSize ;
+//		}
+//		
+//		// 足りている場合はバッファーに読み込む
+//
+//		// ファイルが圧縮されているかどうかで処理を分岐
+//		if( FileH->PressDataSize != NONE_PAL )
+//		{
+//			// 圧縮されている場合
+//
+//			// メモリ上に読み込んでいるかどうかで処理を分岐
+//			if( DXA->MemoryOpenFlag == TRUE )
+//			{
+//				if( DXA->MemoryImageReadOnlyFlag )
+//				{
+//					void *temp ;
+//
+//					// 圧縮データをメモリに読み込んでから解凍する
+//
+//					// 圧縮データが収まるメモリ領域の確保
+//					temp = DXALLOC( ( size_t )FileH->PressDataSize ) ;
+//
+//					// 圧縮データの読み込み
+//					_MEMCPY( temp, (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, ( size_t )FileH->DataSize ) ;
+//					DXA_KeyConv( temp, ( LONGLONG )FileH->DataSize, ( LONGLONG )FileH->DataSize, DXA->Key ) ;
+//					
+//					// 解凍
+//					DXA_Decode( temp, Buffer ) ;
+//					
+//					// メモリの解放
+//					DXFREE( temp ) ;
+//				}
+//				else
+//				{
+//					// メモリ上の圧縮データを解凍する
+//					DXA_Decode( (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, Buffer ) ;
+//				}
+//			}
+//			else
+//			{
+//				void *temp ;
+//
+//				// 圧縮データをメモリに読み込んでから解凍する
+//
+//				// 圧縮データが収まるメモリ領域の確保
+//				temp = DXALLOC( ( size_t )FileH->PressDataSize ) ;
+//
+//				// 圧縮データの読み込み
+//				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, ( LONGLONG )( DXA->Head.DataStartAddress + FileH->DataAddress ), SEEK_SET ) ;
+//				DXA_KeyConvFileRead( temp, FileH->PressDataSize, DXA->WinFilePointer__, DXA->Key, ( LONGLONG )FileH->DataSize ) ;
+//				
+//				// 解凍
+//				DXA_Decode( temp, Buffer ) ;
+//				
+//				// メモリの解放
+//				DXFREE( temp ) ;
+//			}
+//		}
+//		else
+//		{
+//			if( DXA->MemoryOpenFlag == TRUE )
+//			{
+//				if( DXA->MemoryImageReadOnlyFlag )
+//				{
+//					// コピー
+//					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, ( size_t )FileH->DataSize ) ;
+//
+//					DXA_KeyConv( Buffer, ( LONGLONG )FileH->DataSize, ( LONGLONG )FileH->DataSize, DXA->Key ) ;
+//				}
+//				else
+//				{
+//					// コピー
+//					_MEMCPY( Buffer, (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, ( size_t )FileH->DataSize ) ;
+//				}
+//			}
+//			else
+//			{
+//				// ファイルポインタを移動
+//				ReadOnlyFileAccessSeek( DXA->WinFilePointer__, ( LONGLONG )( DXA->Head.DataStartAddress + FileH->DataAddress ), SEEK_SET ) ;
+//
+//				// 読み込み
+//				DXA_KeyConvFileRead( Buffer, FileH->DataSize, DXA->WinFilePointer__, DXA->Key, ( LONGLONG )FileH->DataSize ) ;
+//			}
+//		}
+//	}
+//	
+//	// 終了
+//	return 0 ;
+//}
 
 // アーカイブファイルをメモリに読み込んだ場合のファイルイメージが格納されている先頭アドレスを取得する( DXA_OpenArchiveFromFileUseMem 若しくは DXA_OpenArchiveFromMem で開いた場合に有効 )
 extern void *DXA_GetFileImage( DXARC *DXA )
@@ -2197,23 +2666,46 @@ extern void *DXA_GetFileImage( DXARC *DXA )
 	// 非同期同期オープン中の場合はここで開き終わるのを待つ
 	if( DXA->ASyncOpenFlag == TRUE )
 	{
-		while( DXA_CheckIdle( DXA ) == FALSE ) Sleep(0);
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
 	}
 
 	// メモリイメージから開いていなかったらエラー
-	if( DXA->MemoryOpenFlag == FALSE ) return NULL ;
+	if( DXA->MemoryOpenFlag == FALSE )
+	{
+		return NULL ;
+	}
 
 	// 先頭アドレスを返す
 	return DXA->MemoryImage ;
 }
 
 // アーカイブファイル中の指定のファイルのファイル内の位置とファイルの大きさを得る( -1:エラー )
-extern int DXA_GetFileInfo( DXARC *DXA, const char *FilePath, int *Position, int *Size )
+extern int DXA_GetFileInfo( DXARC *DXA, int CodePage, const char *FilePath, int *Position, int *Size )
 {
+	BYTE TempBuffer[ 2048 ] ;
+	const BYTE *FilePathB ;
+
+	// コードページが異なる場合は変換する
+	if( CodePage != DXA->CodePage )
+	{
+		ConvString( FilePath, CodePage, ( char * )TempBuffer, DXA->CodePage ) ;
+		FilePathB = TempBuffer ;
+	}
+	else
+	{
+		FilePathB = ( const BYTE * )FilePath ;
+	}
+
 	// 非同期同期オープン中の場合はここで開き終わるのを待つ
 	if( DXA->ASyncOpenFlag == TRUE )
 	{
-		while( DXA_CheckIdle( DXA ) == FALSE ) Sleep(0);
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
 	}
 
 	if( DXA->V5Flag )
@@ -2221,24 +2713,44 @@ extern int DXA_GetFileInfo( DXARC *DXA, const char *FilePath, int *Position, int
 		DXARC_FILEHEAD_VER5 *FileH ;
 
 		// 指定のファイルの情報を得る
-		FileH = DXA_GetFileInfoV5( DXA, FilePath ) ;
-		if( FileH == NULL ) return -1 ;
+		FileH = DXA_GetFileHeaderV5( DXA, FilePathB ) ;
+		if( FileH == NULL )
+		{
+			return -1 ;
+		}
 
 		// ファイルのデータがある位置とファイルサイズを保存する
-		if( Position != NULL ) *Position = DXA->HeadV5.DataStartAddress + FileH->DataAddress ;
-		if( Size     != NULL ) *Size     = FileH->DataSize ;
+		if( Position != NULL )
+		{
+			*Position = ( int )( DXA->HeadV5.DataStartAddress + FileH->DataAddress ) ;
+		}
+
+		if( Size     != NULL )
+		{
+			*Size     = ( int )FileH->DataSize ;
+		}
 	}
 	else
 	{
 		DXARC_FILEHEAD *FileH ;
 
 		// 指定のファイルの情報を得る
-		FileH = DXA_GetFileInfo( DXA, FilePath ) ;
-		if( FileH == NULL ) return -1 ;
+		FileH = DXA_GetFileHeader( DXA, FilePathB ) ;
+		if( FileH == NULL )
+		{
+			return -1 ;
+		}
 
 		// ファイルのデータがある位置とファイルサイズを保存する
-		if( Position != NULL ) *Position = ( int )( DXA->Head.DataStartAddress + FileH->DataAddress ) ;
-		if( Size     != NULL ) *Size     = ( int )( FileH->DataSize ) ;
+		if( Position != NULL )
+		{
+			*Position = ( int )( DXA->Head.DataStartAddress + FileH->DataAddress ) ;
+		}
+
+		if( Size     != NULL )
+		{
+			*Size     = ( int )( FileH->DataSize ) ;
+		}
 	}
 
 	// 成功終了
@@ -2248,12 +2760,15 @@ extern int DXA_GetFileInfo( DXARC *DXA, const char *FilePath, int *Position, int
 
 
 // アーカイブファイル内のファイルを開く(ファイル閉じる作業は必要なし)
-extern int DXA_STREAM_Initialize( DXARC_STREAM *DXAStream, DXARC *DXA, const char *FilePath, int UseASyncReadFlag )
+extern int DXA_STREAM_Initialize( DXARC_STREAM *DXAStream, DXARC *DXA, const BYTE *FilePath, int UseASyncReadFlag )
 {
 	// 非同期同期オープン中の場合はここで開き終わるのを待つ
 	if( DXA->ASyncOpenFlag == TRUE )
 	{
-		while( DXA_CheckIdle( DXA ) == FALSE ) Sleep(0);
+		while( DXA_CheckIdle( DXA ) == FALSE )
+		{
+			Thread_Sleep( 0 ) ;
+		}
 	}
 
 	// データのセット
@@ -2270,7 +2785,9 @@ extern int DXA_STREAM_Initialize( DXARC_STREAM *DXAStream, DXARC *DXA, const cha
 	{
 		DXAStream->WinFilePointer = ReadOnlyFileAccessOpen( DXA->FilePath, FALSE, TRUE, FALSE ) ;
 		if( DXAStream->WinFilePointer == 0 )
+		{
 			return -1 ;
+		}
 	}
 
 	if( DXA->V5Flag )
@@ -2278,7 +2795,7 @@ extern int DXA_STREAM_Initialize( DXARC_STREAM *DXAStream, DXARC *DXA, const cha
 		DXARC_FILEHEAD_VER5 *FileH ;
 
 		// 指定のファイルの情報を得る
-		FileH = DXA_GetFileInfoV5( DXA, FilePath ) ;
+		FileH = DXA_GetFileHeaderV5( DXA, FilePath ) ;
 		if( FileH == NULL )
 		{
 			if( DXA->MemoryOpenFlag == FALSE )
@@ -2336,8 +2853,8 @@ extern int DXA_STREAM_Initialize( DXARC_STREAM *DXAStream, DXARC *DXA, const cha
 				DXAStream->DecodeTempBuffer = DXALLOC( FileH->PressDataSize ) ;
 
 				// 圧縮データの読み込み
-				DXAStream->ASyncReadFileAddress = DXA->HeadV5.DataStartAddress + FileH->DataAddress;
-				ReadOnlyFileAccessSeek( DXAStream->WinFilePointer, DXAStream->ASyncReadFileAddress, SEEK_SET ) ;
+				DXAStream->ASyncReadFileAddress = DXA->HeadV5.DataStartAddress + FileH->DataAddress ;
+				ReadOnlyFileAccessSeek( DXAStream->WinFilePointer, ( LONGLONG )DXAStream->ASyncReadFileAddress, SEEK_SET ) ;
 
 				// 非同期の場合は読み込みと鍵解除を別々に行う
 				if( DXAStream->UseASyncReadFlag == TRUE )
@@ -2372,7 +2889,7 @@ extern int DXA_STREAM_Initialize( DXARC_STREAM *DXAStream, DXARC *DXA, const cha
 		DXARC_FILEHEAD *FileH ;
 
 		// 指定のファイルの情報を得る
-		FileH = DXA_GetFileInfo( DXA, FilePath ) ;
+		FileH = DXA_GetFileHeader( DXA, FilePath ) ;
 		if( FileH == NULL )
 		{
 			if( DXA->MemoryOpenFlag == FALSE )
@@ -2402,7 +2919,7 @@ extern int DXA_STREAM_Initialize( DXARC_STREAM *DXAStream, DXARC *DXA, const cha
 
 					// 圧縮データの読み込み
 					_MEMCPY( DXAStream->DecodeTempBuffer, (BYTE *)DXA->MemoryImage + DXA->Head.DataStartAddress + FileH->DataAddress, ( size_t )FileH->DataSize ) ;
-					DXA_KeyConv( DXAStream->DecodeTempBuffer, FileH->PressDataSize, FileH->DataSize, DXA->Key ) ;
+					DXA_KeyConv( DXAStream->DecodeTempBuffer, ( LONGLONG )FileH->PressDataSize, ( LONGLONG )FileH->DataSize, DXA->Key ) ;
 
 					// 解凍
 					DXA_Decode( DXAStream->DecodeTempBuffer, DXAStream->DecodeDataBuffer ) ;
@@ -2424,7 +2941,7 @@ extern int DXA_STREAM_Initialize( DXARC_STREAM *DXAStream, DXARC *DXA, const cha
 
 				// 圧縮データの読み込み
 				DXAStream->ASyncReadFileAddress = DXA->Head.DataStartAddress + FileH->DataAddress;
-				ReadOnlyFileAccessSeek( DXAStream->WinFilePointer, DXAStream->ASyncReadFileAddress, SEEK_SET ) ;
+				ReadOnlyFileAccessSeek( DXAStream->WinFilePointer, ( LONGLONG )DXAStream->ASyncReadFileAddress, SEEK_SET ) ;
 
 				// 非同期の場合は読み込みと鍵解除を別々に行う
 				if( DXAStream->UseASyncReadFlag == TRUE )
@@ -2435,7 +2952,7 @@ extern int DXA_STREAM_Initialize( DXARC_STREAM *DXAStream, DXARC *DXA, const cha
 				}
 				else
 				{
-					DXA_KeyConvFileRead( DXAStream->DecodeTempBuffer, FileH->PressDataSize, DXAStream->WinFilePointer, DXA->Key, FileH->DataSize ) ;
+					DXA_KeyConvFileRead( DXAStream->DecodeTempBuffer, FileH->PressDataSize, DXAStream->WinFilePointer, DXA->Key, ( LONGLONG )FileH->DataSize ) ;
 
 					// 解凍
 					DXA_Decode( DXAStream->DecodeTempBuffer, DXAStream->DecodeDataBuffer ) ;
@@ -2458,7 +2975,10 @@ extern int DXA_STREAM_Terminate( DXARC_STREAM *DXAStream )
 	// 非同期読み込みで状態がまだ待機状態ではなかったら待機状態になるまで待つ
 	if( DXAStream->UseASyncReadFlag == TRUE && DXAStream->ASyncState != DXARC_STREAM_ASYNCSTATE_IDLE )
 	{
-		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE ) Sleep(1);
+		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE )
+		{
+			Thread_Sleep( 1 ) ;
+		}
 	}
 
 	// メモリの解放
@@ -2499,7 +3019,10 @@ extern int DXA_STREAM_Read( DXARC_STREAM *DXAStream, void *Buffer, size_t ReadLe
 	// 非同期読み込みで状態がまだ待機状態ではなかったら待機状態になるまで待つ
 	if( DXAStream->UseASyncReadFlag == TRUE && DXAStream->ASyncState != DXARC_STREAM_ASYNCSTATE_IDLE )
 	{
-		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE ) Sleep(1);
+		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE )
+		{
+			Thread_Sleep( 1 ) ;
+		}
 	}
 
 	if( DXAStream->Archive->V5Flag )
@@ -2516,7 +3039,10 @@ extern int DXA_STREAM_Read( DXARC_STREAM *DXAStream, void *Buffer, size_t ReadLe
 	}
 
 	// EOF フラグが立っていたら０を返す
-	if( DXAStream->EOFFlag == TRUE ) return 0 ;
+	if( DXAStream->EOFFlag == TRUE )
+	{
+		return 0 ;
+	}
 
 	// EOF 検出
 	if( DataSize == DXAStream->FilePoint )
@@ -2550,16 +3076,16 @@ extern int DXA_STREAM_Read( DXARC_STREAM *DXAStream, void *Buffer, size_t ReadLe
 				{
 					if( DXAStream->Archive->HeadV5.Version >= 0x0005 )
 					{
-						DXA_KeyConv( Buffer, ( int )ReadSize,                       DataSize + DXAStream->FilePoint, DXAStream->Archive->Key ) ;
+						DXA_KeyConv( Buffer, ( LONGLONG )ReadSize,                       ( LONGLONG )( DataSize + DXAStream->FilePoint ), DXAStream->Archive->Key ) ;
 					}
 					else
 					{
-						DXA_KeyConv( Buffer, ( int )ReadSize, DataStartAddress + DataAddress + DXAStream->FilePoint, DXAStream->Archive->Key ) ;
+						DXA_KeyConv( Buffer, ( LONGLONG )ReadSize, ( LONGLONG )( DataStartAddress + DataAddress + DXAStream->FilePoint ), DXAStream->Archive->Key ) ;
 					}
 				}
 				else
 				{
-					DXA_KeyConv( Buffer, ( int )ReadSize,                       DataSize + DXAStream->FilePoint, DXAStream->Archive->Key ) ;
+					DXA_KeyConv(     Buffer, ( LONGLONG )ReadSize,                       ( LONGLONG )( DataSize + DXAStream->FilePoint ), DXAStream->Archive->Key ) ;
 				}
 			}
 		}
@@ -2572,7 +3098,7 @@ extern int DXA_STREAM_Read( DXARC_STREAM *DXAStream, void *Buffer, size_t ReadLe
 			DXAStream->ASyncReadFileAddress = DataAddress + DataStartAddress + DXAStream->FilePoint ;
 			if( ( ULONGLONG )ReadOnlyFileAccessTell( DXAStream->WinFilePointer ) != DXAStream->ASyncReadFileAddress )
 			{
-				ReadOnlyFileAccessSeek( DXAStream->WinFilePointer, DXAStream->ASyncReadFileAddress, SEEK_SET ) ;
+				ReadOnlyFileAccessSeek( DXAStream->WinFilePointer, ( LONGLONG )DXAStream->ASyncReadFileAddress, SEEK_SET ) ;
 			}
 
 			// 非同期読み込みの場合と同期読み込みの場合で処理を分岐
@@ -2591,16 +3117,16 @@ extern int DXA_STREAM_Read( DXARC_STREAM *DXAStream, void *Buffer, size_t ReadLe
 				{
 					if( DXAStream->Archive->HeadV5.Version >= 0x0005 )
 					{
-						DXA_KeyConvFileRead( Buffer, ( int )ReadSize, DXAStream->WinFilePointer, DXAStream->Archive->Key, DataSize + DXAStream->FilePoint ) ;
+						DXA_KeyConvFileRead( Buffer, ReadSize, DXAStream->WinFilePointer, DXAStream->Archive->Key, ( LONGLONG )( DataSize + DXAStream->FilePoint ) ) ;
 					}
 					else
 					{
-						DXA_KeyConvFileRead( Buffer, ( int )ReadSize, DXAStream->WinFilePointer, DXAStream->Archive->Key ) ;
+						DXA_KeyConvFileRead( Buffer, ReadSize, DXAStream->WinFilePointer, DXAStream->Archive->Key ) ;
 					}
 				}
 				else
 				{
-					DXA_KeyConvFileRead( Buffer, ( int )ReadSize, DXAStream->WinFilePointer, DXAStream->Archive->Key, DataSize + DXAStream->FilePoint ) ;
+					DXA_KeyConvFileRead( Buffer, ReadSize, DXAStream->WinFilePointer, DXAStream->Archive->Key, ( LONGLONG )( DataSize + DXAStream->FilePoint ) ) ;
 				}
 			}
 		}
@@ -2624,7 +3150,10 @@ extern	int DXA_STREAM_Seek( DXARC_STREAM *DXAStream, LONGLONG SeekPoint, int See
 	// 非同期読み込みで状態がまだ待機状態ではなかったら待機状態になるまで待つ
 	if( DXAStream->UseASyncReadFlag == TRUE && DXAStream->ASyncState != DXARC_STREAM_ASYNCSTATE_IDLE )
 	{
-		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE ) Sleep(1);
+		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE )
+		{
+			Thread_Sleep( 1 ) ;
+		}
 	}
 
 	if( DXAStream->Archive->V5Flag )
@@ -2649,7 +3178,7 @@ extern	int DXA_STREAM_Seek( DXARC_STREAM *DXAStream, LONGLONG SeekPoint, int See
 	if( SeekPoint < 0 ) SeekPoint = 0 ;
 	
 	// セット
-	DXAStream->FilePoint = SeekPoint ;
+	DXAStream->FilePoint = ( ULONGLONG )SeekPoint ;
 	
 	// EOFフラグを倒す
 	DXAStream->EOFFlag = FALSE ;
@@ -2664,7 +3193,10 @@ extern	LONGLONG DXA_STREAM_Tell( DXARC_STREAM *DXAStream )
 	// 非同期読み込みで状態がまだ待機状態ではなかったら待機状態になるまで待つ
 	if( DXAStream->UseASyncReadFlag == TRUE && DXAStream->ASyncState != DXARC_STREAM_ASYNCSTATE_IDLE )
 	{
-		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE ) Sleep(1);
+		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE )
+		{
+			Thread_Sleep( 1 ) ;
+		}
 	}
 
 	return ( LONGLONG )DXAStream->FilePoint ;
@@ -2676,7 +3208,10 @@ extern	int DXA_STREAM_Eof( DXARC_STREAM *DXAStream )
 	// 非同期読み込みで状態がまだ待機状態ではなかったら待機状態になるまで待つ
 	if( DXAStream->UseASyncReadFlag == TRUE && DXAStream->ASyncState != DXARC_STREAM_ASYNCSTATE_IDLE )
 	{
-		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE ) Sleep(1);
+		while( DXA_STREAM_IdleCheck( DXAStream ) == FALSE )
+		{
+			Thread_Sleep( 1 ) ;
+		}
 	}
 
 	return DXAStream->EOFFlag ? EOF : 0 ;
@@ -2686,7 +3221,10 @@ extern	int DXA_STREAM_Eof( DXARC_STREAM *DXAStream )
 extern	int	DXA_STREAM_IdleCheck( DXARC_STREAM *DXAStream )
 {
 	// 非同期読み込みではない場合は何もせず TRUE を返す
-	if( DXAStream->UseASyncReadFlag == FALSE ) return TRUE ;
+	if( DXAStream->UseASyncReadFlag == FALSE )
+	{
+		return TRUE ;
+	}
 
 	// 状態によって処理を分岐
 	switch( DXAStream->ASyncState )
@@ -2697,23 +3235,26 @@ extern	int	DXA_STREAM_IdleCheck( DXARC_STREAM *DXAStream )
 	case DXARC_STREAM_ASYNCSTATE_PRESSREAD:		// 圧縮データ読み込み待ち
 
 		// 読み込み終了待ち
-		if( ReadOnlyFileAccessIdleCheck( DXAStream->WinFilePointer ) == FALSE ) return FALSE;
+		if( ReadOnlyFileAccessIdleCheck( DXAStream->WinFilePointer ) == FALSE )
+		{
+			return FALSE;
+		}
 
 		// 読み込み終わったらまず鍵を外す
 		if( DXAStream->Archive->V5Flag )
 		{
 			if( DXAStream->Archive->HeadV5.Version >= 0x0005 )
 			{
-				DXA_KeyConv( DXAStream->DecodeTempBuffer, DXAStream->FileHeadV5->PressDataSize, DXAStream->FileHeadV5->DataSize, DXAStream->Archive->Key ) ;
+				DXA_KeyConv( DXAStream->DecodeTempBuffer, ( LONGLONG )DXAStream->FileHeadV5->PressDataSize, ( LONGLONG )DXAStream->FileHeadV5->DataSize, DXAStream->Archive->Key ) ;
 			}
 			else
 			{
-				DXA_KeyConv( DXAStream->DecodeTempBuffer, DXAStream->FileHeadV5->PressDataSize, DXAStream->ASyncReadFileAddress, DXAStream->Archive->Key ) ;
+				DXA_KeyConv( DXAStream->DecodeTempBuffer, ( LONGLONG )DXAStream->FileHeadV5->PressDataSize, ( LONGLONG )DXAStream->ASyncReadFileAddress, DXAStream->Archive->Key ) ;
 			}
 		}
 		else
 		{
-			DXA_KeyConv( DXAStream->DecodeTempBuffer, DXAStream->FileHead->PressDataSize, DXAStream->FileHead->DataSize, DXAStream->Archive->Key ) ;
+			DXA_KeyConv( DXAStream->DecodeTempBuffer, ( LONGLONG )DXAStream->FileHead->PressDataSize, ( LONGLONG )DXAStream->FileHead->DataSize, DXAStream->Archive->Key ) ;
 		}
 
 		// 解凍
@@ -2730,23 +3271,26 @@ extern	int	DXA_STREAM_IdleCheck( DXARC_STREAM *DXAStream )
 	case DXARC_STREAM_ASYNCSTATE_READ:			// 読み込み待ち
 
 		// 読み込み終了待ち
-		if( ReadOnlyFileAccessIdleCheck( DXAStream->WinFilePointer ) == FALSE ) return FALSE;
+		if( ReadOnlyFileAccessIdleCheck( DXAStream->WinFilePointer ) == FALSE )
+		{
+			return FALSE;
+		}
 
 		// 読み込み終わったら鍵を外す
 		if( DXAStream->Archive->V5Flag )
 		{
 			if( DXAStream->Archive->HeadV5.Version >= 0x0005 )
 			{
-				DXA_KeyConv( DXAStream->ReadBuffer, DXAStream->ReadSize, DXAStream->FileHeadV5->DataSize + ( DXAStream->ASyncReadFileAddress - ( DXAStream->FileHeadV5->DataAddress + DXAStream->Archive->HeadV5.DataStartAddress ) ), DXAStream->Archive->Key ) ;
+				DXA_KeyConv( DXAStream->ReadBuffer, ( LONGLONG )DXAStream->ReadSize, ( LONGLONG )( DXAStream->FileHeadV5->DataSize + ( DXAStream->ASyncReadFileAddress - ( DXAStream->FileHeadV5->DataAddress + DXAStream->Archive->HeadV5.DataStartAddress ) ) ), DXAStream->Archive->Key ) ;
 			}
 			else
 			{
-				DXA_KeyConv( DXAStream->ReadBuffer, DXAStream->ReadSize, DXAStream->ASyncReadFileAddress, DXAStream->Archive->Key ) ;
+				DXA_KeyConv( DXAStream->ReadBuffer, ( LONGLONG )DXAStream->ReadSize, ( LONGLONG )DXAStream->ASyncReadFileAddress, DXAStream->Archive->Key ) ;
 			}
 		}
 		else
 		{
-			DXA_KeyConv( DXAStream->ReadBuffer, DXAStream->ReadSize, DXAStream->FileHead->DataSize + ( DXAStream->ASyncReadFileAddress - ( DXAStream->FileHead->DataAddress + DXAStream->Archive->Head.DataStartAddress ) ), DXAStream->Archive->Key ) ;
+			DXA_KeyConv( DXAStream->ReadBuffer, ( LONGLONG )DXAStream->ReadSize, ( LONGLONG )( DXAStream->FileHead->DataSize + ( DXAStream->ASyncReadFileAddress - ( DXAStream->FileHead->DataAddress + DXAStream->Archive->Head.DataStartAddress ) ) ), DXAStream->Archive->Key ) ;
 		}
 
 		// 状態を待機状態にする
@@ -2777,18 +3321,26 @@ extern	LONGLONG DXA_STREAM_Size( DXARC_STREAM *DXAStream )
 
 
 // フルパスではないパス文字列をフルパスに変換する
-static int DXA_DIR_ConvertFullPath( const TCHAR *Src, TCHAR *Dest )
+static int DXA_DIR_ConvertFullPath( const wchar_t *Src, wchar_t *Dest )
 {
-	int i, j, k ;
-	TCHAR iden[256], CurrentDir[MAX_PATH] ;
+	int     i, j, k ;
+	wchar_t iden[ FILEPATH_MAX ] ;
+	wchar_t CurrentDir[ FILEPATH_MAX ] ;
+	DWORD   CharCode1 ;
+	int     CharBytes1 ;
+	DWORD   CharCode2 ;
+	int     CharBytes2 ;
+	DWORD   LastCharCode ;
+	int     LastCharBytes ;
+	char *  LastCharAddress ;
+	int     CharNum ;
 
 	// カレントディレクトリを得る
-	GetCurrentDirectory( MAX_PATH, CurrentDir ) ;
-	_TSTRUPR( CurrentDir ) ;
-
+	_WGETCWD( CurrentDir, FILEPATH_MAX ) ;
+	_WCSUPR( CurrentDir ) ;
 	if( Src == NULL )
 	{
-		lstrcpy( Dest, CurrentDir ) ;
+		_WCSCPY( Dest, CurrentDir ) ;
 		goto END ;
 	}
 
@@ -2796,119 +3348,149 @@ static int DXA_DIR_ConvertFullPath( const TCHAR *Src, TCHAR *Dest )
 	j = 0 ;
 	k = 0 ;
 
-	// 最初に『\』又は『/』が２回連続で続いている場合はネットワークを介していると判断
-	if( ( Src[0] == _T( '\\' ) && Src[1] == _T( '\\' ) ) ||
-		( Src[0] == _T( '/' )  && Src[1] == _T( '/'  ) ) )
+	// １文字目と２文字目を取得
+	CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ 0 ], WCHAR_T_CODEPAGE, &CharBytes1 ) ;
+	CharCode2 = 0 ;
+	if( CharCode1 != 0 )
 	{
-		Dest[0] = _T( '\\' ) ;
-		Dest[1] = _T( '\0' ) ;
+		CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ CharBytes1 ], WCHAR_T_CODEPAGE, &CharBytes2 ) ;
+	}
 
-		i += 2;
-		j ++ ;
+	// 最初に『\』又は『/』が２回連続で続いている場合はネットワークを介していると判断
+
+	if( ( CharCode1 == '\\' && CharCode2 == '\\' ) ||
+		( CharCode1 == '/'  && CharCode2 == '/'  ) )
+	{
+		j += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		     PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+
+		i += CharBytes1 + CharBytes2 ;
 	}
 	else
 	// 最初が『\』又は『/』の場合はカレントドライブのルートディレクトリまで落ちる
-	if( Src[0] == _T( '\\' ) || Src[0] == _T( '/' ) )
+	if( CharCode1 == '\\' || CharCode1 == '/' )
 	{
-		Dest[0] = CurrentDir[0] ;
-		Dest[1] = CurrentDir[1] ;
-		Dest[2] = _T( '\0' ) ;
+		DWORD CurCharCode1 ;
+		DWORD CurCharCode2 ;
+		int   CurCharBytes1 ;
+		int   CurCharBytes2 ;
 
-		i ++ ;
-		j = 2 ;
+		CurCharCode1 = GetCharCode( ( char * )&( ( BYTE * )CurrentDir )[ 0             ], WCHAR_T_CODEPAGE, &CurCharBytes1 ) ;
+		CurCharCode2 = GetCharCode( ( char * )&( ( BYTE * )CurrentDir )[ CurCharBytes1 ], WCHAR_T_CODEPAGE, &CurCharBytes2 ) ;
+		j += PutCharCode( CurCharCode1, WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		j += PutCharCode( CurCharCode2, WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		     PutCharCode( '\0',         WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+
+		i += CharBytes1 ;
 	}
 	else
 	// ドライブ名が書かれていたらそのドライブへ
-	if( Src[1] == _T( ':' ) )
+	if( CharCode2 == ':' )
 	{
-		Dest[0] = CHARUP(Src[0]) ;
-		Dest[1] = Src[1] ;
-		Dest[2] = _T( '\0' ) ;
+		j += PutCharCode( CHARUP( CharCode1 ), WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		j += PutCharCode(         CharCode2  , WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		     PutCharCode( '\0',                WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
 
-		i = 2 ;
-		j = 2 ;
+		i += CharBytes1 + CharBytes2 ;
 
-		if( Src[i] == _T( '\\' ) ) i ++ ;
+		// : の後の \ マークは飛ばす
+		CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ i ], WCHAR_T_CODEPAGE, &CharBytes1 ) ;
+		if( CharCode1 == '\\' )
+		{
+			i += CharBytes1 ;
+		}
 	}
 	else
 	// それ以外の場合はカレントディレクトリ
 	{
-		lstrcpy( Dest, CurrentDir ) ;
-		j = lstrlen( Dest ) ;
-		if( Dest[j-1] == _T( '\\' ) || Dest[j-1] == _T( '/' ) )
+		_WCSCPY( Dest, CurrentDir ) ;
+		j += _WCSLEN( Dest ) * sizeof( wchar_t ) ;
+
+		CharNum         = GetStringCharNum(  ( const char * )CurrentDir, WCHAR_T_CODEPAGE ) ;
+		LastCharAddress = ( char * )GetStringCharAddress( ( const char * )CurrentDir, WCHAR_T_CODEPAGE, CharNum - 1 ) ;
+		LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CODEPAGE, &LastCharBytes ) ;
+		if( LastCharCode == '\\' || LastCharCode == '/' )
 		{
-			Dest[j-1] = _T( '\0' ) ;
-			j -- ;
+			PutCharCode( '\0', WCHAR_T_CODEPAGE, LastCharAddress ) ;
+			j -= LastCharBytes ;
 		}
 	}
 
 	for(;;)
 	{
-		switch( Src[i] )
+		CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ i ], WCHAR_T_CODEPAGE, &CharBytes1 ) ;
+		switch( CharCode1 )
 		{
-		case _T( '\0' ) :
+		case '\0' :
 			if( k != 0 )
 			{
-				Dest[j] = _T( '\\' ) ; j ++ ;
-				lstrcpy( &Dest[j], iden ) ;
+				j += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+				_WCSCPY( ( wchar_t * )&( ( BYTE * )Dest )[ j ], iden ) ;
 				j += k ;
-				k = 0 ;
+				k  = 0 ;
 			}
 			goto END ;
 
-		case _T( '\\' ) :
-		case _T( '/' ) :
+		case '\\' :
+		case '/' :
 			// 文字列が無かったらスキップ
 			if( k == 0 )
 			{
-				i ++ ;
-				break;
+				i += CharBytes1 ;
+				break ;
 			}
-			if( lstrcmp( iden, _T( "." ) ) == 0 )
+			if( _WCSCMP( iden, L"." ) == 0 )
 			{
 				// なにもしない
 			}
 			else
-			if( lstrcmp( iden, _T( ".." ) ) == 0 )
+			if( _WCSCMP( iden, L".." ) == 0 )
 			{
-				// 一つ下のディレクトリへ
-				j -- ;
-//				while( Dest[j] != _T( '\\' ) && Dest[j] != _T( '/' ) && Dest[j] != _T( ':' ) ) j -- ;
+				// 一つ浅いディレクトリへ
+				PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+				CharNum         = GetStringCharNum(  ( const char * )Dest, WCHAR_T_CODEPAGE ) ;
+				LastCharAddress = ( char * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CODEPAGE, CharNum - 1 ) ;
+				LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CODEPAGE, &LastCharBytes ) ;
+				j -= LastCharBytes ;
 				for(;;)
 				{
-					if( Dest[j] == _T( '\\' ) || Dest[j] == _T( '/' ) || Dest[j] == _T( ':' ) ) break ;
-					j -= CheckDoubleChar( Dest, j - 1, _GET_CHARSET() ) == 2 ? 2 : 1 ;
+					if( LastCharCode == '\\' || LastCharCode == '/' || LastCharCode == ':' )
+					{
+						break ;
+					}
+
+					PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+					CharNum -- ;
+					LastCharAddress = ( char * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CODEPAGE, CharNum - 1 ) ;
+					LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CODEPAGE, &LastCharBytes ) ;
+					j -= LastCharBytes ;
 				}
-				if( Dest[j] != _T( ':' ) ) Dest[j] = _T( '\0' ) ;
-				else j ++ ;
+
+				if( LastCharCode != ':' )
+				{
+					PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+				}
+				else
+				{
+					j += LastCharBytes ;
+				}
 			}
 			else
 			{
-				Dest[j] = _T( '\\' ) ; j ++ ;
-				lstrcpy( &Dest[j], iden ) ;
+				j += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+				_WCSCPY( ( wchar_t * )&( ( BYTE * )Dest )[ j ], iden ) ;
 				j += k ;
 			}
 
 			k = 0 ;
-			i ++ ;
+			i += CharBytes1 ;
 			break ;
 		
 		default :
-			if( _TMULT( Src[i], _GET_CHARSET() ) == FALSE  )
-			{
-				iden[k] = CHARUP(Src[i]) ;
-				iden[k+1] = _T( '\0' ) ; 
-				k ++ ;
-				i ++ ;
-			}
-			else
-			{
-				iden[k]   = Src[i] ;
-				iden[k+1] = Src[i+1] ;
-				iden[k+2] = _T( '\0' ) ;
-				k += 2 ;
-				i += 2 ;
-			}
+			k += PutCharCode( CHARUP( CharCode1 ), WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )iden )[ k ] ) ;
+			     PutCharCode( '\0',                WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )iden )[ k ] ) ;
+
+			i += CharBytes1 ;
 			break ;
 		}
 	}
@@ -2921,29 +3503,44 @@ END :
 // ファイル名も一緒になっていると分かっているパス中からファイル名とディレクトリパスを分割する
 // フルパスである必要は無い、ファイル名だけでも良い
 // DirPath の終端に ￥ マークは付かない
-static int DXA_DIR_AnalysisFileNameAndDirPath( DXARC *DXA, const char *Src, char *FileName, char *DirPath )
+static int DXA_DIR_AnalysisFileNameAndDirPath( DXARC *DXA, const BYTE *Src, BYTE *FileName, BYTE *DirPath )
 {
-	int i, Last ;
+	int   i ;
+	int   Last ;
+	int   LastCharBytes ;
+	DWORD CharCode ;
+	int   CharBytes ;
 	
 	// ファイル名を抜き出す
-	i = 0 ;
+	i    = 0 ;
 	Last = -1 ;
-	while( Src[i] != '\0' )
+	for(;;)
 	{
-		if( CheckMultiByteChar( Src[i], DXA->CharSet ) == FALSE )
+		CharCode = GetCharCode( ( const char * )&Src[ i ], DXA->CodePage, &CharBytes ) ;
+		if( CharCode == '\0' )
 		{
-			if( Src[i] == '\\' || Src[i] == '/' || Src[i] == '\0' || Src[i] == ':' ) Last = i ;
-			i ++ ;
+			break ;
+		}
+
+		if( CharCode == '\\' || CharCode == '/' || CharCode == '\0' || CharCode == ':' )
+		{
+			Last          = i ;
+			LastCharBytes = CharBytes ;
+		}
+
+		i += CharBytes ;
+	}
+
+	if( FileName != NULL )
+	{
+		if( Last != -1 )
+		{
+			CL_strcpy( DXA->CodePage, ( char * )FileName, ( const char * )&Src[ Last + LastCharBytes ] ) ;
 		}
 		else
 		{
-			i += 2 ;
+			CL_strcpy( DXA->CodePage, ( char * )FileName, ( const char * )Src ) ;
 		}
-	}
-	if( FileName != NULL )
-	{
-		if( Last != -1 ) _STRCPY( FileName, &Src[Last+1] ) ;
-		else             _STRCPY( FileName, Src ) ;
 	}
 	
 	// ディレクトリパスを抜き出す
@@ -2951,12 +3548,12 @@ static int DXA_DIR_AnalysisFileNameAndDirPath( DXARC *DXA, const char *Src, char
 	{
 		if( Last != -1 )
 		{
-			_MEMCPY( DirPath, Src, Last ) ;
-			DirPath[Last] = '\0' ;
+			_MEMCPY( DirPath, Src, ( size_t )Last ) ;
+			PutCharCode( '\0', DXA->CodePage, ( char * )&DirPath[ Last ] ) ;
 		}
 		else
 		{
-			DirPath[0] = '\0' ;
+			PutCharCode( '\0', DXA->CodePage, ( char * )&DirPath[ 0    ] ) ;
 		}
 	}
 	
@@ -2965,155 +3562,237 @@ static int DXA_DIR_AnalysisFileNameAndDirPath( DXARC *DXA, const char *Src, char
 }
 
 // CmpStr の条件に Src が適合するかどうかを調べる( 0:適合する  -1:適合しない )
-static int DXA_DIR_FileNameCmp( DXARC *DXA, const char *Src, const char *CmpStr )
+static int DXA_DIR_FileNameCmp( DXARC *DXA, const BYTE *Src, const BYTE *CmpStr )
 {
-	const char *s, *c;
+	const BYTE *s, *c ;
+	DWORD SrcCharCode ;
+	int   SrcCharBytes ;
+	DWORD CmpCharCode ;
+	int   CmpCharBytes ;
 
-	s = Src;
-	c = CmpStr;
-	while( *c != '\0' || *s != '\0' )
+	s = Src ;
+	c = CmpStr ;
+	for(;;)
 	{
-		if( CheckMultiByteChar( *c, DXA->CharSet ) == TRUE )
+		SrcCharCode = GetCharCode( ( const char * )s, DXA->CodePage, &SrcCharBytes ) ;
+		CmpCharCode = GetCharCode( ( const char * )c, DXA->CodePage, &CmpCharBytes ) ;
+		if( SrcCharCode == '\0' || CmpCharCode == '\0' )
 		{
-			if( *((WORD *)s) != *((WORD *)c) ) return -1;
-			c += 2;
-			s += 2;
+			break ;
 		}
-		else
+
+		switch( CmpCharCode )
 		{
-			switch( *c )
+		case '?':
+			c += CmpCharBytes ;
+			s += SrcCharBytes ;
+			break;
+
+		case '*':
+			while( CmpCharCode == '*' )
 			{
-			case '?':
-				c ++ ;
-				s ++ ;
-				break;
-
-			case '*':
-				while( *c == '*' ) c ++ ;
-				if( *c == '\0' ) return 0;
-				while( *s != '\0' && *s != *c ) s ++ ;
-				if( *s == '\0' ) return -1;
-				c ++ ;
-				s ++ ;
-				break;
-
-			default:
-				if( *c != *s ) return -1;
-				c ++ ;
-				s ++ ;
-				break;
+				c += CmpCharBytes ;
+				CmpCharCode = GetCharCode( ( const char * )c, DXA->CodePage, &CmpCharBytes ) ;
 			}
+			if( CmpCharCode == '\0' )
+			{
+				return 0 ;
+			}
+
+			while( SrcCharCode != '\0' && SrcCharCode != CmpCharCode )
+			{
+				s += SrcCharBytes ;
+				SrcCharCode = GetCharCode( ( const char * )s, DXA->CodePage, &SrcCharBytes ) ;
+			}
+			if( SrcCharCode == '\0' )
+			{
+				return -1 ;
+			}
+
+			c += CmpCharBytes ;
+			s += SrcCharBytes ;
+			break;
+
+		default:
+			if( CmpCharCode != SrcCharCode )
+			{
+				return -1 ;
+			}
+
+			c += CmpCharBytes ;
+			s += SrcCharBytes ;
+			break;
 		}
-		if( ( *c == '\0' && *s != '\0' ) || ( *c != '\0' && *s == '\0' ) ) return -1;
+
+		if( ( CmpCharCode == '\0' && SrcCharCode != '\0' ) ||
+			( CmpCharCode != '\0' && SrcCharCode == '\0' ) )
+		{
+			return -1 ;
+		}
 	}
 
-	return 0;
+	return 0 ;
 }
 
 // アーカイブファイルをフォルダに見立ててファイルを開く時の情報を得る( -1:アーカイブとしては存在しなかった  0:存在した )
-static int DXA_DIR_OpenTest( const TCHAR *FilePath, int *ArchiveIndex, char *ArchivePath, char *ArchiveFilePath )
+static int DXA_DIR_OpenTest( const wchar_t *FilePath, int *ArchiveIndex, BYTE *ArchiveFilePath )
 {
-	int i, len, arcindex ;
-	TCHAR fullpath[256], path[256], temp[256], dir[256], *p ;
+	int   i ;
+	int   len ;
+	int   arcindex ;
+	wchar_t fullpath[ FILEPATH_MAX ] ;
+	wchar_t path[ FILEPATH_MAX ] ;
+	wchar_t temp[ FILEPATH_MAX ] ;
+	wchar_t dir[ FILEPATH_MAX ] ;
+	wchar_t *p ;
+	int   BackUseDirectoryPathCharValid ;
+	DWORD BackUseDirectoryPathCharCode ;
+	int   BackUseDirectoryPathCharBytes ;
 
 	// フルパスを得る(ついでに全ての文字を大文字にする)
 	DXA_DIR_ConvertFullPath( FilePath, fullpath ) ;
 
 	// 前回と使用するアーカイブのパスが同じ場合は同じアーカイブを使用する
-	if( DXARCD.BackUseDirectoryPathLength != 0 && _TSTRNCMP( fullpath, DXARCD.BackUseDirectory, DXARCD.BackUseDirectoryPathLength ) == 0 &&
-		( fullpath[ DXARCD.BackUseDirectoryPathLength ] == _T( '\\' ) || fullpath[ DXARCD.BackUseDirectoryPathLength ] == _T( '/' ) ) )
+	BackUseDirectoryPathCharValid = FALSE ;
+	if( DXARCD.BackUseDirectoryPathLength != 0 && _MEMCMP( fullpath, DXARCD.BackUseDirectory, DXARCD.BackUseDirectoryPathLength ) == 0 )
+	{
+		BackUseDirectoryPathCharValid = TRUE ;
+		BackUseDirectoryPathCharCode  = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ DXARCD.BackUseDirectoryPathLength ], WCHAR_T_CODEPAGE, &BackUseDirectoryPathCharBytes ) ;
+	}
+	if( BackUseDirectoryPathCharValid &&
+		( BackUseDirectoryPathCharCode == '\\' || BackUseDirectoryPathCharCode == '/' ) )
 	{
 		// 前回使用したＤＸＡファイルを開く
 		arcindex = DXA_DIR_OpenArchive( DXARCD.BackUseDirectory, NULL, -1, FALSE, FALSE, DXARCD.BackUseArchiveIndex ) ;
-		if( arcindex == -1 ) return -1 ;
+		if( arcindex == -1 )
+		{
+			return -1 ;
+		}
 
 		// ＤＸＡファイルがある場所以降のパスを作成する
-		p = &fullpath[ DXARCD.BackUseDirectoryPathLength + 1 ] ;
+		p = ( wchar_t * )&( ( BYTE * )fullpath )[ DXARCD.BackUseDirectoryPathLength + BackUseDirectoryPathCharBytes ] ;
 	}
 	else
 	{
+		DWORD CharCode1 ;
+		int   CharBytes1 ;
+		DWORD CharCode2 ;
+		int   CharBytes2 ;
+
 		// 前回とは違うパスの場合は一から調べる
 
 		// ディレクトリを一つ一つ追って行く
-		p = fullpath ;
+		p   = fullpath ;
 		len = 0 ;
 		for(;;)
 		{
 			// ネットワークを介していた場合の専用処理
-			if( p - fullpath == 0 && fullpath[0] == _T( '\\' ) && fullpath[1] == _T( '\\' ) )
+			if( p - fullpath == 0 )
 			{
-				path[0] = _T( '\\' );
-				path[1] = _T( '\\' );
-				path[2] = _T( '\0' );
-				len += 2;
-				p += 2;
+				// fullpath の１文字目と２文字目を取得
+				CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ 0 ], WCHAR_T_CODEPAGE, &CharBytes1 ) ;
+				CharCode2 = 0 ;
+				if( CharCode1 != 0 )
+				{
+					CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ CharBytes1 ], WCHAR_T_CODEPAGE, &CharBytes2 ) ;
+				}
+
+				if( CharCode1 == '\\' && CharCode2 == '\\' )
+				{
+					len += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
+					len += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
+					       PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
+
+					p = ( wchar_t * )( ( BYTE * )p + CharBytes1 + CharBytes2 ) ;
+				}
 			}
 
 			// ディレクトリを一つ取る
-			for( i = 0 ; *p != _T( '\0' ) && *p !=  _T( '/' ) && *p != _T( '\\' ) ; )
+			i = 0 ;
+			for(;;)
 			{
-				if( _TMULT( *p, _GET_CHARSET() ) )
+				CharCode1 = GetCharCode( ( const char * )p, WCHAR_T_CODEPAGE, &CharBytes1 ) ;
+				p = ( wchar_t * )( ( BYTE * )p + CharBytes1 ) ;
+				if( CharCode1 == '\0' || CharCode1 == '/' || CharCode1 == '\\' )
 				{
-					dir[i  ] = path[len+i  ] = p[ 0 ] ;
-					dir[i+1] = path[len+i+1] = p[ 1 ] ;
-					i += 2 ;
-					p += 2 ;
+					break ;
+				}
+
+				len += PutCharCode( CharCode1, WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
+				i   += PutCharCode( CharCode1, WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )dir  )[ i   ] ) ;
+
+			}
+
+			if( CharCode1 == '\0' || i == 0 )
+			{
+				return -1 ;
+			}
+
+			PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
+			PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )dir  )[ i   ] ) ;
+
+			// フォルダ名をDXアーカイブファイル名にする
+			{
+				int TempLen ;
+
+				_MEMCPY( temp, path, ( size_t )len ) ;
+				TempLen = len ;
+
+				TempLen += PutCharCode( '.', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
+				if( DXARCD.ArchiveExtensionLength == 0 )
+				{
+					TempLen += PutCharCode( 'D',  WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
+					TempLen += PutCharCode( 'X',  WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
+					TempLen += PutCharCode( 'A',  WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
+					TempLen += PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
 				}
 				else
 				{
-					dir[i] = path[len+i] = *p ;
-					i ++ ;
-					p ++ ;
+					_WCSCPY( ( wchar_t * )&( ( BYTE * )temp )[ TempLen ], DXARCD.ArchiveExtension ) ;
 				}
 			}
-			if( *p == _T( '\0' ) || i == 0 ) return -1;
-			p ++ ;
-			dir[i] = path[len+i] = _T( '\0' ) ;
-			len += i ;
-
-			// フォルダ名をDXアーカイブファイル名にする
-			_MEMCPY( temp, path, len * 2 ) ;
-			temp[len] = _T( '.' ) ;
-			if( DXARCD.ArchiveExtensionLength == 0 )	_MEMCPY( &temp[len+1], _T( "DXA" ), 4 * sizeof( TCHAR ) ) ;
-			else										_MEMCPY( &temp[len+1], DXARCD.ArchiveExtension, ( DXARCD.ArchiveExtensionLength + 1 ) * sizeof( TCHAR ) ) ;
 
 			// ＤＸＡファイルとして開いてみる
 			arcindex = DXA_DIR_OpenArchive( temp ) ;
-			if( arcindex != -1 ) break ;
+			if( arcindex != -1 )
+			{
+				break ;
+			}
 
 			// 開けなかったら次の階層へ
-			path[len] = _T( '\\' ) ;
-			len ++ ;
+			len += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
 		}
 
 		// 開けたら今回の情報を保存する
 		if( DXARCD.ArchiveExtensionLength == 0 )
-			_MEMCPY( DXARCD.BackUseDirectory, temp, ( len + 3 + 2 ) * sizeof( TCHAR ) ) ;
+		{
+			_MEMCPY( DXARCD.BackUseDirectory, temp, len + ( 1 /* . */ + 3 /* DXA */ + 1 /* '\0' */ ) * sizeof( wchar_t ) ) ;
+		}
 		else
-			_MEMCPY( DXARCD.BackUseDirectory, temp, ( len + DXARCD.ArchiveExtensionLength + 2 ) * sizeof( TCHAR ) ) ;
+		{
+			_MEMCPY( DXARCD.BackUseDirectory, temp, len + ( 1 /* . */ + DXARCD.ArchiveExtensionLength + 1 /* '\0' */ ) * sizeof( wchar_t ) ) ;
+		}
 		DXARCD.BackUseDirectoryPathLength = len ;
 		DXARCD.BackUseArchiveIndex        = arcindex ;
 	}
 
 	// 情報をセットする
 	*ArchiveIndex = arcindex;
-#ifdef UNICODE
-	int CodePage ;
-	CodePage = DXARCD.Archive[ arcindex ]->Archive.HeadV5.CodePage ;
-	if( CodePage == 0 ) CodePage = _GET_CODEPAGE() ;
-	if( ArchivePath )		WCharToMBChar( CodePage, ( DXWCHAR * )DXARCD.BackUseDirectory, ArchivePath,     512 ) ;
-	if( ArchiveFilePath )	WCharToMBChar( CodePage, ( DXWCHAR * )p,                       ArchiveFilePath, 512 ) ;
-#else
-	if( ArchivePath     ) lstrcpy( ArchivePath,     DXARCD.BackUseDirectory );
-	if( ArchiveFilePath ) lstrcpy( ArchiveFilePath, p                       );
-#endif
+
+	if( ArchiveFilePath )
+	{
+		int DestCodePage ;
+
+		DestCodePage = DXARCD.Archive[ arcindex ]->Archive.CodePage ;
+		ConvString( ( const char * )p, WCHAR_T_CODEPAGE, ( char * )ArchiveFilePath, DestCodePage ) ;
+	}
 
 	// 終了
 	return 0;
 }
 
 // アーカイブファイルを開く
-static int DXA_DIR_OpenArchive( const TCHAR *FilePath, void *FileImage, int FileSize, int FileImageCopyFlag, int FileImageReadOnly, int ArchiveIndex, int OnMemory, int ASyncThread )
+static int DXA_DIR_OpenArchive( const wchar_t *FilePath, void *FileImage, int FileSize, int FileImageCopyFlag, int FileImageReadOnly, int ArchiveIndex, int OnMemory, int ASyncThread )
 {
 	int					i ;
 	int					index ;
@@ -3128,9 +3807,9 @@ static int DXA_DIR_OpenArchive( const TCHAR *FilePath, void *FileImage, int File
 		tarc = DXARCD.Archive[ ArchiveIndex ] ;
 		if( tarc != NULL )
 		{
-			if(	lstrcmp( FilePath, tarc->Path ) == 0 )
+			if(	_WCSCMP( FilePath, tarc->Path ) == 0 )
 			{
-				DXARCD.Archive[ArchiveIndex]->UseCounter ++ ;
+				DXARCD.Archive[ ArchiveIndex ]->UseCounter ++ ;
 				return ArchiveIndex ;
 			}
 		}
@@ -3141,7 +3820,7 @@ static int DXA_DIR_OpenArchive( const TCHAR *FilePath, void *FileImage, int File
 	index    = 0 ;
 	for( i = 0 ; i < DXARCD.ArchiveNum ; index ++ )
 	{
-		arc = DXARCD.Archive[index] ;
+		arc = DXARCD.Archive[ index ] ;
 		if( arc == NULL )
 		{
 			newindex = index ;
@@ -3150,7 +3829,7 @@ static int DXA_DIR_OpenArchive( const TCHAR *FilePath, void *FileImage, int File
 		
 		i ++ ;
 
-		if( lstrcmp( arc->Path, FilePath ) == 0 )
+		if( _WCSCMP( arc->Path, FilePath ) == 0 )
 		{
 			// 既に開かれていた場合はそのインデックスを返す
 			arc->UseCounter ++ ;
@@ -3168,11 +3847,13 @@ static int DXA_DIR_OpenArchive( const TCHAR *FilePath, void *FileImage, int File
 		
 		// それでも一杯である場合はエラー
 		if( DXARCD.ArchiveNum == DXA_DIR_MAXARCHIVENUM )
+		{
 			return -1 ;
+		}
 	} 
 	if( newindex == -1 )
 	{
-		for( newindex = 0 ; DXARCD.Archive[newindex] != NULL ; newindex ++ ){}
+		for( newindex = 0 ; DXARCD.Archive[ newindex ] != NULL ; newindex ++ ){}
 	}
 
 	// アーカイブファイルが存在しているか確認がてら初期化する
@@ -3198,7 +3879,7 @@ static int DXA_DIR_OpenArchive( const TCHAR *FilePath, void *FileImage, int File
 	}
 
 	// 新しいアーカイブデータ用のメモリを確保する
-	arc = DXARCD.Archive[ newindex ] = (DXARC_DIR_ARCHIVE *)DXALLOC( sizeof( DXARC_DIR_ARCHIVE ) ) ;
+	arc = DXARCD.Archive[ newindex ] = ( DXARC_DIR_ARCHIVE * )DXALLOC( sizeof( DXARC_DIR_ARCHIVE ) ) ;
 	if( DXARCD.Archive[ newindex ] == NULL )
 	{
 		DXA_CloseArchive( &temparc ) ;
@@ -3209,7 +3890,7 @@ static int DXA_DIR_OpenArchive( const TCHAR *FilePath, void *FileImage, int File
 	// 情報セット
 	_MEMCPY( &arc->Archive, &temparc, sizeof( DXARC ) ) ;
 	arc->UseCounter = 1 ;
-	lstrcpy( arc->Path, FilePath ) ;
+	_WCSCPY( arc->Path, FilePath ) ;
 
 	// 使用中のアーカイブの数を増やす
 	DXARCD.ArchiveNum ++ ;
@@ -3219,7 +3900,7 @@ static int DXA_DIR_OpenArchive( const TCHAR *FilePath, void *FileImage, int File
 }
 
 // 既に開かれているアーカイブのハンドルを取得する( 戻り値: -1=無かった 0以上:ハンドル )
-static int DXA_DIR_GetArchive( const TCHAR *FilePath, void *FileImage )
+static int DXA_DIR_GetArchive( const wchar_t *FilePath, void *FileImage )
 {
 	int i, index ;
 	DXARC_DIR_ARCHIVE *arc ;
@@ -3228,26 +3909,35 @@ static int DXA_DIR_GetArchive( const TCHAR *FilePath, void *FileImage )
 	for( i = 0 ; i < DXARCD.ArchiveNum ; index ++ )
 	{
 		arc = DXARCD.Archive[index] ;
-		if( arc == NULL ) continue ;
+		if( arc == NULL )
+		{
+			continue ;
+		}
 
 		i ++ ;
 
 		if( FilePath )
 		{
-			if( lstrcmp( arc->Path, FilePath ) == 0 )
+			if( _WCSCMP( arc->Path, FilePath ) == 0 )
+			{
 				return index ;
+			}
 		}
 		else
 		{
 			if( arc->Archive.MemoryImageCopyFlag )
 			{
 				if( arc->Archive.MemoryImageOriginal == FileImage )
+				{
 					return index ;
+				}
 			}
 			else
 			{
 				if( arc->Archive.MemoryImage == FileImage )
+				{
 					return index ;
+				}
 			}
 		}
 	}
@@ -3262,7 +3952,10 @@ static int DXA_DIR_CloseArchive( int ArchiveHandle )
 
 	// 使用されていなかったら何もせず終了
 	arc = DXARCD.Archive[ArchiveHandle] ;
-	if( arc == NULL || arc->UseCounter == 0 ) return -1 ;
+	if( arc == NULL || arc->UseCounter == 0 )
+	{
+		return -1 ;
+	}
 
 	// 参照カウンタを減らす
 	arc->UseCounter -- ;
@@ -3280,13 +3973,19 @@ static void DXA_DIR_CloseWaitArchive( void )
 	Num = DXARCD.ArchiveNum ;
 	for( i = 0, index = 0 ; i < Num ; index ++ )
 	{
-		if( DXARCD.Archive[index] == NULL ) continue ;
+		if( DXARCD.Archive[index] == NULL )
+		{
+			continue ;
+		}
 		i ++ ;
 
 		arc = DXARCD.Archive[index] ;
 
 		// 使われていたら解放しない
-		if( arc->UseCounter > 0 ) continue ;
+		if( arc->UseCounter > 0 )
+		{
+			continue ;
+		}
 
 		// 後始末
 		DXA_CloseArchive( &arc->Archive ) ;
@@ -3304,7 +4003,9 @@ extern	int DXA_DIR_Initialize( void )
 {
 	// 既に初期化済みの場合は何もしない
 	if( DXARCD.InitializeFlag )
+	{
 		return -1 ;
+	}
 
 	// クリティカルセクションの初期化
 	CriticalSection_Initialize( &DXARCD.CriticalSection ) ;
@@ -3328,7 +4029,9 @@ extern int DXA_DIR_Terminate( void )
 {
 	// 既に後始末済みの場合は何もしない
 	if( DXARCD.InitializeFlag == FALSE )
+	{
 		return -1 ;
+	}
 
 	// 使用されていないアーカイブファイルを解放する
 	DXA_DIR_CloseWaitArchive() ;
@@ -3344,21 +4047,21 @@ extern int DXA_DIR_Terminate( void )
 }
 
 // アーカイブファイルの拡張子を設定する
-extern int DXA_DIR_SetArchiveExtension( const TCHAR *Extension )
+extern int DXA_DIR_SetArchiveExtension( const wchar_t *Extension )
 {
 	int Length ;
 	
-	Length = lstrlen( Extension ) ;
+	Length = _WCSLEN( Extension ) ;
 
 	if( Length >= 64 || Extension == NULL || Extension[0] == _T( '\0' ) )
 	{
-		DXARCD.ArchiveExtension[0] = 0 ;
+		DXARCD.ArchiveExtension[ 0 ]  = 0 ;
 		DXARCD.ArchiveExtensionLength = 0 ;
 	}
 	else
 	{
 		DXARCD.ArchiveExtensionLength = Length ;
-		lstrcpy( DXARCD.ArchiveExtension, Extension ) ;
+		_WCSCPY( DXARCD.ArchiveExtension, Extension ) ;
 	}
 
 	// 終了
@@ -3384,7 +4087,7 @@ extern int DXA_DIR_SetKeyString( const char *KeyString )
 	else
 	{
 		DXARCD.ValidKeyString = TRUE ;
-		if( lstrlenA( KeyString ) > DXA_KEYSTR_LENGTH )
+		if( _STRLEN( KeyString ) > DXA_KEYSTR_LENGTH )
 		{
 			_MEMCPY( DXARCD.KeyString, KeyString, DXA_KEYSTR_LENGTH ) ;
 			DXARCD.KeyString[ DXA_KEYSTR_LENGTH ] = '\0' ;
@@ -3400,13 +4103,16 @@ extern int DXA_DIR_SetKeyString( const char *KeyString )
 }
 
 // ファイルを丸ごと読み込む関数
-extern LONGLONG DXA_DIR_LoadFile( const TCHAR *FilePath, void *Buffer, int BufferSize )
+extern LONGLONG DXA_DIR_LoadFile( const wchar_t *FilePath, void *Buffer, int BufferSize )
 {
 	LONGLONG siz ;
 	DWORD_PTR handle ;
 
 	handle = DXA_DIR_Open( FilePath ) ;
-	if( handle == -1 ) return false ;
+	if( handle == 0 )
+	{
+		return false ;
+	}
 
 	DXA_DIR_Seek( handle, 0L, SEEK_END ) ;
 	siz = DXA_DIR_Tell( handle ) ;
@@ -3424,11 +4130,12 @@ extern LONGLONG DXA_DIR_LoadFile( const TCHAR *FilePath, void *Buffer, int Buffe
 }
 
 // DXA_DIR_Open の基本関数
-extern DWORD_PTR DXA_DIR_Open( const TCHAR *FilePath, int UseCacheFlag, int BlockReadFlag, int UseASyncReadFlag )
+extern DWORD_PTR DXA_DIR_Open( const wchar_t *FilePath, int UseCacheFlag, int BlockReadFlag, int UseASyncReadFlag )
 {
 	int index ;
 	DXARC_DIR_FILE *file ;
-	char DXAErrorStr[256], DxaInFilePath[256] ;
+//	char DXAErrorStr[ FILEPATH_MAX ] ;
+	BYTE DxaInFilePath[ FILEPATH_MAX ] ;
 
 	// 初期化されていなかったら初期化する
 	if( DXARCD.InitializeFlag == FALSE )
@@ -3441,7 +4148,7 @@ extern DWORD_PTR DXA_DIR_Open( const TCHAR *FilePath, int UseCacheFlag, int Bloc
 
 	UseCacheFlag  = UseCacheFlag ;
 	BlockReadFlag = BlockReadFlag ;
-	DXAErrorStr[0] = 0 ;
+//	DXAErrorStr[ 0 ] = 0 ;
 
 	// 空きデータを探す
 	if( DXARCD.FileNum == DXA_DIR_MAXFILENUM )
@@ -3449,19 +4156,19 @@ extern DWORD_PTR DXA_DIR_Open( const TCHAR *FilePath, int UseCacheFlag, int Bloc
 		// クリティカルセクションの解放
 		CriticalSection_Unlock( &DXARCD.CriticalSection ) ;
 
-		DXST_ERRORLOG_ADD( _T( "同時に開けるファイルの数が限界を超えました\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x0c\x54\x42\x66\x6b\x30\x8b\x95\x51\x30\x8b\x30\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x6e\x30\x70\x65\x4c\x30\x50\x96\x4c\x75\x92\x30\x85\x8d\x48\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"同時に開けるファイルの数が限界を超えました\n" @*/ ) ;
 		return 0 ;
 	}
 	for( index = 0 ; DXARCD.File[index] != NULL ; index ++ ){}
 
 	// メモリの確保
-	DXARCD.File[index] = (DXARC_DIR_FILE *)DXALLOC( sizeof( DXARC_DIR_FILE ) ) ;
-	if( DXARCD.File[index] == NULL )
+	DXARCD.File[ index ] = (DXARC_DIR_FILE *)DXALLOC( sizeof( DXARC_DIR_FILE ) ) ;
+	if( DXARCD.File[ index ] == NULL )
 	{
 		// クリティカルセクションの解放
 		CriticalSection_Unlock( &DXARCD.CriticalSection ) ;
 
-		DXST_ERRORLOG_ADD( _T( "ファイルの情報を格納するメモリの確保に失敗しました\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x6e\x30\xc5\x60\x31\x58\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ファイルの情報を格納するメモリの確保に失敗しました\n" @*/ ) ;
 		return 0 ;
 	}
 	file = DXARCD.File[index] ;
@@ -3472,7 +4179,7 @@ extern DWORD_PTR DXA_DIR_Open( const TCHAR *FilePath, int UseCacheFlag, int Bloc
 		// アーカイブを優先する場合
 
 		// アーカイブファイルが無いか調べる
-		if( DXA_DIR_OpenTest( FilePath, (int *)&file->UseArchiveIndex, NULL, DxaInFilePath ) == 0 )
+		if( DXA_DIR_OpenTest( FilePath, ( int * )&file->UseArchiveIndex, DxaInFilePath ) == 0 )
 		{
 			// アーカイブを使用しているフラグを立てる
 			file->UseArchiveFlag = 1 ;
@@ -3480,8 +4187,8 @@ extern DWORD_PTR DXA_DIR_Open( const TCHAR *FilePath, int UseCacheFlag, int Bloc
 			// ディレクトリ名と同名のＤＸＡファイルを開けたらその中から指定のファイルを読み込もうとする
 			if( DXA_STREAM_Initialize( &file->DXAStream, &DXARCD.Archive[ file->UseArchiveIndex ]->Archive, DxaInFilePath, UseASyncReadFlag ) < 0 )
 			{
-				_STRCPY( DXAErrorStr, DXSTRING( "ＤＸＡファイルの中に指定のファイルは見つかりませんでした\n" ) ) ;
-				DXA_DIR_CloseArchive( file->UseArchiveIndex ) ;
+//				_STRCPY( DXAErrorStr, DXSTRING( "ＤＸＡファイルの中に指定のファイルは見つかりませんでした\n" ) ) ;
+				DXA_DIR_CloseArchive( ( int )file->UseArchiveIndex ) ;
 				goto ERR ;
 			}
 		}
@@ -3492,7 +4199,10 @@ extern DWORD_PTR DXA_DIR_Open( const TCHAR *FilePath, int UseCacheFlag, int Bloc
 
 			// 普通のファイルが無いか調べる
 			file->WinFilePointer_ = ReadOnlyFileAccessOpen( FilePath, UseCacheFlag, TRUE, UseASyncReadFlag ) ;
-			if( file->WinFilePointer_ == 0 ) goto ERR ;
+			if( file->WinFilePointer_ == 0 )
+			{
+				goto ERR ;
+			}
 		}
 	}
 	else
@@ -3508,7 +4218,7 @@ extern DWORD_PTR DXA_DIR_Open( const TCHAR *FilePath, int UseCacheFlag, int Bloc
 		else
 		{
 			// アーカイブファイルが無いか調べる
-			if( DXA_DIR_OpenTest( FilePath, (int *)&file->UseArchiveIndex, NULL, DxaInFilePath ) == 0 )
+			if( DXA_DIR_OpenTest( FilePath, (int *)&file->UseArchiveIndex, DxaInFilePath ) == 0 )
 			{
 				// アーカイブを使用しているフラグを立てる
 				file->UseArchiveFlag = 1 ;
@@ -3516,8 +4226,8 @@ extern DWORD_PTR DXA_DIR_Open( const TCHAR *FilePath, int UseCacheFlag, int Bloc
 				// ディレクトリ名と同名のＤＸＡファイルを開けたらその中から指定のファイルを読み込もうとする
 				if( DXA_STREAM_Initialize( &file->DXAStream, &DXARCD.Archive[ file->UseArchiveIndex ]->Archive, DxaInFilePath, UseASyncReadFlag ) < 0 )
 				{
-					_STRCPY( DXAErrorStr, DXSTRING( "ＤＸＡファイルの中に指定のファイルは見つかりませんでした\n" ) ) ;
-					DXA_DIR_CloseArchive( file->UseArchiveIndex ) ;
+//					_STRCPY( DXAErrorStr, DXSTRING( "ＤＸＡファイルの中に指定のファイルは見つかりませんでした\n" ) ) ;
+					DXA_DIR_CloseArchive( ( int )file->UseArchiveIndex ) ;
 					goto ERR ;
 				}
 			}
@@ -3544,8 +4254,8 @@ ERR:
 	DXARCD.File[index] = NULL ;
 	
 	// エラー文字列出力
-//	DXST_ERRORLOGFMT_ADD(( "ファイル %s のオープンに失敗しました\n", FilePath )) ;
-//	if( DXAErrorStr[0] != '\0' ) DXST_ERRORLOGFMT_ADD(( "ＤＸＡエラー：%s", DXAErrorStr )) ;
+//	DXST_ERRORLOGFMT_ADDW(( L"ファイル %s のオープンに失敗しました\n", FilePath )) ;
+//	if( DXAErrorStr[0] != '\0' ) DXST_ERRORLOGFMT_ADDW(( "ＤＸＡエラー：%s", DXAErrorStr )) ;
 
 	// クリティカルセクションの解放
 	CriticalSection_Unlock( &DXARCD.CriticalSection ) ;
@@ -3583,7 +4293,7 @@ extern int DXA_DIR_Close( DWORD_PTR Handle )
 		// アーカイブを使用していた場合はアーカイブの参照数を減らす
 		
 		// アーカイブファイルの参照数を減らす
-		DXA_DIR_CloseArchive( file->UseArchiveIndex ) ;
+		DXA_DIR_CloseArchive( ( int )file->UseArchiveIndex ) ;
 
 		// アーカイブファイルの後始末
 		DXA_STREAM_Terminate( &file->DXAStream ) ;
@@ -3607,48 +4317,88 @@ extern int DXA_DIR_Close( DWORD_PTR Handle )
 extern	LONGLONG DXA_DIR_Tell( DWORD_PTR Handle )
 {
 	DXARC_DIR_FILE *file = DXARCD.File[Handle & 0x0FFFFFFF] ;
-	if( file == NULL ) return -1 ;
-	if( file->UseArchiveFlag == 0 )	return ReadOnlyFileAccessTell( file->WinFilePointer_ ) ;
-	else							return DXA_STREAM_Tell( &file->DXAStream ) ;
+	if( file == NULL )
+	{
+		return -1 ;
+	}
+
+	if( file->UseArchiveFlag == 0 )
+	{
+		return ReadOnlyFileAccessTell( file->WinFilePointer_ ) ;
+	}
+	else
+	{
+		return DXA_STREAM_Tell( &file->DXAStream ) ;
+	}
 }
 
 // ファイルポインタの位置を変更する
 extern int DXA_DIR_Seek( DWORD_PTR Handle, LONGLONG SeekPoint, int SeekType )
 {
 	DXARC_DIR_FILE *file = DXARCD.File[Handle & 0x0FFFFFFF] ;
-	if( file == NULL ) return -1 ;
-	if( file->UseArchiveFlag == 0 )	return ReadOnlyFileAccessSeek( file->WinFilePointer_, SeekPoint, SeekType ) ;
-	else							return DXA_STREAM_Seek( &file->DXAStream, SeekPoint, SeekType ) ;
+	if( file == NULL )
+	{
+		return -1 ;
+	}
+
+	if( file->UseArchiveFlag == 0 )
+	{
+		return ReadOnlyFileAccessSeek( file->WinFilePointer_, SeekPoint, SeekType ) ;
+	}
+	else
+	{
+		return DXA_STREAM_Seek( &file->DXAStream, SeekPoint, SeekType ) ;
+	}
 }
 
 // ファイルからデータを読み込む
 extern size_t DXA_DIR_Read( void *Buffer, size_t BlockSize, size_t BlockNum, DWORD_PTR Handle )
 {
 	DXARC_DIR_FILE *file = DXARCD.File[Handle & 0x0FFFFFFF] ;
-	if( file == NULL ) return ( size_t )-1 ;
-	if( file->UseArchiveFlag == 0 )	return ReadOnlyFileAccessRead( Buffer, BlockSize, BlockNum, file->WinFilePointer_ ) ;
-	else							return DXA_STREAM_Read( &file->DXAStream, Buffer, BlockSize * BlockNum ) / BlockSize ;
+	if( file == NULL )
+	{
+		return ( size_t )-1 ;
+	}
+
+	if( file->UseArchiveFlag == 0 )
+	{
+		return ReadOnlyFileAccessRead( Buffer, BlockSize, BlockNum, file->WinFilePointer_ ) ;
+	}
+	else
+	{
+		return DXA_STREAM_Read( &file->DXAStream, Buffer, BlockSize * BlockNum ) / BlockSize ;
+	}
 }
 
 // ファイルの終端を調べる
 extern int DXA_DIR_Eof( DWORD_PTR Handle )
 {
 	DXARC_DIR_FILE *file = DXARCD.File[Handle & 0x0FFFFFFF] ;
-	if( file == NULL ) return -1 ;
-	if( file->UseArchiveFlag == 0 ) return ReadOnlyFileAccessEof( file->WinFilePointer_ ) ;
-	else							return DXA_STREAM_Eof( &file->DXAStream ) ;
+	if( file == NULL )
+	{
+		return -1 ;
+	}
+
+	if( file->UseArchiveFlag == 0 )
+	{
+		return ReadOnlyFileAccessEof( file->WinFilePointer_ ) ;
+	}
+	else
+	{
+		return DXA_STREAM_Eof( &file->DXAStream ) ;
+	}
 }
 
-extern	int DXA_DIR_ChDir( const TCHAR *Path )
+extern	int DXA_DIR_ChDir( const wchar_t *Path )
 {
-	::SetCurrentDirectory( Path ) ;
+	_WCHDIR( Path ) ;
 
 	return 0 ;
 }
 
-extern	int DXA_DIR_GetDir( TCHAR *Buffer )
+extern	int DXA_DIR_GetDir( wchar_t *Buffer )
 {
-	::GetCurrentDirectory( 256, Buffer ) ;
+	_WGETCWD( Buffer, FILEPATH_MAX ) ;
 
 	return 0 ;
 }
@@ -3657,57 +4407,80 @@ extern	int DXA_DIR_GetDir( TCHAR *Buffer )
 extern	int DXA_DIR_IdleCheck( DWORD_PTR Handle )
 {
 	DXARC_DIR_FILE *file = DXARCD.File[Handle & 0x0FFFFFFF] ;
-	if( file == NULL ) return -1 ;
-	if( file->UseArchiveFlag == 0 )	return ReadOnlyFileAccessIdleCheck( file->WinFilePointer_ ) ;
-	else							return DXA_STREAM_IdleCheck( &file->DXAStream ) ;
+	if( file == NULL )
+	{
+		return -1 ;
+	}
+
+	if( file->UseArchiveFlag == 0 )
+	{
+		return ReadOnlyFileAccessIdleCheck( file->WinFilePointer_ ) ;
+	}
+	else
+	{
+		return DXA_STREAM_IdleCheck( &file->DXAStream ) ;
+	}
 }
 
 // 戻り値: -1=エラー  -1以外=FindHandle
-extern DWORD_PTR DXA_DIR_FindFirst( const TCHAR *FilePath, FILEINFO *Buffer )
+extern DWORD_PTR DXA_DIR_FindFirst( const wchar_t *FilePath, FILEINFOW *Buffer )
 {
-	DXA_DIR_FINDDATA *find;
-	char nPath[256];
+	DXA_DIR_FINDDATA *find ;
+	BYTE nPath[ FILEPATH_MAX ] ;
 
 	// メモリの確保
-	find = ( DXA_DIR_FINDDATA * )DXALLOC( sizeof( DXA_DIR_FINDDATA ) );
-	if( find == NULL ) return ( DWORD_PTR )-1;
-	_MEMSET( find, 0, sizeof( *find ) );
+	find = ( DXA_DIR_FINDDATA * )DXALLOC( sizeof( DXA_DIR_FINDDATA ) ) ;
+	if( find == NULL )
+	{
+		return ( DWORD_PTR )-1 ;
+	}
+	_MEMSET( find, 0, sizeof( *find ) ) ;
 
 	// 指定のオブジェクトがアーカイブファイル内か調べる
-	if( DXA_DIR_OpenTest( FilePath, &find->UseArchiveIndex, NULL, nPath ) == -1 )
+	if( DXA_DIR_OpenTest( FilePath, &find->UseArchiveIndex, nPath ) == -1 )
 	{
 		// アーカイブファイル内ではなかった場合はファイルから検索する
-		find->UseArchiveFlag = 0;
-		find->FindHandle = ReadOnlyFileAccessFindFirst( FilePath, Buffer );
+		find->UseArchiveFlag = 0 ;
+		find->FindHandle = ReadOnlyFileAccessFindFirst( FilePath, Buffer ) ;
 	}
 	else
 	{
 		// アーカイブファイル内の場合はアーカイブファイル内から検索する
-		find->UseArchiveFlag = 1;
-		find->FindHandle = DXA_FindFirst( &DXARCD.Archive[ find->UseArchiveIndex ]->Archive, nPath, Buffer );
+		find->UseArchiveFlag = 1 ;
+		find->FindHandle = DXA_FindFirst( &DXARCD.Archive[ find->UseArchiveIndex ]->Archive, nPath, Buffer ) ;
 	}
 
 	// 検索ハンドルが取得できなかった場合はエラー
 	if( find->FindHandle == ( DWORD_PTR )-1 )
 	{
+		// アーカイブファイル内の場合はアーカイブファイルの使用カウントを減らす
+		if( find->UseArchiveFlag != 0 )
+		{
+			DXA_DIR_CloseArchive( find->UseArchiveIndex ) ;
+		}
+
 		DXFREE( find );
-		return ( DWORD_PTR )-1;
+		return ( DWORD_PTR )-1 ;
 	}
 
-	// 返回句柄
-	return (DWORD_PTR)find;
+	// ハンドルを返す
+	return (DWORD_PTR)find ;
 }
 
 // 戻り値: -1=エラー  0=成功
-extern int DXA_DIR_FindNext( DWORD_PTR FindHandle, FILEINFO *Buffer )
+extern int DXA_DIR_FindNext( DWORD_PTR FindHandle, FILEINFOW *Buffer )
 {
 	DXA_DIR_FINDDATA *find;
 
 	find = (DXA_DIR_FINDDATA *)FindHandle;
 	if( find->UseArchiveFlag == 0 )
-		return ReadOnlyFileAccessFindNext( find->FindHandle, Buffer );
+	{
+		return ReadOnlyFileAccessFindNext( find->FindHandle, Buffer ) ;
+	}
 	else
-		return DXA_FindNext( find->FindHandle, Buffer );
+	{
+		return DXA_FindNext( find->FindHandle, Buffer ) ;
+	}
 }
 
 // 戻り値: -1=エラー  0=成功
@@ -3718,7 +4491,7 @@ extern int DXA_DIR_FindClose( DWORD_PTR FindHandle )
 	find = (DXA_DIR_FINDDATA *)FindHandle;
 	if( find->UseArchiveFlag == 0 )
 	{
-		ReadOnlyFileAccessFindClose( find->FindHandle );
+		ReadOnlyFileAccessFindClose( find->FindHandle ) ;
 	}
 	else
 	{
@@ -3737,43 +4510,70 @@ extern int DXA_DIR_FindClose( DWORD_PTR FindHandle )
 // 指定のＤＸＡファイルを丸ごとメモリに読み込む( 戻り値: -1=エラー  0=成功 )
 extern int NS_DXArchivePreLoad( const TCHAR *FilePath , int ASyncThread )
 {
-	TCHAR fullpath[256];
+	wchar_t fullpath[ FILEPATH_MAX ] ;
 
 	// フルパスを得る(ついでに全ての文字を大文字にする)
+#ifdef UNICODE
 	DXA_DIR_ConvertFullPath( FilePath, fullpath ) ;
+#else // UNICODE
+	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
 
-	return DXA_DIR_OpenArchive( fullpath, NULL, -1, FALSE, FALSE, -1, TRUE, ASyncThread ) == -1 ? -1 : 0;
+	ConvString( ( const char * )FilePath, _TCODEPAGE, ( char * )FilePathBuffer, WCHAR_T_CODEPAGE ) ;
+	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath ) ;
+#endif // UNICODE
+
+	return DXA_DIR_OpenArchive( fullpath, NULL, -1, FALSE, FALSE, -1, TRUE, ASyncThread ) == -1 ? -1 : 0 ;
 }
 
 // 指定のＤＸＡファイルの事前読み込みが完了したかどうかを取得する( 戻り値： TRUE=完了した FALSE=まだ )
 extern int NS_DXArchiveCheckIdle( const TCHAR *FilePath )
 {
 	int handle;
-	TCHAR fullpath[256];
+	wchar_t fullpath[FILEPATH_MAX];
 
 	// フルパスを得る(ついでに全ての文字を大文字にする)
+#ifdef UNICODE
 	DXA_DIR_ConvertFullPath( FilePath, fullpath ) ;
+#else // UNICODE
+	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
+
+	ConvString( ( const char * )FilePath, _TCODEPAGE, ( char * )FilePathBuffer, WCHAR_T_CODEPAGE ) ;
+	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath ) ;
+#endif // UNICODE
 
 	// ファイルパスからハンドルを取得する
-	handle = DXA_DIR_GetArchive( fullpath );
-	if( handle == -1 ) return 0 ;
+	handle = DXA_DIR_GetArchive( fullpath ) ;
+	if( handle == -1 )
+	{
+		return 0 ;
+	}
 
 	// 準備が完了したかどうかを得る
-	return DXA_CheckIdle( &DXARCD.Archive[handle]->Archive );
+	return DXA_CheckIdle( &DXARCD.Archive[handle]->Archive ) ;
 }
 
 // 指定のＤＸＡファイルをメモリから解放する
 extern int NS_DXArchiveRelease( const TCHAR *FilePath )
 {
 	int handle;
-	TCHAR fullpath[256];
+	wchar_t fullpath[ FILEPATH_MAX ] ;
 
 	// フルパスを得る(ついでに全ての文字を大文字にする)
+#ifdef UNICODE
 	DXA_DIR_ConvertFullPath( FilePath, fullpath ) ;
+#else // UNICODE
+	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
+
+	ConvString( ( const char * )FilePath, _TCODEPAGE, ( char * )FilePathBuffer, WCHAR_T_CODEPAGE ) ;
+	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath ) ;
+#endif // UNICODE
 
 	// ファイルパスからハンドルを取得する
 	handle = DXA_DIR_GetArchive( fullpath ) ;
-	if( handle == -1 ) return 0 ;
+	if( handle == -1 )
+	{
+		return 0 ;
+	}
 
 	// 閉じる
 	DXA_DIR_CloseArchive( handle ) ;
@@ -3788,26 +4588,28 @@ extern int NS_DXArchiveCheckFile( const TCHAR *FilePath, const TCHAR *TargetFile
 {
 	int index, ret ;
 	DXARC_DIR_ARCHIVE *Archive ;
-	TCHAR fullpath[256];
+	wchar_t fullpath[ FILEPATH_MAX ] ;
 
 	// フルパスを得る(ついでに全ての文字を大文字にする)
+#ifdef UNICODE
 	DXA_DIR_ConvertFullPath( FilePath, fullpath ) ;
+#else // UNICODE
+	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
+
+	ConvString( ( const char * )FilePath, _TCODEPAGE, ( char * )FilePathBuffer, WCHAR_T_CODEPAGE ) ;
+	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath ) ;
+#endif // UNICODE
 
 	// アーカイブファイルがあるかどうか調べる
-	index = DXA_DIR_OpenArchive( FilePath ) ;
-	if( index == -1 ) return -1 ;
+	index = DXA_DIR_OpenArchive( fullpath ) ;
+	if( index == -1 )
+	{
+		return -1 ;
+	}
 
 	// アーカイブの中に指定のファイルがあるかどうかを調べる
 	Archive = DXARCD.Archive[ index ] ;
-
-#ifdef UNICODE
-	// マルチバイト文字列に変換
-	char TargetFilePathA[1024];
-	WCharToMBChar( Archive->Archive.HeadV5.CodePage == 0 ? _GET_CODEPAGE() : Archive->Archive.HeadV5.CodePage, ( DXWCHAR * )TargetFilePath, TargetFilePathA, 256 ) ;
-	ret = DXA_GetFileInfo( &Archive->Archive, TargetFilePathA, NULL, NULL ) ;
-#else
-	ret = DXA_GetFileInfo( &Archive->Archive, TargetFilePath, NULL, NULL ) ;
-#endif
+	ret = DXA_GetFileInfo( &Archive->Archive, _TCODEPAGE, ( const char * )TargetFilePath, NULL, NULL ) ;
 
 	DXA_DIR_CloseArchive( index ) ;
 
@@ -3818,10 +4620,17 @@ extern int NS_DXArchiveCheckFile( const TCHAR *FilePath, const TCHAR *TargetFile
 // メモリ上に展開されたＤＸＡファイルを指定のファイルパスにあることにする
 extern int NS_DXArchiveSetMemImage(		void *ArchiveImage, int ArchiveImageSize, const TCHAR *EmulateFilePath, int ArchiveImageCopyFlag, int ArchiveImageReadOnly )
 {
-	TCHAR fullpath[256];
+	wchar_t fullpath[ FILEPATH_MAX ] ;
 
 	// フルパスを得る(ついでに全ての文字を大文字にする)
+#ifdef UNICODE
 	DXA_DIR_ConvertFullPath( EmulateFilePath, fullpath ) ;
+#else // UNICODE
+	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
+
+	ConvString( ( const char * )EmulateFilePath, _TCODEPAGE, ( char * )FilePathBuffer, WCHAR_T_CODEPAGE ) ;
+	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath ) ;
+#endif // UNICODE
 
 	return DXA_DIR_OpenArchive( fullpath, ArchiveImage, ArchiveImageSize, ArchiveImageCopyFlag, ArchiveImageReadOnly, -1, FALSE, FALSE ) == -1 ? -1 : 0;
 }
@@ -3833,7 +4642,10 @@ extern int NS_DXArchiveReleaseMemImage(	void *ArchiveImage )
 
 	// ファイルパスからハンドルを取得する
 	handle = DXA_DIR_GetArchive( NULL, ArchiveImage ) ;
-	if( handle == -1 ) return 0 ;
+	if( handle == -1 )
+	{
+		return 0 ;
+	}
 
 	// 閉じる
 	DXA_DIR_CloseArchive( handle ) ;
@@ -3868,7 +4680,7 @@ extern	int	DXA_Encode( void *Src, DWORD SrcSize, void *Dest )
 	int    bonus,    conbo,    conbosize,    address,    addresssize ;
 	int maxbonus, maxconbo, maxconbosize, maxaddress, maxaddresssize ;
 	BYTE keycode, *srcp, *destp, *dp, *sp, *sp2, *sp1 ;
-	DWORD srcaddress, nextprintaddress, code ;
+	DWORD srcaddress, code ;
 	int j ;
 	DWORD i, m ;
 	DWORD maxlistnum, maxlistnummask, listaddp ;
@@ -3973,7 +4785,6 @@ extern	int	DXA_Encode( void *Src, DWORD SrcSize, void *Dest )
 	dstsize          = 0 ;
 	listaddp         = 0 ;
 	sublistnum       = 0 ;
-	nextprintaddress = 1024 * 100 ;
 	while( srcaddress < SrcSize )
 	{
 		// 残りサイズが最低圧縮サイズ以下の場合は圧縮処理をしない
@@ -4004,7 +4815,7 @@ extern	int	DXA_Encode( void *Src, DWORD SrcSize, void *Dest )
 		maxbonus   = -1 ;
 		for( m = 0, listtemp = list->next ; /*m < MAX_SEARCHLISTNUM &&*/ listtemp != NULL ; listtemp = listtemp->next, m ++ )
 		{
-			address = srcaddress - listtemp->address ;
+			address = ( int )( srcaddress - listtemp->address ) ;
 			if( address >= MAX_POSITION )
 			{
 				if( listtemp->prev ) listtemp->prev->next = listtemp->next ;
@@ -4192,7 +5003,7 @@ NOENCODE:
 	}
 
 	// 圧縮後のデータサイズを保存する
-	*((DWORD *)&destp[4]) = dstsize + 9 ;
+	*((DWORD *)&destp[4]) = ( DWORD )( dstsize + 9 ) ;
 
 	// 確保したメモリの解放
 	DXFREE( usesublistflagtable ) ;
@@ -4220,7 +5031,9 @@ extern int DXA_Decode( void *Src, void *Dest )
 	
 	// 出力先がない場合はサイズだけ返す
 	if( Dest == NULL )
-		return destsize ;
+	{
+		return ( int )destsize ;
+	}
 	
 	// 展開開始
 	sp  = srcp + 9 ;
@@ -4286,7 +5099,7 @@ extern int DXA_Decode( void *Src, void *Dest )
 			break ;
 			
 		case 2 :
-			index = *((WORD *)sp) | ( sp[2] << 16 ) ;
+			index = ( DWORD )( *((WORD *)sp) | ( sp[2] << 16 ) ) ;
 			sp      += 3 ;
 			srcsize -= 3 ;
 			break ;
@@ -4323,4 +5136,183 @@ extern int DXA_Decode( void *Src, void *Dest )
 	return (int)destsize ;
 }
 
+// バイナリデータを半角文字列に変換する( 戻り値:変換後のデータサイズ )
+extern DWORD BinToChar128( void *Src, DWORD SrcSize, void *Dest )
+{
+	unsigned int DestSize ;
+
+	DestSize  = SrcSize + ( SrcSize + 6 ) / 7 + 5 ;
+
+	if( Dest != NULL )
+	{
+		unsigned int PackNum ;
+		unsigned int ModNum ;
+		unsigned char *DestP ;
+		unsigned char *SrcP ;
+		unsigned int i ;
+
+		DestP = ( unsigned char * )Dest ;
+		SrcP  = ( unsigned char * )&SrcSize ;
+
+		DestP[ 0 ] = BinToChar128Table[                                 ( SrcP[ 0 ] >> 1 ) ] ;
+		DestP[ 1 ] = BinToChar128Table[ ( ( SrcP[ 0 ] & 0x01 ) << 6 ) | ( SrcP[ 1 ] >> 2 ) ] ;
+		DestP[ 2 ] = BinToChar128Table[ ( ( SrcP[ 1 ] & 0x03 ) << 5 ) | ( SrcP[ 2 ] >> 3 ) ] ;
+		DestP[ 3 ] = BinToChar128Table[ ( ( SrcP[ 2 ] & 0x07 ) << 4 ) | ( SrcP[ 3 ] >> 4 ) ] ;
+		DestP[ 4 ] = BinToChar128Table[ ( ( SrcP[ 3 ] & 0x0f ) << 3 )                      ] ;
+
+		DestP += 5 ;
+
+		PackNum = SrcSize / 7 ;
+		ModNum  = SrcSize - PackNum * 7 ;
+		SrcP  = ( unsigned char * )Src ;
+		for( i = 0 ; i < PackNum ; i ++ )
+		{
+			DestP[ 0 ] = BinToChar128Table[                                 ( SrcP[ 0 ] >> 1 ) ] ;
+			DestP[ 1 ] = BinToChar128Table[ ( ( SrcP[ 0 ] & 0x01 ) << 6 ) | ( SrcP[ 1 ] >> 2 ) ] ;
+			DestP[ 2 ] = BinToChar128Table[ ( ( SrcP[ 1 ] & 0x03 ) << 5 ) | ( SrcP[ 2 ] >> 3 ) ] ;
+			DestP[ 3 ] = BinToChar128Table[ ( ( SrcP[ 2 ] & 0x07 ) << 4 ) | ( SrcP[ 3 ] >> 4 ) ] ;
+			DestP[ 4 ] = BinToChar128Table[ ( ( SrcP[ 3 ] & 0x0f ) << 3 ) | ( SrcP[ 4 ] >> 5 ) ] ;
+			DestP[ 5 ] = BinToChar128Table[ ( ( SrcP[ 4 ] & 0x1f ) << 2 ) | ( SrcP[ 5 ] >> 6 ) ] ;
+			DestP[ 6 ] = BinToChar128Table[ ( ( SrcP[ 5 ] & 0x3f ) << 1 ) | ( SrcP[ 6 ] >> 7 ) ] ;
+			DestP[ 7 ] = BinToChar128Table[ ( ( SrcP[ 6 ] & 0x7f )      )                      ] ;
+
+			DestP += 8 ;
+			SrcP  += 7 ;
+		}
+
+		if( ModNum != 0 )
+		{
+			DestP[ 0 ] = BinToChar128Table[                                 ( SrcP[ 0 ] >> 1 ) ] ;
+			if( ModNum == 1 )
+			{
+				DestP[ 1 ] = BinToChar128Table[ ( ( SrcP[ 0 ] & 0x01 ) << 6 ) ] ;
+			}
+			else
+			{
+				DestP[ 1 ] = BinToChar128Table[ ( ( SrcP[ 0 ] & 0x01 ) << 6 ) | ( SrcP[ 1 ] >> 2 ) ] ;
+				if( ModNum == 2 )
+				{
+					DestP[ 2 ] = BinToChar128Table[ ( ( SrcP[ 1 ] & 0x03 ) << 5 ) ] ;
+				}
+				else
+				{
+					DestP[ 2 ] = BinToChar128Table[ ( ( SrcP[ 1 ] & 0x03 ) << 5 ) | ( SrcP[ 2 ] >> 3 ) ] ;
+					if( ModNum == 3 )
+					{
+						DestP[ 3 ] = BinToChar128Table[ ( ( SrcP[ 2 ] & 0x07 ) << 4 ) ] ;
+					}
+					else
+					{
+						DestP[ 3 ] = BinToChar128Table[ ( ( SrcP[ 2 ] & 0x07 ) << 4 ) | ( SrcP[ 3 ] >> 4 ) ] ;
+						if( ModNum == 4 )
+						{
+							DestP[ 4 ] = BinToChar128Table[ ( ( SrcP[ 3 ] & 0x0f ) << 3 ) ] ;
+						}
+						else
+						{
+							DestP[ 4 ] = BinToChar128Table[ ( ( SrcP[ 3 ] & 0x0f ) << 3 ) | ( SrcP[ 4 ] >> 5 ) ] ;
+							if( ModNum == 5 )
+							{
+								DestP[ 5 ] = BinToChar128Table[ ( ( SrcP[ 4 ] & 0x1f ) << 2 ) ] ;
+							}
+							else
+							{
+								DestP[ 5 ] = BinToChar128Table[ ( ( SrcP[ 4 ] & 0x1f ) << 2 ) | ( SrcP[ 5 ] >> 6 ) ] ;
+								if( ModNum == 6 )
+								{
+									DestP[ 6 ] = BinToChar128Table[ ( ( SrcP[ 5 ] & 0x3f ) << 1 ) ] ;
+								}
+								else
+								{
+									DestP[ 6 ] = BinToChar128Table[ ( ( SrcP[ 5 ] & 0x3f ) << 1 ) | ( SrcP[ 6 ] >> 7 ) ] ;
+									DestP[ 7 ] = BinToChar128Table[ ( ( SrcP[ 6 ] & 0x7f )      )                      ] ;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return DestSize ;
 }
+
+// 半角文字列をバイナリデータに変換する( 戻り値:変換後のデータサイズ )
+extern DWORD Char128ToBin( void *Src, void *Dest )
+{
+	unsigned int DestSize ;
+	unsigned char *SrcP ;
+	unsigned char *DestP ;
+
+	SrcP    = ( unsigned char * )Src ;
+	DestP   = ( unsigned char * )&DestSize ;
+
+	DestP[ 0 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 0 ] ] << 1 ) | ( Char128ToBinTable[ SrcP[ 1 ] ] >> 6 ) ) ;
+	DestP[ 1 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 1 ] ] << 2 ) | ( Char128ToBinTable[ SrcP[ 2 ] ] >> 5 ) ) ;
+	DestP[ 2 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 2 ] ] << 3 ) | ( Char128ToBinTable[ SrcP[ 3 ] ] >> 4 ) ) ;
+	DestP[ 3 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 3 ] ] << 4 ) | ( Char128ToBinTable[ SrcP[ 4 ] ] >> 3 ) ) ;
+
+	SrcP += 5 ;
+
+	if( Dest != NULL )
+	{
+		unsigned int PackNum ;
+		unsigned int ModNum ;
+		unsigned int i ;
+
+		PackNum = DestSize / 7 ;
+		ModNum  = DestSize - PackNum * 7 ;
+		DestP = ( unsigned char * )Dest ;
+		for( i = 0 ; i < PackNum ; i ++ )
+		{
+			DestP[ 0 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 0 ] ] << 1 ) | ( Char128ToBinTable[ SrcP[ 1 ] ] >> 6 ) ) ;
+			DestP[ 1 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 1 ] ] << 2 ) | ( Char128ToBinTable[ SrcP[ 2 ] ] >> 5 ) ) ;
+			DestP[ 2 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 2 ] ] << 3 ) | ( Char128ToBinTable[ SrcP[ 3 ] ] >> 4 ) ) ;
+			DestP[ 3 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 3 ] ] << 4 ) | ( Char128ToBinTable[ SrcP[ 4 ] ] >> 3 ) ) ;
+			DestP[ 4 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 4 ] ] << 5 ) | ( Char128ToBinTable[ SrcP[ 5 ] ] >> 2 ) ) ;
+			DestP[ 5 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 5 ] ] << 6 ) | ( Char128ToBinTable[ SrcP[ 6 ] ] >> 1 ) ) ;
+			DestP[ 6 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 6 ] ] << 7 ) | ( Char128ToBinTable[ SrcP[ 7 ] ]      ) ) ;
+
+			DestP += 7 ;
+			SrcP  += 8 ;
+		}
+
+		if( ModNum != 0 )
+		{
+			DestP[ 0 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 0 ] ] << 1 ) | ( Char128ToBinTable[ SrcP[ 1 ] ] >> 6 ) ) ;
+			if( ModNum > 1 )
+			{
+				DestP[ 1 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 1 ] ] << 2 ) | ( Char128ToBinTable[ SrcP[ 2 ] ] >> 5 ) ) ;
+				if( ModNum > 2 )
+				{
+					DestP[ 2 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 2 ] ] << 3 ) | ( Char128ToBinTable[ SrcP[ 3 ] ] >> 4 ) ) ;
+					if( ModNum > 3 )
+					{
+						DestP[ 3 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 3 ] ] << 4 ) | ( Char128ToBinTable[ SrcP[ 4 ] ] >> 3 ) ) ;
+						if( ModNum > 4 )
+						{
+							DestP[ 4 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 4 ] ] << 5 ) | ( Char128ToBinTable[ SrcP[ 5 ] ] >> 2 ) ) ;
+							if( ModNum > 5 )
+							{
+								DestP[ 5 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 5 ] ] << 6 ) | ( Char128ToBinTable[ SrcP[ 6 ] ] >> 1 ) ) ;
+								if( ModNum > 6 )
+								{
+									DestP[ 6 ] = ( unsigned char )( ( Char128ToBinTable[ SrcP[ 6 ] ] << 7 ) | ( Char128ToBinTable[ SrcP[ 7 ] ]      ) ) ;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return DestSize ;
+}
+
+#ifdef DX_USE_NAMESPACE
+
+}
+
+#endif // DX_USE_NAMESPACE

@@ -1,39 +1,43 @@
 ﻿//-----------------------------------------------------------------------------
 // 
-// 		ＤＸLibrary		Windows文件相关程序
+// 		ＤＸライブラリ		Windows用ファイル関係プログラム
 // 
-//  	Ver 3.11f
+//  	Ver 3.14d
 // 
 //-----------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
-// Include ---------------------------------------------------------------
-#include "DxFileWin.h"
-#include "../DxFile.h"
-#include "../DxBaseFunc.h"
+// インクルード ---------------------------------------------------------------
 #include "DxWindow.h"
+#include "../DxFile.h"
 #include "../DxLog.h"
+#include "../DxChar.h"
+#include "../DxBaseFunc.h"
 #include <windows.h>
+
+#ifdef DX_USE_NAMESPACE
 
 namespace DxLib
 {
 
-// 宏定义 -----------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体声明 -----------------------------------------------------------------
+// マクロ定義 -----------------------------------------------------------------
 
-// 数据定义 -----------------------------------------------------------------
+// 構造体宣言 -----------------------------------------------------------------
 
-// 函数声明 -------------------------------------------------------------------
+// データ定義 -----------------------------------------------------------------
 
-DWORD	WINAPI		FileAccessThreadFunction( void *FileAccessThreadData ) ;					// FileAccess专用线程用函数
-int					SetFilePointer64( HANDLE FileHandle, ULONGLONG Position ) ;					// 设定文件的访问位置( 0:成功  -1:失败 )
+// 関数宣言 -------------------------------------------------------------------
 
-// Program -----------------------------------------------------------------
+DWORD	WINAPI		FileAccessThreadFunction( void *FileAccessThreadData ) ;					// ファイルアクセス専用スレッド用関数
+int					SetFilePointer64( HANDLE FileHandle, ULONGLONG Position ) ;					// ファイルのアクセス位置を設定する( 0:成功  -1:失敗 )
 
-// 设定文件的访问位置
+// プログラム -----------------------------------------------------------------
+
+// ファイルのアクセス位置を設定する
 int SetFilePointer64( HANDLE FileHandle, ULONGLONG Position )
 {
 	DWORD High, Low ;
@@ -50,45 +54,51 @@ int SetFilePointer64( HANDLE FileHandle, ULONGLONG Position )
 	return 0 ;
 }
 
-// 生成临时文件
-extern HANDLE CreateTemporaryFile( TCHAR *TempFileNameBuffer )
+// テンポラリファイルを作成する
+extern HANDLE CreateTemporaryFile( wchar_t *TempFileNameBuffer )
 {
-	TCHAR String1[MAX_PATH], String2[MAX_PATH] ;
+	wchar_t String1[FILEPATH_MAX], String2[FILEPATH_MAX] ;
 	HANDLE FileHandle ;
 	int Length ;
 
-	// 取得临时文件的目录路径
-	if( GetTempPath( 256, String1 ) == 0 ) return NULL ;
+	// テンポラリファイルのディレクトリパスを取得する
+	if( GetTempPathW( 256, String1 ) == 0 ) return NULL ;
 
-	// 字符串的最后加上目录分隔符
-	Length = lstrlen( String1 ) ;
-	if( String1[Length-1] != _T( '\\' ) )
+	// 文字列の最後に￥マークをつける
+	Length = _WCSLEN( String1 ) ;
+	if( String1[ Length - 1 ] != L'\\' )
 	{
-		String1[Length] = _T( '\\' ) ;
-		String1[Length+1] = _T( '\0' ) ;
+		String1[ Length     ]  = L'\\' ;
+		String1[ Length + 1 ]  = L'\0' ;
 	}
 
-	// 生成临时文件的文件名
-	if( GetTempFileName( String1, _T( "tmp" ), 0, String2 ) == 0 ) return NULL ;
+	// テンポラリファイルのファイル名を作成する
+	if( GetTempFileNameW( String1, L"tmp", 0, String2 ) == 0 ) return NULL ;
 
-	// 转换为完整路径
-	ConvertFullPathT_( String2, String1 ) ;
+	// フルパスに変換
+	ConvertFullPathW_( String2, String1 ) ;
 
-	// 打开临时文件
-	DeleteFile( String1 ) ;
-	FileHandle = CreateFile( String1, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL ) ;
-	if( FileHandle == NULL ) return NULL ;
+	// テンポラリファイルを開く
+	DeleteFileW( String1 ) ;
+	FileHandle = CreateFileW( String1, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL ) ;
+	if( FileHandle == NULL )
+	{
+		return NULL ;
+	}
 
-	// 保存临时文件名
-	if( TempFileNameBuffer != NULL ) lstrcpy( TempFileNameBuffer, String1 ) ;
+	// テンポラリファイル名を保存
+	if( TempFileNameBuffer != NULL )
+	{
+		_WCSCPY( TempFileNameBuffer, String1 ) ;
+	}
 
-	// 返回句柄
+	// ハンドルを返す
 	return FileHandle ;
 }
 
 
 
-// FileAccess专用线程用函数
+// ファイルアクセス専用スレッド用関数
 DWORD WINAPI FileAccessThreadFunction( void *FileAccessThreadData )
 {
 	FILEACCESSTHREAD *dat = (FILEACCESSTHREAD *)FileAccessThreadData ;
@@ -98,25 +108,25 @@ DWORD WINAPI FileAccessThreadFunction( void *FileAccessThreadData )
 	{
 		for(;;)
 		{
-			// 是否使用Cache的分支处理
+			// キャッシュを使用すかどうかで処理を分岐
 			if( dat->CacheBuffer )
 			{
-				// 指令来到之前稍等一下
+				// 指令が来るまでちょっと待つ
 				res = WaitForSingleObject( dat->FuncEvent, 100 ) ;
 
-				// 超时且文件被打开的情况下进行缓存处理
+				// 指令が来てい無い場合でファイルが開いている場合はキャッシング処理を行う
 				if( res == WAIT_TIMEOUT && dat->Handle != NULL )
 				{
-					// 如果缓存满了则什么都不做
+					// もしキャッシュが一杯だったら何もしない
 					if( dat->CacheSize != FILEACCESSTHREAD_DEFAULT_CACHESIZE )
 					{
-						// 设置读取的初始位置
+						// 読み込み開始位置セット
 						SetFilePointer64( dat->Handle, dat->CachePosition + dat->CacheSize ) ;
 
-						// 读取
+						// 読み込み
 						ReadFile( dat->Handle, &dat->CacheBuffer[dat->CacheSize], ( DWORD )( FILEACCESSTHREAD_DEFAULT_CACHESIZE - dat->CacheSize ), &ReadSize, NULL ) ;
 						
-						// 增加有效Size
+						// 有効なサイズを増やす
 						dat->CacheSize += ( LONGLONG )ReadSize ;
 					}
 				}
@@ -127,7 +137,7 @@ DWORD WINAPI FileAccessThreadFunction( void *FileAccessThreadData )
 			}
 			else
 			{
-				// 等待指令
+				// 指令が来るまで待つ
 				res = WaitForSingleObject( dat->FuncEvent, INFINITE ) ;
 				if( res == WAIT_TIMEOUT && dat->Handle != NULL ) continue;
 				break;
@@ -136,15 +146,15 @@ DWORD WINAPI FileAccessThreadFunction( void *FileAccessThreadData )
 
 //		WaitForSingleObject( dat->FuncEvent, INFINITE ) ;
 
-		// 解除事件的信号状态
+		// イベントのシグナル状態を解除する
 		ResetEvent( dat->FuncEvent ) ;
 		ResetEvent( dat->CompEvent ) ;
 
-		// 判断收到的指令
+		// 指令が来たら判断する
 		switch( dat->Function )
 		{
 		case FILEACCESSTHREAD_FUNCTION_OPEN :
-			dat->Handle = CreateFile( dat->FilePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL ) ;
+			dat->Handle = CreateFileW( dat->FilePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL ) ;
 			if( dat->Handle == INVALID_HANDLE_VALUE )
 			{
 				dat->ErrorFlag = TRUE ;
@@ -158,24 +168,24 @@ DWORD WINAPI FileAccessThreadFunction( void *FileAccessThreadData )
 			break ;
 
 		case FILEACCESSTHREAD_FUNCTION_READ :
-			// 缓存加载位置一致时从缓存传送数据
+			// キャッシュと読み込み位置が一致している場合はキャッシュからデータを転送する
 			if( dat->CacheBuffer && dat->ReadPosition == dat->CachePosition && dat->CacheSize != 0 )
 			{
 				DWORD MoveSize ;
 
-				// 调整Size
+				// 転送するサイズを調整
 				MoveSize = dat->ReadSize ;
 				if( MoveSize > dat->CacheSize ) MoveSize = ( DWORD )dat->CacheSize ;
 
-				// 传送
+				// 転送
 				_MEMCPY( dat->ReadBuffer, dat->CacheBuffer, MoveSize ) ;
 
-				// 传递加载Size和位置
+				// 読み込みサイズと読み込み位置を移動する
 				dat->ReadBuffer = (void *)( (BYTE *)dat->ReadBuffer + MoveSize ) ;
 				dat->ReadPosition += MoveSize ;
 				dat->ReadSize -= MoveSize ;
 				
-				// 更新缓存信息
+				// キャッシュの情報も更新
 				dat->CachePosition += MoveSize ;
 				dat->CacheSize     -= MoveSize ;
 				if( dat->CacheSize != 0 ) _MEMMOVE( &dat->CacheBuffer[0], &dat->CacheBuffer[MoveSize], ( size_t )dat->CacheSize ) ;
@@ -187,7 +197,7 @@ DWORD WINAPI FileAccessThreadFunction( void *FileAccessThreadData )
 				SetFilePointer64( dat->Handle, dat->ReadPosition ) ;
 				ReadFile( dat->Handle, dat->ReadBuffer, dat->ReadSize, &dat->ReadSize, NULL ) ;
 
-				// 初始化缓存
+				// キャッシュを初期化する
 				if( dat->CacheBuffer )
 				{
 					dat->CachePosition = dat->ReadPosition + dat->ReadSize ;
@@ -199,7 +209,7 @@ DWORD WINAPI FileAccessThreadFunction( void *FileAccessThreadData )
 		case FILEACCESSTHREAD_FUNCTION_SEEK :
 			SetFilePointer64( dat->Handle, dat->SeekPoint ) ;
 
-			// 初始化缓存
+			// キャッシュを初期化する
 			if( dat->CacheBuffer )
 			{
 				dat->CachePosition = (DWORD)dat->SeekPoint ;
@@ -228,329 +238,242 @@ END:
 
 
 
-// ファイルアクセス関数
-extern DWORD_PTR ReadOnlyFileAccessOpen( const TCHAR *Path, int UseCacheFlag, int BlockReadFlag, int UseASyncReadFlag )
+// ファイルアクセス処理の初期化・終了関数
+
+// ファイルアクセス処理の初期化関数の環境依存の処理を行う関数
+extern int InitializeFile_PF( void )
 {
-	WINFILEACCESS *FileAccess ;
+	return 0 ;
+}
+
+// ファイルアクセス処理の後始末関数の環境依存の処理を行う関数
+extern int TerminateFile_PF( void )
+{
+	return 0 ;
+}
+
+
+// ファイルアクセス関数
+extern int ReadOnlyFileAccessOpen_PF( FILEACCESS *FileAccess, const wchar_t *Path, int UseCacheFlag, int BlockReadFlag )
+{
 	DWORD Code ;
 	DWORD High ;
-	
+
 //	UseCacheFlag = UseCacheFlag ;
 	BlockReadFlag = BlockReadFlag ;
 
-	FileAccess = (WINFILEACCESS *)DXALLOC( sizeof( WINFILEACCESS ) ) ;
-	if( FileAccess == NULL ) return 0 ;
-
-	_MEMSET( FileAccess, 0, sizeof( WINFILEACCESS ) ) ;
-
 //	// キャッシュを使用するかどうかをスレッドを使用するかどうかにしてしまう
-//	FileAccess->UseThread = UseCacheFlag ;
+//	FileAccess->PF.UseThread = UseCacheFlag ;
 
 	// キャッシュを使用するかどうかのフラグをセット
-	FileAccess->UseCacheFlag = UseCacheFlag ;
-	FileAccess->ThreadData.CacheBuffer = NULL;
-
-	// 非同期読み書きフラグをセット
-	FileAccess->UseASyncReadFlag = UseASyncReadFlag ;
+	FileAccess->PF.UseCacheFlag = UseCacheFlag ;
+	FileAccess->PF.ThreadData.CacheBuffer = NULL;
 
 	// キャッシュ、若しくは非同期読み書きを行う場合はスレッドを使用する
-	FileAccess->UseThread = FileAccess->UseCacheFlag || FileAccess->UseASyncReadFlag ;
+	FileAccess->PF.UseThread = FileAccess->PF.UseCacheFlag || FileAccess->UseASyncReadFlag ;
 
 	// スレッドを使用する場合としない場合で処理を分岐
-	if( FileAccess->UseThread == TRUE )
+	if( FileAccess->PF.UseThread == TRUE )
 	{
 		// スレッドを使用する場合はファイルアクセス専用スレッドを立てる
 
 		// 最初にファイルを開けるかどうか確かめておく
-		FileAccess->Handle = CreateFile( Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL ) ;
-		if( FileAccess->Handle == INVALID_HANDLE_VALUE )
+		FileAccess->PF.Handle = CreateFileW( Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL ) ;
+		if( FileAccess->PF.Handle == INVALID_HANDLE_VALUE )
 		{
-			DXFREE( FileAccess ) ;
-			return 0 ;
+			return -1 ;
 		}
-		FileAccess->Size = GetFileSize( FileAccess->Handle, &High ) ;
+		FileAccess->Size = GetFileSize( FileAccess->PF.Handle, &High ) ;
 		FileAccess->Size |= ( ( ULONGLONG )High ) << 32 ;
-		CloseHandle( FileAccess->Handle ) ;
-		FileAccess->Handle = NULL ;
+		CloseHandle( FileAccess->PF.Handle ) ;
+		FileAccess->PF.Handle = NULL ;
 
 		// キャッシュ用メモリの確保
-		if( FileAccess->UseCacheFlag )
+		if( FileAccess->PF.UseCacheFlag )
 		{
-			FileAccess->ThreadData.CacheBuffer = (BYTE *)DXALLOC( FILEACCESSTHREAD_DEFAULT_CACHESIZE );
-			if( FileAccess->ThreadData.CacheBuffer == NULL )
+			FileAccess->PF.ThreadData.CacheBuffer = (BYTE *)DXALLOC( FILEACCESSTHREAD_DEFAULT_CACHESIZE );
+			if( FileAccess->PF.ThreadData.CacheBuffer == NULL )
 			{
-				DXFREE( FileAccess->ThreadData.CacheBuffer ) ;
-				DXFREE( FileAccess ) ;
-				DXST_ERRORLOG_ADD( _T( "ファイル読み込みキャッシュ用メモリの確保に失敗しました\n" ) ) ;
-				return 0 ;
+				DXFREE( FileAccess->PF.ThreadData.CacheBuffer ) ;
+				DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xa1\x30\xa4\x30\xeb\x30\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\xad\x30\xe3\x30\xc3\x30\xb7\x30\xe5\x30\x28\x75\xe1\x30\xe2\x30\xea\x30\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ファイル読み込みキャッシュ用メモリの確保に失敗しました\n" @*/ ) ;
+				return -1 ;
 			}
 		}
 
 		// 専用スレッドデータを初期化する
-		FileAccess->ThreadData.Handle = NULL ;
-		FileAccess->ThreadData.ThreadHandle = NULL ;
-		FileAccess->ThreadData.FuncEvent = CreateEvent( NULL, TRUE, FALSE, NULL ) ;
-		FileAccess->ThreadData.CompEvent = CreateEvent( NULL, TRUE, TRUE, NULL ) ;
+		FileAccess->PF.ThreadData.Handle = NULL ;
+		FileAccess->PF.ThreadData.ThreadHandle = NULL ;
+		FileAccess->PF.ThreadData.FuncEvent = CreateEvent( NULL, TRUE, FALSE, NULL ) ;
+		FileAccess->PF.ThreadData.CompEvent = CreateEvent( NULL, TRUE, TRUE, NULL ) ;
 
-		FileAccess->ThreadData.ThreadHandle = CreateThread(
+		FileAccess->PF.ThreadData.ThreadHandle = CreateThread(
 												NULL,
 												0,
 												(LPTHREAD_START_ROUTINE)FileAccessThreadFunction, 
-												&FileAccess->ThreadData,
+												&FileAccess->PF.ThreadData,
 												0,
-												&FileAccess->ThreadData.ThreadID ) ;
-		if( FileAccess->ThreadData.ThreadHandle == NULL )
+												&FileAccess->PF.ThreadData.ThreadID ) ;
+		if( FileAccess->PF.ThreadData.ThreadHandle == NULL )
 		{
-			if( FileAccess->ThreadData.CacheBuffer ) DXFREE( FileAccess->ThreadData.CacheBuffer ) ;
-			CloseHandle( FileAccess->ThreadData.FuncEvent ) ;
-			CloseHandle( FileAccess->ThreadData.CompEvent ) ;
-			DXFREE( FileAccess ) ;
-			DXST_ERRORLOG_ADD( _T( "ファイルアクセス専用スレッドの作成に失敗しました\n" ) ) ;
-			return 0 ;
+			if( FileAccess->PF.ThreadData.CacheBuffer ) DXFREE( FileAccess->PF.ThreadData.CacheBuffer ) ;
+			CloseHandle( FileAccess->PF.ThreadData.FuncEvent ) ;
+			CloseHandle( FileAccess->PF.ThreadData.CompEvent ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xa1\x30\xa4\x30\xeb\x30\xa2\x30\xaf\x30\xbb\x30\xb9\x30\x02\x5c\x28\x75\xb9\x30\xec\x30\xc3\x30\xc9\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ファイルアクセス専用スレッドの作成に失敗しました\n" @*/ ) ;
+			return -1 ;
 		}
-		SetThreadPriority( FileAccess->ThreadData.ThreadHandle, THREAD_PRIORITY_LOWEST ) ;
+		SetThreadPriority( FileAccess->PF.ThreadData.ThreadHandle, THREAD_PRIORITY_LOWEST ) ;
 
 		// ファイルオープン指令はここで完了してしまう
-		FileAccess->ThreadData.Function = FILEACCESSTHREAD_FUNCTION_OPEN ;
-		lstrcpy( FileAccess->ThreadData.FilePath, Path ) ;
+		FileAccess->PF.ThreadData.Function = FILEACCESSTHREAD_FUNCTION_OPEN ;
+		_WCSCPY( FileAccess->PF.ThreadData.FilePath, Path ) ;
 
-		ResetEvent( FileAccess->ThreadData.CompEvent ) ;
-		SetEvent( FileAccess->ThreadData.FuncEvent ) ;
+		ResetEvent( FileAccess->PF.ThreadData.CompEvent ) ;
+		SetEvent( FileAccess->PF.ThreadData.FuncEvent ) ;
 
 		// 指令が終了するまで待つ
-		WaitForSingleObject( FileAccess->ThreadData.CompEvent, INFINITE ) ;
-		if( FileAccess->ThreadData.ErrorFlag == TRUE )
+		WaitForSingleObject( FileAccess->PF.ThreadData.CompEvent, INFINITE ) ;
+		if( FileAccess->PF.ThreadData.ErrorFlag == TRUE )
 		{
-			if( FileAccess->ThreadData.CacheBuffer ) DXFREE( FileAccess->ThreadData.CacheBuffer ) ;
-			CloseHandle( FileAccess->ThreadData.FuncEvent ) ;
-			CloseHandle( FileAccess->ThreadData.CompEvent ) ;
+			if( FileAccess->PF.ThreadData.CacheBuffer ) DXFREE( FileAccess->PF.ThreadData.CacheBuffer ) ;
+			CloseHandle( FileAccess->PF.ThreadData.FuncEvent ) ;
+			CloseHandle( FileAccess->PF.ThreadData.CompEvent ) ;
 			do
 			{
-				Sleep(0);
-				GetExitCodeThread( FileAccess->ThreadData.ThreadHandle, &Code );
-			}while( Code == STILL_ACTIVE );
-			CloseHandle( FileAccess->ThreadData.ThreadHandle ) ;
-			DXFREE( FileAccess ) ;
-			DXST_ERRORLOG_ADD( _T( "ファイルのオープンに失敗しました\n" ) ) ;
-			return 0 ;
+				Sleep( 0 ) ;
+				GetExitCodeThread( FileAccess->PF.ThreadData.ThreadHandle, &Code ) ;
+			}while( Code == STILL_ACTIVE ) ;
+			CloseHandle( FileAccess->PF.ThreadData.ThreadHandle ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x6e\x30\xaa\x30\xfc\x30\xd7\x30\xf3\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ファイルのオープンに失敗しました\n" @*/ ) ;
+			return -1 ;
 		}
 	}
 	else
 	{
 		// スレッドを使用しない場合はこの場でファイルを開く
-		FileAccess->Handle = CreateFile( Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL ) ;
-		if( FileAccess->Handle == INVALID_HANDLE_VALUE )
+		FileAccess->PF.Handle = CreateFileW( Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL ) ;
+		if( FileAccess->PF.Handle == INVALID_HANDLE_VALUE )
 		{
-			DXFREE( FileAccess ) ;
-			return 0 ;
+			return -1 ;
 		}
-		FileAccess->Size = GetFileSize( FileAccess->Handle, &High ) ;
+		FileAccess->Size = GetFileSize( FileAccess->PF.Handle, &High ) ;
 		FileAccess->Size |= ( ( ULONGLONG )High ) << 32 ;
 	}
-	FileAccess->EofFlag = FALSE ;
-	FileAccess->Position = 0 ;
 
-	return (DWORD_PTR)FileAccess ;
+	return 0 ;
 }
 
-extern int ReadOnlyFileAccessClose( DWORD_PTR Handle )
+extern int ReadOnlyFileAccessClose_PF( FILEACCESS *FileAccess )
 {
-	WINFILEACCESS *FileAccess = ( WINFILEACCESS * )Handle ;
 	BOOL Result;
 	DWORD Code ;
 
 	// スレッドを使用する場合としない場合で処理を分岐
-	if( FileAccess->UseThread == TRUE )
+	if( FileAccess->PF.UseThread == TRUE )
 	{
 		// これ以前の指令が出ていた場合の為に指令完了イベントがシグナル状態になるまで待つ
-		WaitForSingleObject( FileAccess->ThreadData.CompEvent, INFINITE ) ;
+		WaitForSingleObject( FileAccess->PF.ThreadData.CompEvent, INFINITE ) ;
 
 		// スレッドに終了指令を出す
-		FileAccess->ThreadData.Function = FILEACCESSTHREAD_FUNCTION_EXIT ;
-		ResetEvent( FileAccess->ThreadData.CompEvent ) ;
-		SetEvent( FileAccess->ThreadData.FuncEvent ) ;
+		FileAccess->PF.ThreadData.Function = FILEACCESSTHREAD_FUNCTION_EXIT ;
+		ResetEvent( FileAccess->PF.ThreadData.CompEvent ) ;
+		SetEvent( FileAccess->PF.ThreadData.FuncEvent ) ;
 
 		// 指令が終了するまで待つ
-		WaitForSingleObject( FileAccess->ThreadData.CompEvent, INFINITE ) ;
+		WaitForSingleObject( FileAccess->PF.ThreadData.CompEvent, INFINITE ) ;
 
 		// スレッドが終了するのを待つ
 		do
 		{
 			Sleep(1);
-			GetExitCodeThread( FileAccess->ThreadData.ThreadHandle, &Code );
+			GetExitCodeThread( FileAccess->PF.ThreadData.ThreadHandle, &Code );
 		}while( Code == STILL_ACTIVE );
 
 		// キャッシュを使用していた場合はキャッシュ用メモリを開放する
-		if( FileAccess->ThreadData.CacheBuffer )
-			DXFREE( FileAccess->ThreadData.CacheBuffer ) ;
+		if( FileAccess->PF.ThreadData.CacheBuffer )
+			DXFREE( FileAccess->PF.ThreadData.CacheBuffer ) ;
 
 		// イベントやスレッドを閉じる
-		CloseHandle( FileAccess->ThreadData.ThreadHandle ) ;
-		CloseHandle( FileAccess->ThreadData.CompEvent ) ;
-		CloseHandle( FileAccess->ThreadData.FuncEvent ) ;
+		CloseHandle( FileAccess->PF.ThreadData.ThreadHandle ) ;
+		CloseHandle( FileAccess->PF.ThreadData.CompEvent ) ;
+		CloseHandle( FileAccess->PF.ThreadData.FuncEvent ) ;
 		Result = 0 ;
 	}
 	else
 	{
 		// 使用していない場合はこの場でハンドルを閉じて終了
-		Result = CloseHandle( FileAccess->Handle ) ;
+		Result = CloseHandle( FileAccess->PF.Handle ) ;
 	}
-	DXFREE( FileAccess ) ;
 
 	return Result != 0 ? 0 : -1/*EOF*/ ;
 }
 
-extern LONGLONG ReadOnlyFileAccessTell( DWORD_PTR Handle )
+extern int ReadOnlyFileAccessSeek_PF( FILEACCESS *FileAccess, LONGLONG SeekPoint )
 {
-	WINFILEACCESS *FileAccess = ( WINFILEACCESS * )Handle ;
-
-	return ( LONGLONG )FileAccess->Position ;
-}
-
-extern int ReadOnlyFileAccessSeek( DWORD_PTR Handle, LONGLONG SeekPoint, int SeekType )
-{
-	WINFILEACCESS *FileAccess = ( WINFILEACCESS * )Handle ;
-	ULONGLONG Pos = 0 ;
-	int Result ;
-
-	switch( SeekType )
-	{
-	case SEEK_CUR :
-		if( FileAccess->Position + SeekPoint < 0 )
-		{
-			Pos = 0 ;
-		}
-		else
-		{
-			Pos = FileAccess->Position + SeekPoint ;
-		}
-		break ;
-
-	case SEEK_END :
-		if( FileAccess->Size + SeekPoint < 0 )
-		{
-			Pos = 0 ;
-		}
-		else
-		{
-			Pos = FileAccess->Size + SeekPoint ;
-		}
-		break ;
-
-	case SEEK_SET :
-		if( SeekPoint < 0 )
-		{
-			Pos = 0 ;
-		}
-		else
-		{
-			Pos = SeekPoint ;
-		}
-		break ;
-	}
-
 	// スレッドを使用しているかどうかで処理を分岐
-	if( FileAccess->UseThread == TRUE )
+	if( FileAccess->PF.UseThread == TRUE )
 	{
 		// これ以前の指令が出ていた場合の為に指令完了イベントがシグナル状態になるまで待つ
-		WaitForSingleObject( FileAccess->ThreadData.CompEvent, INFINITE ) ;
+		WaitForSingleObject( FileAccess->PF.ThreadData.CompEvent, INFINITE ) ;
 
 		// スレッドにファイル位置変更指令を出す
-		FileAccess->ThreadData.Function = FILEACCESSTHREAD_FUNCTION_SEEK ;
-		FileAccess->ThreadData.SeekPoint = Pos ;
-		ResetEvent( FileAccess->ThreadData.CompEvent ) ;
-		SetEvent( FileAccess->ThreadData.FuncEvent ) ;
+		FileAccess->PF.ThreadData.Function = FILEACCESSTHREAD_FUNCTION_SEEK ;
+		FileAccess->PF.ThreadData.SeekPoint = ( ULONGLONG )SeekPoint ;
+		ResetEvent( FileAccess->PF.ThreadData.CompEvent ) ;
+		SetEvent( FileAccess->PF.ThreadData.FuncEvent ) ;
 	}
 	else
 	{
 		// ファイルアクセス位置を変更する
-		Result = SetFilePointer64( FileAccess->Handle, Pos ) ;
-		if( Result == -1 ) return -1 ;
+		if( SetFilePointer64( FileAccess->PF.Handle, ( ULONGLONG )SeekPoint ) == -1 )
+		{
+			return -1 ;
+		}
 	}
-
-	// 位置を保存しておく
-	FileAccess->Position = Pos ;
-
-	// 終端チェックフラグを倒す
-	FileAccess->EofFlag = FALSE ;
 
 	// 終了
 	return 0 ;
 }
 
-extern size_t ReadOnlyFileAccessRead( void *Buffer, size_t BlockSize, size_t DataNum, DWORD_PTR Handle )
+extern	size_t ReadOnlyFileAccessRead_PF( void *Buffer, size_t BlockSize, size_t DataNum, FILEACCESS *FileAccess )
 {
-	WINFILEACCESS *FileAccess = ( WINFILEACCESS * )Handle ;
-	DWORD Result, BytesRead ;
-
-	if( BlockSize == 0 ) return 0 ;
-
-	// 終端チェック
-	if( FileAccess->Position == FileAccess->Size )
-	{
-		FileAccess->EofFlag = TRUE ;
-		return 0 ;
-	}
-
-	// 項目数調整
-	if( BlockSize * DataNum + FileAccess->Position > FileAccess->Size )
-	{
-		DataNum = ( size_t )( ( FileAccess->Size - FileAccess->Position ) / BlockSize ) ;
-	}
-	
-	if( DataNum == 0 )
-	{
-		FileAccess->EofFlag = TRUE ;
-		return 0 ;
-	}
+	DWORD BytesRead ;
 
 	// スレッドを使用しているかどうかで処理を分岐
-	if( FileAccess->UseThread == TRUE )
+	if( FileAccess->PF.UseThread == TRUE )
 	{
 		// これ以前の指令が出ていた場合の為に指令完了イベントがシグナル状態になるまで待つ
-		WaitForSingleObject( FileAccess->ThreadData.CompEvent, INFINITE ) ;
+		WaitForSingleObject( FileAccess->PF.ThreadData.CompEvent, INFINITE ) ;
 
 		// スレッドにファイル読み込み指令を出す
-		FileAccess->ThreadData.Function = FILEACCESSTHREAD_FUNCTION_READ ;
-		FileAccess->ThreadData.ReadBuffer = Buffer ;
-		FileAccess->ThreadData.ReadPosition = FileAccess->Position ;
-		FileAccess->ThreadData.ReadSize = ( DWORD )( BlockSize * DataNum ) ;
-		ResetEvent( FileAccess->ThreadData.CompEvent ) ;
-		SetEvent( FileAccess->ThreadData.FuncEvent ) ;
+		FileAccess->PF.ThreadData.Function = FILEACCESSTHREAD_FUNCTION_READ ;
+		FileAccess->PF.ThreadData.ReadBuffer = Buffer ;
+		FileAccess->PF.ThreadData.ReadPosition = FileAccess->Position ;
+		FileAccess->PF.ThreadData.ReadSize = ( DWORD )( BlockSize * DataNum ) ;
+		ResetEvent( FileAccess->PF.ThreadData.CompEvent ) ;
+		SetEvent( FileAccess->PF.ThreadData.FuncEvent ) ;
 
 		// 非同期かどうかで処理を分岐
 		if( FileAccess->UseASyncReadFlag == FALSE )
 		{
 			// 同期読み込みの場合は指令が完了するまで待つ
-			WaitForSingleObject( FileAccess->ThreadData.CompEvent, INFINITE ) ;
+			WaitForSingleObject( FileAccess->PF.ThreadData.CompEvent, INFINITE ) ;
 		}
 
 		BytesRead = ( DWORD )( BlockSize * DataNum ) ;
-		Result = 1 ;
 	}
 	else
 	{
-		Result = ReadFile( FileAccess->Handle, Buffer, DWORD( BlockSize * DataNum ), &BytesRead, NULL ) ;
+		ReadFile( FileAccess->PF.Handle, Buffer, ( DWORD )( BlockSize * DataNum ), &BytesRead, NULL ) ;
 	}
 
-	FileAccess->Position += ( DWORD )( DataNum * BlockSize ) ;
-	return Result != 0 ? BytesRead / BlockSize : 0 ;
+	return BytesRead ;
 }
 
-extern int ReadOnlyFileAccessEof( DWORD_PTR Handle )
+extern int ReadOnlyFileAccessIdleCheck_PF( FILEACCESS *FileAccess )
 {
-	WINFILEACCESS *FileAccess = (WINFILEACCESS *)Handle ;
-
-	return FileAccess->EofFlag ? EOF : 0 ;
-}
-
-extern int ReadOnlyFileAccessIdleCheck( DWORD_PTR Handle )
-{
-	WINFILEACCESS *FileAccess = (WINFILEACCESS *)Handle ;
-
-	if( FileAccess->UseThread == TRUE )
+	if( FileAccess->PF.UseThread == TRUE )
 	{
-		return WaitForSingleObject( FileAccess->ThreadData.CompEvent, 0 ) == WAIT_TIMEOUT ? FALSE : TRUE ;
+		return WaitForSingleObject( FileAccess->PF.ThreadData.CompEvent, 0 ) == WAIT_TIMEOUT ? FALSE : TRUE ;
 	}
 	else
 	{
@@ -558,20 +481,20 @@ extern int ReadOnlyFileAccessIdleCheck( DWORD_PTR Handle )
 	}
 }
 
-extern int ReadOnlyFileAccessChDir( const TCHAR *Path )
+extern int ReadOnlyFileAccessChDir_PF( const wchar_t *Path )
 {
-	return SetCurrentDirectory( Path ) ;
+	return SetCurrentDirectoryW( Path ) ;
 }
 
-extern int ReadOnlyFileAccessGetDir( TCHAR *Buffer )
+extern int ReadOnlyFileAccessGetDir_PF( wchar_t *Buffer )
 {
-	return GetCurrentDirectory( MAX_PATH, Buffer ) ;
+	return ( int )GetCurrentDirectoryW( FILEPATH_MAX, Buffer ) ;
 }
 
-static void _WIN32_FIND_DATA_To_FILEINFO( WIN32_FIND_DATA *FindData, FILEINFO *FileInfo )
+static void _WIN32_FIND_DATA_To_FILEINFO( WIN32_FIND_DATAW *FindData, FILEINFOW *FileInfo )
 {
 	// ファイル名のコピー
-	lstrcpy( FileInfo->Name, FindData->cFileName );
+	_WCSCPY( FileInfo->Name, FindData->cFileName );
 
 	// ディレクトリかどうかのフラグをセット
 	FileInfo->DirFlag = (FindData->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ? TRUE : FALSE;
@@ -584,37 +507,45 @@ static void _WIN32_FIND_DATA_To_FILEINFO( WIN32_FIND_DATA *FindData, FILEINFO *F
 	_FileTimeToLocalDateData( &FindData->ftLastWriteTime, &FileInfo->LastWriteTime );
 }
 
-// 戻り値: -1=エラー  -1以外=FindHandle
-extern DWORD_PTR ReadOnlyFileAccessFindFirst( const TCHAR *FilePath, FILEINFO *Buffer )
+extern int ReadOnlyFileAccessFindFirst_PF( FINDINFO *FindInfo, const wchar_t *FilePath, FILEINFOW *Buffer )
 {
-	WIN32_FIND_DATA FindData;
-	HANDLE FindHandle;
+	WIN32_FIND_DATAW FindData ;
 
-	FindHandle = FindFirstFile( FilePath, &FindData );
-	if( FindHandle == INVALID_HANDLE_VALUE ) return ( DWORD_PTR )-1;
+	FindInfo->PF.FindHandle = FindFirstFileW( FilePath, &FindData ) ;
+	if( FindInfo->PF.FindHandle == INVALID_HANDLE_VALUE )
+	{
+		return -1;
+	}
 
-	if( Buffer ) _WIN32_FIND_DATA_To_FILEINFO( &FindData, Buffer );
+	if( Buffer )
+	{
+		_WIN32_FIND_DATA_To_FILEINFO( &FindData, Buffer ) ;
+	}
 
-	return (DWORD_PTR)FindHandle;
+	return 0 ;
 }
 
-// 戻り値: -1=エラー  0=成功
-extern int ReadOnlyFileAccessFindNext( DWORD_PTR FindHandle, FILEINFO *Buffer )
+extern int ReadOnlyFileAccessFindNext_PF( FINDINFO *FindInfo, FILEINFOW *Buffer )
 {
-	WIN32_FIND_DATA FindData;
+	WIN32_FIND_DATAW FindData ;
 
-	if( FindNextFile( (HANDLE)FindHandle, &FindData ) == 0 ) return -1;
+	if( FindNextFileW( FindInfo->PF.FindHandle, &FindData ) == 0 )
+	{
+		return -1 ;
+	}
 
-	if( Buffer ) _WIN32_FIND_DATA_To_FILEINFO( &FindData, Buffer );
+	if( Buffer )
+	{
+		_WIN32_FIND_DATA_To_FILEINFO( &FindData, Buffer ) ;
+	}
 
-	return 0;
+	return 0 ;
 }
 
-// 戻り値: -1=エラー  0=成功
-extern int ReadOnlyFileAccessFindClose( DWORD_PTR FindHandle )
+extern int ReadOnlyFileAccessFindClose_PF( FINDINFO *FindInfo )
 {
 	// ０以外が返ってきたら成功
-	return FindClose( (HANDLE)FindHandle ) != 0 ? 0 : -1;
+	return FindClose( FindInfo->PF.FindHandle ) != 0 ? 0 : -1 ;
 }
 
 
@@ -623,5 +554,9 @@ extern int ReadOnlyFileAccessFindClose( DWORD_PTR FindHandle )
 
 
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 

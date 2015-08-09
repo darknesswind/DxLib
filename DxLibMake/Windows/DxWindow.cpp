@@ -2,15 +2,17 @@
 // 
 // 		ＤＸライブラリ		ウインドウ関係制御プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxWindow.h"
+#include "DxGraphicsD3D9.h"
+#include "DxGraphicsWin.h"
 //#include <winsock2.h>
 //#include <ws2tcpip.h>
 #include <windows.h>
@@ -21,7 +23,9 @@
 #ifndef DX_NON_KEYEX
 //#include <imm.h>
 #endif
+#include "../DxChar.h"
 #include "../DxLog.h"
+#include "../DxUseCLib.h"
 #include "../DxGraphics.h"
 #include "../DxModel.h"
 #include "../DxFile.h"
@@ -35,7 +39,6 @@
 #include "../DxNetwork.h"
 #include "../DxBaseImage.h"
 #include "../DxASyncLoad.h"
-#include "../DxGraphicsBase.h"
 #include "DxWindow.h"
 #include "DxWinAPI.h"
 #include "DxGuid.h"
@@ -44,14 +47,24 @@
   #include <math.h>
 #endif
 
+#ifdef DX_NON_INLINE_ASM
+#ifdef _WIN64
+  #include <intrin.h>
+#endif
+#endif
+
 
 /*
 #ifdef DX_USE_VISUAL_C_MEMDUMP
 	#include <crtdbg.h>
 #endif
 */
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
+
+#endif // DX_USE_NAMESPACE
 
 // マクロ定義 -------------------------------------
 #ifdef __BCC
@@ -65,13 +78,13 @@ namespace DxLib
 #endif
 
 //メインウインドウのクラス名
-#define DXCLASSNAME		_T( "D123987X" )
+#define DXCLASSNAME		L"D123987X"
 
 //メインウインドウのデフォルトタイトル
 #ifndef DX_NON_LITERAL_STRING
-	#define WIN_DEFAULT_TITLE	"DxLib"
+	#define WIN_DEFAULT_TITLE	L"DxLib"
 #else
-	#define WIN_DEFAULT_TITLE	"Soft"
+	#define WIN_DEFAULT_TITLE	L"Soft"
 #endif
 
 #ifdef UNICODE
@@ -111,6 +124,9 @@ namespace DxLib
 #endif
 #ifndef WM_MOUSEHWHEEL
 #define WM_MOUSEHWHEEL				(0x20E)
+#endif
+#ifndef WM_IME_REQUEST
+#define WM_IME_REQUEST				(0x0288)
 #endif
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA					(120)
@@ -252,15 +268,25 @@ const DWORD WExStyle_FullScreenModeTable[WSTYLE_NUM] =
 	WS_EX_TOPMOST,
 } ;
 
+// ウインドウの奥行き位置設定タイプと対応する Win32API の値
+static HWND WindowZType_Win32Param[] =
+{
+	HWND_TOP,			// DX_WIN_ZTYPE_NORMAL
+	HWND_BOTTOM,		// DX_WIN_ZTYPE_BOTTOM
+	HWND_TOP,			// DX_WIN_ZTYPE_TOP
+	HWND_TOPMOST,		// DX_WIN_ZTYPE_TOPMOST
+};
+
 //typedef LRESULT ( CALLBACK *MSGFUNC)(int, WPARAM, LPARAM) ;		// メッセージフックのコールバック関数
 #define F10MES				( WM_USER + 111 )
 #define F12MES				( WM_USER + 112 )
 
-// 结构体定义 --------------------------------------------------------------------
+// 構造体定義 --------------------------------------------------------------------
 
 // 内部大域変数宣言 --------------------------------------------------------------
 
 // 圧縮キーボードフックＤＬＬバイナリデータ
+extern int  DxKeyHookBinaryConvert ;
 extern BYTE DxKeyHookBinary[];
 
 WINDATA WinData ;												// ウインドウのデータ
@@ -274,6 +300,9 @@ static	void		StockMouseInputInfo( int Button ) ;
 
 #endif // DX_NON_INPUT
 
+// ウインドウ関連
+static void			GetMainWindowSize( int *SizeX, int *SizeY ) ;								// メインウインドウのサイズを取得する
+
 // メッセージ処理関数
 static	LRESULT		CALLBACK DxLib_WinProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam ) ;	// メインウインドウのメッセージコールバック関数
 LRESULT CALLBACK	LowLevelKeyboardProc (INT nCode, WPARAM wParam, LPARAM lParam)	;			// フックされた時のコールバック関数
@@ -285,17 +314,17 @@ DWORD	WINAPI		ProcessMessageThreadFunction( LPVOID ) ;									// ProcessMessage
 static	int			SearchToolBarButton( int ID ) ;												// 指定のＩＤのボタンのインデックスを得る
 
 // メニュー関係
-static	int			SearchMenuItem( const TCHAR *ItemName, int ItemID, HMENU SearchMenu, HMENU *Menu, int *Index ) ;					// メニュー構造の中から、選択項目の位置情報を得る( -1:エラー  0:見つからなかった  1:見つかった )
+static	int			SearchMenuItem( const wchar_t *ItemName, int ItemID, HMENU SearchMenu, HMENU *Menu, int *Index ) ;					// メニュー構造の中から、選択項目の位置情報を得る( -1:エラー  0:見つからなかった  1:見つかった )
 
 static	int			GetDisplayMenuState( void ) ;												// メニューが表示するべきかどうかを取得する
-static	int			_GetMenuItemInfo( HMENU Menu, int Index, MENUITEMINFO *Buffer ) ;			// メニューアイテムの情報を取得する
-static	HMENU		MenuItemSubMenuSetup( const TCHAR *ItemName, int ItemID ) ;					// 指定の選択項目にサブメニューを付けられるように準備をする
+static	int			_GetMenuItemInfo( HMENU Menu, int Index, MENUITEMINFOW *Buffer ) ;			// メニューアイテムの情報を取得する
+static	HMENU		MenuItemSubMenuSetup( const wchar_t *ItemName, int ItemID ) ;				// 指定の選択項目にサブメニューを付けられるように準備をする
 
 static	int			ListupMenuItemInfo( HMENU Menu ) ;											// メニューの選択項目の情報の一覧を作成する時に使用する関数
-static	int			AddMenuItemInfo( HMENU Menu, int Index, int ID, const TCHAR *Name ) ;		// メニューの選択項目の情報を追加する
-static	int			DeleteMenuItemInfo( const TCHAR *Name, int ID ) ;							// メニューの選択項目の情報を削除する
-static	WINMENUITEMINFO *SearchMenuItemInfo( const TCHAR *Name, int ID ) ;					// メニューの選択項目の情報を取得する
-static	int			GetNewMenuItemID( void ) ;																		// 新しい選択項目のＩＤを取得する
+static	int			AddMenuItemInfo( HMENU Menu, int Index, int ID, const wchar_t *Name ) ;		// メニューの選択項目の情報を追加する
+static	int			DeleteMenuItemInfo( const wchar_t *Name, int ID ) ;							// メニューの選択項目の情報を削除する
+static	WINMENUITEMINFO *SearchMenuItemInfo( const wchar_t *Name, int ID ) ;					// メニューの選択項目の情報を取得する
+static	int			GetNewMenuItemID( void ) ;													// 新しい選択項目のＩＤを取得する
 
 // メッセージ処理関数
 		int			WM_SIZEProcess( void ) ;
@@ -314,15 +343,13 @@ static	int			GetNewMenuItemID( void ) ;																		// 新しい選択項�
 // ウインドウ関係の初期化関数
 extern int InitializeWindow( void )
 {
-	WNDCLASSEX wc ;
-//	WNDCLASSEXA wc ;
-//	WNDCLASSEXW wc ;
+	WNDCLASSEXW wc ;
 	int WindowSizeX , WindowSizeY ;
-	HDC hdc ;
+//	HDC hdc ;
 	TIMECAPS tc ;
-	TCHAR CurrentDirectory[ MAX_PATH ] ;
-	TCHAR WindowText[ MAX_PATH ] ;
-	TCHAR ClassName[ 256 ] ;
+	wchar_t CurrentDirectory[ FILEPATH_MAX ] ;
+	wchar_t WindowText[ FILEPATH_MAX ] ;
+	wchar_t ClassName[ 256 ] ;
 
 	LONGLONG		OneSecCount										= WinData.OneSecCount ;
 	int				UseRDTSCFlag									= WinData.UseRDTSCFlag ;
@@ -340,7 +367,8 @@ extern int InitializeWindow( void )
 	int				NotMenuAutoDisplayFlag							= WinData.NotMenuAutoDisplayFlag ;
 //	int 			MenuShredRunFlag								= WinData.MenuShredRunFlag ;
 //	int 			MenuStartKey 									= WinData.MenuStartKey ;
-	int 			WindowStyl 										= WinData.WindowStyle ;
+	int 			WindowStyle 									= WinData.WindowStyle ;
+	int				WindowZType										= WinData.WindowZType ;
 	HRGN 			WindowRgn 										= WinData.WindowRgn ;
 	int 			IconID 											= WinData.IconID ;
 	HICON			IconHandle										= WinData.IconHandle ;
@@ -390,18 +418,17 @@ extern int InitializeWindow( void )
 	int				UseSSE2Flag										= WinData.UseSSE2Flag ;
 	HMODULE			LoadResourModule								= WinData.LoadResourModule ;
 	double			ExtendRateX, ExtendRateY ;
-	HMODULE			Dll ;
 
-	lstrcpy( CurrentDirectory, WinData.CurrentDirectory ) ;
-	lstrcpy( WindowText, WinData.WindowText ) ;
-	lstrcpy( ClassName, WinData.ClassName ) ;
+	_WCSCPY( CurrentDirectory, WinData.CurrentDirectory ) ;
+	_WCSCPY( WindowText, WinData.WindowText ) ;
+	_WCSCPY( ClassName, WinData.ClassName ) ;
 
 	// 初期化
 	_MEMSET( &WinData, 0, sizeof( WINDATA ) ) ;
 
-	lstrcpy( WinData.CurrentDirectory, CurrentDirectory ) ;
-	lstrcpy( WinData.WindowText, WindowText ) ;
-	lstrcpy( WinData.ClassName, ClassName ) ;
+	_WCSCPY( WinData.CurrentDirectory, CurrentDirectory ) ;
+	_WCSCPY( WinData.WindowText, WindowText ) ;
+	_WCSCPY( WinData.ClassName, ClassName ) ;
 
 	WinData.OneSecCount								= OneSecCount ;
 	WinData.UseRDTSCFlag							= UseRDTSCFlag ;
@@ -418,7 +445,8 @@ extern int InitializeWindow( void )
 	WinData.MenuProc 								= MenuProc ;
 //	WinData.MenuShredRunFlag						= MenuShredRunFlag ;
 //	WinData.MenuStartKey 							= MenuStartKey ;
-	WinData.WindowStyle 							= WindowStyl ;
+	WinData.WindowStyle 							= WindowStyle ;
+	WinData.WindowZType								= WindowZType ;
 	WinData.WindowRgn 								= WindowRgn ;
 	WinData.IconID 									= IconID ;
 	WinData.IconHandle								= IconHandle ;
@@ -470,7 +498,7 @@ extern int InitializeWindow( void )
 	WinData.LoadResourModule						= LoadResourModule ;
 
 	// インスタンスハンドルの取得
-	WinData.Instance = GetModuleHandle( NULL ) ;
+	WinData.Instance = WinAPIData.Win32Func.GetModuleHandleWFunc( NULL ) ;
 
 	// スレッドＩＤの取得
 	WinData.MainThreadID = GetCurrentThreadId() ;
@@ -478,40 +506,29 @@ extern int InitializeWindow( void )
 
 #ifndef DX_NON_ASYNCLOAD
 	// 非同期読み込み処理の初期化
-	InitializeASyncLoad( WinData.MainThreadID ) ;
+	InitializeASyncLoad( ( int )WinData.MainThreadID ) ;
 #endif // DX_NON_ASYNCLOAD
 
 	// ファイルアクセス処理の初期化
 	InitializeFile() ;
 
-
-	// UpdateLayerdWindow のアドレスを取得する
-	Dll = LoadLibrary( _T( "user32" ) ) ;
-	if( Dll != NULL )
-	{
-		WinData.UpdateLayeredWindow = ( BOOL ( WINAPI * )( HWND, HDC, POINT*, SIZE*, HDC, POINT*, COLORREF, BLENDFUNCTION*, DWORD ) )GetProcAddress( Dll, "UpdateLayeredWindow" ) ;
-		FreeLibrary( Dll ) ;
-	}
-
 	// クラス名が何も設定されていない場合はデフォルトの名前を設定する
-	if( WinData.ClassName[0] == _T( '\0' ) )
+	if( WinData.ClassName[0] == L'\0' )
 	{
 		// ウインドウタイトルが設定されている場合はそれを設定する
-		if( WinData.WindowText[0] != _T( '\0' ) )
+		if( WinData.WindowText[0] != L'\0' )
 		{
-//			lstrcpyA( WinData.ClassName, WinData.WindowText );
-			lstrcpy( WinData.ClassName, WinData.WindowText );
+			_WCSCPY( WinData.ClassName, WinData.WindowText );
 		}
 		else
 		{
-//			lstrcpyA( WinData.ClassName, ( char * )DXCLASSNAME );
-			lstrcpy( WinData.ClassName, DXCLASSNAME );
+			_WCSCPY( WinData.ClassName, DXCLASSNAME );
 		}
 	}
 
 	// 空きメモリ容量の書き出し
 	{
-		TCHAR str[256];
+		wchar_t str[256];
 
 		if( WinData.WindowsVersion >= DX_WINDOWSVERSION_2000 )
 		{
@@ -520,7 +537,7 @@ extern int InitializeWindow( void )
 			HRESULT mhr ;
 			HMODULE Kernel32DLL ;
 
-			Kernel32DLL = LoadLibrary( _T( "Kernel32.dll" ) ) ;
+			Kernel32DLL = LoadLibraryW( L"Kernel32.dll" ) ;
 			if( Kernel32DLL )
 			{
 				GlobalMemoryStatusExFunc = ( GLOBALMEMORYSTATUSEX_FUNC )GetProcAddress( Kernel32DLL, "GlobalMemoryStatusEx" ) ;
@@ -529,13 +546,11 @@ extern int InitializeWindow( void )
 					_MEMSET( &MemEx, 0, sizeof( MemEx ) ) ;
 					MemEx.dwLength = sizeof( MemEx ) ;
 					mhr = GlobalMemoryStatusExFunc( &MemEx ) ;
-					DXST_ERRORLOGFMT_ADD(( _T( "メモリ総量:%.2fMB  空きメモリ領域:%.2fMB " ),
+					DXST_ERRORLOGFMT_ADDUTF16LE(( "\xe1\x30\xe2\x30\xea\x30\xcf\x7d\xcf\x91\x3a\x00\x25\x00\x2e\x00\x32\x00\x66\x00\x4d\x00\x42\x00\x20\x00\x20\x00\x7a\x7a\x4d\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x3a\x00\x25\x00\x2e\x00\x32\x00\x66\x00\x4d\x00\x42\x00\x20\x00\x00"/*@ L"メモリ総量:%.2fMB  空きメモリ領域:%.2fMB " @*/,
 								( double )( LONGLONG )MemEx.ullTotalPhys / 0x100000 , ( double )( LONGLONG )MemEx.ullAvailPhys / 0x100000 )) ;  
-					_TSPRINTF( _DXWTP( str ), _DXWTR(  "%.2fMB\n" ), ( double )( LONGLONG )MemEx.ullAvailPhys / 0x100000 );
-					OutputDebugString( str ) ;
 
-					WinData.PcInfo.FreeMemorySize = MemEx.ullAvailPhys ;
-					WinData.PcInfo.TotalMemorySize = MemEx.ullTotalPhys ;
+					WinData.PcInfo.FreeMemorySize  = ( LONGLONG )MemEx.ullAvailPhys ;
+					WinData.PcInfo.TotalMemorySize = ( LONGLONG )MemEx.ullTotalPhys ;
 				}
 
 				FreeLibrary( Kernel32DLL ) ;
@@ -547,30 +562,26 @@ extern int InitializeWindow( void )
 			MEMORYSTATUS Mem ;
 
 			GlobalMemoryStatus( &Mem ) ;
-			DXST_ERRORLOGFMT_ADD(( _T( "メモリ総量:%.2fMB  空きメモリ領域:%.2fMB " ),
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xe1\x30\xe2\x30\xea\x30\xcf\x7d\xcf\x91\x3a\x00\x25\x00\x2e\x00\x32\x00\x66\x00\x4d\x00\x42\x00\x20\x00\x20\x00\x7a\x7a\x4d\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x3a\x00\x25\x00\x2e\x00\x32\x00\x66\x00\x4d\x00\x42\x00\x20\x00\x00"/*@ L"メモリ総量:%.2fMB  空きメモリ領域:%.2fMB " @*/,
 						( double )Mem.dwTotalPhys / 0x100000 , ( double )Mem.dwAvailPhys / 0x100000 )) ;  
-			_TSPRINTF( _DXWTP( str ), _DXWTR(  "%.2fMB\n" ), ( double )Mem.dwAvailPhys / 0x100000 );
-			OutputDebugString( str ) ;
+			_SWPRINTF( str, L"%.2fMB\n", ( double )Mem.dwAvailPhys / 0x100000 );
+			OutputDebugStringW( str ) ;
 
-			WinData.PcInfo.FreeMemorySize = Mem.dwAvailPhys ;
-			WinData.PcInfo.TotalMemorySize = Mem.dwTotalPhys ;
+			WinData.PcInfo.FreeMemorySize  = ( LONGLONG )Mem.dwAvailPhys ;
+			WinData.PcInfo.TotalMemorySize = ( LONGLONG )Mem.dwTotalPhys ;
 		}
 	}
 
 	// デスクチップのサイズとカラービット深度を保存
-	WinData.DefaultScreenSize.cx = GetSystemMetrics( SM_CXSCREEN ) ;
-	WinData.DefaultScreenSize.cy = GetSystemMetrics( SM_CYSCREEN ) ;
-	hdc = GetDC( NULL ) ;
-	WinData.DefaultColorBitCount = GetDeviceCaps( hdc , PLANES ) * GetDeviceCaps( hdc , BITSPIXEL ) ;
-	ReleaseDC( NULL , hdc ) ;
+//	WinData.DefaultScreenSize.cx = GetSystemMetrics( SM_CXSCREEN ) ;
+//	WinData.DefaultScreenSize.cy = GetSystemMetrics( SM_CYSCREEN ) ;
+//	hdc = GetDC( NULL ) ;
+//	WinData.DefaultColorBitCount = GetDeviceCaps( hdc , PLANES ) * GetDeviceCaps( hdc , BITSPIXEL ) ;
+//	WinData.DefaultRefreshRate = GetDeviceCaps( hdc, VREFRESH ) ;
+//	ReleaseDC( NULL , hdc ) ;
 
 	// 描画領域のサイズを取得
-	NS_GetDrawScreenSize( &WindowSizeX , &WindowSizeY ) ;
-	if( GBASE.Emulation320x240Flag || GRH.FullScreenEmulation320x240 )
-	{
-		WindowSizeX = 640 ;
-		WindowSizeY = 480 ;
-	}
+	GetMainWindowSize( &WindowSizeX, &WindowSizeY ) ;
 
 	// パフォーマンスカウンター情報の初期化
 	{
@@ -592,10 +603,11 @@ extern int InitializeWindow( void )
 	// タイマーの精度を検査する
 	if( WinData.PerformanceTimerFlag )
 	{
-		int Cnt1 , Cnt2 , Time1 , NowTime1, StartTime ;
+		int Cnt1 , Cnt2 ;
+		DWORD Time1 , NowTime1, StartTime ;
 		LONGLONG Time2 , NowTime2 ;
 
-		DXST_ERRORLOG_ADD( _T( "タイマーの精度を検査します\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\xbf\x30\xa4\x30\xde\x30\xfc\x30\x6e\x30\xbe\x7c\xa6\x5e\x92\x30\x1c\x69\xfb\x67\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"タイマーの精度を検査します\n" @*/ ) ;
 
 		Cnt1 = 0 ;
 		Cnt2 = 0 ;
@@ -619,19 +631,19 @@ extern int InitializeWindow( void )
 		}
 
 		{
-			DXST_ERRORLOGFMT_ADD(( _T( "精度結果 更新回数 マルチメディアタイマー：%d  パフォーマンスカウンター：%d" ), Cnt1 , Cnt2 )) ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xbe\x7c\xa6\x5e\x50\x7d\x9c\x67\x20\x00\xf4\x66\xb0\x65\xde\x56\x70\x65\x20\x00\xde\x30\xeb\x30\xc1\x30\xe1\x30\xc7\x30\xa3\x30\xa2\x30\xbf\x30\xa4\x30\xde\x30\xfc\x30\x1a\xff\x25\x00\x64\x00\x20\x00\x20\x00\xd1\x30\xd5\x30\xa9\x30\xfc\x30\xde\x30\xf3\x30\xb9\x30\xab\x30\xa6\x30\xf3\x30\xbf\x30\xfc\x30\x1a\xff\x25\x00\x64\x00\x00"/*@ L"精度結果 更新回数 マルチメディアタイマー：%d  パフォーマンスカウンター：%d" @*/, Cnt1 , Cnt2 )) ;
 
 #ifndef DX_NON_LOG
 			NS_ErrorLogAdd( _T( " " ) ); // 謎のバグ回避用
 #endif
 			if( Cnt1 > Cnt2 )
 			{
-				DXST_ERRORLOGFMT_ADD(( _T( "Multi Media Timer を使用します Timer 精度 : %d.00 ms " ), tc.wPeriodMin )) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4d\x00\x75\x00\x6c\x00\x74\x00\x69\x00\x20\x00\x4d\x00\x65\x00\x64\x00\x69\x00\x61\x00\x20\x00\x54\x00\x69\x00\x6d\x00\x65\x00\x72\x00\x20\x00\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x20\x00\x54\x00\x69\x00\x6d\x00\x65\x00\x72\x00\x20\x00\xbe\x7c\xa6\x5e\x20\x00\x3a\x00\x20\x00\x25\x00\x64\x00\x2e\x00\x30\x00\x30\x00\x20\x00\x6d\x00\x73\x00\x20\x00\x00"/*@ L"Multi Media Timer を使用します Timer 精度 : %d.00 ms " @*/, tc.wPeriodMin )) ;
 				WinData.PerformanceTimerFlag = FALSE ;
 			}
 			else
 			{
-				DXST_ERRORLOGFMT_ADD(( _T( "パフォーマンスカウンターを使用します タイマー精度 : %lf KHz " ), WinData.PerformanceClock / 1000.0 )) ;
+				DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd1\x30\xd5\x30\xa9\x30\xfc\x30\xde\x30\xf3\x30\xb9\x30\xab\x30\xa6\x30\xf3\x30\xbf\x30\xfc\x30\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x20\x00\xbf\x30\xa4\x30\xde\x30\xfc\x30\xbe\x7c\xa6\x5e\x20\x00\x3a\x00\x20\x00\x25\x00\x6c\x00\x66\x00\x20\x00\x4b\x00\x48\x00\x7a\x00\x20\x00\x00"/*@ L"パフォーマンスカウンターを使用します タイマー精度 : %lf KHz " @*/, WinData.PerformanceClock / 1000.0 )) ;
 			}
 #ifndef DX_NON_LOG
 			NS_ErrorLogAdd( _T( " " ) ); // 謎のバグ回避用
@@ -647,44 +659,31 @@ extern int InitializeWindow( void )
 #endif
 
 	// スクリーンセーバー無効
-	SystemParametersInfo( SPI_SETSCREENSAVEACTIVE, FALSE, NULL, SPIF_SENDWININICHANGE ) ;
-
-	// 使用する文字セットをセット
-	if( _GET_CHARSET() == 0 )
-	{
-		switch( GetOEMCP() )
-		{
-		case 949 : _SET_CHARSET( DX_CHARSET_HANGEUL ) ; _SET_CODEPAGE( 949 ) ; break ;
-		case 950 : _SET_CHARSET( DX_CHARSET_BIG5 ) ;    _SET_CODEPAGE( 950 ) ; break ;
-		case 936 : _SET_CHARSET( DX_CHARSET_GB2312 ) ;  _SET_CODEPAGE( 936 ) ; break ;
-		case 932 : _SET_CHARSET( DX_CHARSET_SHFTJIS ) ; _SET_CODEPAGE( 932 ) ; break ;
-		default :  _SET_CHARSET( DX_CHARSET_SHFTJIS ) ; _SET_CODEPAGE( 0   ) ; break ;
-		}
-	}
+	SystemParametersInfoW( SPI_SETSCREENSAVEACTIVE, FALSE, NULL, SPIF_SENDWININICHANGE ) ;
 
 	// ウインドウに関連する処理は NotWinFlag が立っている場合は実行しない
 	if( DxSysData.NotWinFlag == FALSE )
 	{
 		// 二重起動防止処理
-		DXST_ERRORLOG_ADD( _T( "ソフトの二重起動検査... " ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\xbd\x30\xd5\x30\xc8\x30\x6e\x30\x8c\x4e\xcd\x91\x77\x8d\xd5\x52\x1c\x69\xfb\x67\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"ソフトの二重起動検査... " @*/ ) ;
 		{
-			if( FindWindow( WinData.ClassName , NULL ) != NULL )
+			if( FindWindowW( WinData.ClassName , NULL ) != NULL )
 			{
 				if( WinData.DoubleStartValidFlag == FALSE )
 				{
-					DXST_ERRORLOG_ADD( _T( "二重起動されています、ソフトを終了します\n" ) ) ;
+					DXST_ERRORLOG_ADDUTF16LE( "\x8c\x4e\xcd\x91\x77\x8d\xd5\x52\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x01\x30\xbd\x30\xd5\x30\xc8\x30\x92\x30\x42\x7d\x86\x4e\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"二重起動されています、ソフトを終了します\n" @*/ ) ;
 					WinData.QuitMessageFlag = TRUE;
 					DxLib_EndRequest() ;
 					return -1 ;
 				}
 				else
 				{
-					DXST_ERRORLOG_ADD( _T( "二重起動されていますが続行します\n" ) ) ;
+					DXST_ERRORLOG_ADDUTF16LE( "\x8c\x4e\xcd\x91\x77\x8d\xd5\x52\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x4c\x30\x9a\x7d\x4c\x88\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"二重起動されていますが続行します\n" @*/ ) ;
 				}
 			}
 			else
 			{
-				DXST_ERRORLOG_ADD( _T( "二重起動はされていませんでした\n" ) ) ;
+				DXST_ERRORLOG_ADDUTF16LE( "\x8c\x4e\xcd\x91\x77\x8d\xd5\x52\x6f\x30\x55\x30\x8c\x30\x66\x30\x44\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"二重起動はされていませんでした\n" @*/ ) ;
 			}
 		}
 
@@ -698,7 +697,7 @@ extern int InitializeWindow( void )
 	/*	if( WinData.MenuUseFlag )
 		{
 			// メニューをロード
-			WinData.Menu = LoadMenu( WinData.Instance, MAKEINTRESOURCE( WinData.MenuResourceID ) ) ;
+			WinData.Menu = LoadMenuW( WinData.Instance, MAKEINTRESOURCE( WinData.MenuResourceID ) ) ;
 	//		WinData.MenuResourceID = FALSE ;
 
 			// 失敗していたら終了
@@ -711,7 +710,7 @@ extern int InitializeWindow( void )
 	*/
 
 		// ソフトプロセスの実行優先順位を最高レベルにセット
-	//	DXST_ERRORLOG_ADD( _T( "ソフトの実行優先レベルを上げました\n" ) ) ;
+	//	DXST_ERRORLOG_ADDW( L"ソフトの実行優先レベルを上げました\n" ) ;
 	//	SetPriorityClass( GetCurrentProcess() , HIGH_PRIORITY_CLASS );
 
 		// ウインドウがユーザーから提供されていない場合はＤＸライブラリが作成する
@@ -719,9 +718,9 @@ extern int InitializeWindow( void )
 		if( WinData.UserWindowFlag == TRUE )
 		{
 #ifdef _WIN64
-			WinData.DefaultUserWindowProc = (WNDPROC)GetWindowLongPtr( WinData.MainWindow, GWLP_WNDPROC ) ;
+			WinData.DefaultUserWindowProc = (WNDPROC)GetWindowLongPtrW( WinData.MainWindow, GWLP_WNDPROC ) ;
 #else
-			WinData.DefaultUserWindowProc = (WNDPROC)GetWindowLong( WinData.MainWindow, GWL_WNDPROC ) ;
+			WinData.DefaultUserWindowProc = (WNDPROC)GetWindowLongW( WinData.MainWindow, GWL_WNDPROC ) ;
 #endif
 		}
 		else
@@ -737,8 +736,8 @@ extern int InitializeWindow( void )
 				wc.cbClsExtra		= 0 ;
 				wc.cbWndExtra		= 0 ;
 				wc.hInstance		= WinData.Instance ;
-				wc.hIcon			= WinData.IconHandle != NULL ? WinData.IconHandle : ( LoadIcon( WinData.Instance , ( WinData.IconID == 0 ) ? IDI_APPLICATION : MAKEINTRESOURCE( WinData.IconID ) ) ) ;
-				wc.hCursor			= LoadCursor( NULL , IDC_ARROW ) ;
+				wc.hIcon			= WinData.IconHandle != NULL ? WinData.IconHandle : ( LoadIconW( WinData.Instance , ( WinData.IconID == 0 ) ? ( LPWSTR )IDI_APPLICATION : MAKEINTRESOURCEW( WinData.IconID ) ) ) ;
+				wc.hCursor			= LoadCursorW( NULL , ( LPCWSTR )IDC_ARROW ) ;
 		//		wc.hbrBackground	= WinData.WindowModeFlag ? (HBRUSH)( COLOR_WINDOW + 1 ) : (HBRUSH)GetStockObject(BLACK_BRUSH); ;
 		//		wc.hbrBackground	= ( WinData.WindowRgn == NULL && WinData.WindowModeFlag == TRUE ) ? (HBRUSH)GetStockObject(BLACK_BRUSH) : (HBRUSH)GetStockObject(NULL_BRUSH);
 				wc.hbrBackground	= (HBRUSH)GetStockObject(NULL_BRUSH);
@@ -747,35 +746,34 @@ extern int InitializeWindow( void )
 				wc.cbSize			= sizeof( WNDCLASSEX );
 				wc.hIconSm			= NULL ;
 
-				DXST_ERRORLOG_ADD( _T( "ウインドウクラスを登録します... " ) ) ;
-//				if( !RegisterClassExA( &wc ) )
-//				if( !RegisterClassExW( &wc ) )
-				if( !RegisterClassEx( &wc ) )
+				DXST_ERRORLOG_ADDUTF16LE( "\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\xaf\x30\xe9\x30\xb9\x30\x92\x30\x7b\x76\x32\x93\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"ウインドウクラスを登録します... " @*/ ) ;
+				if( !RegisterClassExW( &wc ) )
 				{
 					WinData.QuitMessageFlag = TRUE;
 					DxLib_EndRequest() ;
-					//return 	DXST_ERRORLOG_ADD( _T( "ウインドウクラスの登録に失敗しました\n" ) ) ;
+					//return 	DXST_ERRORLOG_ADDW( L"ウインドウクラスの登録に失敗しました\n" ) ;
 				}
 				else
 				{
-					DXST_ERRORLOG_ADD( _T( "登録に成功しました\n" ) ) ;
+					DXST_ERRORLOG_ADDUTF16LE( "\x7b\x76\x32\x93\x6b\x30\x10\x62\x9f\x52\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"登録に成功しました\n" @*/ ) ;
 				}
 			}
 
 			// ウインドウネームをセット
-			if( WinData.EnableWindowText == FALSE ) lstrcpy( WinData.WindowText , _T( WIN_DEFAULT_TITLE ) ) ;
-//			if( WinData.WindowText[0] == _T( '\0' ) ) lstrcpy( WinData.WindowText , _T( WIN_DEFAULT_TITLE ) ) ;
-//			if( WinData.WindowText[0] == L'\0' ) _WCSCPY( WinData.WindowText , WIN_DEFAULT_TITLEW ) ;
-//			if( WinData.WindowText[0] == '\0' ) lstrcpyA( WinData.WindowText , WIN_DEFAULT_TITLE ) ;
-
+			if( WinData.EnableWindowText == FALSE )
+			{
+				_WCSCPY( WinData.WindowText , WIN_DEFAULT_TITLE ) ;
+			}
+			
 			// ウインドウを生成
 			if( WinData.WindowModeFlag )
 			{
 				RECT Rect ;
 				LONG AddStyle, AddExStyle ;
+				int DesktopW, DesktopH, DesktopX, DesktopY ;
 
 				// ウインドウモード時
-				DXST_ERRORLOG_ADD( _T( "ウインドウモード起動用のウインドウを作成します\n" ) ) ;
+				DXST_ERRORLOG_ADDUTF16LE( "\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\xe2\x30\xfc\x30\xc9\x30\x77\x8d\xd5\x52\x28\x75\x6e\x30\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\x92\x30\x5c\x4f\x10\x62\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ウインドウモード起動用のウインドウを作成します\n" @*/ ) ;
 
 				AddExStyle = 0 ;
 //				if( WinData.NotWindowVisibleFlag == TRUE ) AddExStyle |= WS_EX_TRANSPARENT ;
@@ -840,20 +838,20 @@ extern int InitializeWindow( void )
 		//		Rect.bottom += + 3;
 
 				// 中心に持ってくる
+				NS_GetDefaultState( &DesktopW, &DesktopH, NULL, NULL, &DesktopX, &DesktopY ) ;
 				WindowSizeX = Rect.right  - Rect.left ;
 				WindowSizeY = Rect.bottom - Rect.top  ;
-				Rect.left   += ( GetSystemMetrics( SM_CXSCREEN ) - WindowSizeX ) / 2;
-				Rect.top    += ( GetSystemMetrics( SM_CYSCREEN ) - WindowSizeY ) / 2;
-				Rect.right  += ( GetSystemMetrics( SM_CXSCREEN ) - WindowSizeX ) / 2;
-				Rect.bottom += ( GetSystemMetrics( SM_CYSCREEN ) - WindowSizeY ) / 2;
+				Rect.left   += ( DesktopW - WindowSizeX ) / 2 + DesktopX ;
+				Rect.top    += ( DesktopH - WindowSizeY ) / 2 + DesktopY ;
+				Rect.right  += ( DesktopW - WindowSizeX ) / 2 + DesktopX ;
+				Rect.bottom += ( DesktopH - WindowSizeY ) / 2 + DesktopY ;
 
 				// ウインドウの作成
 				WinData.MainWindow = 
-//					CreateWindowExA(
-					CreateWindowEx(
+					WinAPIData.Win32Func.CreateWindowExWFunc(
 						WExStyle_WindowModeTable[WinData.WindowStyle] + AddExStyle,
 						WinData.ClassName ,
-						WinData.WindowText ,
+						WinData.WindowText,
 						WStyle_WindowModeTable[WinData.WindowStyle] + AddStyle,
 						WinData.WindowPosValid == TRUE ? WinData.WindowX : Rect.left,
 						WinData.WindowPosValid == TRUE ? WinData.WindowY : Rect.top,
@@ -861,26 +859,28 @@ extern int InitializeWindow( void )
 						WindowSizeY,
 						NULL,WinData.Menu,
 						WinData.Instance,
-						NULL );
+						NULL ) ;
 			}
 			else
 			{
+				GRAPHICSSYS_DISPLAYINFO *DisplayInfo ;
 
-				DXST_ERRORLOG_ADD( _T( "フルスクリーンモード用のウインドウを作成します\n" ) ) ;
+				DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xeb\x30\xb9\x30\xaf\x30\xea\x30\xfc\x30\xf3\x30\xe2\x30\xfc\x30\xc9\x30\x28\x75\x6e\x30\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\x92\x30\x5c\x4f\x10\x62\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"フルスクリーンモード用のウインドウを作成します\n" @*/ ) ;
 				// フルスクリーンモード時
+
+				DisplayInfo = &GSYS.Screen.DisplayInfo[ GSYS.Screen.ValidUseDisplayIndex ? GSYS.Screen.UseDisplayIndex : 0 ] ;
 
 				// マウス表示フラグを倒す
 				WinData.MouseDispFlag = FALSE ;
 
 				WinData.MainWindow = 
-//					CreateWindowExA( 
-					CreateWindowEx( 
+					WinAPIData.Win32Func.CreateWindowExWFunc( 
 						WExStyle_FullScreenModeTable[WinData.WindowStyle] ,
 						WinData.ClassName ,
 						WinData.WindowText ,
 						WStyle_FullScreenModeTable[WinData.WindowStyle] ,
-						0 ,	0 ,
-						WindowSizeX , WindowSizeY ,
+						DisplayInfo->DesktopRect.left,	             DisplayInfo->DesktopRect.top,
+						DisplayInfo->DesktopRect.left + WindowSizeX, DisplayInfo->DesktopRect.top + WindowSizeY ,
 						NULL ,
 						NULL , 
 						WinData.Instance ,
@@ -890,9 +890,9 @@ extern int InitializeWindow( void )
 			{
 				WinData.QuitMessageFlag = TRUE;
 				DxLib_EndRequest() ;
-				return DXST_ERRORLOG_ADD( _T( "ウインドウの作成に失敗しました\n" ) ) ;
+				return DXST_ERRORLOG_ADDUTF16LE( "\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ウインドウの作成に失敗しました\n" @*/ ) ;
 			}
-			DXST_ERRORLOG_ADD( _T( "ウインドウの作成に成功しました\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x10\x62\x9f\x52\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ウインドウの作成に成功しました\n" @*/ ) ;
 
 			// ウインドウの表示、更新
 			if( WinData.NotWindowVisibleFlag )
@@ -907,7 +907,7 @@ extern int InitializeWindow( void )
 			}
 			else
 			{
-				DXST_ERRORLOG_ADD( _T( "ウインドウを表示します\n" ) ) ;
+				DXST_ERRORLOG_ADDUTF16LE( "\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\x92\x30\x68\x88\x3a\x79\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ウインドウを表示します\n" @*/ ) ;
 				ShowWindow( WinData.MainWindow , SW_SHOW ) ;
 				UpdateWindow( WinData.MainWindow ) ;
 			}
@@ -921,10 +921,10 @@ extern int InitializeWindow( void )
 			WinData.ActiveFlag = TRUE ;										// アクティブフラグをたてる
 			if( WinData.WindowModeFlag == FALSE )
 			{
-				DXST_ERRORLOG_ADD( _T( "カーソルを不可視にしました\n" ) ) ;
+				DXST_ERRORLOG_ADDUTF16LE( "\xab\x30\xfc\x30\xbd\x30\xeb\x30\x92\x30\x0d\x4e\xef\x53\x96\x89\x6b\x30\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"カーソルを不可視にしました\n" @*/ ) ;
 				SetCursor( NULL ) ;										// フルスクリーンモードだった場合カーソルを消去
 			}
-			DXST_ERRORLOG_ADD( _T( "ＩＭＥを無効にしました\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x29\xff\x2d\xff\x25\xff\x92\x30\x21\x71\xb9\x52\x6b\x30\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ＩＭＥを無効にしました\n" @*/ ) ;
 
 			if( WinData.WindowMinimizeFlag == FALSE 
 #ifndef DX_NON_INPUTSTRING
@@ -932,16 +932,16 @@ extern int InitializeWindow( void )
 #endif // DX_NON_INPUTSTRING
 			)
 			{
-				if( WinAPIData.WINNLSEnableIME_Func )
-					WinAPIData.WINNLSEnableIME_Func( WinData.MainWindow , FALSE ) ;						// MS_IME無効
+				if( WinAPIData.Win32Func.WINNLSEnableIME_Func )
+					WinAPIData.Win32Func.WINNLSEnableIME_Func( WinData.MainWindow , FALSE ) ;						// MS_IME無効
 			}
 			else
 			{
 #ifndef DX_NON_INPUTSTRING
 				if( CharBuf.IMEUseFlag )
 				{
-					if( WinAPIData.WINNLSEnableIME_Func )
-						WinAPIData.WINNLSEnableIME_Func( WinData.MainWindow , TRUE ) ;						// MS_IME無効
+					if( WinAPIData.Win32Func.WINNLSEnableIME_Func )
+						WinAPIData.Win32Func.WINNLSEnableIME_Func( WinData.MainWindow , TRUE ) ;						// MS_IME無効
 				}
 #endif // DX_NON_INPUTSTRING
 			}
@@ -997,7 +997,7 @@ extern int InitializeWindow( void )
 //	WinData.ProcessMessageThreadHandle = NULL ;
 	if( WinData.ProcessMessageThreadHandle == NULL )
 	{
-		DXST_ERRORLOG_ADD( _T( "ProcessMessage をひたすら呼びつづけるスレッドの立ち上げに失敗しました\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x50\x00\x72\x00\x6f\x00\x63\x00\x65\x00\x73\x00\x73\x00\x4d\x00\x65\x00\x73\x00\x73\x00\x61\x00\x67\x00\x65\x00\x20\x00\x92\x30\x72\x30\x5f\x30\x59\x30\x89\x30\x7c\x54\x73\x30\x64\x30\x65\x30\x51\x30\x8b\x30\xb9\x30\xec\x30\xc3\x30\xc9\x30\x6e\x30\xcb\x7a\x61\x30\x0a\x4e\x52\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ProcessMessage をひたすら呼びつづけるスレッドの立ち上げに失敗しました\n" @*/ ) ;
 	}
 #endif
 
@@ -1005,7 +1005,7 @@ extern int InitializeWindow( void )
 	// 非同期読み込み処理を行うスレッドを立てる
 	if( SetupASyncLoadThread( WinData.ProcessorNum ) < 0 )
 	{
-		DXST_ERRORLOG_ADD( _T( "非同期読み込み処理を行うスレッドの立ち上げに失敗しました\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x5e\x97\x0c\x54\x1f\x67\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\xe6\x51\x06\x74\x92\x30\x4c\x88\x46\x30\xb9\x30\xec\x30\xc3\x30\xc9\x30\x6e\x30\xcb\x7a\x61\x30\x0a\x4e\x52\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"非同期読み込み処理を行うスレッドの立ち上げに失敗しました\n" @*/ ) ;
 		WinData.QuitMessageFlag = TRUE;
 		DxLib_EndRequest() ;
 		return -1 ;
@@ -1025,14 +1025,14 @@ extern int TerminateWindow( void )
 	if( WinData.MainWindow == NULL ) return 0 ;
 
 	// スクリーンセーバー有効
-	SystemParametersInfo( SPI_SETSCREENSAVEACTIVE, TRUE, NULL, SPIF_SENDWININICHANGE ) ;
+	SystemParametersInfoW( SPI_SETSCREENSAVEACTIVE, TRUE, NULL, SPIF_SENDWININICHANGE ) ;
 
 	// ウインドウに関連する処理は DxSysData.NotWinFlag が立っていない場合のみ実行する
 	if( DxSysData.NotWinFlag == FALSE )
 	{
 		// MS_IME有効
-		if( WinAPIData.WINNLSEnableIME_Func )
-			WinAPIData.WINNLSEnableIME_Func( WinData.MainWindow, TRUE ) ;
+		if( WinAPIData.Win32Func.WINNLSEnableIME_Func )
+			WinAPIData.Win32Func.WINNLSEnableIME_Func( WinData.MainWindow, TRUE ) ;
 
 		// マウスカーソルを表示する
 		NS_SetMouseDispFlag( TRUE ) ;
@@ -1044,7 +1044,7 @@ extern int TerminateWindow( void )
 				// Win95 カーネルの場合の処理
 				UINT nPreviousState;
 				if( WinData.SysCommandOffFlag == TRUE )
-					SystemParametersInfo( SPI_SETSCREENSAVERRUNNING, FALSE, &nPreviousState, 0 ) ;
+					SystemParametersInfoW( SPI_SETSCREENSAVERRUNNING, FALSE, &nPreviousState, 0 ) ;
 			}
 			else
 	*/		{
@@ -1070,7 +1070,7 @@ extern int TerminateWindow( void )
 				// キーボードフックＤＬＬとしてテンポラリファイルを使用していた場合はファイルを削除する
 				if( WinData.NotUseUserHookDllFlag )
 				{
-					DeleteFile( WinData.HookDLLFilePath ) ;
+					DeleteFileW( WinData.HookDLLFilePath ) ;
 					WinData.NotUseUserHookDllFlag = FALSE ;
 				}
 			}
@@ -1090,9 +1090,9 @@ extern int TerminateWindow( void )
 		{
 			// ウインドウプロージャを元に戻す
 #ifdef _WIN64
-			SetWindowLongPtr( WinData.MainWindow, GWLP_WNDPROC, ( LONG_PTR )WinData.DefaultUserWindowProc ) ;
+			SetWindowLongPtrW( WinData.MainWindow, GWLP_WNDPROC, ( LONG_PTR )WinData.DefaultUserWindowProc ) ;
 #else
-			SetWindowLong( WinData.MainWindow, GWL_WNDPROC, (LONG)WinData.DefaultUserWindowProc ) ;
+			SetWindowLongW( WinData.MainWindow, GWL_WNDPROC, (LONG)WinData.DefaultUserWindowProc ) ;
 #endif
 
 			// 終了状態にする
@@ -1105,14 +1105,14 @@ extern int TerminateWindow( void )
 			if( WinData.CloseMessagePostFlag == FALSE )
 			{
 				WinData.CloseMessagePostFlag = TRUE ;
-				PostMessage( WinData.MainWindow , WM_CLOSE, 0, 0 );
+				PostMessageW( WinData.MainWindow , WM_CLOSE, 0, 0 );
 			}
 
 			// エンド処理が終るまでループ
 			while( NS_ProcessMessage() == 0 && WinData.DestroyMessageCatchFlag == FALSE ){}
 
 			// レジストリの削除
-			UnregisterClass( WinData.ClassName, WinData.Instance ) ;
+			UnregisterClassW( WinData.ClassName, WinData.Instance ) ;
 		}
 
 	#ifndef DX_NON_KEYEX
@@ -1215,13 +1215,13 @@ extern	int	InitializeCom( void )
 {
 	if( WinData.ComInitializeFlag ) return -1 ;
 
-	DXST_ERRORLOG_ADD( _T( "ＣＯＭの初期化... " ) ) ;
+	DXST_ERRORLOG_ADDUTF16LE( "\x23\xff\x2f\xff\x2d\xff\x6e\x30\x1d\x52\x1f\x67\x16\x53\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"ＣＯＭの初期化... " @*/ ) ;
 
 	// ＣＯＭの初期化
 	if( FAILED( WinAPIData.Win32Func.CoInitializeExFunc( NULL, COINIT_APARTMENTTHREADED ) ) )
-		return DXST_ERRORLOG_ADD( _T( "ＣＯＭの初期化に失敗しました\n" ) ) ;
+		return DXST_ERRORLOG_ADDUTF16LE( "\x23\xff\x2f\xff\x2d\xff\x6e\x30\x1d\x52\x1f\x67\x16\x53\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ＣＯＭの初期化に失敗しました\n" @*/ ) ;
 
-	DXST_ERRORLOG_ADD( _T( "成功しました\n" ) ) ;
+	DXST_ERRORLOG_ADDUTF16LE( "\x10\x62\x9f\x52\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"成功しました\n" @*/ ) ;
 
 	WinData.ComInitializeFlag = TRUE ;
 
@@ -1237,7 +1237,7 @@ extern	int	TerminateCom( void )
 	// ＣＯＭの終了
 	WinAPIData.Win32Func.CoUninitializeFunc () ;
 
-	DXST_ERRORLOG_ADD( _T( "ＣＯＭを終了... 完了\n" ) ) ;
+	DXST_ERRORLOG_ADDUTF16LE( "\x23\xff\x2f\xff\x2d\xff\x92\x30\x42\x7d\x86\x4e\x2e\x00\x2e\x00\x2e\x00\x20\x00\x8c\x5b\x86\x4e\x0a\x00\x00"/*@ L"ＣＯＭを終了... 完了\n" @*/ ) ;
 
 	WinData.ComInitializeFlag = FALSE ;
 
@@ -1312,32 +1312,76 @@ extern	int	TerminateCom( void )
 // 指定のリソースを取得する( -1:失敗  0:成功 )
 extern int NS_GetResourceInfo( const TCHAR *ResourceName, const TCHAR *ResourceType, void **DataPointerP, int *DataSizeP )
 {
-	HRSRC ResourceHandle = NULL ;
-	HGLOBAL ResourceMem = NULL ;
-	LPVOID ResourceData = NULL ;
-	DWORD ResourceSize = 0 ;
+#ifdef UNICODE
+	return GetResourceInfo_WCHAR_T( ResourceName, ResourceType, DataPointerP, DataSizeP ) ;
+#else
+	int Result = -1 ;
+
+	TCHAR_TO_WCHAR_T_STRING_BEGIN( ResourceName )
+	TCHAR_TO_WCHAR_T_STRING_BEGIN( ResourceType )
+
+	TCHAR_TO_WCHAR_T_STRING_SETUP( ResourceName, goto ERR )
+	TCHAR_TO_WCHAR_T_STRING_SETUP( ResourceType, goto ERR )
+
+	Result = GetResourceInfo_WCHAR_T( UseResourceNameBuffer, UseResourceTypeBuffer, DataPointerP, DataSizeP ) ;
+
+ERR :
+
+	TCHAR_TO_WCHAR_T_STRING_END( ResourceName )
+	TCHAR_TO_WCHAR_T_STRING_END( ResourceType )
+
+	return Result ;
+#endif
+}
+
+// 指定のリソースを取得する( -1:失敗  0:成功 )
+extern int GetResourceInfo_WCHAR_T( const wchar_t *ResourceName, const wchar_t *ResourceType, void **DataPointerP, int *DataSizeP )
+{
+	HRSRC   ResourceHandle = NULL ;
+	HGLOBAL ResourceMem    = NULL ;
+	LPVOID  ResourceData   = NULL ;
+	DWORD   ResourceSize   = 0 ;
 	HMODULE ResourceModule ;
 
 	// リソースハンドルを取得する
-	ResourceModule = WinData.LoadResourModule == NULL ? GetModuleHandle( NULL ) : WinData.LoadResourModule ;
-	ResourceHandle = FindResource( ResourceModule, ResourceName, ResourceType ) ;
-	if( ResourceHandle == NULL ) return -1 ;
+	ResourceModule = WinData.LoadResourModule == NULL ? WinAPIData.Win32Func.GetModuleHandleWFunc( NULL ) : WinData.LoadResourModule ;
+	ResourceHandle = FindResourceW( ResourceModule, ResourceName, ResourceType ) ;
+	if( ResourceHandle == NULL )
+	{
+		return -1 ;
+	}
 
 	// リソースのサイズを取得する
 	ResourceSize = SizeofResource( ResourceModule, ResourceHandle ) ;
-	if( ResourceSize == 0 ) return -1 ;
+	if( ResourceSize == 0 )
+	{
+		return -1 ;
+	}
 
 	// リソースをメモリに読み込む
 	ResourceMem = LoadResource( ResourceModule, ResourceHandle ) ;
-	if( ResourceMem == NULL ) return -1 ;
+	if( ResourceMem == NULL )
+	{
+		return -1 ;
+	}
 
 	// リソースデータが存在するメモリを取得する
 	ResourceData = LockResource( ResourceMem ) ;
-	if( ResourceData == NULL ) return -1 ;
+	if( ResourceData == NULL )
+	{
+		return -1 ;
+	}
 
 	// 取得した情報を書き込む
-	if( DataPointerP != NULL ) *DataPointerP = ResourceData ;
-	if( DataSizeP != NULL ) *DataSizeP = ResourceSize ;
+	if( DataPointerP != NULL )
+	{
+		*DataPointerP = ResourceData ;
+	}
+
+	if( DataSizeP != NULL )
+	{
+		*DataSizeP = ( int )ResourceSize ;
+	}
 
 	// 終了
 	return 0 ;
@@ -1420,7 +1464,7 @@ START :
 		// 使用中カウンタをインクリメントする
 //		if( WinData.DxConflictCheckCounter != 0 )
 //		{
-//			DXST_ERRORLOG_ADD( _T( "エラー:衝突発生 No.0 \n" ) ) ;
+//			DXST_ERRORLOG_ADDW( L"エラー:衝突発生 No.0 \n" ) ;
 //		}
 		WinData.DxConflictCheckCounter ++ ;
 
@@ -1437,7 +1481,7 @@ WAIT:
 		CriticalSection_Unlock( &WinData.DxConflictCheckCriticalSection ) ;
 //		WinData.DxConflictCheckFlag -- ;
 
-//		DXST_ERRORLOG_ADD( _T( "エラー:衝突発生 No.4 \n" ) ) ;
+//		DXST_ERRORLOG_ADDW( L"エラー:衝突発生 No.4 \n" ) ;
 
 		// 少し寝る
 		Sleep( 1 ) ;
@@ -1478,7 +1522,7 @@ WAIT:
 			// ログ出力抑制フラグが立っていた場合は出力を行わない
 			if( DxSysData.NotLogOutFlag == FALSE && WinData.LogOutDirectory[0] != '\0' )
 			{
-				char MotoPath[MAX_PATH] ;
+				char MotoPath[FILEPATH_MAX] ;
 
 				// エラーログファイルを開く
 				FGETDIR( MotoPath ) ;
@@ -1570,7 +1614,7 @@ extern void PostConflictProcessDxFunction( void )
 	}
 //	else
 //	{
-//		DXST_ERRORLOG_ADD( _T( "エラー:衝突発生 No.1\n" ) ) ;
+//		DXST_ERRORLOG_ADDW( L"エラー:衝突発生 No.1\n" ) ;
 //	}
 
 	// カウンタをデクリメントして終了
@@ -1626,8 +1670,9 @@ extern void PostConflictProcessDxFunction( void )
 // WM_PAINT用関数
 int DrawBackGraph( HDC /*DestDC*/ )
 {
-	int DrawScreenWidth, DrawScreenHeight, DrawScreen, DrawMode, WaitVSync ;
+	int DrawScreenWidth, DrawScreenHeight/*, DrawScreen, DrawMode, WaitVSync*/ ;
 	int Width, Height, NonActiveRunFlag, BackUpScreen ;
+	SCREENDRAWSETTINGINFO ScreenDrawSettingInfo ;
 
 	if( WinData.AltF4_EndFlag == 1 ) return 0 ;
 
@@ -1637,10 +1682,10 @@ int DrawBackGraph( HDC /*DestDC*/ )
 	WinData.NonActiveRunFlag = TRUE ;
 
 	// グラフィックハンドルが無効になっていたら作り直す
-//	if( GetGraphData( WinData.PauseGraphHandle ) < 0 )
-	if( IsValidGraphHandle( WinData.PauseGraphHandle ) == FALSE )
+//	if( Graphics_Image_GetData( WinData.PauseGraphHandle ) < 0 )
+	if( Graphics_Image_IsValidHandle( WinData.PauseGraphHandle ) == FALSE )
 	{
-		WinData.PauseGraphHandle = CreateGraphFromGraphImageBase( &WinData.PauseGraph, NULL, TRUE ) ;
+		WinData.PauseGraphHandle = Graphics_Image_CreateGraphFromGraphImageBase( &WinData.PauseGraph, NULL, TRUE, FALSE ) ;
 		if( WinData.PauseGraphHandle < 0 )
 		{
 			WinData.NonActiveRunFlag = NonActiveRunFlag ;
@@ -1648,11 +1693,17 @@ int DrawBackGraph( HDC /*DestDC*/ )
 		}
 	}
 
+	// DrawBackGraph を実行中フラグを立てる
+	WinData.DrawBackGraphFlag = TRUE ;
+
+	// 各種描画設定情報を取得
+	Graphics_DrawSetting_GetScreenDrawSettingInfo( &ScreenDrawSettingInfo ) ;
+
 	// 設定を一時的に変更する
-	DrawScreen = NS_GetActiveGraph() ;
+/*	DrawScreen = NS_GetActiveGraph() ;
 	DrawMode = NS_GetDrawMode() ;
 	WaitVSync = NS_GetWaitVSyncFlag() ;
-	NS_SetDrawScreen( DX_SCREEN_BACK ) ;
+*/	NS_SetDrawScreen( DX_SCREEN_BACK ) ;
 	NS_SetDrawMode( DX_DRAWMODE_BILINEAR ) ;
 	NS_SetWaitVSyncFlag( FALSE ) ;
 
@@ -1663,8 +1714,8 @@ int DrawBackGraph( HDC /*DestDC*/ )
 	{
 		SETUP_GRAPHHANDLE_GPARAM GParam ;
 
-		InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam, 32, FALSE, FALSE ) ;
-		BackUpScreen = MakeGraph_UseGParam( &GParam, DrawScreenWidth, DrawScreenHeight, FALSE, FALSE ) ;
+		Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam, 32, FALSE, FALSE ) ;
+		BackUpScreen = Graphics_Image_MakeGraph_UseGParam( &GParam, DrawScreenWidth, DrawScreenHeight, FALSE, FALSE ) ;
 	}
 
 	// 画面画像の取得
@@ -1692,74 +1743,59 @@ int DrawBackGraph( HDC /*DestDC*/ )
 	// 一次保存用画像の削除
 	NS_DeleteGraph( BackUpScreen ) ;
 
+	// 各種描画設定情報を元に戻す
+	Graphics_DrawSetting_SetScreenDrawSettingInfo( &ScreenDrawSettingInfo ) ;
+
 	// 描画設定を元に戻す
-	NS_SetDrawScreen( DrawScreen ) ;
+/*	NS_SetDrawScreen( DrawScreen ) ;
 	NS_SetDrawMode( DrawMode ) ;
 	NS_SetWaitVSyncFlag( WaitVSync ) ;
-	WinData.NonActiveRunFlag = NonActiveRunFlag ;
+*/	WinData.NonActiveRunFlag = NonActiveRunFlag ;
 
-#if 0
-	HBITMAP OldBmp ;
-	BITMAP BmpData ;
-//	SIZE DrawPoint ;
-	HDC hdc ;
-//	DWORD hr ;
-	int DrawScreenWidth, DrawScreenHeight ;
-
-	// メニュー作動中とそれ以外で処理を分岐
-/*	if( WinData.MenuShredRunFlag == TRUE ) 
-	{
-		// 作動中の場合の処理
-
-		// 裏画面にメニュー突入直前のグラフィックを描画する
-		NS_SetDrawScreen( DX_SCREEN_BACK ) ;
-		NS_DrawGraph( 0, 0, WinData.MenuPauseGraph, FALSE ) ;
-
-		// 裏画面の内容を表画面に反映させる
-		ScreenCopy() ;
-	}
-	else
-*/	{
-		// 作動中でない場合の処理
-		if( ( hdc = CreateCompatibleDC( NULL ) ) == NULL ) return 0 ;
-
-		OldBmp = ( HBITMAP )SelectObject( hdc , ( HGDIOBJ )WinData.PauseGraph ) ;
-
-		// 描画
-/*
-		NS_GetDrawScreenSize( ( int * )&DrawPoint.cx , ( int * )&DrawPoint.cy ) ;
-		GetObject( ( HGDIOBJ )WinData.PauseGraph , sizeof( BITMAP ) , ( void * )&BmpData ) ;
-		DrawPoint.cx = ( DrawPoint.cx - BmpData.bmWidth ) / 2 ;
-		DrawPoint.cy = ( DrawPoint.cy -  BmpData.bmHeight ) / 2 ;
-		hr = BitBlt( DestDC , DrawPoint.cx , DrawPoint.cy , BmpData.bmWidth , BmpData.bmHeight ,
-				hdc , 0 , 0 , SRCCOPY ) ;
-*/
-		// 現在のウインドウのクライアント領域のサイズを得る
-		NS_GetDrawScreenSize( &DrawScreenWidth, &DrawScreenHeight ) ;
-
-		// ポーズ画像の情報を取得する
-		GetObject( ( HGDIOBJ )WinData.PauseGraph , sizeof( BITMAP ) , ( void * )&BmpData ) ;
-
-		// ウインドウ一杯に描画する
-		StretchBlt( DestDC,
-					0, 0,
-					_DTOL( DrawScreenWidth * WinData.WindowSizeExRateX ),
-					_DTOL( DrawScreenHeight * WinData.WindowSizeExRateY ),
-					
-					hdc,
-					0, 0,
-					BmpData.bmWidth, BmpData.bmHeight,
-					
-					SRCCOPY ) ;
-
-		// 終了処理	
-		SelectObject( hdc , ( HGDIOBJ )OldBmp ) ;
-		DeleteDC( hdc ) ;
-	}
-#endif
+	// DrawBackGraph を実行中フラグを倒す
+	WinData.DrawBackGraphFlag = FALSE ;
 
 	// 終了
 	return 0 ;
+}
+
+
+// ウインドウ関連
+
+// メインウインドウのサイズを取得する
+static void	GetMainWindowSize( int *SizeX, int *SizeY )
+{
+	int WindowSizeX ;
+	int WindowSizeY ;
+
+	if( WinData.WindowModeFlag )
+	{
+		if( GSYS.Screen.Emulation320x240Flag )
+		{
+			WindowSizeX = 640 ;
+			WindowSizeY = 480 ;
+		}
+		else
+		{
+			NS_GetDrawScreenSize( &WindowSizeX, &WindowSizeY ) ;
+		}
+	}
+	else
+	{
+		Graphics_Screen_SetupFullScreenModeInfo() ;
+		WindowSizeX = GSYS.Screen.FullScreenUseDispModeData.Width ;
+		WindowSizeY = GSYS.Screen.FullScreenUseDispModeData.Height ;
+	}
+
+	if( SizeX != NULL )
+	{
+		*SizeX = WindowSizeX ;
+	}
+
+	if( SizeY != NULL )
+	{
+		*SizeY = WindowSizeY ;
+	}
 }
 
 
@@ -1785,6 +1821,7 @@ extern LRESULT CALLBACK DxLib_WinProc( HWND hWnd, UINT message, WPARAM wParam, L
 		case WM_IME_ENDCOMPOSITION :	MessageName = "WM_IME_ENDCOMPOSITION" ;		break ;
 		case WM_IME_COMPOSITION :		MessageName = "WM_IME_COMPOSITION" ;		break ;
 		case WM_IME_NOTIFY :			MessageName = "WM_IME_NOTIFY" ;				break ;
+		case WM_IME_REQUEST :			MessageName = "WM_IME_REQUEST" ;			break ;
 		case WM_SIZING :				MessageName = "WM_SIZING" ;					break ;
 		case WM_SIZE :					MessageName = "WM_SIZE" ;					break ;
 		case WM_DISPLAYCHANGE :			MessageName = "WM_DISPLAYCHANGE" ;			break ;
@@ -1802,6 +1839,7 @@ extern LRESULT CALLBACK DxLib_WinProc( HWND hWnd, UINT message, WPARAM wParam, L
 		case F10MES :					MessageName = "F10MES" ;					break ;
 		case F12MES :					MessageName = "F12MES" ;					break ;
 		case WM_KEYDOWN :				MessageName = "WM_KEYDOWN" ;				break ;
+		case WM_KEYUP :					MessageName = "WM_KEYUP" ;					break ;
 		case WM_MOUSEWHEEL :			MessageName = "WM_MOUSEWHEEL" ;				break ;
 		case WM_MOUSEHWHEEL :			MessageName = "WM_MOUSEHWHEEL" ;			break ;
 		case WM_MOVE :					goto MESNAMEEND ; MessageName = "WM_MOVE" ;					break ;
@@ -1919,24 +1957,26 @@ MESNAMEEND:
 	case WM_DROPFILES :
 		// ファイルがドラッグ＆ドロップされた場合の処理
 		{
-			int FileNum, i, size ;
+			DWORD FileNum ;
+			DWORD i ;
+			DWORD size ;
 			HDROP hDrop = ( HDROP )wParam ;
 			
 			// ファイルの数を取得
-			FileNum = ( int )DragQueryFile( hDrop, 0xffffffff, NULL, 0 ) ;
+			FileNum = DragQueryFile( hDrop, 0xffffffff, NULL, 0 ) ;
 
 			// ファイルの数だけ繰り返し
 			for( i = 0 ; i < FileNum && WinData.DragFileNum < MAX_DRAGFILE_NUM ; i ++, WinData.DragFileNum ++ )
 			{
 				// 必要なバッファのサイズを取得する
-				size = DragQueryFile( hDrop, i, NULL, 0 ) ;
+				size = DragQueryFile( hDrop, ( DWORD )i, NULL, 0 ) ;
 				
 				// バッファの確保
-				WinData.DragFileName[WinData.DragFileNum] = ( TCHAR * )DXALLOC( ( size + 1 ) * sizeof( TCHAR ) ) ;
+				WinData.DragFileName[ WinData.DragFileNum ] = ( wchar_t * )DXALLOC( ( size + 1 ) * sizeof( wchar_t ) ) ;
 				if( WinData.DragFileName[WinData.DragFileNum] == NULL ) break ;
 				
 				// ファイル名の取得
-				DragQueryFile( hDrop, i, WinData.DragFileName[WinData.DragFileNum], size + 1 ) ;
+				DragQueryFileW( hDrop, i, WinData.DragFileName[WinData.DragFileNum], size + 1 ) ;
 			}
 			
 			// 取得の終了
@@ -2022,7 +2062,8 @@ MESNAMEEND:
 	case WM_IME_STARTCOMPOSITION :
 	case WM_IME_ENDCOMPOSITION :
 	case WM_IME_COMPOSITION :
-	case WM_IME_NOTIFY:
+	case WM_IME_NOTIFY :
+	case WM_IME_REQUEST :
 		return IMEProc( hWnd , message , wParam , lParam ) ;
 #endif
 
@@ -2040,8 +2081,12 @@ MESNAMEEND:
 				RECT *NextRect = (RECT *)lParam ;
 				int Width, Height, NextWidth, NextHeight ;
 				int AddWidth, AddHeight ;
+				int DesktopW, DesktopH ;
 				RECT WinRect, CliRect ;
 				int WidthBigFlag ;
+
+				// デスクトップのサイズを取得する
+				NS_GetDefaultState( &DesktopW, &DesktopH, NULL, NULL ) ; 
 
 				// 描画画面のサイズを取得する
 				NS_GetDrawScreenSize( &Width, &Height ) ;
@@ -2051,14 +2096,14 @@ MESNAMEEND:
 				GetClientRect( hWnd, &CliRect ) ;
 
 				// クライアント領域以外の部分の幅と高さを算出
-				AddWidth = ( WinRect.right - WinRect.left ) - ( CliRect.right - CliRect.left ) ;
-				AddHeight = ( WinRect.bottom - WinRect.top ) - ( CliRect.bottom - CliRect.top ) ;
+				AddWidth  = ( WinRect.right  - WinRect.left ) - ( CliRect.right  - CliRect.left ) ;
+				AddHeight = ( WinRect.bottom - WinRect.top  ) - ( CliRect.bottom - CliRect.top  ) ;
 
 				// クライアント領域のサイズを得る
-				NextWidth = ( NextRect->right - NextRect->left ) - AddWidth ;
-				NextHeight = ( NextRect->bottom - NextRect->top ) - AddHeight ;
-				if( NextWidth  + AddWidth  > WinData.DefaultScreenSize.cx ) NextWidth  = WinData.DefaultScreenSize.cx - AddWidth ;
-				if( NextHeight + AddHeight > WinData.DefaultScreenSize.cy ) NextHeight = WinData.DefaultScreenSize.cy - AddHeight ;
+				NextWidth  = ( NextRect->right  - NextRect->left ) - AddWidth ;
+				NextHeight = ( NextRect->bottom - NextRect->top  ) - AddHeight ;
+				if( NextWidth  + AddWidth  > DesktopW ) NextWidth  = DesktopW - AddWidth ;
+				if( NextHeight + AddHeight > DesktopH ) NextHeight = DesktopH - AddHeight ;
 
 				// クライアント領域に画面をフィットさせるかどうかで処理を分岐
 				if( WinData.ScreenNotFitWindowSize == FALSE && WinData.WindowSizeValid == FALSE )
@@ -2074,7 +2119,7 @@ MESNAMEEND:
 					case WMSZ_LEFT :
 					case WMSZ_RIGHT :
 			WIDTH_SIZE_BASE :
-						if( NextWidth + AddWidth > WinData.DefaultScreenSize.cx ) NextWidth = WinData.DefaultScreenSize.cx - AddWidth ;
+						if( NextWidth + AddWidth > DesktopW ) NextWidth = DesktopW - AddWidth ;
 						WinData.WindowSizeExRateY =
 						WinData.WindowSizeExRateX = (double)NextWidth / Width ;
 						NextHeight = NextWidth * Height / Width ;
@@ -2083,7 +2128,7 @@ MESNAMEEND:
 					case WMSZ_TOP :
 					case WMSZ_BOTTOM :
 			HEIGHT_SIZE_BASE :
-						if( NextHeight + AddHeight > WinData.DefaultScreenSize.cy ) NextHeight = WinData.DefaultScreenSize.cy - AddHeight ;
+						if( NextHeight + AddHeight > DesktopH ) NextHeight = DesktopH - AddHeight ;
 						WinData.WindowSizeExRateY =
 						WinData.WindowSizeExRateX = (double)NextHeight / Height ;
 						NextWidth = NextHeight * Width / Height ;
@@ -2126,43 +2171,43 @@ MESNAMEEND:
 					switch( Side )
 					{
 					case WMSZ_TOPLEFT :
-						NextRect->left   = NextRect->right - ( NextWidth + AddWidth ) ;
-						NextRect->top   = NextRect->bottom - ( NextHeight + AddHeight ) ;
+						NextRect->left   = NextRect->right  - ( NextWidth  + AddWidth  ) ;
+						NextRect->top    = NextRect->bottom - ( NextHeight + AddHeight ) ;
 						break ;
 
 					case WMSZ_TOPRIGHT :
-						NextRect->right = NextRect->left   + ( NextWidth + AddWidth ) ;
-						NextRect->top   = NextRect->bottom - ( NextHeight + AddHeight ) ;
+						NextRect->right  = NextRect->left   + ( NextWidth  + AddWidth  ) ;
+						NextRect->top    = NextRect->bottom - ( NextHeight + AddHeight ) ;
 						break ;
 
 					case WMSZ_LEFT :
-						NextRect->left   = NextRect->right - ( NextWidth + AddWidth ) ;
-						NextRect->bottom = NextRect->top   + ( NextHeight + AddHeight ) ;
+						NextRect->left   = NextRect->right  - ( NextWidth  + AddWidth  ) ;
+						NextRect->bottom = NextRect->top    + ( NextHeight + AddHeight ) ;
 						break ;
 
 					case WMSZ_RIGHT :
-						NextRect->right = NextRect->left   + ( NextWidth + AddWidth ) ;
-						NextRect->bottom = NextRect->top   + ( NextHeight + AddHeight ) ;
+						NextRect->right  = NextRect->left   + ( NextWidth  + AddWidth  ) ;
+						NextRect->bottom = NextRect->top    + ( NextHeight + AddHeight ) ;
 						break ;
 
 					case WMSZ_TOP :
-						NextRect->right = NextRect->left   + ( NextWidth + AddWidth ) ;
-						NextRect->top   = NextRect->bottom - ( NextHeight + AddHeight ) ;
+						NextRect->right  = NextRect->left   + ( NextWidth  + AddWidth  ) ;
+						NextRect->top    = NextRect->bottom - ( NextHeight + AddHeight ) ;
 						break ;
 
 					case WMSZ_BOTTOM :
-						NextRect->right = NextRect->left   + ( NextWidth + AddWidth ) ;
-						NextRect->bottom = NextRect->top   + ( NextHeight + AddHeight ) ;
+						NextRect->right  = NextRect->left   + ( NextWidth  + AddWidth  ) ;
+						NextRect->bottom = NextRect->top    + ( NextHeight + AddHeight ) ;
 						break ;
 
 					case WMSZ_BOTTOMLEFT :
-						NextRect->left   = NextRect->right - ( NextWidth + AddWidth ) ;
-						NextRect->bottom = NextRect->top   + ( NextHeight + AddHeight ) ;
+						NextRect->left   = NextRect->right  - ( NextWidth  + AddWidth  ) ;
+						NextRect->bottom = NextRect->top    + ( NextHeight + AddHeight ) ;
 						break ;
 
 					case WMSZ_BOTTOMRIGHT :
-						NextRect->right = NextRect->left   + ( NextWidth + AddWidth ) ;
-						NextRect->bottom = NextRect->top   + ( NextHeight + AddHeight ) ;
+						NextRect->right  = NextRect->left   + ( NextWidth  + AddWidth  ) ;
+						NextRect->bottom = NextRect->top    + ( NextHeight + AddHeight ) ;
 						break ;
 					}
 				}
@@ -2206,7 +2251,7 @@ MESNAMEEND:
 						}
 					}
 /*
-					DXST_ERRORLOGFMT_ADD(( _T( "left:%d top:%d right:%d bottom:%d" ),
+					DXST_ERRORLOGFMT_ADDW(( L"left:%d top:%d right:%d bottom:%d",
 						NextRect->left,
 						NextRect->top,
 						NextRect->right,
@@ -2259,6 +2304,16 @@ MESNAMEEND:
 				// ウインドウのクライアント領域を取得する
 				GetClientRect( hWnd, &WinData.WindowMaximizedClientRect ) ;
 
+				// ウインドウの領域を取得する
+				GetWindowRect( hWnd, &WinData.WindowMaximizedRect ) ;
+
+				// 一番最初の最大化の場合は FirstWindowMaximizeRect にも保存する
+				if( WinData.ValidFirstWindowMaximizedRect == FALSE )
+				{
+					WinData.ValidFirstWindowMaximizedRect = TRUE ;
+					WinData.FirstWindowMaximizedRect = WinData.WindowMaximizedRect ;
+				}
+
 				// 新しいサイズを取得する
 //				NextWidth  = CliRect.right  - CliRect.left ;
 //				NextHeight = CliRect.bottom - CliRect.top ;
@@ -2286,7 +2341,7 @@ MESNAMEEND:
 		// ツールバーが有効な場合はツールバーにも送る
 		if( WinData.ToolBarUseFlag == TRUE )
 		{
-			SendMessage( WinData.ToolBarHandle, WM_SIZE, wParam, lParam ) ;
+			SendMessageW( WinData.ToolBarHandle, WM_SIZE, wParam, lParam ) ;
 		}
 		break ;
 
@@ -2295,25 +2350,24 @@ MESNAMEEND:
 
 	// 画面解像度変更時の処理
 	case WM_DISPLAYCHANGE :
-/*		// フルスクリーンモードで、既にメインウインドウ以外がアクティブになっていた
-		// 場合は、更に別のウインドウがアクティブになりデスクトップ画面に戻ったと判断
-		if( WinData.WindowModeFlag == FALSE && WinData.StopFlag == TRUE )
-		{
-			int Cx = LOWORD( lParam ), Cy = HIWORD( lParam ), Ccb = wParam ;
-			int Sx, Sy, Scb ;
-
-			// 元々のデスクトップ画面のサイズを得る
-			NS_GetDefaultState( &Sx , &Sy , &Scb ) ;
-
-			// もしデスクトップ画面と同じ画面モードであれば確実
-			if( Scb == Ccb && Sx == Cx && Sy == Cy )
-			{
-				// DirectX 関連オブジェクトの一時的解放処理を行う
-//				DestroyGraphSystem() ;
-			}
-		}
-		else
-*/
+//		// フルスクリーンモードで、既にメインウインドウ以外がアクティブになっていた
+//		// 場合は、更に別のウインドウがアクティブになりデスクトップ画面に戻ったと判断
+//		if( WinData.WindowModeFlag == FALSE && WinData.StopFlag == TRUE )
+//		{
+//			int Cx = LOWORD( lParam ), Cy = HIWORD( lParam ), Ccb = wParam ;
+//			int Sx, Sy, Scb ;
+//
+//			// 元々のデスクトップ画面のサイズを得る
+//			NS_GetDefaultState( &Sx , &Sy , &Scb ) ;
+//
+//			// もしデスクトップ画面と同じ画面モードであれば確実
+//			if( Scb == Ccb && Sx == Cx && Sy == Cy )
+//			{
+//				// DirectX 関連オブジェクトの一時的解放処理を行う
+////			DestroyGraphSystem() ;
+//			}
+//		}
+//		else
 		// ウインドウモード時のエラー終了
 		if( WinData.WindowModeFlag == TRUE && WinData.ChangeWindodwFlag == FALSE )
 		{
@@ -2330,14 +2384,14 @@ MESNAMEEND:
 				if( !NS_GetValidRestoreShredPoint() || ColorBit == 24 || 
 					( ColorBit != ( UINT_PTR )Cb && ColorBit == 8 ) || Sx > Cx || Sy > Cy )
 				{
-					DXST_ERRORLOG_ADD( _T( "復元関数が登録されていないためか画面が２４ビットカラーに変更されたため終了します\n" ) ) ;
-					DXST_ERRORLOG_ADD( _T( "またはスクリーンが小さすぎるためか色ビット数の違いが大きいためか終了します\n" ) ) ;
+					DXST_ERRORLOG_ADDUTF16LE( "\xa9\x5f\x43\x51\xa2\x95\x70\x65\x4c\x30\x7b\x76\x32\x93\x55\x30\x8c\x30\x66\x30\x44\x30\x6a\x30\x44\x30\x5f\x30\x81\x30\x4b\x30\x3b\x75\x62\x97\x4c\x30\x12\xff\x14\xff\xd3\x30\xc3\x30\xc8\x30\xab\x30\xe9\x30\xfc\x30\x6b\x30\x09\x59\xf4\x66\x55\x30\x8c\x30\x5f\x30\x5f\x30\x81\x30\x42\x7d\x86\x4e\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"復元関数が登録されていないためか画面が２４ビットカラーに変更されたため終了します\n" @*/ ) ;
+					DXST_ERRORLOG_ADDUTF16LE( "\x7e\x30\x5f\x30\x6f\x30\xb9\x30\xaf\x30\xea\x30\xfc\x30\xf3\x30\x4c\x30\x0f\x5c\x55\x30\x59\x30\x4e\x30\x8b\x30\x5f\x30\x81\x30\x4b\x30\x72\x82\xd3\x30\xc3\x30\xc8\x30\x70\x65\x6e\x30\x55\x90\x44\x30\x4c\x30\x27\x59\x4d\x30\x44\x30\x5f\x30\x81\x30\x4b\x30\x42\x7d\x86\x4e\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"またはスクリーンが小さすぎるためか色ビット数の違いが大きいためか終了します\n" @*/ ) ;
 				
 					// クローズフラグが倒れていたらWM_CLOSEメッセージを送る
 					if( !WinData.CloseMessagePostFlag )
 					{
 						WinData.CloseMessagePostFlag = TRUE ;
-						PostMessage( WinData.MainWindow , WM_CLOSE, 0, 0 );
+						PostMessageW( WinData.MainWindow , WM_CLOSE, 0, 0 );
 					}
 
 					break ;
@@ -2352,7 +2406,7 @@ MESNAMEEND:
 #endif
 
 //				MessageBox( hWnd , "動作保証外の動作が発生したため終了します" , "エラー" , MB_OK ) ;
-//				return DxLib_Error( DXSTRING( "ウインドウモード時にデスクトップの解像度が変更されました、終了します" ) ) ;
+//				return DxLib_Error( DXSTRING( "ウインドウモード時にデスクトップの解像度が変更されました、終了します" ) ;
 			}
 		}
 
@@ -2361,7 +2415,7 @@ MESNAMEEND:
 
 	// メニューに重なっているかテスト
 	case WM_NCHITTEST :
-		if( GRA2.ValidHardWare && WinData.WindowModeFlag == FALSE )
+		if( GSYS.Setting.ValidHardware && WinData.WindowModeFlag == FALSE )
 		{
 			if( HIWORD( lParam ) < 8 )
 				return HTMENU ;
@@ -2377,7 +2431,7 @@ MESNAMEEND:
 		if( WinData.NotActive_WindowMoveOrSystemMenu == FALSE )
 		{
 			WinData.NotActive_WindowMoveOrSystemMenu = TRUE ;
-			WM_ACTIVATEProcess( 0, 0 ) ;
+			WM_ACTIVATEProcess( 0, 0, 0, TRUE ) ;
 		}
 		break ;
 
@@ -2389,7 +2443,7 @@ MESNAMEEND:
 		if( WinData.NotActive_WindowMoveOrSystemMenu == FALSE )
 		{
 			WinData.NotActive_WindowMoveOrSystemMenu = TRUE ;
-			WM_ACTIVATEProcess( 0, 0 ) ;
+			WM_ACTIVATEProcess( 0, 0, 0, TRUE ) ;
 		}
 		break ;
 
@@ -2399,7 +2453,7 @@ MESNAMEEND:
 		if( WinData.NotActive_WindowMoveOrSystemMenu )
 		{
 			WinData.NotActive_WindowMoveOrSystemMenu = FALSE ;
-			WM_ACTIVATEProcessUseStock( 1, 0 ) ;
+			WM_ACTIVATEProcessUseStock( 1, 0, 0, TRUE ) ;
 		}
 		break ;
 
@@ -2408,16 +2462,16 @@ MESNAMEEND:
 		if( WinData.NotActive_WindowMoveOrSystemMenu )
 		{
 			WinData.NotActive_WindowMoveOrSystemMenu = FALSE ;
-			WM_ACTIVATEProcessUseStock( 1, 0 ) ;
+			WM_ACTIVATEProcessUseStock( 1, 0, 0, TRUE ) ;
 		}
 
-		if( GRA2.ValidHardWare && WinData.WindowModeFlag == FALSE && WinData.MenuUseFlag == TRUE )
+		if( GSYS.Setting.ValidHardware && WinData.WindowModeFlag == FALSE && WinData.MenuUseFlag == TRUE )
 		{
 			if( HTMENU == LOWORD( lParam ) || HTCAPTION == LOWORD( lParam ) )
 			{
 				if( WinData.MousePosInMenuBarFlag < 5 )
 				{
-					SetD3DDialogBoxMode( TRUE ) ;
+					Graphics_Win_SetDialogBoxMode( TRUE ) ;
 					DrawMenuBar( hWnd ) ;
 					WinData.MousePosInMenuBarFlag ++ ;
 					NS_SetMouseDispFlag( -1 ) ;
@@ -2427,7 +2481,7 @@ MESNAMEEND:
 			{
 				if( WinData.MousePosInMenuBarFlag > 0 && HTNOWHERE != LOWORD( lParam ) )
 				{
-					SetD3DDialogBoxMode( FALSE ) ;
+					Graphics_Win_SetDialogBoxMode( FALSE ) ;
 					WinData.MousePosInMenuBarFlag = FALSE ;
 				}
 			}
@@ -2493,11 +2547,11 @@ MESNAMEEND:
 					if( DxSysData.DxLib_InitializeFlag == FALSE && WinData.WindowRgn == NULL )
 					{
 						// バックグラウンドカラーが有効な場合はその色を使用する
-						if( GRA2.EnableBackgroundColor == TRUE )
+						if( GSYS.Screen.EnableBackgroundColor == TRUE )
 						{
 							HBRUSH Brush;
 
-							Brush = CreateSolidBrush( ( GRA2.BackgroundBlue << 16 ) | ( GRA2.BackgroundGreen << 8 ) | GRA2.BackgroundRed );
+							Brush = CreateSolidBrush( ( ( DWORD )GSYS.Screen.BackgroundBlue << 16 ) | ( ( DWORD )GSYS.Screen.BackgroundGreen << 8 ) | ( DWORD )GSYS.Screen.BackgroundRed );
 							if( Brush != NULL )
 							{
 								FillRect( PaintStr.hdc, &PaintStr.rcPaint, Brush ) ;
@@ -2532,17 +2586,9 @@ MESNAMEEND:
 							}
 							else
 							{
-								/*
-								DXST_ERRORLOGFMT_ADD(( _T( "left:%d top:%d right:%d bottom:%d" ),
-									PaintStr.rcPaint.left,
-									PaintStr.rcPaint.top,
-									PaintStr.rcPaint.right,
-									PaintStr.rcPaint.bottom )) ;
-								ScreenFlipBase( &PaintStr.rcPaint ) ;
-								*/
 								if( WinData.ScreenCopyRequestFlag == FALSE )
 								{
-									WinData.ScreenCopyRequestFlag = TRUE ;
+									WinData.ScreenCopyRequestFlag      = TRUE ;
 									WinData.ScreenCopyRequestStartTime = NS_GetNowCount() ;
 								}
 								else
@@ -2568,8 +2614,11 @@ MESNAMEEND:
 	// システム文字コードメッセージ
 	case WM_SYSCHAR :
 		{
+			// 入力されたシステム文字コードを保存
+			WinData.InputSysChara = (wchar_t)wParam ;
+
 			// もしALT+ENTERがおされ、非同期ウインドウモード変更機能が有効になっていたら
-			if( (TCHAR)wParam == CTRL_CODE_CR )
+			if( (wchar_t)wParam == CTRL_CODE_CR )
 			{
 				// ウインドウモード変更フラグを立てる
 				if( WinData.UseChangeWindowModeFlag )
@@ -2578,6 +2627,7 @@ MESNAMEEND:
 					return 0 ;
 				}
 			}
+			return 0 ;
 		}
 		break ;
 
@@ -2588,7 +2638,7 @@ MESNAMEEND:
 		// 文字をバッファにコピー
 		if( wParam == 10 )
 		{
-			NS_StockInputChar( ( TCHAR )CTRL_CODE_CR ) ;
+			StockInputChar_WCHAR_T( ( wchar_t )CTRL_CODE_CR ) ;
 		}
 		else
 		{
@@ -2602,7 +2652,7 @@ MESNAMEEND:
 				wParam == CTRL_CODE_PASTE ||
 				wParam == CTRL_CODE_CUT   ||
 				wParam == CTRL_CODE_ALL   )
-				NS_StockInputChar( ( TCHAR )wParam ) ;
+				StockInputChar_WCHAR_T( ( wchar_t )wParam ) ;
 		}
 
 		break ;
@@ -2614,7 +2664,7 @@ MESNAMEEND:
 			if( WinData.NotActive_WindowMoveOrSystemMenu == FALSE )
 			{
 				WinData.NotActive_WindowMoveOrSystemMenu = TRUE ;
-				WM_ACTIVATEProcess( 0, 0 ) ;
+				WM_ACTIVATEProcess( 0, 0, 0, TRUE ) ;
 			}
 		}
 
@@ -2687,24 +2737,22 @@ MESNAMEEND:
 	// キー押下メッセージ
 	case WM_KEYDOWN:
 		{
-			int VKey = ( int )wParam ;
-			char *CCode = ( char * )CtrlCode ;
-
 			// バッファが一杯の場合はなにもしない
 			if( ( CharBuf.EdPoint + 1 == CharBuf.StPoint ) ||
 				( CharBuf.StPoint == 0 && CharBuf.EdPoint == CHARBUFFER_SIZE ) ) break ;
 
 			// コントロール文字コードに対応するキーが
 			// 押されていたらバッファに格納する
-			while( *CCode )
 			{
-				if( *CCode == VKey )
+				int   VKey  = ( int )wParam ;
+				char *CCode = CtrlCode[ 0 ] ;
+
+				for( CCode = ( char * )CtrlCode ; CCode[ 0 ] != 0 && CCode[ 0 ] != VKey ; CCode += 2 ){}
+				if( CCode[ 0 ] != 0 )
 				{
 					// バッファに文字コードを代入
-					NS_StockInputChar( ( TCHAR )*( CCode + 1 ) ) ;
-					break ;
+					StockInputChar_WCHAR_T( ( wchar_t )*( CCode + 1 ) ) ;
 				}
-				CCode += 2 ;
 			}
 		}
 		break ;
@@ -2773,7 +2821,7 @@ ACTIVATELABEL:
 		*/
 #endif // DX_NON_ASYNCLOAD
 
-		WM_ACTIVATEProcessUseStock( wParam, message == WM_ACTIVATEAPP ? TRUE : FALSE ) ;
+		WM_ACTIVATEProcessUseStock( wParam, lParam, message == WM_ACTIVATEAPP ? TRUE : FALSE, FALSE ) ;
 		break;
 
 	// ウインドウクローズ時
@@ -2781,7 +2829,7 @@ ACTIVATELABEL:
 		// ユーザー提供のウインドウだったら何もしない
 		if( WinData.UserWindowFlag == FALSE )
 		{
-			DXST_ERRORLOG_ADD( _T( "ウインドウを閉じようとしています\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\x92\x30\x89\x95\x58\x30\x88\x30\x46\x30\x68\x30\x57\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ウインドウを閉じようとしています\n" @*/ ) ;
 
 			// WM_DESTROYメッセージを生成
 			if( WinData.NonUserCloseEnableFlag == FALSE || WinData.AltF4_EndFlag == 1 )
@@ -2799,7 +2847,7 @@ ACTIVATELABEL:
 		// ユーザー提供のウインドウだったら何もしない
 		if( WinData.UserWindowFlag == FALSE )
 		{
-			DXST_ERRORLOG_ADD( _T( "ウインドウが破棄されようとしています\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\x4c\x30\x34\x78\xc4\x68\x55\x30\x8c\x30\x88\x30\x46\x30\x68\x30\x57\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ウインドウが破棄されようとしています\n" @*/ ) ;
 
 			// WM_DESTROYメッセージを受けた証拠を残す
 			WinData.DestroyMessageCatchFlag = TRUE ;
@@ -2810,7 +2858,7 @@ ACTIVATELABEL:
 			WinData.QuitMessageFlag = TRUE ;
 			DxLib_EndRequest() ;
 
-			DXST_ERRORLOG_ADD( _T( "ソフトを終了する準備が整いました\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\xbd\x30\xd5\x30\xc8\x30\x92\x30\x42\x7d\x86\x4e\x59\x30\x8b\x30\x96\x6e\x99\x50\x4c\x30\x74\x65\x44\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ソフトを終了する準備が整いました\n" @*/ ) ;
 		}
 		break ;
 
@@ -2835,11 +2883,11 @@ ACTIVATELABEL:
 	if( WinData.UserWindowFlag == TRUE )
 	{
 		if( Ret == -1000 )	return UserProcRet ;
-		else				return DefWindowProc( hWnd , message , wParam , lParam ) ;
+		else				return DefWindowProcW( hWnd , message , wParam , lParam ) ;
 	}
 	else
 	{
-		return DefWindowProc( hWnd , message , wParam , lParam ) ;
+		return DefWindowProcW( hWnd , message , wParam , lParam ) ;
 	}
 }
 
@@ -2847,11 +2895,11 @@ ACTIVATELABEL:
 extern int CheckActiveWait( void )
 {
 	if(
-		GBASE.ScreenFlipFlag   == FALSE &&
-		WinData.WM_PAINTFlag   == FALSE &&
-		( WinData.ActiveFlag   == FALSE || WinData.WindowMinSizeFlag == TRUE ) &&
-		WinData.UserWindowFlag == FALSE &&
-		DxSysData.NotWinFlag     == FALSE &&
+		GSYS.Screen.ScreenFlipFlag  == FALSE &&
+		WinData.WM_PAINTFlag         == FALSE &&
+		( WinData.ActiveFlag         == FALSE || WinData.WindowMinSizeFlag == TRUE ) &&
+		WinData.UserWindowFlag       == FALSE &&
+		DxSysData.NotWinFlag         == FALSE &&
 		(
 		  (
 			WinData.WindowModeFlag   == TRUE  &&
@@ -2919,6 +2967,18 @@ extern int NS_GetWindowActiveFlag( void )
 	return WinData.ActiveFlag ;
 }
 
+// メインウインドウが最小化されているかどうかを取得する( 戻り値  TRUE:最小化されている  FALSE:最小化されていない )
+extern int NS_GetWindowMinSizeFlag( void )
+{
+	return WinData.WindowMinSizeFlag ;
+}
+
+// メインウインドウが最大化されているかどうかを取得する( 戻り値  TRUE:最大化されている  FALSE:最大化されていない )
+extern int NS_GetWindowMaxSizeFlag( void )
+{
+	return WinData.WindowMaximizeFlag ;
+}
+
 // メインウインドウのハンドルを取得する
 extern HWND NS_GetMainWindowHandle( void )
 {
@@ -2932,26 +2992,67 @@ extern int NS_GetWindowModeFlag( void )
 }
 
 // 起動時のデスクトップの画面モードを取得する
-extern int NS_GetDefaultState( int *SizeX, int *SizeY, int *ColorBitDepth )
+extern int NS_GetDefaultState( int *SizeX, int *SizeY, int *ColorBitDepth, int *RefreshRate , int *LeftTopX, int *LeftTopY )
 {
-	if( DxSysData.DxLib_InitializeFlag == FALSE )
-	{
-		if( SizeX ) *SizeX = GetSystemMetrics( SM_CXSCREEN ) ;
-		if( SizeY ) *SizeY = GetSystemMetrics( SM_CYSCREEN ) ;
-		if( ColorBitDepth )
-		{
-			HDC hdc ;
+//	if( DxSysData.DxLib_InitializeFlag == FALSE )
+//	{
+//		if( SizeX ) *SizeX = GetSystemMetrics( SM_CXSCREEN ) ;
+//		if( SizeY ) *SizeY = GetSystemMetrics( SM_CYSCREEN ) ;
+//		if( ColorBitDepth || RefreshRate )
+//		{
+//			HDC hdc ;
+//
+//			hdc = GetDC( NULL ) ;
+//			if( ColorBitDepth ) *ColorBitDepth = GetDeviceCaps( hdc , PLANES ) * GetDeviceCaps( hdc , BITSPIXEL ) ;
+//			if( RefreshRate )   *RefreshRate   = GetDeviceCaps( hdc , VREFRESH ) ;
+//			ReleaseDC( NULL , hdc ) ;
+//		}
+//	}
+//	else
+//	{
+//		if( SizeX ) *SizeX = WinData.DefaultScreenSize.cx ;
+//		if( SizeY ) *SizeY = WinData.DefaultScreenSize.cy ;
+//		if( ColorBitDepth ) *ColorBitDepth = WinData.DefaultColorBitCount ;
+//		if( RefreshRate ) *RefreshRate = WinData.DefaultRefreshRate ;
+//	}
 
-			hdc = GetDC( NULL ) ;
-			*ColorBitDepth = GetDeviceCaps( hdc , PLANES ) * GetDeviceCaps( hdc , BITSPIXEL ) ;
-			ReleaseDC( NULL , hdc ) ;
-		}
-	}
-	else
+	GRAPHICSSYS_DISPLAYINFO *DisplayInfo ;
+
+	if( GSYS.Screen.DisplayInfo == NULL )
 	{
-		if( SizeX ) *SizeX = WinData.DefaultScreenSize.cx ;
-		if( SizeY ) *SizeY = WinData.DefaultScreenSize.cy ;
-		if( ColorBitDepth ) *ColorBitDepth = WinData.DefaultColorBitCount ;
+		Graphics_SetupDisplayInfo_PF() ;
+	}
+
+	DisplayInfo = &GSYS.Screen.DisplayInfo[ GSYS.Screen.ValidUseDisplayIndex ? GSYS.Screen.UseDisplayIndex : 0 ] ;
+
+	if( SizeX )
+	{
+		*SizeX         = DisplayInfo->DesktopSizeX ;
+	}
+
+	if( SizeY )
+	{
+		*SizeY         = DisplayInfo->DesktopSizeY ;
+	}
+
+	if( ColorBitDepth )
+	{
+		*ColorBitDepth = DisplayInfo->DesktopColorBitDepth ;
+	}
+
+	if( RefreshRate )
+	{
+		*RefreshRate   = DisplayInfo->DesktopRefreshRate ;
+	}
+
+	if( LeftTopX )
+	{
+		*LeftTopX      = DisplayInfo->DesktopRect.left ;
+	}
+
+	if( LeftTopY )
+	{
+		*LeftTopY      = DisplayInfo->DesktopRect.top ;
 	}
 
 	// 終了
@@ -3002,22 +3103,87 @@ extern int NS__GetSystemInfo( int *DxLibVer, int *DirectXVer, int *WindowsVer )
 }
 
 // ＰＣの情報を得る
-extern int NS_GetPcInfo( TCHAR *OSString, TCHAR *DirectXString,
-					TCHAR *CPUString, int *CPUSpeed/*単位MHz*/,
-					double *FreeMemorySize/*単位MByte*/, double *TotalMemorySize,
-					TCHAR *VideoDriverFileName, TCHAR *VideoDriverString,
-					double *FreeVideoMemorySize/*単位MByte*/, double *TotalVideoMemorySize )
+extern int NS_GetPcInfo(
+	TCHAR	*OSString,
+	TCHAR	*DirectXString,
+	TCHAR	*CPUString,
+	int		*CPUSpeed/*単位MHz*/,
+	double	*FreeMemorySize/*単位MByte*/,
+	double	*TotalMemorySize,
+	TCHAR	*VideoDriverFileName,
+	TCHAR	*VideoDriverString,
+	double	*FreeVideoMemorySize/*単位MByte*/,
+	double	*TotalVideoMemorySize
+)
 {
-	if( OSString != NULL )				lstrcpy( OSString, WinData.PcInfo.OSString ) ;
-	if( DirectXString != NULL )			lstrcpy( DirectXString, WinData.PcInfo.DirectXString ) ;
-	if( CPUString != NULL )				lstrcpy( CPUString, WinData.PcInfo.CPUString ) ;
-	if( CPUSpeed != NULL )				*CPUSpeed = WinData.PcInfo.CPUSpeed ;
-	if( FreeMemorySize != NULL )		*FreeMemorySize = ( double )WinData.PcInfo.FreeMemorySize / 0x100000 ;
-	if( TotalMemorySize != NULL )		*TotalMemorySize = ( double )WinData.PcInfo.TotalMemorySize / 0x100000 ;
-	if( VideoDriverFileName != NULL )	lstrcpy( VideoDriverFileName, WinData.PcInfo.VideoDriverFileName ) ;
-	if( VideoDriverString != NULL )		lstrcpy( VideoDriverString, WinData.PcInfo.VideoDriverString ) ;
-	if( FreeVideoMemorySize != NULL )	*FreeVideoMemorySize = ( double )WinData.PcInfo.VideoFreeMemorySize / 0x100000 ;
-	if( TotalVideoMemorySize != NULL )	*TotalVideoMemorySize = ( double )WinData.PcInfo.VideoTotalMemorySize / 0x100000 ;
+#ifdef UNICODE
+	return GetPcInfo_WCHAR_T(
+		OSString,
+		DirectXString,
+		CPUString,
+		CPUSpeed/*単位MHz*/,
+		FreeMemorySize/*単位MByte*/,
+		TotalMemorySize,
+		VideoDriverFileName,
+		VideoDriverString,
+		FreeVideoMemorySize/*単位MByte*/,
+		TotalVideoMemorySize
+	) ;
+#else
+	int Result ;
+	wchar_t OSStringBuffer[ 256 ] ;
+	wchar_t DirectXStringBuffer[ 256 ] ;
+	wchar_t CPUStringBuffer[ 256 ] ;
+	wchar_t VideoDriverFileNameBuffer[ 256 ] ;
+	wchar_t VideoDriverStringBuffer[ 256 ] ;
+
+	Result = GetPcInfo_WCHAR_T(
+		OSStringBuffer,
+		DirectXStringBuffer,
+		CPUStringBuffer,
+		CPUSpeed/*単位MHz*/,
+		FreeMemorySize/*単位MByte*/,
+		TotalMemorySize,
+		VideoDriverFileNameBuffer,
+		VideoDriverStringBuffer,
+		FreeVideoMemorySize/*単位MByte*/,
+		TotalVideoMemorySize
+	) ;
+
+	if( OSString            != NULL ) ConvString( ( const char * )OSStringBuffer,            WCHAR_T_CODEPAGE, ( char * )OSString,            _TCODEPAGE ) ;
+	if( DirectXString       != NULL ) ConvString( ( const char * )DirectXStringBuffer,       WCHAR_T_CODEPAGE, ( char * )DirectXString,       _TCODEPAGE ) ;
+	if( CPUString           != NULL ) ConvString( ( const char * )CPUStringBuffer,           WCHAR_T_CODEPAGE, ( char * )CPUString,           _TCODEPAGE ) ;
+	if( VideoDriverFileName != NULL ) ConvString( ( const char * )VideoDriverFileNameBuffer, WCHAR_T_CODEPAGE, ( char * )VideoDriverFileName, _TCODEPAGE ) ;
+	if( VideoDriverString   != NULL ) ConvString( ( const char * )VideoDriverStringBuffer,   WCHAR_T_CODEPAGE, ( char * )VideoDriverString,   _TCODEPAGE ) ;
+
+	return Result ;
+#endif
+}
+
+// ＰＣの情報を得る
+extern int GetPcInfo_WCHAR_T(
+	wchar_t	*OSString,
+	wchar_t	*DirectXString,
+	wchar_t	*CPUString,
+	int		*CPUSpeed/*単位MHz*/,
+	double	*FreeMemorySize/*単位MByte*/,
+	double	*TotalMemorySize,
+	wchar_t	*VideoDriverFileName,
+	wchar_t	*VideoDriverString,
+	double	*FreeVideoMemorySize/*単位MByte*/,
+	double	*TotalVideoMemorySize
+)
+{
+	if( OSString				!= NULL )	_WCSCPY( OSString,				WinData.PcInfo.OSString ) ;
+	if( DirectXString			!= NULL )	_WCSCPY( DirectXString,			WinData.PcInfo.DirectXString ) ;
+	if( CPUString				!= NULL )	_WCSCPY( CPUString,				WinData.PcInfo.CPUString ) ;
+	if( CPUSpeed				!= NULL )	*CPUSpeed				= WinData.PcInfo.CPUSpeed ;
+	if( FreeMemorySize			!= NULL )	*FreeMemorySize			= ( double )WinData.PcInfo.FreeMemorySize  / 0x100000 ;
+	if( TotalMemorySize			!= NULL )	*TotalMemorySize		= ( double )WinData.PcInfo.TotalMemorySize / 0x100000 ;
+	if( VideoDriverFileName		!= NULL )	_WCSCPY( VideoDriverFileName,	WinData.PcInfo.VideoDriverFileName ) ;
+	if( VideoDriverString		!= NULL )	_WCSCPY( VideoDriverString,		WinData.PcInfo.VideoDriverString ) ;
+	if( FreeVideoMemorySize		!= NULL )	*FreeVideoMemorySize	= ( double )WinData.PcInfo.VideoFreeMemorySize  / 0x100000 ;
+	if( TotalVideoMemorySize	!= NULL )	*TotalVideoMemorySize	= ( double )WinData.PcInfo.VideoTotalMemorySize / 0x100000 ;
 
 	return 0 ;
 }
@@ -3195,6 +3361,34 @@ extern int NS_GetValidHiPerformanceCounter( void )
 	return WinData.PerformanceTimerFlag;
 }
 
+// 入力されたシステム文字を取得する
+extern TCHAR NS_GetInputSystemChar( int DeleteFlag )
+{
+#ifdef UNICODE
+	return GetInputSystemChar_WCHAR_T( DeleteFlag ) ;
+#else
+	wchar_t Result ;
+
+	Result = GetInputSystemChar_WCHAR_T( DeleteFlag ) ;
+
+	return ( TCHAR )ConvCharCode( ( DWORD )Result, WCHAR_T_CODEPAGE, _TCODEPAGE ) ;
+#endif
+}
+
+// 入力されたシステム文字を取得する
+extern wchar_t GetInputSystemChar_WCHAR_T( int DeleteFlag )
+{
+	wchar_t Result ;
+
+	Result = WinData.InputSysChara ;
+
+	if( DeleteFlag != FALSE )
+	{
+		WinData.InputSysChara = L'\0' ;
+	}
+
+	return Result ;
+}
 
 
 
@@ -3216,7 +3410,7 @@ extern int SetEnableAero( int Flag )
 
 	if( WinAPIData.DF_DwmEnableComposition )
 	{
-		WinAPIData.DF_DwmEnableComposition( Flag ) ;
+		WinAPIData.DF_DwmEnableComposition( ( UINT )Flag ) ;
 	}
 
 	// フラグを保存
@@ -3242,7 +3436,7 @@ extern int	SetWindowModeFlag( int Flag )
 
 	if( Flag ) 
 	{
-		DXST_ERRORLOG_ADD( _T( "ウインドウモードフラグが立てられました\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\xe2\x30\xfc\x30\xc9\x30\xd5\x30\xe9\x30\xb0\x30\x4c\x30\xcb\x7a\x66\x30\x89\x30\x8c\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ウインドウモードフラグが立てられました\n" @*/ ) ;
 
 		// メニューが存在する時はメニューをセットする
 		if( WinData.MenuUseFlag == TRUE ) 
@@ -3252,7 +3446,7 @@ extern int	SetWindowModeFlag( int Flag )
 	}
 	else
 	{
-		DXST_ERRORLOG_ADD( _T( "ウインドウモードフラグが倒されました\n" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\xe2\x30\xfc\x30\xc9\x30\xd5\x30\xe9\x30\xb0\x30\x4c\x30\x12\x50\x55\x30\x8c\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ウインドウモードフラグが倒されました\n" @*/ ) ;
 
 		// メニューが存在する時はメニューを外す
 		if( WinData.MenuUseFlag == TRUE ) 
@@ -3266,17 +3460,21 @@ extern int	SetWindowModeFlag( int Flag )
 }
 
 // ウインドウのスタイルをセットする
-extern int SetWindowStyle( void )
+extern int SetWindowStyle( int CenterPosition )
 {
 	RECT Rect ;
+	RECT PrevWindowRect ;
 	int WindowSizeX, WindowSizeY ;
 	int ClientRectWidth, ClientRectHeight ;
 
 	if( WinData.MainWindow == NULL || WinData.UserWindowFlag == TRUE ) return 0 ;
 
+	// 現在のウインドウ領域を取得
+	GetWindowRect( WinData.MainWindow, &PrevWindowRect ) ;
+
 	// クライアント領域のサイズを保存
 	GetClientRect( WinData.MainWindow, &Rect ) ;
-	ClientRectWidth = Rect.right - Rect.left ;
+	ClientRectWidth  = Rect.right  - Rect.left ;
 	ClientRectHeight = Rect.bottom - Rect.top ;
 
 	// ユーザー提供のウインドウだったらパラメータ取得以外は何もしない
@@ -3294,12 +3492,7 @@ extern int SetWindowStyle( void )
 	else
 	{
 		// 描画領域のサイズを取得
-		NS_GetDrawScreenSize( &WindowSizeX , &WindowSizeY ) ;
-		if( GBASE.Emulation320x240Flag || GRH.FullScreenEmulation320x240 )
-		{
-			WindowSizeX = 640 ;
-			WindowSizeY = 480 ;
-		}
+		GetMainWindowSize( &WindowSizeX, &WindowSizeY ) ;
 
 		// ウインドウスタイルを変更
 		if( WinData.WindowModeFlag == TRUE )
@@ -3309,7 +3502,7 @@ extern int SetWindowStyle( void )
 
 			// ウインドウモードの場合
 
-			DXST_ERRORLOG_ADD( _T( "ウインドウスタイルをウインドウモード用に変更します... " ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\xb9\x30\xbf\x30\xa4\x30\xeb\x30\x92\x30\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\xe2\x30\xfc\x30\xc9\x30\x28\x75\x6b\x30\x09\x59\xf4\x66\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"ウインドウスタイルをウインドウモード用に変更します... " @*/ ) ;
 
 			AddExStyle = 0 ;
 			//if( WinData.NotWindowVisibleFlag == TRUE ) AddExStyle |= WS_EX_TRANSPARENT ;
@@ -3330,8 +3523,8 @@ extern int SetWindowStyle( void )
 			if( WinData.WindowSizeChangeEnable == TRUE ) AddStyle |= WS_THICKFRAME ;
 
 			// スタイルの変更
-			SetWindowLong( WinData.MainWindow , GWL_EXSTYLE , WExStyle_WindowModeTable[ WinData.WindowStyle ] + AddExStyle ) ;
-			SetWindowLong( WinData.MainWindow , GWL_STYLE   , WStyle_WindowModeTable[ WinData.WindowStyle ]   + AddStyle ) ;
+			SetWindowLongW( WinData.MainWindow , GWL_EXSTYLE , ( LONG )( WExStyle_WindowModeTable[ WinData.WindowStyle ] + AddExStyle ) ) ;
+			SetWindowLongW( WinData.MainWindow , GWL_STYLE   , ( LONG )( WStyle_WindowModeTable[ WinData.WindowStyle ]   + AddStyle   ) ) ;
 
 			// クライアント領域の算出
 			if( WinData.WindowSizeValid == TRUE )
@@ -3365,29 +3558,57 @@ extern int SetWindowStyle( void )
 	//		Rect.right  += + 3;
 	//		Rect.bottom += + 3;
 
-			// 中心に持ってくる
 			WindowSizeX = Rect.right  - Rect.left ;
 			WindowSizeY = Rect.bottom - Rect.top  ;
-			Rect.left   += ( WinData.DefaultScreenSize.cx - WindowSizeX ) / 2;
-			Rect.top    += ( WinData.DefaultScreenSize.cy - WindowSizeY ) / 2;
-			Rect.right  += ( WinData.DefaultScreenSize.cx - WindowSizeX ) / 2;
-			Rect.bottom += ( WinData.DefaultScreenSize.cy - WindowSizeY ) / 2;
+			if( CenterPosition )
+			{
+				int DesktopW, DesktopH, DesktopX, DesktopY ;
+
+				NS_GetDefaultState( &DesktopW, &DesktopH, NULL, NULL, &DesktopX, &DesktopY ) ;
+
+				// 中心に持ってくる
+				Rect.left   += ( DesktopW - WindowSizeX ) / 2 + DesktopX ;
+				Rect.top    += ( DesktopH - WindowSizeY ) / 2 + DesktopY ;
+				Rect.right  += ( DesktopW - WindowSizeX ) / 2 + DesktopX ;
+				Rect.bottom += ( DesktopH - WindowSizeY ) / 2 + DesktopY ;
+			}
+			else
+			{
+				// 元の位置にセットする
+				Rect.left   = PrevWindowRect.left ;
+				Rect.top    = PrevWindowRect.top ;
+				Rect.right  = Rect.left + WindowSizeX ;
+				Rect.bottom = Rect.top  + WindowSizeY ;
+			}
 
 			// ウインドウの位置とサイズを変更
-			SetWindowPos( WinData.MainWindow,
-							HWND_NOTOPMOST,
-							WinData.WindowPosValid == TRUE ? WinData.WindowX : Rect.left,
-							WinData.WindowPosValid == TRUE ? WinData.WindowY : Rect.top,
-							WindowSizeX,
-							WindowSizeY,
-							0/*SWP_NOZORDER*/ );
-			SetWindowPos( WinData.MainWindow,
-							HWND_TOP,
-							WinData.WindowPosValid == TRUE ? WinData.WindowX : Rect.left,
-							WinData.WindowPosValid == TRUE ? WinData.WindowY : Rect.top,
-							WindowSizeX,
-							WindowSizeY,
-							0/*SWP_NOZORDER*/ );
+			if( WinData.WindowZType == DX_WIN_ZTYPE_NORMAL )
+			{
+				SetWindowPos( WinData.MainWindow,
+								HWND_NOTOPMOST,
+								WinData.WindowPosValid == TRUE ? WinData.WindowX : Rect.left,
+								WinData.WindowPosValid == TRUE ? WinData.WindowY : Rect.top,
+								WindowSizeX,
+								WindowSizeY,
+								0/*SWP_NOZORDER*/ );
+				SetWindowPos( WinData.MainWindow,
+								HWND_TOP,
+								WinData.WindowPosValid == TRUE ? WinData.WindowX : Rect.left,
+								WinData.WindowPosValid == TRUE ? WinData.WindowY : Rect.top,
+								WindowSizeX,
+								WindowSizeY,
+								0/*SWP_NOZORDER*/ );
+			}
+			else
+			{
+				SetWindowPos( WinData.MainWindow,
+								WindowZType_Win32Param[ WinData.WindowZType ],
+								WinData.WindowPosValid == TRUE ? WinData.WindowX : Rect.left,
+								WinData.WindowPosValid == TRUE ? WinData.WindowY : Rect.top,
+								WindowSizeX,
+								WindowSizeY,
+								0/*SWP_NOZORDER*/ );
+			}
 
 			// ウインドウのクライアント領域を保存する
 			GetClientRect( WinData.MainWindow , &WinData.WindowRect )  ;
@@ -3418,7 +3639,7 @@ extern int SetWindowStyle( void )
 				}
 
 				SetWindowPos( WinData.MainWindow,
-								HWND_TOP,
+								WindowZType_Win32Param[ WinData.WindowZType ],
 								WinData.WindowPosValid == TRUE ? WinData.WindowX : Rect.left,
 								WinData.WindowPosValid == TRUE ? WinData.WindowY : Rect.top,
 								WindowSizeX,
@@ -3427,21 +3648,15 @@ extern int SetWindowStyle( void )
 			}
 	
 			NS_SetMouseDispFlag( TRUE ) ;
-			DXST_ERRORLOG_ADD( _T( "完了\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x8c\x5b\x86\x4e\x0a\x00\x00"/*@ L"完了\n" @*/ ) ;
 		}
 		else
 		{
-			DXST_ERRORLOG_ADD( _T( "ウインドウスタイルをフルスクリーンモード用に変更します... " ) ) ;
-
-			if( GBASE.Emulation320x240Flag || GRH.FullScreenEmulation320x240 )
-			{
-				WindowSizeX = 640 ;
-				WindowSizeY = 480 ;
-			}
+			DXST_ERRORLOG_ADDUTF16LE( "\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\xb9\x30\xbf\x30\xa4\x30\xeb\x30\x92\x30\xd5\x30\xeb\x30\xb9\x30\xaf\x30\xea\x30\xfc\x30\xf3\x30\xe2\x30\xfc\x30\xc9\x30\x28\x75\x6b\x30\x09\x59\xf4\x66\x57\x30\x7e\x30\x59\x30\x2e\x00\x2e\x00\x2e\x00\x20\x00\x00"/*@ L"ウインドウスタイルをフルスクリーンモード用に変更します... " @*/ ) ;
 
 			// フルスクリーンモードの場合
-			SetWindowLong( WinData.MainWindow, GWL_EXSTYLE, WExStyle_FullScreenModeTable[WinData.WindowStyle] ) ;
-			SetWindowLong( WinData.MainWindow, GWL_STYLE  , WStyle_FullScreenModeTable[WinData.WindowStyle]  ) ;
+			SetWindowLongW( WinData.MainWindow, GWL_EXSTYLE, ( LONG )( WExStyle_FullScreenModeTable[WinData.WindowStyle] ) ) ;
+			SetWindowLongW( WinData.MainWindow, GWL_STYLE  , ( LONG )( WStyle_FullScreenModeTable[WinData.WindowStyle]   ) ) ;
 
 			// ウインドウ矩形を変更
 			SETRECT( WinData.WindowRect, 0, 0, WindowSizeX, WindowSizeY ) ;
@@ -3454,14 +3669,14 @@ extern int SetWindowStyle( void )
 			SetWindowPos( WinData.MainWindow, HWND_TOPMOST, 0, 0, WindowSizeX, WindowSizeY, /*SWP_NOSIZE | SWP_NOMOVE |*/ SWP_NOREDRAW ) ; 
 
 			NS_SetMouseDispFlag( FALSE ) ;
-			DXST_ERRORLOG_ADD( _T( "完了\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x8c\x5b\x86\x4e\x0a\x00\x00"/*@ L"完了\n" @*/ ) ;
 		}
 
 		SetActiveWindow( WinData.MainWindow ) ;
 	}
 
 	// マウスのセット信号を出す
-	PostMessage( WinData.MainWindow , WM_SETCURSOR , ( WPARAM )WinData.MainWindow , 0 ) ;
+	PostMessageW( WinData.MainWindow , WM_SETCURSOR , ( WPARAM )WinData.MainWindow , 0 ) ;
 
 	// 終了
 	return 0 ;
@@ -3481,42 +3696,10 @@ extern int NS_ChangeWindowMode( int Flag )
 {
 	int Ret ;
 
-	DXST_ERRORLOG_ADD( _T( "ChangeWindowMode実行 \n" ) ) ;
+	DXST_ERRORLOG_ADDUTF16LE( "\x43\x00\x68\x00\x61\x00\x6e\x00\x67\x00\x65\x00\x57\x00\x69\x00\x6e\x00\x64\x00\x6f\x00\x77\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x9f\x5b\x4c\x88\x20\x00\x0a\x00\x00"/*@ L"ChangeWindowMode実行 \n" @*/ ) ;
 
 	// 今までと同じモードだった場合はなにもせず終了
 	if( Flag == WinData.WindowModeFlag ) return 0 ;
-
-	// フルスクリーンモード指定の場合は現在の画面解像度が使用可能かどうかを調べる
-	if( Flag == FALSE && WinData.MainWindow != NULL && WinData.UserWindowFlag == FALSE )
-	{
-		int Num, i, Width, Height ;
-		DISPLAYMODEDATA Mode ;
-
-		NS_GetDrawScreenSize( &Width, &Height ) ; 
-
-		Num = NS_GetDisplayModeNum() ;
-		for( i = 0 ; i < Num ; i ++ )
-		{
-			Mode = NS_GetDisplayMode( i ) ;
-			if( Mode.Width == Width && Mode.Height == Height )
-				break ;
-		}
-		if( i == Num )
-		{
-			if( !( Width == 320 && Height == 240 && GRA2.NotUseHardWare == FALSE ) )
-			{
-				// 対応していない場合はエラー
-				return -1 ;
-			}
-		}
-
-		// 320x240 の解像度の場合は640x480の解像度で320x240の画面をエミュレーションする
-		if( GRA2.MainScreenSizeX == 320 && GRA2.MainScreenSizeY == 240 )
-		{
-			GRH.FullScreenEmulation320x240 = TRUE ;
-			SetMainScreenSize( 640, 480 ) ;
-		}
-	}
 
 	WinData.VisibleFlag = TRUE ;
 
@@ -3536,7 +3719,7 @@ extern int NS_ChangeWindowMode( int Flag )
 	SetWindowStyle() ;
 
 	// 画面モードを変更する
-	Ret = ChangeGraphMode( -1, -1, -1, TRUE, -1 ) ;
+	Ret = Graphics_Screen_ChangeMode( -1, -1, -1, TRUE, -1 ) ;
 
 	// ウインドウモード変更中フラグを倒す
 	WinData.ChangeWindodwFlag = FALSE ;
@@ -3558,27 +3741,27 @@ extern int NS_SetUseCharSet( int CharSet /* = DX_CHARSET_SHFTJIS 等 */ )
 	default :
 	case DX_CHARSET_DEFAULT :
 		_SET_CHARSET( DX_CHARSET_DEFAULT ) ;
-		_SET_CODEPAGE( 0 ) ;
+		_SET_CHAR_CODEPAGE( DX_CODEPAGE_SHIFTJIS ) ;
 		break ;
 
 	case DX_CHARSET_SHFTJIS :
 		_SET_CHARSET( DX_CHARSET_SHFTJIS ) ;
-		_SET_CODEPAGE( 932 ) ;
+		_SET_CHAR_CODEPAGE( DX_CODEPAGE_SHIFTJIS ) ;
 		break ;
 
 	case DX_CHARSET_HANGEUL :
 		_SET_CHARSET( DX_CHARSET_HANGEUL ) ;
-		_SET_CODEPAGE( 949 ) ;
+		_SET_CHAR_CODEPAGE( DX_CODEPAGE_UHC ) ;
 		break ;
 
 	case DX_CHARSET_BIG5 :
 		_SET_CHARSET( DX_CHARSET_BIG5 ) ;
-		_SET_CODEPAGE( 950 ) ;
+		_SET_CHAR_CODEPAGE( DX_CODEPAGE_BIG5 ) ;
 		break ;
 
 	case DX_CHARSET_GB2312 :
 		_SET_CHARSET( DX_CHARSET_GB2312 ) ;
-		_SET_CODEPAGE( 936 ) ;
+		_SET_CHAR_CODEPAGE( DX_CODEPAGE_GB2312 ) ;
 		break ;
 	}
 
@@ -3587,9 +3770,9 @@ extern int NS_SetUseCharSet( int CharSet /* = DX_CHARSET_SHFTJIS 等 */ )
 }
 
 // アクティブウインドウが他のソフトに移っている際に表示する画像のロード(NULL で解除)
-static int LoadPauseGraphToBase( const TCHAR *FileName, const void *MemImage, int MemImageSize )
+static int LoadPauseGraphToBase( const wchar_t *FileName, const void *MemImage, int MemImageSize )
 {
-	BASEIMAGE RgbImage ;
+	BASEIMAGE RgbBaseImage ;
 
 	// 画像データの情報がなかったら何もせず終了
 	if( FileName == NULL && MemImage == NULL ) return 0 ;
@@ -3597,18 +3780,18 @@ static int LoadPauseGraphToBase( const TCHAR *FileName, const void *MemImage, in
 	// 画像のロード
 	if( FileName != NULL )
 	{
-		if( NS_CreateGraphImage_plus_Alpha( FileName, NULL, 0, LOADIMAGE_TYPE_FILE,
+		if( CreateGraphImage_plus_Alpha_WCHAR_T( FileName, NULL, 0, LOADIMAGE_TYPE_FILE,
 													  NULL, 0, LOADIMAGE_TYPE_FILE,
-											&RgbImage, NULL, FALSE ) < 0 )
+											&RgbBaseImage, NULL, FALSE ) < 0 )
 		{
 			return -1 ;
 		}
 	}
 	else
 	{
-		if( NS_CreateGraphImage_plus_Alpha( NULL, MemImage, MemImageSize, LOADIMAGE_TYPE_MEM, 
+		if( CreateGraphImage_plus_Alpha_WCHAR_T( NULL, MemImage, MemImageSize, LOADIMAGE_TYPE_MEM, 
 												  NULL, 	0,            LOADIMAGE_TYPE_MEM,
-											&RgbImage, NULL, FALSE ) < 0 )
+											&RgbBaseImage, NULL, FALSE ) < 0 )
 		{
 			return -1 ;
 		}
@@ -3622,10 +3805,10 @@ static int LoadPauseGraphToBase( const TCHAR *FileName, const void *MemImage, in
 	}
 
 	// 新しい画像データのセット
-	WinData.PauseGraph = RgbImage ;
+	WinData.PauseGraph = RgbBaseImage ;
 
 	// グラフィックハンドルを作成する
-	WinData.PauseGraphHandle = CreateGraphFromGraphImageBase( &RgbImage, NULL, TRUE ) ;
+	WinData.PauseGraphHandle = Graphics_Image_CreateGraphFromGraphImageBase( &RgbBaseImage, NULL, TRUE, FALSE ) ;
 /*
 	// すでにグラフィックがある場合は破棄
 	if( WinData.PauseGraph )
@@ -3651,6 +3834,24 @@ static int LoadPauseGraphToBase( const TCHAR *FileName, const void *MemImage, in
 
 // アクティブウインドウが他のソフトに移っている際に表示する画像のロード(NULL で解除)
 extern int NS_LoadPauseGraph( const TCHAR *FileName )
+{
+#ifdef UNICODE
+	return LoadPauseGraph_WCHAR_T( FileName ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FileName, return -1 )
+
+	Result = LoadPauseGraph_WCHAR_T( UseFileNameBuffer ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FileName )
+
+	return Result ;
+#endif
+}
+
+// アクティブウインドウが他のソフトに移っている際に表示する画像のロード(NULL で解除)
+extern int LoadPauseGraph_WCHAR_T( const wchar_t *FileName )
 {
 	return LoadPauseGraphToBase( FileName, NULL, 0 ) ;
 }
@@ -3681,8 +3882,26 @@ extern int NS_SetWindowText( const TCHAR *WindowText )
 // メインウインドウのウインドウテキストを変更する
 extern int NS_SetMainWindowText( const TCHAR *WindowText )
 {
+#ifdef UNICODE
+	return SetMainWindowText_WCHAR_T( WindowText ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( WindowText, return -1 )
+
+	Result = SetMainWindowText_WCHAR_T( UseWindowTextBuffer ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( WindowText )
+
+	return Result ;
+#endif
+}
+
+// メインウインドウのウインドウテキストを変更する
+extern int SetMainWindowText_WCHAR_T( const wchar_t *WindowText )
+{
 	// テキストの保存
-	lstrcpy( WinData.WindowText, WindowText ) ;
+	_WCSCPY( WinData.WindowText, WindowText ) ;
 
 	// WindowText は有効、のフラグを立てる
 	WinData.EnableWindowText = TRUE ;
@@ -3691,7 +3910,7 @@ extern int NS_SetMainWindowText( const TCHAR *WindowText )
 	if( WinData.MainWindow )
 	{
 		// メインウインドウテキストの変更
-		::SetWindowText( WinData.MainWindow , WinData.WindowText ) ;
+		::SetWindowTextW( WinData.MainWindow , WinData.WindowText ) ;
 	}
 
 	// 終了
@@ -3701,11 +3920,32 @@ extern int NS_SetMainWindowText( const TCHAR *WindowText )
 // メインウインドウのクラス名を設定する
 extern int NS_SetMainWindowClassName( const TCHAR *ClassName )
 {
+#ifdef UNICODE
+	return SetMainWindowClassName_WCHAR_T( ClassName ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( ClassName, return -1 )
+
+	Result = SetMainWindowClassName_WCHAR_T( UseClassNameBuffer ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( ClassName )
+
+	return Result ;
+#endif
+}
+
+// メインウインドウのクラス名を設定する
+extern int SetMainWindowClassName_WCHAR_T( const wchar_t *ClassName )
+{
 	// メインウインドウが既に作成されている場合は設定不可
-	if( WinData.MainWindow != NULL ) return -1;
+	if( WinData.MainWindow != NULL )
+	{
+		return -1 ;
+	}
 
 	// テキストの保存
-	lstrcpy( WinData.ClassName, ClassName ) ;
+	_WCSCPY( WinData.ClassName, ClassName ) ;
 
 	// 終了
 	return 0 ;
@@ -3730,9 +3970,9 @@ extern int NS_SetWindowIconID( int ID )
 	if( WinData.MainWindow != NULL )
 	{
 #ifdef _WIN64
-		SetClassLongPtr( WinData.MainWindow, GCLP_HICON, ( LONG_PTR )LoadIcon( WinData.Instance , ( WinData.IconID == 0 ) ? IDI_APPLICATION : MAKEINTRESOURCE( WinData.IconID ) ) ) ;
+		SetClassLongPtrW( WinData.MainWindow, GCLP_HICON, ( LONG_PTR )LoadIconW( WinData.Instance , ( WinData.IconID == 0 ) ? ( LPWSTR )IDI_APPLICATION : MAKEINTRESOURCEW( WinData.IconID ) ) ) ;
 #else
-		SetClassLong( WinData.MainWindow, GCL_HICON, ( LONG_PTR )LoadIcon( WinData.Instance , ( WinData.IconID == 0 ) ? IDI_APPLICATION : MAKEINTRESOURCE( WinData.IconID ) ) ) ;
+		SetClassLongW(    WinData.MainWindow,  GCL_HICON, ( LONG_PTR )LoadIconW( WinData.Instance , ( WinData.IconID == 0 ) ? ( LPWSTR )IDI_APPLICATION : MAKEINTRESOURCEW( WinData.IconID ) ) ) ;
 #endif
     }
 	
@@ -3749,9 +3989,9 @@ extern int NS_SetWindowIconHandle( HICON Icon )
 	if( WinData.MainWindow != NULL )
 	{
 #ifdef _WIN64
-		SetClassLongPtr( WinData.MainWindow, GCLP_HICON, ( LONG_PTR )Icon ) ;
+		SetClassLongPtrW( WinData.MainWindow, GCLP_HICON, ( LONG_PTR )Icon ) ;
 #else
-		SetClassLong( WinData.MainWindow, GCL_HICON, ( LONG_PTR )Icon ) ;
+		SetClassLongW( WinData.MainWindow, GCL_HICON, ( LONG_PTR )Icon ) ;
 #endif
     }
 	
@@ -3789,6 +4029,27 @@ extern int NS_SetWindowStyleMode( int Mode )
 
 	// ウインドウの属性を変更
 	if( WinData.WindowModeFlag ) SetWindowStyle() ;
+
+	// ウインドウの再描画
+	UpdateWindow( WinData.MainWindow ) ;
+
+	// 終了
+	return 0 ;
+}
+
+// メインウインドウの奥行き位置を変更する
+extern int NS_SetWindowZOrder( int ZType )
+{
+	if( ZType < 0 || ZType > DX_WIN_ZTYPE_TOPMOST ) return -1 ; 
+
+	// 奥行き位置タイプの保存
+	WinData.WindowZType = ZType ;
+
+	// ウインドウの属性を再設定
+	if( WinData.WindowModeFlag )
+	{
+		SetWindowStyle( FALSE ) ;
+	}
 
 	// ウインドウの再描画
 	UpdateWindow( WinData.MainWindow ) ;
@@ -4026,7 +4287,7 @@ DWORD WINAPI ProcessMessageThreadFunction( LPVOID )
 			// 使用中カウンタをインクリメントする
 //			if( WinData.DxConflictCheckCounter != 0 )
 //			{
-//				DXST_ERRORLOG_ADD( _T( "エラー:衝突発生 No.2\n" ) ) ;
+//				DXST_ERRORLOG_ADDW( L"エラー:衝突発生 No.2\n" ) ;
 //			}
 			WinData.DxConflictCheckCounter ++ ;
 
@@ -4053,7 +4314,7 @@ DWORD WINAPI ProcessMessageThreadFunction( LPVOID )
 			}
 //			else
 //			{
-//				DXST_ERRORLOG_ADD( _T( "エラー:衝突発生 No.3 \n" ) ) ;
+//				DXST_ERRORLOG_ADDW( L"エラー:衝突発生 No.3 \n" ) ;
 //			}
 
 			// カウンタをデクリメント
@@ -4071,7 +4332,7 @@ DWORD WINAPI ProcessMessageThreadFunction( LPVOID )
 				WaitFlag = 0 ;
 			}
 
-			// PostMessage の戻り値が -1 だったらループを抜ける
+			// PostMessageW の戻り値が -1 だったらループを抜ける
 			if( Result < 0 ) break ;
 
 			// 暫く寝る
@@ -4087,7 +4348,7 @@ WAIT:
 				CriticalSection_Unlock( &WinData.DxConflictCheckCriticalSection ) ;
 //				WinData.DxConflictCheckFlag -- ;
 
-//				DXST_ERRORLOG_ADD( _T( "エラー:衝突発生 No.5 \n" ) ) ;
+//				DXST_ERRORLOG_ADDW( L"エラー:衝突発生 No.5 \n" ) ;
 
 				// 少し寝る
 				Sleep( 1 ) ;
@@ -4185,7 +4446,7 @@ WAIT:
 #endif
 
 // フックされた時のコールバック関数
-LRESULT CALLBACK MsgHook(int nCnode, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK MsgHook(int /*nCnode*/, WPARAM /* wParam */, LPARAM lParam)
 {
 	MSG *pmsg;
 
@@ -4200,6 +4461,24 @@ LRESULT CALLBACK MsgHook(int nCnode, WPARAM wParam, LPARAM lParam)
 
 // タスクスイッチを有効にするかどうかを設定する
 extern int NS_SetSysCommandOffFlag( int Flag, const TCHAR *HookDllPath )
+{
+#ifdef UNICODE
+	return SetSysCommandOffFlag_WCHAR_T( Flag, HookDllPath ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( HookDllPath, -1 )
+
+	Result = SetSysCommandOffFlag_WCHAR_T( Flag, UseHookDllPathBuffer ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( HookDllPath )
+
+	return Result ;
+#endif
+}
+
+// タスクスイッチを有効にするかどうかを設定する
+extern int SetSysCommandOffFlag_WCHAR_T( int Flag, const wchar_t *HookDllPath )
 {
 #ifndef DX_NON_STOPTASKSWITCH
 	if( WinData.SysCommandOffFlag == Flag ) return 0 ;
@@ -4219,37 +4498,42 @@ extern int NS_SetSysCommandOffFlag( int Flag, const TCHAR *HookDllPath )
 			// テンポラリファイルに出力して使用する
 
 			// キーボードフックＤＬＬファイルのサイズを取得する
+			if( DxKeyHookBinaryConvert == 0 )
+			{
+				DxKeyHookBinaryConvert = 1 ;
+				Char128ToBin( DxKeyHookBinary, DxKeyHookBinary ) ;
+			}
 			FileSize = DXA_Decode( DxKeyHookBinary, NULL ) ;
 
 			// メモリの確保
-			DestBuffer = DXALLOC( FileSize ) ;
+			DestBuffer = DXALLOC( ( size_t )FileSize ) ;
 			if( DestBuffer == NULL )
 				return -1 ;
 
 			// 解凍
 			DXA_Decode( DxKeyHookBinary, DestBuffer ) ;
 
-			// 取得临时文件的目录路径
-			if( GetTempPath( MAX_PATH, WinData.HookDLLFilePath ) == 0 )
+			// テンポラリファイルのディレクトリパスを取得する
+			if( GetTempPathW( FILEPATH_MAX, WinData.HookDLLFilePath ) == 0 )
 			{
 				DXFREE( DestBuffer ) ;
 				return -1 ;
 			}
 
-			// 字符串的最后加上目录分隔符
-			Length = lstrlen( WinData.HookDLLFilePath ) ;
-			if( WinData.HookDLLFilePath[Length-1] != _T( '\\' ) ) 
+			// 文字列の最後に￥マークをつける
+			Length = _WCSLEN( WinData.HookDLLFilePath ) ;
+			if( WinData.HookDLLFilePath[Length-1] != L'\\' ) 
 			{
-				WinData.HookDLLFilePath[Length]   = _T( '\\' ) ;
-				WinData.HookDLLFilePath[Length+1] = _T( '\0' ) ;
+				WinData.HookDLLFilePath[Length]   = L'\\' ;
+				WinData.HookDLLFilePath[Length+1] = L'\0' ;
 			}
 
 			// 誰も使いそうに無いファイル名を追加する
-			lstrcat( WinData.HookDLLFilePath, _T( "ddxx_MesHoooooook.dll" ) );
+			_WCSCAT( WinData.HookDLLFilePath, L"ddxx_MesHoooooook.dll" );
 
-			// 打开临时文件
-			DeleteFile( WinData.HookDLLFilePath ) ;
-			FileHandle = CreateFile( WinData.HookDLLFilePath, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL ) ;
+			// テンポラリファイルを開く
+			DeleteFileW( WinData.HookDLLFilePath ) ;
+			FileHandle = CreateFileW( WinData.HookDLLFilePath, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL ) ;
 			if( FileHandle == NULL )
 			{
 				DXFREE( DestBuffer ) ;
@@ -4257,7 +4541,7 @@ extern int NS_SetSysCommandOffFlag( int Flag, const TCHAR *HookDllPath )
 			}
 
 			// テンポラリファイルにデータを書き出す
-			WriteFile( FileHandle, DestBuffer, FileSize, &WriteSize, NULL ) ;
+			WriteFile( FileHandle, DestBuffer, ( DWORD )FileSize, &WriteSize, NULL ) ;
 
 			// 閉じる
 			CloseHandle( FileHandle ) ;
@@ -4270,7 +4554,7 @@ extern int NS_SetSysCommandOffFlag( int Flag, const TCHAR *HookDllPath )
 		}
 		else
 		{
-			lstrcpy( WinData.HookDLLFilePath, HookDllPath ) ; 
+			_WCSCPY( WinData.HookDLLFilePath, HookDllPath ) ; 
 
 			// ユーザー指定のフックＤＬＬを使っていないフラグを倒す
 			WinData.NotUseUserHookDllFlag = FALSE ;
@@ -4282,9 +4566,9 @@ extern int NS_SetSysCommandOffFlag( int Flag, const TCHAR *HookDllPath )
 	{
 		// Win95 カーネルの場合の処理
 		UINT nPreviousState;
-//		SystemParametersInfo( SPI_SETSCREENSAVERRUNNING, Flag, &nPreviousState, 0 ) ;
-//		SystemParametersInfo( SPI_SCREENSAVERRUNNING, TRUE, &nPreviousState, 0 ) ;
-		SystemParametersInfo( SPI_SETSCREENSAVERRUNNING/*SPI_SCREENSAVERRUNNING*/, WinData.ActiveFlag && Flag, &nPreviousState, 0 ) ;
+//		SystemParametersInfoW( SPI_SETSCREENSAVERRUNNING, Flag, &nPreviousState, 0 ) ;
+//		SystemParametersInfoW( SPI_SCREENSAVERRUNNING, TRUE, &nPreviousState, 0 ) ;
+		SystemParametersInfoW( SPI_SETSCREENSAVERRUNNING/*SPI_SCREENSAVERRUNNING*/, ( UINT )( WinData.ActiveFlag && Flag ? 1 : 0 ), &nPreviousState, 0 ) ;
 	}
 	else
 	{
@@ -4294,7 +4578,7 @@ extern int NS_SetSysCommandOffFlag( int Flag, const TCHAR *HookDllPath )
 			// キーボードフックのセット
 			if( WinData.TaskHookHandle == NULL )
 			{
-//				WinData.TaskHookHandle = SetWindowsHookEx( WH_KEYBOARD_LL, LowLevelKeyboardProc, WinData.Instance, 0 ) ;
+//				WinData.TaskHookHandle = SetWindowsHookExW( WH_KEYBOARD_LL, LowLevelKeyboardProc, WinData.Instance, 0 ) ;
 			}
 
 			// メッセージフックのセット
@@ -4302,7 +4586,7 @@ extern int NS_SetSysCommandOffFlag( int Flag, const TCHAR *HookDllPath )
 			{
 //				WinData.MessageHookThredID = GetWindowThreadProcessId( WinData.MainWindow, NULL ) ;
 //				WinData.MessageHookThredID = GetWindowThreadProcessId( GetDesktopWindow(), NULL ) ;
-				WinData.MessageHookDLL = LoadLibrary( WinData.HookDLLFilePath ) ;
+				WinData.MessageHookDLL = LoadLibraryW( WinData.HookDLLFilePath ) ;
 
 				// DLL が無かったら進まない
 				if( WinData.MessageHookDLL != NULL )
@@ -4311,8 +4595,8 @@ extern int NS_SetSysCommandOffFlag( int Flag, const TCHAR *HookDllPath )
 					if( WinData.MessageHookCallBadk != NULL )
 					{
 						WinData.MessageHookCallBadk( WinData.MainWindow, &WinData.KeyboardHookHandle ) ;
-//						WinData.GetMessageHookHandle = SetWindowsHookEx( WH_GETMESSAGE, WinData.MessageHookCallBadk, WinData.MessageHookDLL, WinData.MessageHookThredID ) ;
-						WinData.GetMessageHookHandle = SetWindowsHookEx( WH_GETMESSAGE, MsgHook, WinData.Instance, 0 ) ;
+//						WinData.GetMessageHookHandle = SetWindowsHookExW( WH_GETMESSAGE, WinData.MessageHookCallBadk, WinData.MessageHookDLL, WinData.MessageHookThredID ) ;
+						WinData.GetMessageHookHandle = SetWindowsHookExW( WH_GETMESSAGE, MsgHook, WinData.Instance, 0 ) ;
 					}
 				}
 			}
@@ -4560,43 +4844,6 @@ extern int NS_SetUserWindowMessageProcessDXLibFlag( int Flag )
 	return 0 ;
 }
 
-// 検索するＤＸアーカイブファイルの拡張子を変更する
-extern int NS_SetDXArchiveExtension( const TCHAR *Extension )
-{
-#ifndef DX_NON_DXA
-	return DXA_DIR_SetArchiveExtension( Extension ) ;
-#else
-	return -1;
-#endif
-}
-
-// ＤＸアーカイブファイルと通常のフォルダのどちらも存在した場合、どちらを優先させるかを設定する( 1:フォルダを優先 0:ＤＸアーカイブファイルを優先(デフォルト) )
-extern int NS_SetDXArchivePriority( int Priority )
-{
-#ifndef DX_NON_DXA
-	return DXA_DIR_SetDXArchivePriority( Priority ) ;
-#else
-	return -1;
-#endif
-}
-
-// ＤＸアーカイブファイルの鍵文字列を設定する
-extern int NS_SetDXArchiveKeyString( const TCHAR *KeyString )
-{
-#ifndef DX_NON_DXA
-#ifdef UNICODE
-	char TempBuffer[ 1024 ] ;
-
-	WCharToMBChar( _GET_CODEPAGE(), ( DXWCHAR * )KeyString, TempBuffer, 1024 ) ; 
-	return DXA_DIR_SetKeyString( TempBuffer ) ;
-#else
-	return DXA_DIR_SetKeyString( KeyString ) ;
-#endif
-#else
-	return -1;
-#endif
-}
-
 // FPUの精度を落とさない設定を使用するかどうかを設定する、DxLib_Init を呼び出す前のみ有効( TRUE:使用する(精度が落ちない)  FALSE:使用しない(精度を落とす(デフォルト) )
 extern int NS_SetUseFPUPreserveFlag( int Flag )
 {
@@ -4727,7 +4974,47 @@ extern int NS_GetClipboardText( TCHAR *DestBuffer )
 
 	// 出力バッファにテキストデータをコピーする
 	SrcBuffer = GlobalLock( Mem ) ;
-	lstrcpy( DestBuffer, ( TCHAR * )SrcBuffer ) ;
+	_TSTRCPY( DestBuffer, ( TCHAR * )SrcBuffer ) ;
+	GlobalUnlock( Mem ) ;
+	CloseClipboard() ;
+
+	// 終了
+	return 0 ;
+}
+
+// クリップボードに格納されているテキストデータを読み出す、-1 の場合はクリップボードにテキストデータは無いということ( DestBuffer に NULL を渡すと格納に必要なデータサイズが返ってくる )
+extern int GetClipboardText_WCHAR_T( wchar_t *DestBuffer )
+{
+	HGLOBAL Mem ;
+	void *SrcBuffer ;
+
+	// クリップボードをオープン
+	if( OpenClipboard( WinData.MainWindow ) == 0 )
+		return -1 ;
+
+	// クリップボードに格納されているデータがテキストデータかどうかを取得する
+	if( IsClipboardFormatAvailable( CF_UNICODETEXT ) == 0 )
+	{
+		CloseClipboard() ;
+		return -1 ;
+	}
+
+	// クリップボードに格納されているテキストデータのメモリハンドルを取得する
+	Mem = GetClipboardData( CF_UNICODETEXT ) ;
+
+	// 出力バッファが NULL の場合はテキストデータのサイズを返す
+	if( DestBuffer == NULL )
+	{
+		SIZE_T Size ;
+
+		Size = GlobalSize( Mem ) + 1 ;
+		CloseClipboard() ;
+		return ( int )Size ;
+	}
+
+	// 出力バッファにテキストデータをコピーする
+	SrcBuffer = GlobalLock( Mem ) ;
+	_WCSCPY( DestBuffer, ( wchar_t * )SrcBuffer ) ;
 	GlobalUnlock( Mem ) ;
 	CloseClipboard() ;
 
@@ -4738,19 +5025,37 @@ extern int NS_GetClipboardText( TCHAR *DestBuffer )
 // クリップボードにテキストデータを格納する
 extern int NS_SetClipboardText( const TCHAR *Text )
 {
+#ifdef UNICODE
+	return SetClipboardText_WCHAR_T( Text ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( Text, return -1 )
+
+	Result = SetClipboardText_WCHAR_T( UseTextBuffer ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( Text )
+
+	return Result ;
+#endif
+}
+
+// クリップボードにテキストデータを格納する
+extern int SetClipboardText_WCHAR_T( const wchar_t *Text )
+{
 	HGLOBAL Mem ;
 	void *Buffer ;
 	int Len ;
 
 	// 文字列の長さを取得
-	Len = lstrlen( Text ) ;
+	Len = _WCSLEN( Text ) ;
 
 	// 文字列を格納するメモリ領域の確保
-	Mem = GlobalAlloc( GMEM_FIXED, ( Len + 1 ) * sizeof( TCHAR ) ) ;
+	Mem = GlobalAlloc( GMEM_FIXED, ( Len + 1 ) * sizeof( wchar_t ) ) ;
 
 	// 文字列を確保したメモリ領域に格納
 	Buffer = GlobalLock( Mem ) ;
-	lstrcpy( ( TCHAR * )Buffer, Text ) ;
+	_WCSCPY( ( wchar_t * )Buffer, Text ) ;
 	GlobalUnlock( Mem ) ;
 
 	// クリップボードをオープン
@@ -4758,7 +5063,7 @@ extern int NS_SetClipboardText( const TCHAR *Text )
 	{
 		// クリップボードに文字列を格納する
 		EmptyClipboard() ;
-		SetClipboardData( CLIPBOARD_TEXT, Mem ) ;
+		SetClipboardData( CF_UNICODETEXT, Mem ) ;
 		CloseClipboard() ;
 	}
 	else
@@ -4830,19 +5135,25 @@ extern int NS_DragFileInfoClear( void )
 // ドラッグ＆ドロップされたファイル名を取得する( -1:取得できなかった  0:取得できた )
 extern int NS_GetDragFilePath( TCHAR *FilePathBuffer )
 {
-	int Result = 0 ;
+#ifdef UNICODE
+	return GetDragFilePath_WCHAR_T( FilePathBuffer ) ;
+#else
+	int Size ;
 
 	// ファイル名が一つも無かったら -1 を返す
-	if( WinData.DragFileNum == 0 ) return -1 ;
+	if( WinData.DragFileNum == 0 )
+	{
+		return -1 ;
+	}
+
+	// 文字列をコピーする
+	Size = ConvString( ( const char * )WinData.DragFileName[ WinData.DragFileNum - 1 ], WCHAR_T_CODEPAGE, ( char * )FilePathBuffer, _TCODEPAGE ) ;
 
 	// NULL を渡されたら文字列格納に必要なサイズを返す
 	if( FilePathBuffer == NULL ) 
 	{
-		Result = ( lstrlen( WinData.DragFileName[ WinData.DragFileNum - 1 ] ) + 1 ) * sizeof( TCHAR ) ;
+		return Size ;
 	}
-	
-	// 文字列をコピーする
-	lstrcpy( FilePathBuffer, WinData.DragFileName[ WinData.DragFileNum - 1 ] ) ;
 
 	// 渡し終わった文字列は解放する
 	DXFREE( WinData.DragFileName[ WinData.DragFileNum - 1 ] ) ;
@@ -4850,9 +5161,39 @@ extern int NS_GetDragFilePath( TCHAR *FilePathBuffer )
 
 	// ドラッグ＆ドロップされたファイルの数を減らす
 	WinData.DragFileNum -- ;
-	
+
 	// 終了
-	return Result ;
+	return 0 ;
+#endif
+}
+
+// ドラッグ＆ドロップされたファイル名を取得する( -1:取得できなかった  0:取得できた )
+extern int GetDragFilePath_WCHAR_T( wchar_t *FilePathBuffer )
+{
+	// ファイル名が一つも無かったら -1 を返す
+	if( WinData.DragFileNum == 0 )
+	{
+		return -1 ;
+	}
+
+	// NULL を渡されたら文字列格納に必要なサイズを返す
+	if( FilePathBuffer == NULL ) 
+	{
+		return ( int )( ( _WCSLEN( WinData.DragFileName[ WinData.DragFileNum - 1 ] ) + 1 ) * sizeof( wchar_t ) ) ;
+	}
+
+	// 文字列をコピーする
+	_WCSCPY( FilePathBuffer, WinData.DragFileName[ WinData.DragFileNum - 1 ] ) ;
+
+	// 渡し終わった文字列は解放する
+	DXFREE( WinData.DragFileName[ WinData.DragFileNum - 1 ] ) ;
+	WinData.DragFileName[ WinData.DragFileNum - 1 ] = NULL ;
+
+	// ドラッグ＆ドロップされたファイルの数を減らす
+	WinData.DragFileNum -- ;
+
+	// 終了
+	return 0 ;
 }
 
 // ドラッグ＆ドロップされたファイルの数を取得する
@@ -5021,6 +5362,24 @@ extern HRGN NS_CreateRgnFromBaseImage( BASEIMAGE *BaseImage, int TransColorR, in
 // 任意のグラフィックからＲＧＮをセットする
 extern int NS_SetWindowRgnGraph( const TCHAR *FileName )
 {
+#ifdef UNICODE
+	return SetWindowRgnGraph_WCHAR_T( FileName ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( FileName, return -1 )
+
+	Result = SetWindowRgnGraph_WCHAR_T( UseFileNameBuffer ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( FileName )
+
+	return Result ;
+#endif
+}
+
+// 任意のグラフィックからＲＧＮをセットする
+extern int SetWindowRgnGraph_WCHAR_T( const wchar_t *FileName )
+{
 	HBITMAP bmp ;
 	BITMAP bm ;
 
@@ -5039,7 +5398,7 @@ extern int NS_SetWindowRgnGraph( const TCHAR *FileName )
 	else
 	{
 		// ファイルを読み込む
-		bmp = NS_CreateDIBGraph( FileName, FALSE, NULL ) ;
+		bmp = CreateDIBGraph_WCHAR_T( FileName, FALSE, NULL ) ;
 		if( bmp == NULL )
 		{
 			return -1 ;
@@ -5052,11 +5411,17 @@ extern int NS_SetWindowRgnGraph( const TCHAR *FileName )
 		bm.bmWidthBytes += bm.bmWidthBytes % 4 ? 4 - bm.bmWidthBytes % 4 : 0 ;
 
 		// リージョン作成
-		if( WinData.WindowRgn != NULL ) DeleteObject( WinData.WindowRgn ) ;
+		if( WinData.WindowRgn != NULL )
+		{
+			DeleteObject( WinData.WindowRgn ) ;
+		}
 		WinData.WindowRgn = NS_CreateRgnFromGraph( bm.bmWidth, bm.bmHeight, bm.bmBits, bm.bmWidthBytes, bm.bmBitsPixel / 8 ) ;
 
 		// リージョンを割り当てる
-		if( WinData.MainWindow != NULL ) SetWindowRgn( WinData.MainWindow, WinData.WindowRgn, TRUE ) ;
+		if( WinData.MainWindow != NULL )
+		{
+			SetWindowRgn( WinData.MainWindow, WinData.WindowRgn, TRUE ) ;
+		}
 	}
 
 	// 終了
@@ -5075,7 +5440,10 @@ extern int NS_UpdateTransColorWindowRgn( void )
 
 	// リージョン作成
 	if( WinData.WindowRgn != NULL ) DeleteObject( WinData.WindowRgn ) ;
-	WinData.WindowRgn = NS_CreateRgnFromBaseImage( &ScreenImage, ( GBASE.TransColor >> 16 ) & 0xff, ( GBASE.TransColor >> 8 ) & 0xff, GBASE.TransColor & 0xff ) ;
+	WinData.WindowRgn = NS_CreateRgnFromBaseImage( &ScreenImage,
+		( int )( ( GSYS.CreateImage.TransColor >> 16 ) & 0xff ),
+		( int )( ( GSYS.CreateImage.TransColor >>  8 ) & 0xff ),
+		( int )(   GSYS.CreateImage.TransColor         & 0xff ) ) ;
 
 	// リージョンを割り当てる
 	if( WinData.MainWindow != NULL ) SetWindowRgn( WinData.MainWindow, WinData.WindowRgn, TRUE ) ;
@@ -5140,17 +5508,43 @@ extern int GetToolBarHeight( void )
 // ツールバーの準備( NULL を指定するとツールバーを解除 )
 extern int NS_SetupToolBar( const TCHAR *BitmapName, int DivNum, int ResourceID )
 {
+#ifdef UNICODE
+	return SetupToolBar_WCHAR_T( BitmapName, DivNum, ResourceID ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( BitmapName, return -1 )
+
+	Result = SetupToolBar_WCHAR_T( UseBitmapNameBuffer, DivNum, ResourceID ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( BitmapName )
+
+	return Result ;
+#endif
+}
+
+// ツールバーの準備( NULL を指定するとツールバーを解除 )
+extern int SetupToolBar_WCHAR_T( const wchar_t *BitmapName, int DivNum, int ResourceID )
+{
 	HBITMAP NewBitmap = NULL ;
 	BITMAP bm ;
 
 	if( WinAPIData.Win32Func.WinMMDLL == NULL )
+	{
 		return -1 ;
+	}
 
 	// BitmapName が NULL で、且つツールバーを使っていない場合は何もせずに終了
-	if( BitmapName == NULL && ResourceID < 0 && WinData.ToolBarUseFlag == FALSE ) return 0 ;
+	if( BitmapName == NULL && ResourceID < 0 && WinData.ToolBarUseFlag == FALSE )
+	{
+		return 0 ;
+	}
 
 	// フルスクリーンで起動している場合も何もせずに終了
-	if( WinData.WindowModeFlag == FALSE ) return 0 ;
+	if( WinData.WindowModeFlag == FALSE )
+	{
+		return 0 ;
+	}
 
 	// とりあえず全てのボタンを削除
 	NS_DeleteAllToolBarButton() ;
@@ -5159,7 +5553,7 @@ extern int NS_SetupToolBar( const TCHAR *BitmapName, int DivNum, int ResourceID 
 	if( BitmapName == NULL && ResourceID < 0 )
 	{
 		// ツールバーウインドウに WM_CLOSE メッセージを送る
-		SendMessage( WinData.ToolBarHandle, WM_CLOSE, 0, 0 ) ;
+		SendMessageW( WinData.ToolBarHandle, WM_CLOSE, 0, 0 ) ;
 		WinData.ToolBarHandle = NULL ;
 
 		// ビットマップファイルを削除する
@@ -5174,7 +5568,7 @@ extern int NS_SetupToolBar( const TCHAR *BitmapName, int DivNum, int ResourceID 
 		// ビットマップファイルを読み込む
 		if( BitmapName != NULL )
 		{
-			NewBitmap = NS_CreateDIBGraph( BitmapName, 0, NULL ) ;
+			NewBitmap = CreateDIBGraph_WCHAR_T( BitmapName, 0, NULL ) ;
 		}
 
 		if( NewBitmap == NULL && ResourceID != -1 )
@@ -5185,11 +5579,11 @@ extern int NS_SetupToolBar( const TCHAR *BitmapName, int DivNum, int ResourceID 
 			HGLOBAL Global ;
 
 			// リソースを取得
-			RSrc = FindResource( WinData.LoadResourModule == NULL ? GetModuleHandle( NULL ) : WinData.LoadResourModule, MAKEINTRESOURCE( ResourceID ), RT_BITMAP ) ;
+			RSrc = FindResource( WinData.LoadResourModule == NULL ? WinAPIData.Win32Func.GetModuleHandleWFunc( NULL ) : WinData.LoadResourModule, MAKEINTRESOURCE( ResourceID ), RT_BITMAP ) ;
 			if( RSrc )
 			{
 				// リソースが格納されているメモリ領域を取得
-				Global = LoadResource( WinData.LoadResourModule == NULL ? GetModuleHandle( NULL ) : WinData.LoadResourModule, RSrc ) ;
+				Global = LoadResource( WinData.LoadResourModule == NULL ? WinAPIData.Win32Func.GetModuleHandleWFunc( NULL ) : WinData.LoadResourModule, RSrc ) ;
 				if( Global )
 				{
 					DataP = ( BYTE * )LockResource( Global ) ;
@@ -5224,7 +5618,7 @@ extern int NS_SetupToolBar( const TCHAR *BitmapName, int DivNum, int ResourceID 
 
 		if( NewBitmap == NULL )
 		{
-			DXST_ERRORLOG_ADD( _T( "ツールバーのボタン用のビットマップファイルの読み込みに失敗しました\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\xc4\x30\xfc\x30\xeb\x30\xd0\x30\xfc\x30\x6e\x30\xdc\x30\xbf\x30\xf3\x30\x28\x75\x6e\x30\xd3\x30\xc3\x30\xc8\x30\xde\x30\xc3\x30\xd7\x30\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x6e\x30\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ツールバーのボタン用のビットマップファイルの読み込みに失敗しました\n" @*/ ) ;
 			return -1 ;
 		}
 
@@ -5238,9 +5632,9 @@ extern int NS_SetupToolBar( const TCHAR *BitmapName, int DivNum, int ResourceID 
 
 			// 今まで使っていなかった場合はツールバーウインドウを作成する
 			WinAPIData.Win32Func.InitCommonControlsFunc();
-			WinData.ToolBarHandle = CreateWindowEx( 
+			WinData.ToolBarHandle = CreateWindowExW(
 				0,
-				TOOLBARCLASSNAME,
+				TOOLBARCLASSNAMEW,
 				NULL,
 				WS_CHILD | WS_VISIBLE,
 				0, 0,
@@ -5251,12 +5645,12 @@ extern int NS_SetupToolBar( const TCHAR *BitmapName, int DivNum, int ResourceID 
 				NULL ) ;
 			if( WinData.ToolBarHandle == NULL )
 			{
-				DXST_ERRORLOG_ADD( _T( "ツールバーウインドウの作成に失敗しました\n" ) ) ;
+				DXST_ERRORLOG_ADDUTF16LE( "\xc4\x30\xfc\x30\xeb\x30\xd0\x30\xfc\x30\xa6\x30\xa4\x30\xf3\x30\xc9\x30\xa6\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ツールバーウインドウの作成に失敗しました\n" @*/ ) ;
 				return -1 ;
 			}
 
 			// TBBUTTON 構造体のサイズを送っておく
-			SendMessage( WinData.ToolBarHandle, TB_BUTTONSTRUCTSIZE,
+			SendMessageW( WinData.ToolBarHandle, TB_BUTTONSTRUCTSIZE,
 						 (WPARAM)sizeof( TBBUTTON ), 0 ) ;
 
 			// ツールバーを使用している状態にする
@@ -5265,7 +5659,7 @@ extern int NS_SetupToolBar( const TCHAR *BitmapName, int DivNum, int ResourceID 
 			// ビットマップファイルを設定する
 			AddBitmap.hInst = NULL ;
 			AddBitmap.nID   = (UINT_PTR)NewBitmap ;
-			SendMessage( WinData.ToolBarHandle, TB_ADDBITMAP, DivNum, (LPARAM)&AddBitmap ) ;
+			SendMessageW( WinData.ToolBarHandle, TB_ADDBITMAP, ( WPARAM )DivNum, ( LPARAM )&AddBitmap ) ;
 			WinData.ToolBarButtonImage = NewBitmap ;
 
 			// 情報を初期化する
@@ -5281,7 +5675,7 @@ extern int NS_SetupToolBar( const TCHAR *BitmapName, int DivNum, int ResourceID 
 			RepBitmap.hInstNew = NULL ;
 			RepBitmap.nIDNew   = (UINT_PTR)NewBitmap ;
 			RepBitmap.nButtons = DivNum ;
-			SendMessage( WinData.ToolBarHandle, TB_REPLACEBITMAP, 0, (LPARAM)&RepBitmap ) ;
+			SendMessageW( WinData.ToolBarHandle, TB_REPLACEBITMAP, 0, (LPARAM)&RepBitmap ) ;
 
 			// 今までのビットマップを破棄する
 			DeleteObject( WinData.ToolBarButtonImage ) ;
@@ -5289,7 +5683,7 @@ extern int NS_SetupToolBar( const TCHAR *BitmapName, int DivNum, int ResourceID 
 		}
 
 		// ビットマップのサイズを設定する
-		SendMessage( WinData.ToolBarHandle, TB_SETBITMAPSIZE, 0, ( bm.bmWidth / DivNum ) | ( bm.bmHeight << 16 ) ) ;
+		SendMessageW( WinData.ToolBarHandle, TB_SETBITMAPSIZE, 0, ( bm.bmWidth / DivNum ) | ( bm.bmHeight << 16 ) ) ;
 
 		// スタイルを変更する
 		NS_SetWindowStyleMode( 6 ) ;
@@ -5323,19 +5717,19 @@ extern int NS_AddToolBarButton( int Type, int State, int ImageIndex, int ID )
 	// ツールバーのボタンの数が最大数に達していたら何もせずに終了
 	if( WinData.ToolBarItemNum == MAX_TOOLBARITEM_NUM )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "ツールバーのボタンの数が最大数の %d に達している為ボタンを追加できませんでした\n" ), MAX_TOOLBARITEM_NUM )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xc4\x30\xfc\x30\xeb\x30\xd0\x30\xfc\x30\x6e\x30\xdc\x30\xbf\x30\xf3\x30\x6e\x30\x70\x65\x4c\x30\x00\x67\x27\x59\x70\x65\x6e\x30\x20\x00\x25\x00\x64\x00\x20\x00\x6b\x30\x54\x90\x57\x30\x66\x30\x44\x30\x8b\x30\xba\x70\xdc\x30\xbf\x30\xf3\x30\x92\x30\xfd\x8f\xa0\x52\x67\x30\x4d\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ツールバーのボタンの数が最大数の %d に達している為ボタンを追加できませんでした\n" @*/, MAX_TOOLBARITEM_NUM )) ;
 		return -1 ;
 	}
 
 	// パラメータの値が異常な場合はエラー
 	if( Type >= TOOLBUTTON_TYPE_NUM )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "ツールバーのボタン追加関数において State の値が不正な値 %d となっています\n" ), State )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xc4\x30\xfc\x30\xeb\x30\xd0\x30\xfc\x30\x6e\x30\xdc\x30\xbf\x30\xf3\x30\xfd\x8f\xa0\x52\xa2\x95\x70\x65\x6b\x30\x4a\x30\x44\x30\x66\x30\x20\x00\x53\x00\x74\x00\x61\x00\x74\x00\x65\x00\x20\x00\x6e\x30\x24\x50\x4c\x30\x0d\x4e\x63\x6b\x6a\x30\x24\x50\x20\x00\x25\x00\x64\x00\x20\x00\x68\x30\x6a\x30\x63\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ツールバーのボタン追加関数において State の値が不正な値 %d となっています\n" @*/, State )) ;
 		return -1 ;
 	}
 	if( State >= TOOLBUTTON_STATE_NUM )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "ツールバーのボタン追加関数において Type の値が不正な値 %d となっています\n" ), Type )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xc4\x30\xfc\x30\xeb\x30\xd0\x30\xfc\x30\x6e\x30\xdc\x30\xbf\x30\xf3\x30\xfd\x8f\xa0\x52\xa2\x95\x70\x65\x6b\x30\x4a\x30\x44\x30\x66\x30\x20\x00\x54\x00\x79\x00\x70\x00\x65\x00\x20\x00\x6e\x30\x24\x50\x4c\x30\x0d\x4e\x63\x6b\x6a\x30\x24\x50\x20\x00\x25\x00\x64\x00\x20\x00\x68\x30\x6a\x30\x63\x30\x66\x30\x44\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ツールバーのボタン追加関数において Type の値が不正な値 %d となっています\n" @*/, Type )) ;
 		return -1 ;
 	}
 
@@ -5345,7 +5739,7 @@ extern int NS_AddToolBarButton( int Type, int State, int ImageIndex, int ID )
 	tbbut.idCommand = TOOLBAR_COMMANDID_BASE + ID ;
 	tbbut.fsState = StateTable[ Type == TOOLBUTTON_TYPE_CHECK || Type == TOOLBUTTON_TYPE_GROUP ? 1 : 0 ][ State ] ;
 	tbbut.fsStyle = TypeTable[ Type ] ;
-	SendMessage( WinData.ToolBarHandle, TB_ADDBUTTONS, 1, (LPARAM)&tbbut ) ;
+	SendMessageW( WinData.ToolBarHandle, TB_ADDBUTTONS, 1, (LPARAM)&tbbut ) ;
 
 	// 新しいボタンの情報をセット
 	but = &WinData.ToolBarItem[ WinData.ToolBarItemNum ] ;
@@ -5374,7 +5768,7 @@ extern int NS_AddToolBarSep( void )
 	// ツールバーのボタンの数が最大数に達していたら何もせずに終了
 	if( WinData.ToolBarItemNum == MAX_TOOLBARITEM_NUM )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "ツールバーのアイテムの数が最大数の %d に達している為隙間を追加できませんでした\n" ), MAX_TOOLBARITEM_NUM )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xc4\x30\xfc\x30\xeb\x30\xd0\x30\xfc\x30\x6e\x30\xa2\x30\xa4\x30\xc6\x30\xe0\x30\x6e\x30\x70\x65\x4c\x30\x00\x67\x27\x59\x70\x65\x6e\x30\x20\x00\x25\x00\x64\x00\x20\x00\x6b\x30\x54\x90\x57\x30\x66\x30\x44\x30\x8b\x30\xba\x70\x99\x96\x93\x95\x92\x30\xfd\x8f\xa0\x52\x67\x30\x4d\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ツールバーのアイテムの数が最大数の %d に達している為隙間を追加できませんでした\n" @*/, MAX_TOOLBARITEM_NUM )) ;
 		return -1 ;
 	}
 
@@ -5384,7 +5778,7 @@ extern int NS_AddToolBarSep( void )
 	tbbut.idCommand = 0 ;
 	tbbut.fsState   = TBSTATE_ENABLED ;
 	tbbut.fsStyle   = TBSTYLE_SEP ;
-	SendMessage( WinData.ToolBarHandle, TB_ADDBUTTONS, 1, (LPARAM)&tbbut ) ;
+	SendMessageW( WinData.ToolBarHandle, TB_ADDBUTTONS, 1, (LPARAM)&tbbut ) ;
 
 	// 新しいボタンの情報をセット
 	but = &WinData.ToolBarItem[ WinData.ToolBarItemNum ] ;
@@ -5416,7 +5810,7 @@ extern int NS_GetToolBarButtonState( int ID )
 	i = SearchToolBarButton( ID ) ;
 	if( i == -1 )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "指定のＩＤ %d を持ったツールバーのボタンがありませんでした\n" ), ID )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x07\x63\x9a\x5b\x6e\x30\x29\xff\x24\xff\x20\x00\x25\x00\x64\x00\x20\x00\x92\x30\x01\x63\x63\x30\x5f\x30\xc4\x30\xfc\x30\xeb\x30\xd0\x30\xfc\x30\x6e\x30\xdc\x30\xbf\x30\xf3\x30\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"指定のＩＤ %d を持ったツールバーのボタンがありませんでした\n" @*/, ID )) ;
 		return -1;
 	}
 	but = &WinData.ToolBarItem[i] ;
@@ -5440,7 +5834,7 @@ extern int NS_GetToolBarButtonState( int ID )
 	case TOOLBUTTON_TYPE_CHECK :	// 押すごとにＯＮ／ＯＦＦが切り替わるボタン
 	case TOOLBUTTON_TYPE_GROUP :	// 別の TOOLBUTTON_TYPE_GROUP タイプのボタンが押されるとＯＦＦになるタイプのボタン(グループの区切りは隙間で)
 		// ボタンの状態を取得する
-		Result = SendMessage( WinData.ToolBarHandle, TB_GETSTATE, TOOLBAR_COMMANDID_BASE + but->ID, 0 ) ;
+		Result = SendMessageW( WinData.ToolBarHandle, TB_GETSTATE, ( WPARAM )( TOOLBAR_COMMANDID_BASE + but->ID ), 0 ) ;
 		if( Result & ( TBSTATE_CHECKED | TBSTATE_PRESSED ) ) State = TRUE  ;
 		else                                                 State = FALSE ;
 		break ;
@@ -5464,7 +5858,7 @@ extern int NS_SetToolBarButtonState( int ID, int State )
 	i = SearchToolBarButton( ID ) ;
 	if( i == -1 )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "指定のＩＤ %d を持ったツールバーのボタンがありませんでした\n" ), ID )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x07\x63\x9a\x5b\x6e\x30\x29\xff\x24\xff\x20\x00\x25\x00\x64\x00\x20\x00\x92\x30\x01\x63\x63\x30\x5f\x30\xc4\x30\xfc\x30\xeb\x30\xd0\x30\xfc\x30\x6e\x30\xdc\x30\xbf\x30\xf3\x30\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"指定のＩＤ %d を持ったツールバーのボタンがありませんでした\n" @*/, ID )) ;
 		return -1;
 	}
 	but = &WinData.ToolBarItem[i] ;
@@ -5493,7 +5887,7 @@ extern int NS_SetToolBarButtonState( int ID, int State )
 		SetState = TBSTATE_PRESSED | TBSTATE_INDETERMINATE ;
 		break ;
 	}
-	SendMessage( WinData.ToolBarHandle, TB_SETSTATE, TOOLBAR_COMMANDID_BASE + but->ID, SetState ) ;
+	SendMessageW( WinData.ToolBarHandle, TB_SETSTATE, ( WPARAM )( TOOLBAR_COMMANDID_BASE + but->ID ), SetState ) ;
 
 	// 終了
 	return 0 ;
@@ -5509,7 +5903,7 @@ extern int NS_DeleteAllToolBarButton( void )
 
 	// ボタンの数だけ削除メッセージを送る
 	for( i = 0 ; i < WinData.ToolBarItemNum ; i ++ )
-		SendMessage( WinData.ToolBarHandle, TB_DELETEBUTTON, 0, 0 ) ;
+		SendMessageW( WinData.ToolBarHandle, TB_DELETEBUTTON, 0, 0 ) ;
 
 	// ボタンの数を０にする
 	WinData.ToolBarItemNum = 0 ;
@@ -5602,6 +5996,25 @@ extern int NS_SetUseKeyAccelFlag( int Flag )
 extern int NS_AddKeyAccel( const TCHAR *ItemName, int ItemID,
 							int KeyCode, int CtrlFlag, int AltFlag, int ShiftFlag )
 {
+#ifdef UNICODE
+	return AddKeyAccel_WCHAR_T( ItemName, ItemID, KeyCode, CtrlFlag, AltFlag, ShiftFlag ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( ItemName, return -1 )
+
+	Result = AddKeyAccel_WCHAR_T( UseItemNameBuffer, ItemID, KeyCode, CtrlFlag, AltFlag, ShiftFlag ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( ItemName )
+
+	return Result ;
+#endif
+}
+
+// ショートカットキーを追加する
+extern int AddKeyAccel_WCHAR_T( const wchar_t *ItemName, int ItemID,
+							int KeyCode, int CtrlFlag, int AltFlag, int ShiftFlag )
+{
 #ifdef DX_NON_INPUT
 
 	return -1 ;
@@ -5613,20 +6026,33 @@ extern int NS_AddKeyAccel( const TCHAR *ItemName, int ItemID,
 	int AccelNum ;
 	WINMENUITEMINFO *WinItemInfo ;
 
-	if( WinData.MenuUseFlag == FALSE ) goto ERR ;
+	if( WinData.MenuUseFlag == FALSE )
+	{
+		goto ERR ;
+	}
 
 	// 指定の選択項目が見つからなかったら何もしない
 	WinItemInfo = SearchMenuItemInfo( ItemName, ItemID ) ;
-	if( WinItemInfo == NULL ) goto ERR ;
+	if( WinItemInfo == NULL )
+	{
+		goto ERR ;
+	}
 
-	if( WinData.UseAccelFlag == FALSE ) NS_SetUseKeyAccelFlag( TRUE ) ;
-	if( WinData.UseAccelFlag == FALSE ) goto ERR ;
+	if( WinData.UseAccelFlag == FALSE )
+	{
+		NS_SetUseKeyAccelFlag( TRUE ) ;
+	}
+
+	if( WinData.UseAccelFlag == FALSE )
+	{
+		goto ERR ;
+	}
 
 	// 既にアクセラレーターが設定されているかどうかで処理を分岐
 	if( WinData.Accel != NULL )
 	{
 		// 既に設定されている場合は現在のアクセラレーターの情報を取得する
-		AccelNum = CopyAcceleratorTable( WinData.Accel, NULL, 0 ) ;
+		AccelNum = CopyAcceleratorTableW( WinData.Accel, NULL, 0 ) ;
 
 		// データが一つ増えるので数を一つ増やす
 		AccelNum ++ ;
@@ -5636,7 +6062,7 @@ extern int NS_AddKeyAccel( const TCHAR *ItemName, int ItemID,
 		if( Accel == NULL ) goto ERR ;
 
 		// 現在のデータを取得する
-		CopyAcceleratorTable( WinData.Accel, Accel, AccelNum ) ;
+		CopyAcceleratorTableW( WinData.Accel, Accel, AccelNum ) ;
 	}
 	else
 	{
@@ -5656,7 +6082,7 @@ extern int NS_AddKeyAccel( const TCHAR *ItemName, int ItemID,
 	ac->cmd = (WORD)WinItemInfo->ID ;
 
 	// アクセラレータを作成
-	NewAccel = CreateAcceleratorTable( Accel, AccelNum ) ;
+	NewAccel = CreateAcceleratorTableW( Accel, AccelNum ) ;
 	if( NewAccel == NULL ) goto ERR ;
 
 	// メモリの解放
@@ -5685,6 +6111,12 @@ extern int NS_AddKeyAccel_Name( const TCHAR *ItemName, int KeyCode, int CtrlFlag
 }
 
 // ショートカットキーを追加する
+extern int AddKeyAccel_Name_WCHAR_T( const wchar_t *ItemName , int KeyCode , int CtrlFlag , int AltFlag , int ShiftFlag )
+{
+	return AddKeyAccel_WCHAR_T( ItemName, 0, KeyCode, CtrlFlag, AltFlag, ShiftFlag ) ;
+}
+
+// ショートカットキーを追加する
 extern int NS_AddKeyAccel_ID( int ItemID, int KeyCode, int CtrlFlag, int AltFlag, int ShiftFlag )
 {
 	return NS_AddKeyAccel( NULL, ItemID, KeyCode, CtrlFlag, AltFlag, ShiftFlag ) ;
@@ -5708,9 +6140,37 @@ extern int NS_ClearKeyAccel( void )
 extern int NS_AddMenuItem( int AddType, const TCHAR *ItemName, int ItemID,
 						int SeparatorFlag, const TCHAR *NewItemName, int NewItemID )
 {
+#ifdef UNICODE
+	return AddMenuItem_WCHAR_T( AddType, ItemName,ItemID,
+								SeparatorFlag, NewItemName, NewItemID ) ;
+#else
+	int Result = -1 ;
+
+	TCHAR_TO_WCHAR_T_STRING_BEGIN( ItemName )
+	TCHAR_TO_WCHAR_T_STRING_BEGIN( NewItemName )
+
+	TCHAR_TO_WCHAR_T_STRING_SETUP( ItemName,    goto ERR )
+	TCHAR_TO_WCHAR_T_STRING_SETUP( NewItemName, goto ERR )
+
+	Result = AddMenuItem_WCHAR_T( AddType, UseItemNameBuffer, ItemID,
+								SeparatorFlag, UseNewItemNameBuffer, NewItemID ) ;
+
+ERR:
+
+	TCHAR_TO_WCHAR_T_STRING_END( ItemName )
+	TCHAR_TO_WCHAR_T_STRING_END( NewItemName )
+
+	return Result ;
+#endif
+}
+
+// メニューに項目を追加する
+extern int AddMenuItem_WCHAR_T( int AddType, const wchar_t *ItemName, int ItemID,
+						int SeparatorFlag, const wchar_t *NewItemName, int NewItemID )
+{
 	HMENU Menu = NULL ;
 	int AddIndex = 0 ;
-	MENUITEMINFO ItemInfo ;
+	MENUITEMINFOW ItemInfo ;
 	WINMENUITEMINFO *WItemInfo ;
 
 	if( WinData.AltF4_EndFlag != 0 ) return -1 ;
@@ -5778,12 +6238,12 @@ extern int NS_AddMenuItem( int AddType, const TCHAR *ItemName, int ItemID,
 
 		// 区切り線の情報をセットする
 		_MEMSET( &ItemInfo, 0, sizeof( ItemInfo ) ) ;
-		ItemInfo.cbSize = sizeof( MENUITEMINFO ) ;	// 構造体のサイズ
+		ItemInfo.cbSize = sizeof( MENUITEMINFOW ) ;	// 構造体のサイズ
 		ItemInfo.fMask = MIIM_TYPE ;				// 取得または設定するメンバ
 		ItemInfo.fType = MFT_SEPARATOR ; 			// アイテムのタイプ
 
 		// 区切り線項目の追加
-		if( InsertMenuItem( Menu, AddIndex, TRUE, &ItemInfo ) == 0 )
+		if( InsertMenuItemW( Menu, ( UINT )AddIndex, TRUE, &ItemInfo ) == 0 )
 		{
 			return -1 ;
 		}
@@ -5801,17 +6261,17 @@ extern int NS_AddMenuItem( int AddType, const TCHAR *ItemName, int ItemID,
 		{
 			// 新しい項目の情報をセットする
 			_MEMSET( &ItemInfo, 0, sizeof( ItemInfo ) ) ;
-			ItemInfo.cbSize = sizeof( MENUITEMINFO ) ;		// 構造体のサイズ
-			ItemInfo.fMask = MIIM_STATE | MIIM_TYPE | MIIM_ID ;	// 取得または設定するメンバ
-			ItemInfo.fType = MFT_STRING ;					// アイテムのタイプ
-			ItemInfo.fState = MFS_ENABLED ;					// アイテムの状態
-			ItemInfo.wID = NewItemID ;						// アイテムID
-			lstrcpy( WItemInfo->Name, NewItemName ) ;
-			ItemInfo.dwTypeData = WItemInfo->Name ;			// アイテムの内容セット
-			ItemInfo.cch = lstrlen( WItemInfo->Name ) ;		// アイテムの文字列の長さ
+			ItemInfo.cbSize     = sizeof( MENUITEMINFOW ) ;				// 構造体のサイズ
+			ItemInfo.fMask      = MIIM_STATE | MIIM_TYPE | MIIM_ID ;	// 取得または設定するメンバ
+			ItemInfo.fType      = MFT_STRING ;							// アイテムのタイプ
+			ItemInfo.fState     = MFS_ENABLED ;							// アイテムの状態
+			ItemInfo.wID        = ( UINT )NewItemID ;					// アイテムID
+			_WCSCPY( WItemInfo->Name, NewItemName ) ;
+			ItemInfo.dwTypeData = WItemInfo->Name ;						// アイテムの内容セット
+			ItemInfo.cch        = ( UINT )_WCSLEN( WItemInfo->Name ) ;		// アイテムの文字列の長さ
 
 			// 項目の追加
-			if( InsertMenuItem( Menu, AddIndex, TRUE, &ItemInfo ) == 0 )
+			if( InsertMenuItemW( Menu, ( UINT )AddIndex, TRUE, &ItemInfo ) == 0 )
 			{
 				return -1 ;
 			}
@@ -5828,9 +6288,9 @@ extern int NS_AddMenuItem( int AddType, const TCHAR *ItemName, int ItemID,
 	// メニューを再描画する
 	if( GetDisplayMenuState() == TRUE )
 	{
-		if( GRA2.ValidHardWare )
+		if( GSYS.Setting.ValidHardware )
 		{
-			SetD3DDialogBoxMode( TRUE )  ;
+			Graphics_Win_SetDialogBoxMode( TRUE )  ;
 		}
 
 		DrawMenuBar( WinData.MainWindow ) ;
@@ -5850,16 +6310,40 @@ extern int NS_AddMenuItem( int AddType, const TCHAR *ItemName, int ItemID,
 // メニューから項目を削除する
 extern int NS_DeleteMenuItem( const TCHAR *ItemName, int ItemID )
 {
+#ifdef UNICODE
+	return DeleteMenuItem_WCHAR_T( ItemName, ItemID ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( ItemName, return -1 )
+
+	Result = DeleteMenuItem_WCHAR_T( UseItemNameBuffer, ItemID ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( ItemName )
+
+	return Result ;
+#endif
+}
+
+// メニューから項目を削除する
+extern int DeleteMenuItem_WCHAR_T( const wchar_t *ItemName, int ItemID )
+{
 	HMENU Menu ;
 	int Index ;
 
-	if( WinData.MenuUseFlag == FALSE ) return -1 ;
+	if( WinData.MenuUseFlag == FALSE )
+	{
+		return -1 ;
+	}
 
 	// 指定の項目を探す
-	if( SearchMenuItem( ItemName, ItemID, WinData.Menu, &Menu, &Index ) != 1 ) return -1 ;
+	if( SearchMenuItem( ItemName, ItemID, WinData.Menu, &Menu, &Index ) != 1 )
+	{
+		return -1 ;
+	}
 
 	// 選択項目を削除する
-	DeleteMenu( Menu, Index, MF_BYPOSITION ) ;
+	DeleteMenu( Menu, ( UINT )Index, MF_BYPOSITION ) ;
 
 	// リストを再構築する
 	WinData.MenuItemInfoNum = 0 ;
@@ -5868,9 +6352,9 @@ extern int NS_DeleteMenuItem( const TCHAR *ItemName, int ItemID )
 	// メニューを再描画する
 	if( GetDisplayMenuState() == TRUE )
 	{
-		if( GRA2.ValidHardWare )
+		if( GSYS.Setting.ValidHardware )
 		{
-			SetD3DDialogBoxMode( TRUE )  ;
+			Graphics_Win_SetDialogBoxMode( TRUE )  ;
 		}
 
 		DrawMenuBar( WinData.MainWindow ) ;
@@ -5883,6 +6367,24 @@ extern int NS_DeleteMenuItem( const TCHAR *ItemName, int ItemID )
 // メニューが選択されたかどうかを取得する( 0:選択されていない  1:選択された )
 extern int NS_CheckMenuItemSelect( const TCHAR *ItemName, int ItemID )
 {
+#ifdef UNICODE
+	return CheckMenuItemSelect_WCHAR_T( ItemName, ItemID ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( ItemName, return -1 )
+
+	Result = CheckMenuItemSelect_WCHAR_T( UseItemNameBuffer, ItemID ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( ItemName )
+
+	return Result ;
+#endif
+}
+
+// メニューが選択されたかどうかを取得する( 0:選択されていない  1:選択された )
+extern int CheckMenuItemSelect_WCHAR_T( const wchar_t *ItemName, int ItemID )
+{
 	int i, InfoNum ;
 
 	if( WinData.MenuUseFlag == FALSE ) return -1 ;
@@ -5890,7 +6392,7 @@ extern int NS_CheckMenuItemSelect( const TCHAR *ItemName, int ItemID )
 	// 名前が指定されていた場合はＩＤを取得する
 	if( ItemName != NULL )
 	{
-		ItemID = NS_GetMenuItemID( ItemName ) ;
+		ItemID = GetMenuItemID_WCHAR_T( ItemName ) ;
 	}
 
 	// 指定のアイテムが存在するか調べる
@@ -5986,6 +6488,24 @@ extern int NS_ClearMenuItemSelect( void )
 // メニューの項目を選択出来るかどうかを設定する
 extern int NS_SetMenuItemEnable( const TCHAR *ItemName, int ItemID, int EnableFlag )
 {
+#ifdef UNICODE
+	return SetMenuItemEnable_WCHAR_T( ItemName, ItemID, EnableFlag ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( ItemName, return -1 )
+
+	Result = SetMenuItemEnable_WCHAR_T( UseItemNameBuffer, ItemID, EnableFlag ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( ItemName )
+
+	return Result ;
+#endif
+}
+
+// メニューの項目を選択出来るかどうかを設定する
+extern int SetMenuItemEnable_WCHAR_T( const wchar_t *ItemName, int ItemID, int EnableFlag )
+{
 	WINMENUITEMINFO *WinItemInfo ;
 	
 	if( WinData.MenuUseFlag == FALSE ) return -1 ;
@@ -5995,14 +6515,14 @@ extern int NS_SetMenuItemEnable( const TCHAR *ItemName, int ItemID, int EnableFl
 	if( WinItemInfo == NULL ) return -1 ;
 
 	// 選択出来るかどうかを設定する
-	EnableMenuItem( WinItemInfo->Menu, WinItemInfo->Index, MF_BYPOSITION | ( EnableFlag == TRUE ? MF_ENABLED : MF_GRAYED ) ) ;
+	EnableMenuItem( WinItemInfo->Menu, ( UINT )WinItemInfo->Index, ( UINT )( MF_BYPOSITION | ( EnableFlag == TRUE ? MF_ENABLED : MF_GRAYED ) ) ) ;
 
 	// 表示を更新する
 	if( GetDisplayMenuState() == TRUE )
 	{
-		if( GRA2.ValidHardWare )
+		if( GSYS.Setting.ValidHardware )
 		{
-			SetD3DDialogBoxMode( TRUE )  ;
+			Graphics_Win_SetDialogBoxMode( TRUE )  ;
 		}
 
 		DrawMenuBar( WinData.MainWindow ) ;
@@ -6015,7 +6535,25 @@ extern int NS_SetMenuItemEnable( const TCHAR *ItemName, int ItemID, int EnableFl
 // メニューの項目にチェックマークやラジオボタンを表示するかどうかを設定する
 extern int NS_SetMenuItemMark( const TCHAR *ItemName, int ItemID, int Mark )
 {
-	MENUITEMINFO ItemInfo ;
+#ifdef UNICODE
+	return SetMenuItemMark_WCHAR_T( ItemName, ItemID, Mark ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( ItemName, return -1 )
+
+	Result = SetMenuItemMark_WCHAR_T( UseItemNameBuffer, ItemID, Mark ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( ItemName )
+
+	return Result ;
+#endif
+}
+
+// メニューの項目にチェックマークやラジオボタンを表示するかどうかを設定する
+extern int SetMenuItemMark_WCHAR_T( const wchar_t *ItemName, int ItemID, int Mark )
+{
+	MENUITEMINFOW ItemInfo ;
 	WINMENUITEMINFO *WinItemInfo ;
 
 	if( WinData.MenuUseFlag == FALSE ) return -1 ;
@@ -6050,14 +6588,14 @@ extern int NS_SetMenuItemMark( const TCHAR *ItemName, int ItemID, int Mark )
 		ItemInfo.hbmpChecked = NULL ;
 		break ;
 	}
-	SetMenuItemInfo( WinItemInfo->Menu, WinItemInfo->Index, TRUE, &ItemInfo ) ;
+	SetMenuItemInfoW( WinItemInfo->Menu, ( UINT )WinItemInfo->Index, TRUE, &ItemInfo ) ;
 	
 	// 表示を更新する
 	if( GetDisplayMenuState() == TRUE )
 	{
-		if( GRA2.ValidHardWare )
+		if( GSYS.Setting.ValidHardware )
 		{
-			SetD3DDialogBoxMode( TRUE )  ;
+			Graphics_Win_SetDialogBoxMode( TRUE )  ;
 		}
 
 		DrawMenuBar( WinData.MainWindow ) ;
@@ -6088,6 +6626,21 @@ extern int NS_AddMenuItem_Name( const TCHAR *ParentItemName, const TCHAR *NewIte
 	}
 }
 
+// メニューに項目を追加する
+extern int AddMenuItem_Name_WCHAR_T( const wchar_t *ParentItemName, const wchar_t *NewItemName )
+{
+	if( ParentItemName == NULL )
+	{
+		return AddMenuItem_WCHAR_T( MENUITEM_ADD_CHILD, NULL, MENUITEM_IDTOP,
+								 FALSE, NewItemName, -1 ) ;
+	}
+	else
+	{
+		return AddMenuItem_WCHAR_T( MENUITEM_ADD_CHILD, ParentItemName, -1,
+								 FALSE, NewItemName, -1 ) ;
+	}
+}
+
 // 指定の項目と、指定の項目の一つ上の項目との間に新しい項目を追加する
 extern int NS_InsertMenuItem_Name( const TCHAR *ItemName, const TCHAR *NewItemName )
 {
@@ -6099,6 +6652,21 @@ extern int NS_InsertMenuItem_Name( const TCHAR *ItemName, const TCHAR *NewItemNa
 	else
 	{
 		return NS_AddMenuItem( MENUITEM_ADD_INSERT, ItemName, -1,
+								FALSE, NewItemName, -1 ) ;
+	}
+}
+
+// 指定の項目と、指定の項目の一つ上の項目との間に新しい項目を追加する
+extern int InsertMenuItem_Name_WCHAR_T( const wchar_t *ItemName, const wchar_t *NewItemName )
+{
+	if( ItemName == NULL )
+	{
+		return AddMenuItem_WCHAR_T( MENUITEM_ADD_INSERT, NULL, MENUITEM_IDTOP,
+								FALSE, NewItemName, -1 ) ;
+	}
+	else
+	{
+		return AddMenuItem_WCHAR_T( MENUITEM_ADD_INSERT, ItemName, -1,
 								FALSE, NewItemName, -1 ) ;
 	}
 }
@@ -6118,6 +6686,21 @@ extern int NS_AddMenuLine_Name( const TCHAR *ParentItemName )
 	}
 }
 
+// メニューのリストに区切り線を追加する
+extern int AddMenuLine_Name_WCHAR_T( const wchar_t *ParentItemName )
+{
+	if( ParentItemName == NULL )
+	{
+		return AddMenuItem_WCHAR_T( MENUITEM_ADD_CHILD, NULL, MENUITEM_IDTOP,
+								TRUE, NULL, -1 ) ;
+	}
+	else
+	{
+		return AddMenuItem_WCHAR_T( MENUITEM_ADD_CHILD, ParentItemName, -1,
+								TRUE, NULL, -1 ) ;
+	}
+}
+
 // 指定の項目と、指定の項目の一つ上の項目との間に区切り線を追加する
 extern int NS_InsertMenuLine_Name( const TCHAR *ItemName )
 {
@@ -6133,10 +6716,31 @@ extern int NS_InsertMenuLine_Name( const TCHAR *ItemName )
 	}
 }
 
+// 指定の項目と、指定の項目の一つ上の項目との間に区切り線を追加する
+extern int InsertMenuLine_Name_WCHAR_T( const wchar_t *ItemName )
+{
+	if( ItemName == NULL )
+	{
+		return AddMenuItem_WCHAR_T( MENUITEM_ADD_INSERT, NULL, MENUITEM_IDTOP,
+							TRUE, NULL, -1 ) ;
+	}
+	else
+	{
+		return AddMenuItem_WCHAR_T( MENUITEM_ADD_INSERT, ItemName, -1,
+								TRUE, NULL, -1 ) ;
+	}
+}
+
 // メニューから項目を削除する
 extern int NS_DeleteMenuItem_Name( const TCHAR *ItemName )
 {
 	return NS_DeleteMenuItem( ItemName, -1 ) ;
+}
+
+// メニューから項目を削除する
+extern int DeleteMenuItem_Name_WCHAR_T( const wchar_t *ItemName )
+{
+	return DeleteMenuItem_WCHAR_T( ItemName, -1 ) ;
 }
 
 // メニューが選択されたかどうかを取得する( 0:選択されていない  1:選択された )
@@ -6145,10 +6749,22 @@ extern int NS_CheckMenuItemSelect_Name( const TCHAR *ItemName )
 	return NS_CheckMenuItemSelect( ItemName, -1 ) ;
 }
 
+// メニューが選択されたかどうかを取得する( 0:選択されていない  1:選択された )
+extern int CheckMenuItemSelect_Name_WCHAR_T( const wchar_t *ItemName )
+{
+	return CheckMenuItemSelect_WCHAR_T( ItemName, -1 ) ;
+}
+
 // メニューの項目を選択出来るかどうかを設定する
 extern int NS_SetMenuItemEnable_Name( const TCHAR *ItemName, int EnableFlag )
 {
 	return NS_SetMenuItemEnable( ItemName, -1, EnableFlag ) ;
+}
+
+// メニューの項目を選択出来るかどうかを設定する
+extern int SetMenuItemEnable_Name_WCHAR_T( const wchar_t *ItemName, int EnableFlag )
+{
+	return SetMenuItemEnable_WCHAR_T( ItemName, -1, EnableFlag ) ;
 }
 
 // メニューの項目にチェックマークやラジオボタンを表示するかどうかを設定する
@@ -6157,11 +6773,24 @@ extern int NS_SetMenuItemMark_Name( const TCHAR *ItemName, int Mark )
 	return NS_SetMenuItemMark( ItemName, -1, Mark ) ;
 }
 
+// メニューの項目にチェックマークやラジオボタンを表示するかどうかを設定する
+extern int SetMenuItemMark_Name_WCHAR_T( const wchar_t *ItemName, int Mark )
+{
+	return SetMenuItemMark_WCHAR_T( ItemName, -1, Mark ) ;
+}
+
 
 // メニューに項目を追加する
 extern int NS_AddMenuItem_ID( int ParentItemID, const TCHAR *NewItemName, int NewItemID )
 {
 	return NS_AddMenuItem( MENUITEM_ADD_CHILD, NULL, ParentItemID,
+							FALSE, NewItemName, NewItemID ) ;
+}
+
+// メニューに項目を追加する
+extern int AddMenuItem_ID_WCHAR_T( int ParentItemID, const wchar_t *NewItemName, int NewItemID )
+{
+	return AddMenuItem_WCHAR_T( MENUITEM_ADD_CHILD, NULL, ParentItemID,
 							FALSE, NewItemName, NewItemID ) ;
 }
 
@@ -6214,6 +6843,24 @@ extern int NS_SetMenuItemMark_ID( int ItemID, int Mark )
 // メニューの項目名からＩＤを取得する
 extern int NS_GetMenuItemID( const TCHAR *ItemName )
 {
+#ifdef UNICODE
+	return GetMenuItemID_WCHAR_T( ItemName ) ;
+#else
+	int Result ;
+
+	TCHAR_TO_WCHAR_T_STRING_ONE_BEGIN( ItemName, return -1 )
+
+	Result = GetMenuItemID_WCHAR_T( UseItemNameBuffer ) ;
+
+	TCHAR_TO_WCHAR_T_STRING_END( ItemName )
+
+	return Result ;
+#endif
+}
+
+// メニューの項目名からＩＤを取得する
+extern int GetMenuItemID_WCHAR_T( const wchar_t *ItemName )
+{
 	WINMENUITEMINFO *WinItemInfo ;
 	int Result ;
 
@@ -6228,12 +6875,14 @@ extern int NS_GetMenuItemID( const TCHAR *ItemName )
 	return Result ;
 }
 
-
 // メニューのＩＤから項目名を取得する
 extern int NS_GetMenuItemName( int ItemID, TCHAR *NameBuffer )
 {
+#ifdef UNICODE
+	return GetMenuItemName_WCHAR_T( ItemID, NameBuffer ) ;
+#else
 	int Result ;
-	MENUITEMINFO ItemInfo ;
+	MENUITEMINFOW ItemInfo ;
 	WINMENUITEMINFO *WinItemInfo ;
 
 	if( WinData.MenuUseFlag == FALSE ) return -1 ;
@@ -6247,7 +6896,32 @@ extern int NS_GetMenuItemName( int ItemID, TCHAR *NameBuffer )
 	if( Result != 0 ) return -1 ;
 
 	// 項目名をコピー
-	lstrcpy( NameBuffer, ItemInfo.dwTypeData ) ;
+	ConvString( ( const char * )ItemInfo.dwTypeData, WCHAR_T_CODEPAGE, ( char * )NameBuffer, _TCODEPAGE ) ;
+
+	// 終了
+	return 0 ;
+#endif
+}
+
+// メニューのＩＤから項目名を取得する
+extern int GetMenuItemName_WCHAR_T( int ItemID, wchar_t *NameBuffer )
+{
+	int Result ;
+	MENUITEMINFOW ItemInfo ;
+	WINMENUITEMINFO *WinItemInfo ;
+
+	if( WinData.MenuUseFlag == FALSE ) return -1 ;
+	
+	// 親のＩＤを持つ選択項目の情報を取得		
+	WinItemInfo = SearchMenuItemInfo( NULL, ItemID ) ;
+	if( WinItemInfo == NULL ) return -1 ;
+
+	// 現在の情報を得る
+	Result = _GetMenuItemInfo( WinItemInfo->Menu, WinItemInfo->Index, &ItemInfo ) ;
+	if( Result != 0 ) return -1 ;
+
+	// 項目名をコピー
+	_WCSCPY( NameBuffer, ItemInfo.dwTypeData ) ;
 
 	// 終了
 	return 0 ;
@@ -6259,7 +6933,10 @@ extern int NS_LoadMenuResource( int MenuResourceID )
 	HMENU Menu ;
 
 	// 指定のリソースを読み込む
-	Menu = LoadMenu( WinData.LoadResourModule == NULL ? GetModuleHandle( NULL ) : WinData.LoadResourModule, MAKEINTRESOURCE( MenuResourceID ) ) ;
+	Menu = LoadMenuW( 
+		WinData.LoadResourModule == NULL ? WinAPIData.Win32Func.GetModuleHandleWFunc( NULL ) : WinData.LoadResourModule,
+		MAKEINTRESOURCEW( MenuResourceID )
+	) ;
 	if( Menu == NULL ) return -1 ;
 	
 	// メニューを有効にする
@@ -6301,12 +6978,12 @@ extern int NS_SetMenuItemSelectCallBackFunction( void (*CallBackFunction)( const
 }
 
 // メニュー構造の中から、選択項目のＩＤを元に位置情報を得る( -1:エラー  0:見つからなかった  1:見つかった )
-static int SearchMenuItem( const TCHAR *ItemName, int ItemID, HMENU SearchMenu, HMENU *Menu, int *Index )
+static int SearchMenuItem( const wchar_t *ItemName, int ItemID, HMENU SearchMenu, HMENU *Menu, int *Index )
 {
 	int ItemNum, i ;
 	int Result ;
 	HMENU SubMenu ;
-	MENUITEMINFO ItemInfo ;
+	MENUITEMINFOW ItemInfo ;
 
 	// メニューが有効ではなかったら何もしない
 	if( WinData.MenuUseFlag == FALSE ) return -1 ;
@@ -6327,7 +7004,7 @@ static int SearchMenuItem( const TCHAR *ItemName, int ItemID, HMENU SearchMenu, 
 		// 目的の項目だったらここで終了
 		if( ItemName )
 		{
-			if( lstrcmp( ItemInfo.dwTypeData, ItemName ) == 0 ) break ;
+			if( _WCSCMP( ItemInfo.dwTypeData, ItemName ) == 0 ) break ;
 		}
 		else
 		{
@@ -6388,7 +7065,7 @@ extern int NS_SetWindowMenu( int MenuID, int (*MenuProc)( WORD ID ) )
 	else
 	{
 		// メニューをロード
-		WinData.Menu = LoadMenu( GetModuleHandle( NULL ), MAKEINTRESOURCE( MenuID ) ) ;
+		WinData.Menu = LoadMenuW( WinAPIData.Win32Func.GetModuleHandleWFunc( NULL ), MAKEINTRESOURCEW( MenuID ) ) ;
 		if( WinData.Menu == NULL ) return -1 ;
 
 		// メニューを有効にする
@@ -6497,37 +7174,37 @@ static int GetDisplayMenuState( void )
 }
 
 // メニューアイテムの情報を取得する( 0:正常終了  -1:エラー  1:区切り線 )
-static int _GetMenuItemInfo( HMENU Menu, int Index, MENUITEMINFO *Buffer )
+static int _GetMenuItemInfo( HMENU Menu, int Index, MENUITEMINFOW *Buffer )
 {
-	static TCHAR NameBuffer[128] ;
+	static wchar_t NameBuffer[128] ;
 
 	// 区切り線かどうか調べる
-	_MEMSET( Buffer, 0, sizeof( MENUITEMINFO ) ) ;
-	Buffer->cbSize = sizeof( MENUITEMINFO ) ;
+	_MEMSET( Buffer, 0, sizeof( MENUITEMINFOW ) ) ;
+	Buffer->cbSize = sizeof( MENUITEMINFOW ) ;
 	Buffer->fMask = MIIM_TYPE ;
-	if( GetMenuItemInfo( Menu, Index, TRUE, Buffer ) == 0 ) return -1 ;
+	if( GetMenuItemInfoW( Menu, ( UINT )Index, TRUE, Buffer ) == 0 ) return -1 ;
 
 	// 区切り線だったら１を返す
 	if( Buffer->fType & MFT_SEPARATOR ) return 1 ;
 
 	// 区切り線ではなかったらそれ以外のステータスを取得する
-	_MEMSET( Buffer, 0, sizeof( MENUITEMINFO ) ) ;
-	Buffer->cbSize = sizeof( MENUITEMINFO ) ;
+	_MEMSET( Buffer, 0, sizeof( MENUITEMINFOW ) ) ;
+	Buffer->cbSize = sizeof( MENUITEMINFOW ) ;
 	Buffer->fMask = MIIM_STATE | MIIM_ID | MIIM_SUBMENU | MIIM_TYPE ;
 	Buffer->fType = MFT_STRING ;
 	Buffer->dwTypeData = NameBuffer ;
 	Buffer->cch = 128 ;
-	if( GetMenuItemInfo( Menu, Index, TRUE, Buffer ) == 0 ) return -1 ;
+	if( GetMenuItemInfoW( Menu, ( UINT )Index, TRUE, Buffer ) == 0 ) return -1 ;
 	
 	return 0 ;
 }
 
 
 // 指定の選択項目にサブメニューを付けられるように準備をする
-static HMENU MenuItemSubMenuSetup( const TCHAR *ItemName, int ItemID )
+static HMENU MenuItemSubMenuSetup( const wchar_t *ItemName, int ItemID )
 {
 	HMENU SubMenu ;
-	MENUITEMINFO ItemInfo ;
+	MENUITEMINFOW ItemInfo ;
 	WINMENUITEMINFO *WinItemInfo ;
 	
 	// 指定の項目の情報を得る
@@ -6554,7 +7231,7 @@ static HMENU MenuItemSubMenuSetup( const TCHAR *ItemName, int ItemID )
 		ItemInfo.hSubMenu = SubMenu ;
 
 		// 新しい情報をセット
-		SetMenuItemInfo( WinItemInfo->Menu, WinItemInfo->Index, TRUE, &ItemInfo ) ;
+		SetMenuItemInfoW( WinItemInfo->Menu, ( UINT )WinItemInfo->Index, TRUE, &ItemInfo ) ;
 	}
 
 	// 作成したサブメニューを返す
@@ -6580,7 +7257,7 @@ extern int NS_SetAutoMenuDisplayFlag( int Flag )
 static int ListupMenuItemInfo( HMENU Menu )
 {
 	int i, Num, Result ;
-	MENUITEMINFO ItemInfo ;
+	MENUITEMINFOW ItemInfo ;
 	WINMENUITEMINFO *WinItemInfo ;
 	
 	// 全ての項目のＩＤをリストに追加する
@@ -6599,10 +7276,10 @@ static int ListupMenuItemInfo( HMENU Menu )
 		if( Result != 1 )
 		{
 			WinItemInfo = &WinData.MenuItemInfo[ WinData.MenuItemInfoNum ] ;
-			WinItemInfo->Menu = Menu ;
-			WinItemInfo->Index = (unsigned short)i ;
-			WinItemInfo->ID = (unsigned short)ItemInfo.wID ;
-			lstrcpy( WinItemInfo->Name, ItemInfo.dwTypeData ) ;
+			WinItemInfo->Menu  = Menu ;
+			WinItemInfo->Index = ( short )i ;
+			WinItemInfo->ID    = ( unsigned short )ItemInfo.wID ;
+			_WCSCPY( WinItemInfo->Name, ItemInfo.dwTypeData ) ;
 
 			WinData.MenuItemInfoNum ++ ;
 
@@ -6617,7 +7294,7 @@ static int ListupMenuItemInfo( HMENU Menu )
 }
 
 // メニューの選択項目の情報を追加する
-static int AddMenuItemInfo( HMENU Menu, int Index, int ID, const TCHAR *Name )
+static int AddMenuItemInfo( HMENU Menu, int Index, int ID, const wchar_t *Name )
 {
 	WINMENUITEMINFO *ItemInfo ;
 
@@ -6626,10 +7303,10 @@ static int AddMenuItemInfo( HMENU Menu, int Index, int ID, const TCHAR *Name )
 
 	// 情報の追加
 	ItemInfo = &WinData.MenuItemInfo[WinData.MenuItemInfoNum] ;
-	ItemInfo->Menu = Menu ;
-	ItemInfo->Index = (unsigned short)Index ;
-	ItemInfo->ID = (unsigned short)ID ;
-	lstrcpy( ItemInfo->Name, Name ) ;
+	ItemInfo->Menu  = Menu ;
+	ItemInfo->Index = ( short )Index ;
+	ItemInfo->ID    = ( unsigned short )ID ;
+	_WCSCPY( ItemInfo->Name, Name ) ;
 
 	// 数を増やす
 	WinData.MenuItemInfoNum ++ ;
@@ -6639,7 +7316,7 @@ static int AddMenuItemInfo( HMENU Menu, int Index, int ID, const TCHAR *Name )
 }
 
 // メニューの選択項目の情報を削除する
-static int DeleteMenuItemInfo( const TCHAR *Name, int ID )
+static int DeleteMenuItemInfo( const wchar_t *Name, int ID )
 {
 	LONG_PTR Index ;
 	WINMENUITEMINFO *WinItemInfo ;
@@ -6667,7 +7344,7 @@ static int DeleteMenuItemInfo( const TCHAR *Name, int ID )
 }
 
 // メニューの選択項目の情報を取得する
-static WINMENUITEMINFO *SearchMenuItemInfo( const TCHAR *Name, int ID )
+static WINMENUITEMINFO *SearchMenuItemInfo( const wchar_t *Name, int ID )
 {
 	int i, ItemInfoNum ;
 	WINMENUITEMINFO *WinItemInfo ;
@@ -6680,7 +7357,7 @@ static WINMENUITEMINFO *SearchMenuItemInfo( const TCHAR *Name, int ID )
 	{
 		for( i = 0 ; i < ItemInfoNum ; i ++, WinItemInfo ++ )
 		{
-			if( lstrcmp( Name, WinItemInfo->Name ) == 0 ) break ;
+			if( _WCSCMP( Name, WinItemInfo->Name ) == 0 ) break ;
 		}
 	}
 	else
@@ -6742,7 +7419,7 @@ extern int MenuAutoDisplayProcess( void )
 	NS_GetMousePoint( &MouseX, &MouseY ) ;
 
 	// Direct3D9 を使用している場合はメニュー位置より下に来たらマウスポインタの表示状態を更新する
-	if( GRA2.ValidHardWare )
+	if( GSYS.Setting.ValidHardware )
 	{
 		// Direct3D9 を使用している場合はメニューが存在する場合は
 		// フルスクリーンモードでも常にセットしておく
@@ -6817,7 +7494,7 @@ extern int NS_SetMouseDispFlag( int DispFlag )
 	if( DispFlag != -1 && DispState == WinData.MouseDispState ) return 0 ;
 
 	// マウスの表示状態をセット
-	if( 1/*!WinData.WindowModeFlag && !WinData.MouseDispFlag*/ )
+//	if( 1/*!WinData.WindowModeFlag && !WinData.MouseDispFlag*/ )
 	{
 		if( DispState == FALSE )
 		{
@@ -6830,7 +7507,7 @@ extern int NS_SetMouseDispFlag( int DispFlag )
 	}
 
 	// マウスのセット信号を出す
-	PostMessage( WinData.MainWindow, WM_SETCURSOR, ( WPARAM )WinData.MainWindow, 0 ) ;
+	PostMessageW( WinData.MainWindow, WM_SETCURSOR, ( WPARAM )WinData.MainWindow, 0 ) ;
 
 	// マウスの表示状態を保存する
 	WinData.MouseDispState = DispState ;
@@ -6843,6 +7520,10 @@ extern int NS_SetMouseDispFlag( int DispFlag )
 extern int NS_GetMousePoint( int *XBuf, int *YBuf )
 {
 	POINT MousePos ;
+	double ExRateX ;
+	double ExRateY ;
+	int SubBackBufferX ;
+	int SubBackBufferY ;
 
 	// スクリーン上での位置を取得
 	GetCursorPos( &MousePos ) ; 
@@ -6854,13 +7535,47 @@ extern int NS_GetMousePoint( int *XBuf, int *YBuf )
 		MousePos.y -= WinData.WindowRect.top + GetToolBarHeight() ;
 
 		// 画面が拡大されている場合はその影響を考慮する
-		MousePos.x = _DTOL( MousePos.x / WinData.WindowSizeExRateX ) ;
-		MousePos.y = _DTOL( MousePos.y / WinData.WindowSizeExRateY ) ;
-	}
+		NS_GetWindowSizeExtendRate( &ExRateX, &ExRateY ) ;
+		MousePos.x = _DTOL( MousePos.x / ExRateX ) ;
+		MousePos.y = _DTOL( MousePos.y / ExRateY ) ;
 
-	// バッファに書き込む
-	if( XBuf ) *XBuf = MousePos.x ;
-	if( YBuf ) *YBuf = MousePos.y ;
+		if( XBuf )
+		{
+			*XBuf = MousePos.x ;
+		}
+
+		if( YBuf )
+		{
+			*YBuf = MousePos.y ;
+		}
+	}
+	else
+	{
+		if( Graphics_Screen_ScreenPosConvSubBackbufferPos( MousePos.x, MousePos.y, &SubBackBufferX, &SubBackBufferY ) < 0 )
+		{
+			if( XBuf )
+			{
+				*XBuf = MousePos.x ;
+			}
+
+			if( YBuf )
+			{
+				*YBuf = MousePos.y ;
+			}
+		}
+		else
+		{
+			if( XBuf )
+			{
+				*XBuf = SubBackBufferX ;
+			}
+
+			if( YBuf )
+			{
+				*YBuf = SubBackBufferY ;
+			}
+		}
+	}
 
 	// 終了
 	return 0 ;
@@ -6869,19 +7584,20 @@ extern int NS_GetMousePoint( int *XBuf, int *YBuf )
 // マウスの位置をセットする
 extern int NS_SetMousePoint( int PointX , int PointY )
 {
-	int ScreenSizeX , ScreenSizeY ;
-
-	// 位置を補正する
+	// ウインドウモードかどうかで処理を分岐
+	if( WinData.WindowModeFlag )
 	{
-		// 画面外にカーソルが出ていた場合の補正
+		int ScreenSizeX , ScreenSizeY ;
+
 		NS_GetDrawScreenSize( &ScreenSizeX , &ScreenSizeY ) ;
 
-		// その前にウインドウのスケーリングに応じて座標を補正
+		// ウインドウのスケーリングに応じて座標を補正
 		PointX = _DTOL( PointX * WinData.WindowSizeExRateX ) ;
 		PointY = _DTOL( PointY * WinData.WindowSizeExRateY ) ;
 		ScreenSizeX = _DTOL( ScreenSizeX * WinData.WindowSizeExRateX ) ;
 		ScreenSizeY = _DTOL( ScreenSizeY * WinData.WindowSizeExRateY ) ;
 
+		// 画面外にカーソルが出ていた場合の補正
 		if( PointX < 0 ) 			PointX = 0 ;
 		else
 		if( PointX > ScreenSizeX )	PointX = ScreenSizeX ;
@@ -6895,6 +7611,17 @@ extern int NS_SetMousePoint( int PointX , int PointY )
 		{
 			PointX += WinData.WindowRect.left ;
 			PointY += WinData.WindowRect.top ;
+		}
+	}
+	else
+	{
+		int ScreenPosX ;
+		int ScreenPosY ;
+
+		if( Graphics_Screen_SubBackbufferPosConvScreenPos( PointX, PointY, &ScreenPosX, &ScreenPosY ) >= 0 )
+		{
+			PointX = ScreenPosX ;
+			PointY = ScreenPosY ;
 		}
 	}
 
@@ -7157,12 +7884,12 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 	wsize.cy = h ;
 
 	// Direct3DDC が有効かどうかで処理を分岐
-	trans = ( ( GBASE.TransColor & 0xff0000 ) >> 16 ) | 
-			( ( GBASE.TransColor & 0x0000ff ) << 16 ) |
-			  ( GBASE.TransColor & 0x00ff00 ) ;
+	trans = ( ( GSYS.CreateImage.TransColor & 0xff0000 ) >> 16 ) | 
+			( ( GSYS.CreateImage.TransColor & 0x0000ff ) << 16 ) |
+			  ( GSYS.CreateImage.TransColor & 0x00ff00 ) ;
 	if( Direct3DDC )
 	{
-		WinData.UpdateLayeredWindow( GetDisplayWindowHandle(), ddc, &wpos, &wsize, Direct3DDC, &pos, trans, &blend, ULW_COLORKEY ) ;
+		WinAPIData.Win32Func.UpdateLayeredWindow( GetDisplayWindowHandle(), ddc, &wpos, &wsize, Direct3DDC, &pos, trans, &blend, ULW_COLORKEY ) ;
 	}
 	else
 	{
@@ -7207,7 +7934,7 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 			WinData.BackBufferTransBitmap = CreateDIBSection( dc, &BHead, DIB_RGB_COLORS, &WinData.BackBufferTransBitmapImage, NULL, 0 ) ;
 			ReleaseDC( GetDisplayWindowHandle(), dc ) ;
 			NS_CreateARGB8ColorData( &WinData.BackBufferTransBitmapColorData ) ;
-			_MEMSET( WinData.BackBufferTransBitmapImage, 0, -BHead.bmiHeader.biHeight * SrcImage->Width * 4 ) ;
+			_MEMSET( WinData.BackBufferTransBitmapImage, 0, ( size_t )( -BHead.bmiHeader.biHeight * SrcImage->Width * 4 ) ) ;
 
 			WinData.BackBufferTransBitmapSize.cx = SrcImage->Width ;
 			WinData.BackBufferTransBitmapSize.cy = SrcImage->Height ;
@@ -7234,7 +7961,7 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 				DWORD i, j, Size, PackNum, NokoriNum ;
 				DWORD TransColor, SrcAddPitch ;
 
-				PackNum = SrcImage->Width / 4 ;
+				PackNum   = ( DWORD )( SrcImage->Width / 4 ) ;
 				NokoriNum = SrcImage->Width - PackNum * 4 ;
 
 				if( SrcImage->ColorData.AlphaMask == 0x00000000 &&
@@ -7242,11 +7969,11 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 					SrcImage->ColorData.GreenMask == 0x0000ff00 &&
 					SrcImage->ColorData.BlueMask  == 0x000000ff )
 				{
-					SrcAddPitch = SrcImage->Pitch - SrcImage->Width * 4 ;
-					TransColor = GBASE.TransColor & 0x00ffffff ;
-					for( i = SrcImage->Height ; i ; i --, Src += SrcAddPitch )
+					SrcAddPitch = ( DWORD )( SrcImage->Pitch - SrcImage->Width * 4 ) ;
+					TransColor  = GSYS.CreateImage.TransColor & 0x00ffffff ;
+					for( i = ( DWORD )SrcImage->Height ; i ; i --, Src += SrcAddPitch )
 					{
-						for( j = SrcImage->Width ; j ; j --, Src += 4, Dst += 4 )
+						for( j = ( DWORD )SrcImage->Width ; j ; j --, Src += 4, Dst += 4 )
 						{
 							if( ( *( ( DWORD * )Src ) & 0x00ffffff ) == TransColor )
 							{
@@ -7265,11 +7992,11 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 					SrcImage->ColorData.GreenMask == 0x000007e0 &&
 					SrcImage->ColorData.BlueMask  == 0x0000001f )
 				{
-					SrcAddPitch = SrcImage->Pitch - SrcImage->Width * 2 ;
-					TransColor =	( ( ( GBASE.TransColor & 0x00ff0000 ) >> ( 16 + 3 ) ) << 11 ) |
-									( ( ( GBASE.TransColor & 0x0000ff00 ) >> (  8 + 2 ) ) <<  5 ) |
-									( ( ( GBASE.TransColor & 0x000000ff ) >> (  0 + 3 ) ) <<  0 ) ;
-					for( i = SrcImage->Height ; i ; i --, Src += SrcAddPitch )
+					SrcAddPitch = ( DWORD )( SrcImage->Pitch - SrcImage->Width * 2 ) ;
+					TransColor  =	( ( ( GSYS.CreateImage.TransColor & 0x00ff0000 ) >> ( 16 + 3 ) ) << 11 ) |
+									( ( ( GSYS.CreateImage.TransColor & 0x0000ff00 ) >> (  8 + 2 ) ) <<  5 ) |
+									( ( ( GSYS.CreateImage.TransColor & 0x000000ff ) >> (  0 + 3 ) ) <<  0 ) ;
+					for( i = ( DWORD )SrcImage->Height ; i ; i --, Src += SrcAddPitch )
 					{
 						for( j = PackNum ; j ; j --, Src += 2 * 4, Dst += 4 * 4 )
 						{
@@ -7346,8 +8073,8 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 						NULL, 0, NULL,
 						pos, &SrcRect, FALSE, FALSE, 0, 0, 0, 0, 0, 0 ) ;
 
-					Size = WinData.BackBufferTransBitmapSize.cx * WinData.BackBufferTransBitmapSize.cy ;
-					TransColor = GBASE.TransColor & 0x00ffffff ;
+					Size       = ( DWORD )( WinData.BackBufferTransBitmapSize.cx * WinData.BackBufferTransBitmapSize.cy ) ;
+					TransColor = GSYS.CreateImage.TransColor & 0x00ffffff ;
 					for( i = Size ; i ; i --, Dst += 4 )
 					{
 						if( ( *( ( DWORD * )Dst ) & 0x00ffffff ) == TransColor )
@@ -7367,7 +8094,7 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 
 				if( Systembar )
 				{
-					_MEMSETD( WinData.BackBufferTransBitmapImage, GBASE.TransColor & 0x00ffffff, WinData.SystembarHeight * SrcImage->Width ) ;
+					_MEMSETD( WinData.BackBufferTransBitmapImage, GSYS.CreateImage.TransColor & 0x00ffffff, WinData.SystembarHeight * SrcImage->Width ) ;
 				}
 				NS_CreateXRGB8ColorData( &XRGB8ColorData ) ;
 				NS_GraphColorMatchBltVer2(
@@ -7390,15 +8117,15 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 				SrcImage->ColorData.GreenMask == 0x0000ff00 &&
 				SrcImage->ColorData.BlueMask  == 0x000000ff )
 			{
-				SrcAddPitch = SrcImage->Pitch - SrcImage->Width * 4 ;
-				TransColor = GBASE.TransColor & 0x00ffffff ;
+				SrcAddPitch = ( DWORD )( SrcImage->Pitch - SrcImage->Width * 4 ) ;
+				TransColor  = GSYS.CreateImage.TransColor & 0x00ffffff ;
 				if( PreMultipliedAlphaImage )
 				{
 					if( UseTransColor )
 					{
-						for( i = SrcImage->Height ; i ; i --, Src += SrcAddPitch )
+						for( i = ( DWORD )SrcImage->Height ; i ; i --, Src += SrcAddPitch )
 						{
-							for( j = SrcImage->Width ; j ; j --, Src += 4, Dst += 4 )
+							for( j = ( DWORD )SrcImage->Width ; j ; j --, Src += 4, Dst += 4 )
 							{
 								if( ( *( ( DWORD * )Src ) & 0x00ffffff ) == TransColor )
 								{
@@ -7413,9 +8140,9 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 					}
 					else
 					{
-						for( i = SrcImage->Height ; i ; i --, Src += SrcAddPitch )
+						for( i = ( DWORD )SrcImage->Height ; i ; i --, Src += SrcAddPitch )
 						{
-							for( j = SrcImage->Width ; j ; j --, Src += 4, Dst += 4 )
+							for( j = ( DWORD )SrcImage->Width ; j ; j --, Src += 4, Dst += 4 )
 							{
 								*( ( DWORD * )Dst ) = *( ( DWORD * )Src ) ;
 							}
@@ -7426,9 +8153,9 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 				{
 					if( UseTransColor )
 					{
-						for( i = SrcImage->Height ; i ; i --, Src += SrcAddPitch )
+						for( i = ( DWORD )SrcImage->Height ; i ; i --, Src += SrcAddPitch )
 						{
-							for( j = SrcImage->Width ; j ; j --, Src += 4, Dst += 4 )
+							for( j = ( DWORD )SrcImage->Width ; j ; j --, Src += 4, Dst += 4 )
 							{
 								if( ( *( ( DWORD * )Src ) & 0x00ffffff ) == TransColor || Src[ 3 ] == 0 )
 								{
@@ -7441,9 +8168,9 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 								}
 								else
 								{
-									Dst[ 0 ] = ( Src[ 0 ] * Src[ 3 ] ) >> 8 ;
-									Dst[ 1 ] = ( Src[ 1 ] * Src[ 3 ] ) >> 8 ;
-									Dst[ 2 ] = ( Src[ 2 ] * Src[ 3 ] ) >> 8 ;
+									Dst[ 0 ] = ( BYTE )( ( Src[ 0 ] * Src[ 3 ] ) >> 8 ) ;
+									Dst[ 1 ] = ( BYTE )( ( Src[ 1 ] * Src[ 3 ] ) >> 8 ) ;
+									Dst[ 2 ] = ( BYTE )( ( Src[ 2 ] * Src[ 3 ] ) >> 8 ) ;
 									Dst[ 3 ] = Src[ 3 ] ;
 								}
 							}
@@ -7451,9 +8178,9 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 					}
 					else
 					{
-						for( i = SrcImage->Height ; i ; i --, Src += SrcAddPitch )
+						for( i = ( DWORD )SrcImage->Height ; i ; i --, Src += SrcAddPitch )
 						{
-							for( j = SrcImage->Width ; j ; j --, Src += 4, Dst += 4 )
+							for( j = ( DWORD )SrcImage->Width ; j ; j --, Src += 4, Dst += 4 )
 							{
 								if( Src[ 3 ] == 0 )
 								{
@@ -7466,9 +8193,9 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 								}
 								else
 								{
-									Dst[ 0 ] = ( Src[ 0 ] * Src[ 3 ] ) >> 8 ;
-									Dst[ 1 ] = ( Src[ 1 ] * Src[ 3 ] ) >> 8 ;
-									Dst[ 2 ] = ( Src[ 2 ] * Src[ 3 ] ) >> 8 ;
+									Dst[ 0 ] = ( BYTE )( ( Src[ 0 ] * Src[ 3 ] ) >> 8 ) ;
+									Dst[ 1 ] = ( BYTE )( ( Src[ 1 ] * Src[ 3 ] ) >> 8 ) ;
+									Dst[ 2 ] = ( BYTE )( ( Src[ 2 ] * Src[ 3 ] ) >> 8 ) ;
 									Dst[ 3 ] = Src[ 3 ] ;
 								}
 							}
@@ -7482,9 +8209,9 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 					Dst, SrcImage->Width * 4, &WinData.BackBufferTransBitmapColorData,
 					Src, SrcImage->Pitch, &SrcImage->ColorData,
 					NULL, 0, NULL,
-					pos, &SrcRect, FALSE, UseTransColor, GBASE.TransColor, 0, 0, 0, 0, 0 ) ;
+					pos, &SrcRect, FALSE, UseTransColor, GSYS.CreateImage.TransColor, 0, 0, 0, 0, 0 ) ;
 
-				Size = WinData.BackBufferTransBitmapSize.cx * WinData.BackBufferTransBitmapSize.cy ;
+				Size = ( DWORD )( WinData.BackBufferTransBitmapSize.cx * WinData.BackBufferTransBitmapSize.cy ) ;
 				if( PreMultipliedAlphaImage == FALSE )
 				{
 					for( i = Size ; i ; i --, Dst += 4 )
@@ -7496,9 +8223,9 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 						else
 						if( Dst[ 3 ] != 255 ) 
 						{
-							Dst[ 0 ] = ( Dst[ 0 ] * Dst[ 3 ] ) >> 8 ;
-							Dst[ 1 ] = ( Dst[ 1 ] * Dst[ 3 ] ) >> 8 ;
-							Dst[ 2 ] = ( Dst[ 2 ] * Dst[ 3 ] ) >> 8 ;
+							Dst[ 0 ] = ( BYTE )( ( Dst[ 0 ] * Dst[ 3 ] ) >> 8 ) ;
+							Dst[ 1 ] = ( BYTE )( ( Dst[ 1 ] * Dst[ 3 ] ) >> 8 ) ;
+							Dst[ 2 ] = ( BYTE )( ( Dst[ 2 ] * Dst[ 3 ] ) >> 8 ) ;
 						}
 					}
 				}
@@ -7516,7 +8243,7 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 		}
 		if( NotColorKey == FALSE && WinData.WindowsVersion < DX_WINDOWSVERSION_VISTA )
 		{
-			WinData.UpdateLayeredWindow( GetDisplayWindowHandle(), ddc, &wpos, &wsize, memdc, &pos, trans, NULL, ULW_COLORKEY ) ;
+			WinAPIData.Win32Func.UpdateLayeredWindow( GetDisplayWindowHandle(), ddc, &wpos, &wsize, memdc, &pos, trans, NULL, ULW_COLORKEY ) ;
 		}
 		else
 		{
@@ -7524,7 +8251,7 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 			blend.BlendFlags = 0 ;
 			blend.SourceConstantAlpha = 255 ;
 			blend.AlphaFormat = AC_SRC_ALPHA ;
-			WinData.UpdateLayeredWindow( GetDisplayWindowHandle(), ddc, &wpos, &wsize, memdc, &pos, 0, &blend, ULW_ALPHA ) ;
+			WinAPIData.Win32Func.UpdateLayeredWindow( GetDisplayWindowHandle(), ddc, &wpos, &wsize, memdc, &pos, 0, &blend, ULW_ALPHA ) ;
 		}
 
 		SelectObject( memdc, old ) ;
@@ -7571,17 +8298,20 @@ extern int UpdateBackBufferTransColorWindow( const BASEIMAGE *SrcImage, const RE
 // ＯＳやＤｉｒｅｃｔＸのバージョンを出力する
 extern int OutSystemInfo( void )
 {
-	TCHAR Str[256] ;
+	wchar_t Str[ 256 ] ;
 
-	DXST_ERRORLOG_ADD( _T( "システムの情報を出力します\n" ) ) ;
+	DXST_ERRORLOG_ADDUTF16LE( "\xb7\x30\xb9\x30\xc6\x30\xe0\x30\x6e\x30\xc5\x60\x31\x58\x92\x30\xfa\x51\x9b\x52\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"システムの情報を出力します\n" @*/ ) ;
 	DXST_ERRORLOG_TABADD ;
 
 #ifndef DX_NON_LITERAL_STRING
 	// ＤＸライブラリのバージョンを出力する
 	{
-		_TSPRINTF( _DXWTP( Str ), _DXWTR( "ＤＸライブラリ Ver%s\n" ), DXLIB_VERSION_STR ) ;
+		char UTF16LE_Buffer[ 128 ] ;
+		char DestBuffer[ 128 ] ;
+		ConvString( ( const char * )DXLIB_VERSION_STR, WCHAR_T_CODEPAGE, UTF16LE_Buffer, DX_CODEPAGE_UTF16LE ) ;
+		CL_sprintf( DX_CODEPAGE_UTF16LE, TRUE, DX_CODEPAGE_SHIFTJIS, DX_CODEPAGE_UTF16LE, DestBuffer, "\x24\xff\x38\xff\xe9\x30\xa4\x30\xd6\x30\xe9\x30\xea\x30\x20\x00\x56\x00\x65\x00\x72\x00\x25\x00\x73\x00\x0a\x00\x00"/*@ L"ＤＸライブラリ Ver%s\n" @*/, UTF16LE_Buffer ) ;
 
-		DXST_ERRORLOG_ADD( Str ) ;
+		DXST_ERRORLOG_ADDUTF16LE( DestBuffer ) ;
 	}
 #endif
 
@@ -7590,29 +8320,29 @@ extern int OutSystemInfo( void )
 		SYSTEM_INFO SystemInfo ;
 
 		GetSystemInfo( &SystemInfo ) ;
-		WinData.ProcessorNum = SystemInfo.dwNumberOfProcessors ;
+		WinData.ProcessorNum = ( int )SystemInfo.dwNumberOfProcessors ;
 
-		DXST_ERRORLOGFMT_ADD(( _T( "論理プロセッサの数 : %d" ), WinData.ProcessorNum )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd6\x8a\x06\x74\xd7\x30\xed\x30\xbb\x30\xc3\x30\xb5\x30\x6e\x30\x70\x65\x20\x00\x3a\x00\x20\x00\x25\x00\x64\x00\x00"/*@ L"論理プロセッサの数 : %d" @*/, WinData.ProcessorNum )) ;
 	}
 
 	// ＯＳのバージョンを出力する
 	{
-		OSVERSIONINFO OsVersionInfo ;
+		OSVERSIONINFOW OsVersionInfo ;
 
-		DXST_ERRORLOG_ADD( _T( "ＯＳ  " ) ) ;
-		lstrcpy( Str, _T( "Windows" ) ) ;
+		DXST_ERRORLOG_ADDUTF16LE( "\x2f\xff\x33\xff\x20\x00\x20\x00\x00"/*@ L"ＯＳ  " @*/ ) ;
+		_WCSCPY( Str, L"Windows" ) ;
 
 		_MEMSET( &OsVersionInfo, 0, sizeof( OsVersionInfo ) ) ;
 		OsVersionInfo.dwOSVersionInfoSize = sizeof( OsVersionInfo ) ;
 
-		GetVersionEx( &OsVersionInfo ) ;
+		GetVersionExW( &OsVersionInfo ) ;
 
 		// プラットフォームによって処理を分ける
 		switch( OsVersionInfo.dwPlatformId )
 		{
 		// Windows3.1系(まずここにくることはないと思うが…)
 		case VER_PLATFORM_WIN32s :
-			lstrcat( Str, _T( "3.1" ) ) ;
+			_WCSCAT( Str, L"3.1" ) ;
 			WinData.WindowsVersion = DX_WINDOWSVERSION_31 ;
 			break ;
 
@@ -7623,25 +8353,25 @@ extern int OutSystemInfo( void )
 			switch( OsVersionInfo.dwMinorVersion )
 			{
 			case 0 :	// Windows95 
-				lstrcat( Str, _T( "95" ) ) ;
+				_WCSCAT( Str, L"95" ) ;
 				WinData.WindowsVersion = DX_WINDOWSVERSION_95 ;
-				if( OsVersionInfo.szCSDVersion[0] == _T( 'C' ) )
+				if( OsVersionInfo.szCSDVersion[0] == L'C' )
 				{
-					lstrcat( Str, _T( "OSR2" ) ) ;
+					_WCSCAT( Str, L"OSR2" ) ;
 				}
 				break ;
 
 			case 10 :	// Windows98
-				lstrcat( Str, _T( "98" ) ) ;
+				_WCSCAT( Str, L"98" ) ;
 				WinData.WindowsVersion = DX_WINDOWSVERSION_98 ;
-				if( OsVersionInfo.szCSDVersion[0] == _T( 'A' ) )
+				if( OsVersionInfo.szCSDVersion[0] == L'A' )
 				{
-					lstrcat( Str, _T( "SE" ) ) ;
+					_WCSCAT( Str, L"SE" ) ;
 				}
 				break ;
 
 			case 90 :
-				lstrcat( Str, _T( "Me" ) ) ;
+				_WCSCAT( Str, L"Me" ) ;
 				WinData.WindowsVersion = DX_WINDOWSVERSION_ME ;
 				break ;
 			}
@@ -7654,12 +8384,12 @@ extern int OutSystemInfo( void )
 			switch( OsVersionInfo.dwMajorVersion )
 			{
 			case 3 :
-				lstrcat( Str, _T( "NT 3.51" ) ) ;
+				_WCSCAT( Str, L"NT 3.51" ) ;
 				WinData.WindowsVersion = DX_WINDOWSVERSION_NT31 ;
 				break ;
 
 			case 4 :
-				lstrcat( Str, _T( "4.0" ) ) ;
+				_WCSCAT( Str, L"4.0" ) ;
 				WinData.WindowsVersion = DX_WINDOWSVERSION_NT40 ;
 				break ;
 
@@ -7667,12 +8397,12 @@ extern int OutSystemInfo( void )
 				switch( OsVersionInfo.dwMinorVersion )
 				{
 				case 0 :
-					lstrcat( Str, _T( "2000" ) ) ;
+					_WCSCAT( Str, L"2000" ) ;
 					WinData.WindowsVersion = DX_WINDOWSVERSION_2000 ;
 					break ;
 
 				case 1 :
-					lstrcat( Str, _T( "XP" ) ) ;
+					_WCSCAT( Str, L"XP" ) ;
 					WinData.WindowsVersion = DX_WINDOWSVERSION_XP ;
 					break ;
 				}
@@ -7682,422 +8412,41 @@ extern int OutSystemInfo( void )
 				switch( OsVersionInfo.dwMinorVersion )
 				{
 				case 0 :
-					lstrcat( Str, _T( "Vista" ) ) ;
+					_WCSCAT( Str, L"Vista" ) ;
 					WinData.WindowsVersion = DX_WINDOWSVERSION_VISTA ;
 					break ;
 
 				case 1 :
-					lstrcat( Str, _T( "7" ) ) ;
+					_WCSCAT( Str, L"7" ) ;
 					WinData.WindowsVersion = DX_WINDOWSVERSION_7 ;
 					break ;
 
 				case 2 :
-					lstrcat( Str, _T( "8" ) ) ;
+					_WCSCAT( Str, L"8" ) ;
 					WinData.WindowsVersion = DX_WINDOWSVERSION_8 ;
+					break ;
+
+				case 3 :
+					_WCSCAT( Str, L"8.1" ) ;
+					WinData.WindowsVersion = DX_WINDOWSVERSION_8_1 ;
+					break ;
+
+				case 4 :
+					_WCSCAT( Str, L"10" ) ;
+					WinData.WindowsVersion = DX_WINDOWSVERSION_10 ;
 					break ;
 				}
 				break ;
 			}
 		}
-		_TSPRINTF( _DXWTP( WinData.PcInfo.OSString ), _DXWTR( "%s ( Build %d %s )" ), Str, OsVersionInfo.dwBuildNumber, OsVersionInfo.szCSDVersion ) ;
-		DXST_ERRORLOGFMT_ADD(( _T( "%s" ), WinData.PcInfo.OSString )) ;
+		_SWPRINTF( WinData.PcInfo.OSString, L"%s ( Build %d %s )", Str, OsVersionInfo.dwBuildNumber, OsVersionInfo.szCSDVersion ) ;
+		DXST_ERRORLOGFMT_ADDW(( L"%s", WinData.PcInfo.OSString )) ;
 	}
 
 	// ＤｉｒｅｃｔＸのバージョンを出力
 
 	// 今時 DirectX 7.0 がインストールされていない環境はまず無いので、起動時間を短くする為にチェックはしない
 	WinData.DirectXVersion = DX_DIRECTXVERSION_7 ;
-	if( 0 )
-	{
-		// それぞれＤＬＬのファンクションアドレスを取得するためのポインタ
-		typedef HRESULT ( WINAPI *DIRECTDRAWCREATEFUNC )( GUID *, D_IDirectDraw **, IUnknown * ); 
-		typedef HRESULT ( WINAPI *DIRECTDRAWCREATEEXFUNC )( GUID *, VOID **, REFIID, IUnknown * ); 
-//		typedef HRESULT ( WINAPI *DIRECTINPUTCREATEFUNC )( HINSTANCE, DWORD, LPDIRECTINPUT *, IUnknown * ); 
-		DIRECTDRAWCREATEFUNC DirectDrawCreateFunc = NULL ; 
-		DIRECTDRAWCREATEEXFUNC DirectDrawCreateExFunc = NULL ; 
-//		DIRECTINPUTCREATEFUNC DirectInputCreateFunc = NULL ; 
-		FARPROC DirectInputCreateFunc = NULL ;
-
-		// それぞれ各ＤＬＬのハンドルを格納する変数
-		HINSTANCE DDrawDLL = NULL ;	
-		HINSTANCE DInputDLL = NULL ;
-		HINSTANCE D3D8DLL = NULL ;
-//		HINSTANCE DPNHPASTDLL = NULL ;
-
-		// テスト用のそれぞれのインターフェースのポインタ
-		D_IDirectDraw			*DDraw = NULL ;
-		D_IDirectDraw2			*DDraw2 = NULL ;
-		D_IDirectDrawSurface	*DDrawSurf = NULL ;
-		D_IDirectDrawSurface3	*DDrawSurf3 = NULL ;
-		D_IDirectDrawSurface4	*DDrawSurf4 = NULL ;
-		D_IDirectMusic			*DMusic = NULL ;
-		D_IDirectDraw7			*DDraw7 = NULL ;
-
-		D_DDSURFACEDESC			ddsd;
-
-
-		// バージョン情報を初期化
-		WinData.DirectXVersion = DX_DIRECTXVERSION_NON ;
-
-		// 確認開始
-		for(;;)
-		{
-/*			// DirectX9 以上のバージョンの確認
-			{
-				int ComInitializeFlag = FALSE ;
-				DXDIAG_INIT_PARAMS DiagInitializeParam ;
-				IDxDiagProvider *DxDiagProvider = NULL ;
-				IDxDiagContainer *DxDiagRoot = NULL ;
-				IDxDiagContainer *DxDiagSystemInfo = NULL ;
-				VARIANT Var ;
-				int VarInitializeFlag = FALSE ;
-				unsigned int VersionMajor = 0 ;
-				unsigned int VersionMinor = 0 ;
-				unsigned int VersionLetter = 0 ;
-				int GetVersionFlag = FALSE ;
-
-				// Com の初期化
-				if( FAILED( WinAPIData.Win32Func.CoInitializeExFunc( NULL ) ) ) goto DX9END ;
-				ComInitializeFlag = TRUE ;
-
-				// IDxDiagProvider インターフェースの作成
-				if( FAILED( WinAPIData.Win32Func.CoCreateInstanceFunc( CLSID_DxDiagProvider, 
-												NULL,
-												CLSCTX_INPROC_SERVER,
-												IID_IDxDiagProvider,
-												(void **)&DxDiagProvider ) ) ) goto DX9END ;
-
-				// IDxDiagProvider の初期化
-				_MEMSET( &DiagInitializeParam, 0, sizeof( DXDIAG_INIT_PARAMS ) ) ;
-				DiagInitializeParam.dwSize = sizeof( DXDIAG_INIT_PARAMS ) ;
-				DiagInitializeParam.dwDxDiagHeaderVersion = DXDIAG_DX9_SDK_VERSION ;
-				DiagInitializeParam.bAllowWHQLChecks = false ;
-				DiagInitializeParam.pReserved = NULL ;
-				if( FAILED( DxDiagProvider->Initialize( &DiagInitializeParam ) ) ) goto DX9END ;
-
-				// DxDiagProvider の ルート Container を得る
-				if( FAILED( DxDiagProvider->GetRootContainer( &DxDiagRoot ) ) ) goto DX9END ;
-
-				// DxDiag の システム情報 Container を得る
-				if( FAILED( DxDiagRoot->GetChildContainer( L"DxDiag_SystemInfo", &DxDiagSystemInfo ) ) ) goto DX9END ;
-
-				// Directx のメジャーバージョンを得る
-				{
-					// バージョン情報構造体を初期化する
-					VariantInitialize( &Var ) ;
-					VarInitializeFlag = TRUE ;
-
-					if( FAILED( DxDiagSystemInfo->GetProp( L"dwDirectXVersionMajor", &Var ) ) ) goto DX9END ;
-
-					// 取得したデータが符号なしダブルバイト形式ではなかったらエラー
-					if( Var.vt  != VT_UI4 ) goto DX9END ;
-
-					// メジャーバージョン値の保存
-					VersionMajor = Var.ulVal ;
-
-					// バージョン情報構造体の後始末
-					VariantClear( &Var ) ;
-					VarInitializeFlag = FALSE ;
-				}
-
-				// DirectX のマイナーバージョンを得る
-				{
-					// バージョン情報構造体を初期化する
-					VariantInitialize( &Var ) ;
-					VarInitializeFlag = TRUE ;
-
-					if( FAILED( DxDiagSystemInfo->GetProp( L"dwDirectXVersionMinor", &Var ) ) ) goto DX9END ;
-
-					// 取得したデータが符号なしダブルバイト形式ではなかったらエラー
-					if( Var.vt  != VT_UI4 ) goto DX9END ;
-
-					// マイナーバージョン値の保存
-					VersionMinor = Var.ulVal ;
-
-					// バージョン情報構造体の後始末
-					VariantClear( &Var ) ;
-				}
-	
-				// DirectX のバージョンの最後に文字があるか調べる
-				{
-					// バージョン情報構造体を初期化する
-					VariantInitialize( &Var ) ;
-					VarInitializeFlag = TRUE ;
-
-					if( FAILED( DxDiagSystemInfo->GetProp( L"dwDirectXVersionLetter", &Var ) ) ) goto DX9END ;
-
-					// 取得したデータが文字列ではなかったらエラー
-					if( Var.vt  != VT_BSTR ) goto DX9END ;
-
-					// ４バイト文字になっているので２バイト文字に変換する
-					{
-                        char Dest[10];
-                        WCharToMBChar( CP_ACP, Var.bstrVal, Dest, 10 * sizeof( char ) );
-						VersionLetter = (unsigned int)Dest[0] ;
-					}
-
-					// バージョン情報構造体の後始末
-					VariantClear( &Var ) ;
-				}
-
-				// ここまで来ていたら DirectX のバージョンの取得に成功したことを意味する
-				GetVersionFlag = TRUE ;
-
-				// DirectX のバージョン情報を生成
-				WinData.DirectXVersion = VersionMajor << 16 |
-											VersionMinor << 8 |
-											VersionLetter ;
-
-DX9END :
-				// 情報の後始末
-				if( VarInitializeFlag == TRUE ) VariantClear( &Var ) ;
-				if( DxDiagSystemInfo != NULL ) DxDiagSystemInfo->Release() ;
-				if( DxDiagRoot != NULL ) DxDiagRoot->Release() ;
-				if( DxDiagProvider != NULL ) DxDiagProvider->Release() ;
-				if( ComInitializeFlag ) WinAPIData.Win32Func.CoUninitializeFunc() ;
-
-				// バージョンが取得できていたらここで終了
-				break ;
-			}
-*/
-			// ＤｉｒｅｃｔＸ９かどうかを取得する
-//			if( GetDirectX9Version( (unsigned int *)&WinData.DirectXVersion ) == 0 ) break ;
-
-			// ＤｉｒｅｃｔＸがまずあるか調べる
-			if( ( DDrawDLL = LoadLibrary( _T( "DDRAW.DLL" ) ) ) == NULL )
-			{
-				DXST_ERRORLOG_ADD( _T( "DirectX がインストールされていません\n" ) ) ;
-				break ;
-			}
-
-			// DirectDrawCreateファンクションがあるか調べる
-			if( ( DirectDrawCreateFunc = ( DIRECTDRAWCREATEFUNC )GetProcAddress( DDrawDLL, "DirectDrawCreate" ) ) == NULL )
-			{
-				FreeLibrary( DDrawDLL );
-				DXST_ERRORLOG_ADD( _T( "DirectDrawCreate ファンクションが見つかりませんでした\n" ) ) ;
-				break ;
-			}
-
-			// 実際にDirectDrawCreateファンクションを使ってみる
-//			if( FAILED( DirectDrawCreate( NULL, &DDraw, NULL ) ) )
-			if( FAILED( DirectDrawCreateFunc( NULL, &DDraw, NULL ) ) )
-			{
-				DXST_ERRORLOG_ADD( _T( "DirectDrawCreate ファンクションが失敗しました\n" ) ) ;
-				FreeLibrary( DDrawDLL );
-				break ;
-			}
-
-			// ここまできてやっと DirectX1 の存在の確認完了
-			WinData.DirectXVersion = DX_DIRECTXVERSION_1 ;
-
-			// DirectDraw2 インターフェースの取得を試みる
-			if( FAILED( DDraw->QueryInterface( IID_IDIRECTDRAW2, (VOID**)&DDraw2 ) ) )
-			{
-				DXST_ERRORLOG_ADD( _T( "DirectDraw2 インターフェイスの取得に失敗しました\n" ) ) ;
-				DDraw->Release();
-				FreeLibrary( DDrawDLL );
-				break ;
-			}
-
-			// ここで DirectX2 の存在を確認
-			DDraw2->Release();
-			WinData.DirectXVersion = DX_DIRECTXVERSION_2 ;
-
-
-			// DirectInput が存在するかどうかで DirectX3 の存在を確認する
-			if( ( DInputDLL = LoadLibrary( _T( "DINPUT.DLL" ) ) ) == NULL )
-			{
-				DXST_ERRORLOG_ADD( _T( "DirecInput.DLL のロードに失敗しました\n" ) ) ;
-				DDraw->Release();
-				FreeLibrary( DDrawDLL );
-				break ;
-			}
-
-			// DirectInputCreate ファンクションが存在するか調べる
-			DirectInputCreateFunc = GetProcAddress( DInputDLL, "DirectInputCreateA" ) ;
-			if( DirectInputCreateFunc == NULL )
-			{
-				DXST_ERRORLOG_ADD( _T( "DirecInputCreateA が見つかりませんでした\n" ) ) ;
-				FreeLibrary( DInputDLL );
-				DDraw->Release();
-				FreeLibrary( DDrawDLL );
-				break ;
-			}
-
-			// ここで初めてDirectX3の存在を確認
-			WinData.DirectXVersion = DX_DIRECTXVERSION_3 ;
-			FreeLibrary( DInputDLL );
-
-
-			// DirectX5 は DirectDrawSurface3 を扱えるかどうかで確認
-			{
-				// 協調レベルをセット
-				if( FAILED( DDraw->SetCooperativeLevel( NULL, D_DDSCL_NORMAL ) ) ) 
-				{
-					DXST_ERRORLOG_ADD( _T( "協調設定を変更できませんでした\n" ) ) ;
-					DDraw->Release();
-					FreeLibrary( DDrawDLL );
-					break ;
-				}
-
-				// DirectDrawSurface1 のプライマリーサーフェスの作成
-				_MEMSET( &ddsd, 0, sizeof(ddsd) ) ;
-				ddsd.dwSize = sizeof(ddsd) ;
-				ddsd.dwFlags = D_DDSD_CAPS ;
-				ddsd.ddsCaps.dwCaps = D_DDSCAPS_PRIMARYSURFACE;
-				if( FAILED( DDraw->CreateSurface( &ddsd, &DDrawSurf, NULL ) ) )
-				{
-					DXST_ERRORLOG_ADD( _T( "DirectDrawSurface オブジェクトの作成に失敗しました\n" ) ) ;
-					DDraw->Release();
-					FreeLibrary( DDrawDLL );
-					break ;
-				}
-
-				// DirectDrawSurface3 の取得を試みる
-				if( FAILED( DDrawSurf->QueryInterface( IID_IDIRECTDRAWSURFACE3, ( VOID ** )&DDrawSurf3 ) ) )
-				{
-					DXST_ERRORLOG_ADD( _T( "DirectDrawSurface3 インターフェイスの取得に失敗しました\n" ) ) ;
-					DDrawSurf->Release();
-					DDraw->Release();
-					FreeLibrary( DDrawDLL );
-					break ;
-				}
-			}
-
-			// ここまできて DirectX5 の存在を確認
-			DDrawSurf3->Release();
-			WinData.DirectXVersion = DX_DIRECTXVERSION_5 ;
-
-
-			// DirectX6 は DirectDrawSurface4 を扱えるかどうかで確認
-			if( FAILED( DDrawSurf->QueryInterface( IID_IDIRECTDRAWSURFACE4, ( VOID** )&DDrawSurf4 ) ) )
-			{
-				DXST_ERRORLOG_ADD( _T( "DirectDrawSurface4 インターフェイスの取得に失敗しました\n" ) ) ;
-				DDrawSurf->Release();
-				DDraw->Release();
-				FreeLibrary( DDrawDLL );
-				break ;
-			}
-
-			DDrawSurf4->Release();
-			DDrawSurf->Release();
-			DDraw->Release();
-
-			// DirectX6 の存在を確認
-			WinData.DirectXVersion = DX_DIRECTXVERSION_6 ;
-
-
-			// DirectX6.1 は DirectMusic が存在しているかどうかで判断
-			{
-				WinAPIData.Win32Func.CoInitializeExFunc( NULL, COINIT_APARTMENTTHREADED );
-				if( FAILED( WinAPIData.Win32Func.CoCreateInstanceFunc( CLSID_DIRECTMUSIC, NULL, CLSCTX_INPROC_SERVER,
-									   IID_IDIRECTMUSIC, ( VOID** )&DMusic ) ) )
-				{
-					DXST_ERRORLOG_ADD( _T( "DirectMusic インターフェイスの取得に失敗しました\n" ) ) ;
-					FreeLibrary( DDrawDLL );
-					break ;
-				}
-
-				DMusic->Release();
-				WinAPIData.Win32Func.CoUninitializeFunc();
-			}
-
-			// DirectX6.1 の存在を確認
-			WinData.DirectXVersion = DX_DIRECTXVERSION_6_1 ;
-
-
-			// DirectX7 は DirectDraw7 が存在するかどうかで判断
-			{
-				// まず DirectDrawCreateEx があるか調べる
-				if( ( DirectDrawCreateExFunc = ( DIRECTDRAWCREATEEXFUNC )GetProcAddress( DDrawDLL, "DirectDrawCreateEx" ) ) == NULL )
-				{
-					DXST_ERRORLOG_ADD( _T( "DirectDrawCreateEx ファンクションが見つかりませんでした\n" ) ) ;
-					FreeLibrary( DDrawDLL );
-					break ;
-				}
-
-				// あった場合はそれを使って DirectDraw7 の作成を試みる
-//				if( FAILED( DirectDrawCreateEx( NULL, (VOID**)&DDraw7, IID_IDirectDraw7, NULL ) ) )
-				if( FAILED( DirectDrawCreateExFunc( NULL, (VOID**)&DDraw7, IID_IDIRECTDRAW7, NULL ) ) )
-				{
-					DXST_ERRORLOG_ADD( _T( "DirectDrawCreateEx ファンクションが失敗しました\n" ) ) ;
-					FreeLibrary( DDrawDLL );
-					break ;
-				}
-				DDraw7->Release();
-			}
-			FreeLibrary( DDrawDLL );
-
-
-			// ここまでこれたら Direct7 の存在の確認完了
-			WinData.DirectXVersion = DX_DIRECTXVERSION_7 ;
-
-
-			// DirectX8 は Direct3D8 のＤＬＬがあるかどうかで判断
-			if( ( D3D8DLL = LoadLibrary( _T( "D3D8.DLL" ) ) ) == NULL )
-			{
-				DXST_ERRORLOG_ADD( _T( "D33D8.DLL はありませんでした\n" ) ) ;
-				FreeLibrary( DDrawDLL );
-				break ;
-			}
-			FreeLibrary( D3D8DLL );
-
-			// あったら DirectX8 が扱える
-			WinData.DirectXVersion = DX_DIRECTXVERSION_8 ;
-
-/*
-			// ネットワークにアクセスする可能性があるためコメントアウト
-
-			// DirectX8.1 は dpnhpast.dll が存在するかどうかで判断が可能
-			if( ( DPNHPASTDLL = LoadLibrary( "dpnhpast.dll" ) ) == NULL )
-			{
-				DXST_ERRORLOG_ADD( _T( "dpnhpast.DLL はありませんでした\n" ) ) ;
-				FreeLibrary( DPNHPASTDLL );
-				break ;
-			}
-			FreeLibrary( DPNHPASTDLL );
-
-			// あったら DirectX8.1 が扱える
-			WinData.DirectXVersion = DX_DIRECTXVERSION_8_1 ;
-*/
-			// これにて検査終了
-			break ;
-		}
-
-		// バージョン出力
-		{
-			TCHAR Str[256], Str2[10] ;
-
-//			lstrcpy( Str, _T( "ＤｉｒｅｃｔＸ　Ver" ) ) ;
-			Str[0] = _T( '\0' ) ;
-			_TSPRINTF( _DXWTP( Str2 ), _DXWTR( "%d" ), ( WinData.DirectXVersion & 0xff0000 ) >> 16 ) ;
-			lstrcat( Str, Str2 ) ;
-			Str2[0] = _T( '.' ) ;
-			_TSPRINTF( _DXWTP( &Str2[1] ), _DXWTR( "%d" ), ( WinData.DirectXVersion & 0xff00 ) >> 8 ) ;
-			lstrcat( Str, Str2 ) ;
-/*			if( ( WinData.DirectXVersion & 0xff ) >= _T( 'a' ) && ( WinData.DirectXVersion & 0xff ) <= _T( 'z' ) )
-			{
-				unsigned char let[2] ;
-				
-				let[0] = WinData.DirectXVersion & 0xff ;
-				let[1] = 0 ;
-				_STRCAT( Str, ( char * )let ) ;
-			}
-*/
-			// DirectX のバージョンが 8.1 だとされている場合、それ以上のバージョンを
-			// チェックしていないので、それ以上のバージョンの可能性がある、なので
-			// バージョンが 8.1 だった場合は『以上』と付け加えておく
-			if( WinData.DirectXVersion == DX_DIRECTXVERSION_8 )
-			{
-				lstrcat( Str, _T( "以上" ) ) ;
-			}
-
-			DXST_ERRORLOGFMT_ADD(( _T( "ＤｉｒｅｃｔＸ　Ver%s" ), Str )) ;
-			lstrcpy( WinData.PcInfo.DirectXString, Str ) ;
-//			DXST_ERRORLOG_ADD( _T( Str ) ;
-//			DXST_ERRORLOG_ADD( _T( "\n" ) ) ;
-		}
-	}
 
 	// タイマの精度を設定する
 	{
@@ -8110,9 +8459,7 @@ DX9END :
 
 	// CPU のチェック
 	{
-#ifndef DX_NON_INLINE_ASM
 		int CPUCODE ;
-#endif
 		int ENDMODE = 0, RDTSCUse = 0 ;
 		int Str1 = 0,Str2 = 0,Str3 = 0 ;
 		char String[5], CpuName[4*4*3+1] ;
@@ -8120,7 +8467,70 @@ DX9END :
 		CpuName[0] = '\0' ;
 		CpuName[48] = '\0' ;
 		WinData.UseMMXFlag = FALSE ;
-#ifndef DX_NON_INLINE_ASM
+#ifdef DX_NON_INLINE_ASM
+	#ifdef _WIN64
+		{
+			int CPUInfo[ 4 ] ;
+
+			ENDMODE = 1 ;
+
+			// ＣＰＵベンダ名を取得
+			__cpuid( CPUInfo, 0 ) ;
+			CPUCODE = CPUInfo[ 0 ] ;
+			Str1 = CPUInfo[ 1 ] ;
+			Str2 = CPUInfo[ 3 ] ;
+			Str3 = CPUInfo[ 2 ] ;
+
+			// パフォーマンスカウンタがつかえるかをチェック
+			__cpuid( CPUInfo, 1 ) ;
+			RDTSCUse = ( CPUInfo[ 3 ] & 0x10 ) != 0 ? TRUE : FALSE ;
+
+			// 今度は拡張ＣＰＵＩＤが使えるか検査
+			__cpuid( CPUInfo, 0x80000000 ) ;
+			if( ( unsigned int )CPUInfo[ 0 ] >= 0x80000004 )
+			{
+
+				// 使えるのでＣＰＵ名を取得
+				__cpuid( CPUInfo, 0x80000002 ) ;
+				( ( int * )CpuName )[  0 ] = CPUInfo[ 0 ] ;
+				( ( int * )CpuName )[  1 ] = CPUInfo[ 1 ] ;
+				( ( int * )CpuName )[  2 ] = CPUInfo[ 2 ] ;
+				( ( int * )CpuName )[  3 ] = CPUInfo[ 3 ] ;
+
+				__cpuid( CPUInfo, 0x80000003 ) ;
+				( ( int * )CpuName )[  4 ] = CPUInfo[ 0 ] ;
+				( ( int * )CpuName )[  5 ] = CPUInfo[ 1 ] ;
+				( ( int * )CpuName )[  6 ] = CPUInfo[ 2 ] ;
+				( ( int * )CpuName )[  7 ] = CPUInfo[ 3 ] ;
+
+				__cpuid( CPUInfo, 0x80000004 ) ;
+				( ( int * )CpuName )[  8 ] = CPUInfo[ 0 ] ;
+				( ( int * )CpuName )[  9 ] = CPUInfo[ 1 ] ;
+				( ( int * )CpuName )[ 10 ] = CPUInfo[ 2 ] ;
+				( ( int * )CpuName )[ 11 ] = CPUInfo[ 3 ] ;
+			}
+
+			// 今度はＭＭＸが使えるか検査
+			__cpuid( CPUInfo, 1 ) ;
+			if( ( CPUInfo[ 3 ] & 0x00800000 ) != 0 )
+			{
+				ENDMODE = 3 ;
+
+				//SSEが使えるか検査
+				if( ( CPUInfo[ 3 ] & 0x02000000 ) != 0 )
+				{
+					ENDMODE	++ ;
+
+					//SSE2が使えるか検査
+					if( ( CPUInfo[ 3 ] & 0x04000000 ) != 0 )
+					{
+						ENDMODE ++ ;
+					}
+				}
+			}
+		}
+	#endif // _WIN64
+#else // DX_NON_INLINE_ASM
 		__asm{
 			// CPUID が使えるか検査
 			PUSHFD
@@ -8237,7 +8647,31 @@ MMXEND:
 		// パフォーマンスカウンタフラグを保存
 		WinData.UseRDTSCFlag = RDTSCUse ;
 
-#ifndef DX_NON_INLINE_ASM
+#ifdef DX_NON_INLINE_ASM
+	#ifdef _WIN64
+		// パフォーマンスカウンタがつかえる場合はクロック数を簡単に計測
+		if( RDTSCUse )
+		{
+			ULONGLONG Clock1, Clock2 ;
+			int Time ;
+			DWORD Clock ;
+
+			Clock1 = __rdtsc() ;
+
+			Time = NS_GetNowCount( FALSE ) ;
+			while( NS_GetNowCount( FALSE ) - Time < 100 ){}
+
+			Clock2 = __rdtsc() ;
+
+			Clock = ( DWORD )_DTOL( ( double )( Clock2 - Clock1 ) / 100000 ) ; 
+			WinData.OneSecCount = ( Clock2 - Clock1 ) * 10 ;
+
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xfe\x73\x42\x66\xb9\x70\x6e\x30\x23\xff\x30\xff\x35\xff\xd5\x52\x5c\x4f\x1f\x90\xa6\x5e\x1a\xff\x27\x59\x53\x4f\x25\x00\x2e\x00\x32\x00\x66\x00\x47\x00\x48\x00\x7a\x00\x00"/*@ L"現時点のＣＰＵ動作速度：大体%.2fGHz" @*/, (float)Clock / 1000.0f )) ;
+			WinData.PcInfo.CPUSpeed = ( int )Clock ;
+		}
+
+	#endif // _WIN64
+#else
 		// パフォーマンスカウンタがつかえる場合はクロック数を簡単に計測
 		if( RDTSCUse )
 		{
@@ -8269,7 +8703,7 @@ MMXEND:
 
 			Clock1.LowPart = low1 ; Clock1.HighPart = high1 ;
 			Clock2.LowPart = low2 ; Clock2.HighPart = high2 ;
-#else
+#else // __BCC
 			__asm
 			{
 				RDTSC
@@ -8286,13 +8720,13 @@ MMXEND:
 				MOV		Clock2.LowPart, EAX
 				MOV		Clock2.HighPart, EDX
 			}
-#endif
+#endif // __BCC
 
-			Clock = _DTOL( (double)( Clock2.QuadPart - Clock1.QuadPart ) / 100000 ) ; 
+			Clock = ( DWORD )_DTOL( (double)( Clock2.QuadPart - Clock1.QuadPart ) / 100000 ) ; 
 			WinData.OneSecCount = ( Clock2.QuadPart - Clock1.QuadPart ) * 10 ;
 
-			DXST_ERRORLOGFMT_ADD(( _T( "ＣＰＵ動作速度：大体%.2fGHz" ), (float)Clock / 1000.0f )) ;
-			WinData.PcInfo.CPUSpeed = Clock ;
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xfe\x73\x42\x66\xb9\x70\x6e\x30\x23\xff\x30\xff\x35\xff\xd5\x52\x5c\x4f\x1f\x90\xa6\x5e\x1a\xff\x27\x59\x53\x4f\x25\x00\x2e\x00\x32\x00\x66\x00\x47\x00\x48\x00\x7a\x00\x00"/*@ L"現時点のＣＰＵ動作速度：大体%.2fGHz" @*/, (float)Clock / 1000.0f )) ;
+			WinData.PcInfo.CPUSpeed = ( int )Clock ;
 		}
 #endif // DX_NON_INLINE_ASM
 
@@ -8300,30 +8734,30 @@ MMXEND:
 		{
 		case 0 :
 #ifndef DX_NON_INLINE_ASM
-			DXST_ERRORLOG_ADD( _T( "ＣＰＵＩＤ命令は使えません\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x23\xff\x30\xff\x35\xff\x29\xff\x24\xff\x7d\x54\xe4\x4e\x6f\x30\x7f\x4f\x48\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"ＣＰＵＩＤ命令は使えません\n" @*/ ) ;
 #endif // DX_NON_INLINE_ASM
 			break ;
 
 		case 1 :
-			DXST_ERRORLOG_ADD( _T( "ＭＭＸは使えません\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x2d\xff\x2d\xff\x38\xff\x6f\x30\x7f\x4f\x48\x30\x7e\x30\x5b\x30\x93\x30\x0a\x00\x00"/*@ L"ＭＭＸは使えません\n" @*/ ) ;
 			break ;
 
 		case 3 :
-			DXST_ERRORLOG_ADD( _T( "ＭＭＸ命令を使用します\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x2d\xff\x2d\xff\x38\xff\x7d\x54\xe4\x4e\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ＭＭＸ命令を使用します\n" @*/ ) ;
 			WinData.UseMMXFlag = TRUE ;
 			break ;
 
 		case 4 :
-			DXST_ERRORLOG_ADD( _T( "ＭＭＸ命令を使用します\n" ) ) ;
-			DXST_ERRORLOG_ADD( _T( "ＳＳＥ命令が使用可能です\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x2d\xff\x2d\xff\x38\xff\x7d\x54\xe4\x4e\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ＭＭＸ命令を使用します\n" @*/ ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x33\xff\x33\xff\x25\xff\x7d\x54\xe4\x4e\x4c\x30\x7f\x4f\x28\x75\xef\x53\xfd\x80\x67\x30\x59\x30\x0a\x00\x00"/*@ L"ＳＳＥ命令が使用可能です\n" @*/ ) ;
 			WinData.UseMMXFlag = TRUE ;
 			WinData.UseSSEFlag = TRUE ;
 			break ;
 
 		case 5 :
-			DXST_ERRORLOG_ADD( _T( "ＭＭＸ命令を使用します\n" ) ) ;
-			DXST_ERRORLOG_ADD( _T( "ＳＳＥ命令が使用可能です\n" ) ) ;
-			DXST_ERRORLOG_ADD( _T( "ＳＳＥ２命令が使用可能です\n" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x2d\xff\x2d\xff\x38\xff\x7d\x54\xe4\x4e\x92\x30\x7f\x4f\x28\x75\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"ＭＭＸ命令を使用します\n" @*/ ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x33\xff\x33\xff\x25\xff\x7d\x54\xe4\x4e\x4c\x30\x7f\x4f\x28\x75\xef\x53\xfd\x80\x67\x30\x59\x30\x0a\x00\x00"/*@ L"ＳＳＥ命令が使用可能です\n" @*/ ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x33\xff\x33\xff\x25\xff\x12\xff\x7d\x54\xe4\x4e\x4c\x30\x7f\x4f\x28\x75\xef\x53\xfd\x80\x67\x30\x59\x30\x0a\x00\x00"/*@ L"ＳＳＥ２命令が使用可能です\n" @*/ ) ;
 			WinData.UseMMXFlag = TRUE ;
 			WinData.UseSSEFlag = TRUE ;
 			WinData.UseSSE2Flag = TRUE ;
@@ -8332,7 +8766,7 @@ MMXEND:
 
 		if( ENDMODE > 0 )
 		{
-			DXST_ERRORLOG_ADD( _T( "ＣＰＵベンダ：" ) ) ;
+			DXST_ERRORLOG_ADDUTF16LE( "\x23\xff\x30\xff\x35\xff\xd9\x30\xf3\x30\xc0\x30\x1a\xff\x00"/*@ L"ＣＰＵベンダ：" @*/ ) ;
 
 			String[4] = 0 ;
 			*( ( int * )&String[0] ) = Str1 ;
@@ -8344,16 +8778,13 @@ MMXEND:
 			*( ( int * )&String[0] ) = Str3 ;
 			DXST_ERRORLOG_ADDA( String ) ;
 
-			DXST_ERRORLOG_ADD( _T( "\n" ) ) ;
+			DXST_ERRORLOG_ADDW( L"\n" ) ;
 
 			if( CpuName[0] != '\0' )
 			{
-				DXST_ERRORLOGFMT_ADDA(( "ＣＰＵ名：%s", CpuName )) ;
-#ifdef UNICODE
-				MBCharToWChar( CP_ACP, CpuName, ( DXWCHAR * )WinData.PcInfo.CPUString, 64 ) ;
-#else
-				lstrcpy( WinData.PcInfo.CPUString, CpuName ) ;
-#endif
+				DXST_ERRORLOGFMT_ADDA(( "\x82\x62\x82\x6f\x82\x74\x96\xbc\x81\x46%s"/*@ "ＣＰＵ名：%s" @*/, CpuName )) ;
+
+				ConvString( ( const char * )CpuName, DX_CODEPAGE_ASCII, ( char * )WinData.PcInfo.CPUString, WCHAR_T_CODEPAGE ) ;
 			}
 		}
 	}
@@ -8366,11 +8797,11 @@ MMXEND:
 #ifndef DX_NON_LITERAL_STRING
 		if( WinData.DirectXVersion == DX_DIRECTXVERSION_NON )
 		{
-			MessageBox( NULL, _T( "DirectX がインストールされていないのでここで終了します" ), _T( "エラー" ), MB_OK ) ;
+			MessageBoxW( NULL, ( wchar_t * )"\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x58\x00\x20\x00\x4c\x30\xa4\x30\xf3\x30\xb9\x30\xc8\x30\xfc\x30\xeb\x30\x55\x30\x8c\x30\x66\x30\x44\x30\x6a\x30\x44\x30\x6e\x30\x67\x30\x53\x30\x53\x30\x67\x30\x42\x7d\x86\x4e\x57\x30\x7e\x30\x59\x30\x00"/*@ L"DirectX がインストールされていないのでここで終了します" @*/, ( wchar_t * )"\xa8\x30\xe9\x30\xfc\x30\x00"/*@ L"エラー" @*/, MB_OK ) ;
 		}
 		else
 		{
-			MessageBox( NULL, _T( "DirectX バージョン 7 以前なのでソフトを起動することが出来ません" ), _T( "エラー" ), MB_OK ) ;
+			MessageBoxW( NULL, ( wchar_t * )"\x44\x00\x69\x00\x72\x00\x65\x00\x63\x00\x74\x00\x58\x00\x20\x00\xd0\x30\xfc\x30\xb8\x30\xe7\x30\xf3\x30\x20\x00\x37\x00\x20\x00\xe5\x4e\x4d\x52\x6a\x30\x6e\x30\x67\x30\xbd\x30\xd5\x30\xc8\x30\x92\x30\x77\x8d\xd5\x52\x59\x30\x8b\x30\x53\x30\x68\x30\x4c\x30\xfa\x51\x65\x67\x7e\x30\x5b\x30\x93\x30\x00"/*@ L"DirectX バージョン 7 以前なのでソフトを起動することが出来ません" @*/, ( wchar_t * )"\xa8\x30\xe9\x30\xfc\x30\x00"/*@ L"エラー" @*/, MB_OK ) ;
 		}
 #endif
 		ExitProcess( (DWORD)-1 ) ;
@@ -8404,20 +8835,19 @@ MMXEND:
 // メッセージ処理関数
 int WM_SIZEProcess( void )
 {
-	RECT rect, ClientRect ;
-	int Width, Height ;
-	int CWidth, CHeight ;
-	double ExRateX, ExRateY ;
+	RECT   rect ;
+	RECT   ClientRect ;
+	int    Width ;
+	int    Height ;
+	int    CWidth ;
+	int    CHeight ;
+	double ExRateX ;
+	double ExRateY ;
 
 	// ユーザーのウインドウを使用していない場合のみサイズの補正を行う
 	if( WinData.UserWindowFlag == TRUE ) return 0 ;
 
-	NS_GetDrawScreenSize( &Width, &Height ) ;
-	if( WinData.WindowModeFlag == FALSE && ( GBASE.Emulation320x240Flag || GRH.FullScreenEmulation320x240 ) )
-	{
-		Width = 640 ;
-		Height = 480 ;
-	}
+	GetMainWindowSize( &Width, &Height ) ;
 
 	// ウインドウへの出力サイズを反映させる
 	NS_GetWindowSizeExtendRate( &ExRateX, &ExRateY ) ;
@@ -8430,7 +8860,7 @@ int WM_SIZEProcess( void )
 	WinData.WindowRect.bottom = WinData.WindowRect.top  + ClientRect.bottom ;
 
 	// クライアント領域のサイズを得る
-	CWidth = ClientRect.right  - ClientRect.left ;
+	CWidth  = ClientRect.right  - ClientRect.left ;
 	CHeight = ClientRect.bottom - ClientRect.top ;
 
 	// クライアント領域外の部分の幅・高さを得る
@@ -8484,7 +8914,7 @@ int WM_SIZEProcess( void )
 		rect.right  += SX ;
 		rect.bottom += SY ;
 
-		if( DxSysData.DxLib_RunInitializeFlag == FALSE && GRA2.ChangeGraphModeFlag == FALSE )
+		if( DxSysData.DxLib_RunInitializeFlag == FALSE && GSYS.Screen.Graphics_Screen_ChangeModeFlag == FALSE )
 		{
 			WinData.WindowPosValid = FALSE ;
 		}
@@ -8500,6 +8930,37 @@ int WM_SIZEProcess( void )
 				rect.bottom += WinData.SystembarHeight ;
 			}
 		}
+	}
+	else
+	// 最大化状態の場合はウインドウをデスクトップの中心に配置する
+	if( WinData.WindowMaximizeFlag )
+	{
+		int WindowX ;
+		int WindowY ;
+		int WindowCenterX ;
+		int WindowCenterY ;
+		int WindowSizeX ;
+		int WindowSizeY ;
+
+		if( WinData.ValidFirstWindowMaximizedRect )
+		{
+			WindowCenterX = ( WinData.FirstWindowMaximizedRect.right  + WinData.FirstWindowMaximizedRect.left ) / 2 ;
+			WindowCenterY = ( WinData.FirstWindowMaximizedRect.bottom + WinData.FirstWindowMaximizedRect.top  ) / 2 ;
+		}
+		else
+		{
+			WindowCenterX = ( WinData.WindowMaximizedRect.right  + WinData.WindowMaximizedRect.left ) / 2 ;
+			WindowCenterY = ( WinData.WindowMaximizedRect.bottom + WinData.WindowMaximizedRect.top  ) / 2 ;
+		}
+
+		WindowX     = WindowCenterX - ( rect.right  - rect.left ) / 2 ;
+		WindowY     = WindowCenterY - ( rect.bottom - rect.top  ) / 2 ;
+		WindowSizeX = rect.right  - rect.left ;
+		WindowSizeY = rect.bottom - rect.top ;
+		rect.left   = WindowX ;
+		rect.top    = WindowY ;
+		rect.right  = rect.left + WindowSizeX ;
+		rect.bottom = rect.top  + WindowSizeY ;
 	}
 
 	MoveWindow( WinData.MainWindow, rect.left, rect.top, rect.right-rect.left, rect.bottom-rect.top, TRUE ) ;
@@ -8555,7 +9016,7 @@ int WM_MOVEProcess( LPARAM lParam )
 	return 0 ;
 }
 
-int WM_ACTIVATEProcessUseStock( WPARAM wParam, int APPMes )
+int WM_ACTIVATEProcessUseStock( WPARAM wParam, LPARAM lParam, int APPMes, int Dummy )
 {
 	// ProcessMessage からここに来た場合( 且つまだリクエストがされていなく、ウインドウ作成直後でもない場合 )は
 	// ProcessMessage の最後に WM_ACTIVATE を行うようにする
@@ -8564,19 +9025,21 @@ int WM_ACTIVATEProcessUseStock( WPARAM wParam, int APPMes )
 		WinData.WM_ACTIVATE_StockNum < 512 )
 	{
 		WinData.WM_ACTIVATE_wParam[ WinData.WM_ACTIVATE_EndIndex ] = wParam ;
+		WinData.WM_ACTIVATE_lParam[ WinData.WM_ACTIVATE_EndIndex ] = lParam ;
 		WinData.WM_ACTIVATE_APPMes[ WinData.WM_ACTIVATE_EndIndex ] = APPMes ;
+		WinData.WM_ACTIVATE_Dummy[  WinData.WM_ACTIVATE_EndIndex ] = Dummy ;
 		WinData.WM_ACTIVATE_EndIndex = ( WinData.WM_ACTIVATE_EndIndex + 1 ) % 512 ;
 		WinData.WM_ACTIVATE_StockNum ++ ;
 	}
 	else
 	{
-		WM_ACTIVATEProcess( wParam, APPMes ) ;
+		WM_ACTIVATEProcess( wParam, lParam, APPMes, Dummy ) ;
 	}
 
 	return 0 ;
 }
 
-int WM_ACTIVATEProcess( WPARAM wParam, int APPMes )
+int WM_ACTIVATEProcess( WPARAM wParam, LPARAM /*lParam*/, int APPMes, int Dummy )
 {
 	int ActiveFlag ;
 
@@ -8606,7 +9069,7 @@ int WM_ACTIVATEProcess( WPARAM wParam, int APPMes )
 
 	if( ActiveFlag == TRUE )
 	{
-//		DXST_ERRORLOG_ADD( _T( "アクティブになりました\n" ) ) ;
+//		DXST_ERRORLOG_ADDW( L"アクティブになりました\n" ) ;
 
 #ifndef DX_NON_INPUTSTRING
 		// ＩＭＥで文字列を入力中だった場合は文字列を確定してしまう
@@ -8618,15 +9081,7 @@ int WM_ACTIVATEProcess( WPARAM wParam, int APPMes )
 
 		if( WinData.WindowModeFlag == TRUE )
 		{
-//			if( NS_ScreenFlip() != 0 )
-			if( GraphicsDevice_IsValid() != 0 )
-			{
-				EndScene() ;
-				if( GraphicsDevice_IsLost() != 0 )
-				{
-					NS_RestoreGraphSystem() ;
-				}
-			}
+			Graphics_Win_WM_ACTIVATE_ActiveProcess() ;
 		}
 
 		if( WinData.WindowModeFlag == FALSE && /*WinData.StopFlag == TRUE &&*/ DxSysData.DxLib_InitializeFlag == TRUE )
@@ -8671,14 +9126,17 @@ int WM_ACTIVATEProcess( WPARAM wParam, int APPMes )
 	}
 	else
 	{
-//		DXST_ERRORLOG_ADD( _T( "非アクティブになりました\n" ) ) ;
+//		DXST_ERRORLOG_ADDW( L"非アクティブになりました\n" ) ;
 
 		if( WinData.WindowModeFlag == FALSE  )
 		{
-			// DirectX のオブジェクトを解放する
-			ReleaseDirectXObject() ;
+			if( DxSysData.NotDrawFlag == FALSE )
+			{
+				// DirectX のオブジェクトを解放する
+				Graphics_ReleaseDirectXObject() ;
+			}
 
-			if( WinData.WindowsVersion >= DX_WINDOWSVERSION_VISTA || GRA2.ValidHardWare == FALSE )
+			if( WinData.WindowsVersion >= DX_WINDOWSVERSION_VISTA || GSYS.Setting.ValidHardware == FALSE )
 			{
 				ChangeDisplaySettings( NULL, 0 ) ;
 				ShowWindow( WinData.MainWindow, SW_MINIMIZE );
@@ -8697,13 +9155,13 @@ int WM_ACTIVATEProcess( WPARAM wParam, int APPMes )
 				// ユーザー提供のウインドウだったら何もしない
 				if( WinData.UserWindowFlag == FALSE )
 				{
-					DXST_ERRORLOG_ADD( _T( "復元関数が登録されていないため終了します\n" ) ) ;
+					DXST_ERRORLOG_ADDUTF16LE( "\xa9\x5f\x43\x51\xa2\x95\x70\x65\x4c\x30\x7b\x76\x32\x93\x55\x30\x8c\x30\x66\x30\x44\x30\x6a\x30\x44\x30\x5f\x30\x81\x30\x42\x7d\x86\x4e\x57\x30\x7e\x30\x59\x30\x0a\x00\x00"/*@ L"復元関数が登録されていないため終了します\n" @*/ ) ;
 				
 					// クローズフラグが倒れていたらWM_CLOSEメッセージを送る
 					if( WinData.CloseMessagePostFlag == FALSE )
 					{
 						WinData.CloseMessagePostFlag = TRUE ;
-						PostMessage( WinData.MainWindow, WM_CLOSE, 0, 0 );
+						PostMessageW( WinData.MainWindow, WM_CLOSE, 0, 0 );
 					}
 
 					return -1 ;
@@ -8752,6 +9210,7 @@ int WM_ACTIVATEProcess( WPARAM wParam, int APPMes )
 		}
 
 		// バックグラウンド描画
+		if( Dummy == FALSE )
 		{
 			HDC hdc ;
 
@@ -8785,8 +9244,8 @@ int WM_ACTIVATEProcess( WPARAM wParam, int APPMes )
 		{
 			// Win95 カーネルの場合の処理
 			UINT nPreviousState;
-//			SystemParametersInfo( SPI_SETSCREENSAVERRUNNING, ActiveFlag, &nPreviousState, 0 ) ;
-			SystemParametersInfo( SPI_SETSCREENSAVERRUNNING/*SPI_SCREENSAVERRUNNING*/, ActiveFlag, &nPreviousState, 0 ) ;
+//			SystemParametersInfoW( SPI_SETSCREENSAVERRUNNING, ActiveFlag, &nPreviousState, 0 ) ;
+			SystemParametersInfoW( SPI_SETSCREENSAVERRUNNING/*SPI_SCREENSAVERRUNNING*/, ( UINT )ActiveFlag, &nPreviousState, 0 ) ;
 		}
 		else
 		{
@@ -8796,7 +9255,7 @@ int WM_ACTIVATEProcess( WPARAM wParam, int APPMes )
 			{
 //				WinData.MessageHookThredID = GetWindowThreadProcessId( WinData.MainWindow, NULL ) ;
 //				WinData.MessageHookThredID = GetWindowThreadProcessId( GetDesktopWindow(), NULL ) ;
-				WinData.MessageHookDLL = LoadLibrary( WinData.HookDLLFilePath ) ;
+				WinData.MessageHookDLL = LoadLibraryW( WinData.HookDLLFilePath ) ;
 
 				// DLL が無かったら進まない
 				if( WinData.MessageHookDLL != NULL )
@@ -8805,8 +9264,8 @@ int WM_ACTIVATEProcess( WPARAM wParam, int APPMes )
 					if( WinData.MessageHookCallBadk != NULL )
 					{
 						WinData.MessageHookCallBadk( WinData.MainWindow, &WinData.KeyboardHookHandle ) ;
-//						WinData.GetMessageHookHandle = SetWindowsHookEx( WH_GETMESSAGE, WinData.MessageHookCallBadk, WinData.MessageHookDLL, WinData.MessageHookThredID ) ;
-						WinData.GetMessageHookHandle = SetWindowsHookEx( WH_GETMESSAGE, MsgHook, WinData.Instance, 0 ) ;
+//						WinData.GetMessageHookHandle = SetWindowsHookExW( WH_GETMESSAGE, WinData.MessageHookCallBadk, WinData.MessageHookDLL, WinData.MessageHookThredID ) ;
+						WinData.GetMessageHookHandle = SetWindowsHookExW( WH_GETMESSAGE, MsgHook, WinData.Instance, 0 ) ;
 					}
 				}
 			}
@@ -8841,7 +9300,7 @@ int WM_ACTIVATEProcess( WPARAM wParam, int APPMes )
 // ソフトのウインドウにフォーカスを移す
 extern void SetAbsoluteForegroundWindow( HWND hWnd, int Flag )
 {
-    int nTargetID, nForegroundID;
+    DWORD nTargetID, nForegroundID;
     DWORD sp_time;
 
     // フォアグラウンドウィンドウを作成したスレッドのIDを取得
@@ -8856,10 +9315,10 @@ extern void SetAbsoluteForegroundWindow( HWND hWnd, int Flag )
 
 
     // 現在の設定を sp_time に保存
-    SystemParametersInfo( SPI_GETFOREGROUNDLOCKTIMEOUT,0,&sp_time,0);
+    SystemParametersInfoW( SPI_GETFOREGROUNDLOCKTIMEOUT,0,&sp_time,0);
 
     // ウィンドウの切り替え時間を 0ms にする
-    SystemParametersInfo( SPI_SETFOREGROUNDLOCKTIMEOUT,0,(LPVOID)0,0);
+    SystemParametersInfoW( SPI_SETFOREGROUNDLOCKTIMEOUT,0,(LPVOID)0,0);
 
 
     // ウィンドウをフォアグラウンドに持ってくる
@@ -8867,7 +9326,7 @@ extern void SetAbsoluteForegroundWindow( HWND hWnd, int Flag )
 
 
     // 設定を元に戻す
-    SystemParametersInfo( SPI_SETFOREGROUNDLOCKTIMEOUT,0,&sp_time,0);
+    SystemParametersInfoW( SPI_SETFOREGROUNDLOCKTIMEOUT,0,&sp_time,0);
 
 
     // スレッドのインプット状態を切り離す
@@ -8891,11 +9350,11 @@ extern int GetBmpImageToResource( int ResourceID, BITMAPINFO **BmpInfoP, void **
 	int Er = FALSE ;
 
 	// リソースを取得
-	RSrc = FindResource( WinData.LoadResourModule == NULL ? GetModuleHandle( NULL ) : WinData.LoadResourModule, MAKEINTRESOURCE( ResourceID ), RT_BITMAP ) ;
+	RSrc = FindResource( WinData.LoadResourModule == NULL ? WinAPIData.Win32Func.GetModuleHandleWFunc( NULL ) : WinData.LoadResourModule, MAKEINTRESOURCE( ResourceID ), RT_BITMAP ) ;
 	if( RSrc == NULL ) return -1 ;
 
 	// リソースが格納されているメモリ領域を取得
-	Global = LoadResource( WinData.LoadResourModule == NULL ? GetModuleHandle( NULL ) : WinData.LoadResourModule, RSrc ) ;
+	Global = LoadResource( WinData.LoadResourModule == NULL ? WinAPIData.Win32Func.GetModuleHandleWFunc( NULL ) : WinData.LoadResourModule, RSrc ) ;
 	DataP = ( BYTE * )( DataBuf = LockResource( Global ) ) ;
 	if( DataBuf == NULL ) return -1 ;
 
@@ -8912,7 +9371,7 @@ extern int GetBmpImageToResource( int ResourceID, BITMAPINFO **BmpInfoP, void **
 		if( BmpInfoT.bmiHeader.biBitCount <= 8 )
 		{
 			// ＢＭＰＩＮＦＯ構造体の格納用メモリを確保
-			if( ( BmpInfo = ( BITMAPINFO * )DXCALLOC( ( int )sizeof( BITMAPINFOHEADER ) + ( 1 << BmpInfoT.bmiHeader.biBitCount ) * ( int )sizeof( RGBQUAD ) ) ) == NULL )
+			if( ( BmpInfo = ( BITMAPINFO * )DXCALLOC( ( size_t )( sizeof( BITMAPINFOHEADER ) + ( ( size_t )1 << BmpInfoT.bmiHeader.biBitCount ) * sizeof( RGBQUAD ) ) ) ) == NULL )
 			{
 				Er = TRUE ; goto END1 ;
 			}
@@ -8921,8 +9380,8 @@ extern int GetBmpImageToResource( int ResourceID, BITMAPINFO **BmpInfoP, void **
 			memcpy( BmpInfo, &BmpInfoT, sizeof( BITMAPINFOHEADER ) ) ;
 
 			// 残りのカラーパレットの読みこみ
-			memcpy( ( ( BYTE * )BmpInfo ) + ( int )sizeof( BITMAPINFOHEADER ), DataP, ( 1 << BmpInfoT.bmiHeader.biBitCount ) * ( int )sizeof( RGBQUAD ) ) ;
-			DataP += ( 1 << BmpInfoT.bmiHeader.biBitCount ) * ( int )sizeof( RGBQUAD ) ;
+			memcpy( ( ( BYTE * )BmpInfo ) + sizeof( BITMAPINFOHEADER ), DataP, ( ( size_t )1 << BmpInfoT.bmiHeader.biBitCount ) * sizeof( RGBQUAD ) ) ;
+			DataP += ( ( size_t )1 << BmpInfoT.bmiHeader.biBitCount ) * sizeof( RGBQUAD ) ;
 		}
 		else
 		// カラービット数が３２か１６でカラーマスク使用時の処理
@@ -8965,14 +9424,14 @@ extern int GetBmpImageToResource( int ResourceID, BITMAPINFO **BmpInfoP, void **
 		}
 
 		// グラフィックデータ領域を確保
-		if( ( GraphData = DXALLOC( ImageSize ) ) == NULL )
+		if( ( GraphData = DXALLOC( ( size_t )ImageSize ) ) == NULL )
 		{
 			DXFREE( BmpInfo ) ; BmpInfo = NULL ;
 			goto END1 ;
 		}
 
 		// グラフィックデータの読みこみ
-		memcpy( GraphData, DataP, ImageSize ) ;
+		memcpy( GraphData, DataP, ( size_t )ImageSize ) ;
 		DataP += ImageSize ;
 	}
 
@@ -8993,7 +9452,11 @@ END1 :
 
 
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 
 

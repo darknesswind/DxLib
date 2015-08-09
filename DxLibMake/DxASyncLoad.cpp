@@ -2,14 +2,14 @@
 // 
 // 		ＤＸライブラリ		非同期読み込み処理プログラム
 // 
-// 				Ver 3.11f
+// 				Ver 3.14d
 // 
 // -------------------------------------------------------------------------------
 
-// ＤＸLibrary 生成时使用的定义
+// ＤＸライブラリ作成時用定義
 #define __DX_MAKE
 
-// Include ------------------------------------------------------------------
+// インクルード ------------------------------------------------------------------
 #include "DxASyncLoad.h"
 
 #ifndef DX_NON_ASYNCLOAD
@@ -20,13 +20,17 @@
 #include "DxMemory.h"
 #include "DxLog.h"
 
+#ifdef DX_USE_NAMESPACE
+
 namespace DxLib
 {
 
-// 宏定义 --------------------------------------------------------------------
+#endif // DX_USE_NAMESPACE
 
-// 结构体定义 --------------------------------------------------------------------
+// マクロ定義 --------------------------------------------------------------------
 
+// 構造体定義 --------------------------------------------------------------------
+	
 // 内部大域変数宣言 --------------------------------------------------------------
 
 // 非同期読み込み処理が使用するグローバルデータ
@@ -124,7 +128,7 @@ extern int InitializeASyncLoad( int MainThreadID )
 		return -1 ;
 
 	// メインスレッドのＩＤを保存する
-	GASyncLoadData.MainThreadID = MainThreadID ;
+	GASyncLoadData.MainThreadID = ( DWORD )MainThreadID ;
 
 	// 非同期読み込み処理用のクリティカルセクションの初期化
 	CriticalSection_Initialize( &GASyncLoadData.CriticalSection ) ;
@@ -242,7 +246,7 @@ extern ASYNCLOADDATA_COMMON *AllocASyncLoadDataMemory( int AddAllocSize )
 	ASyncData = ( ASYNCLOADDATA_COMMON * )DXALLOC( sizeof( ASYNCLOADDATA_COMMON ) + AddAllocSize ) ;
 	if( ASyncData == NULL )
 	{
-		DXST_ERRORLOGFMT_ADD(( _T( "非同期読み込みデータを格納するメモリ領域 %dByte の確保に失敗しました" ), AddAllocSize + sizeof( ASYNCLOADDATA_COMMON ) )) ;
+		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x5e\x97\x0c\x54\x1f\x67\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\xc7\x30\xfc\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x20\x00\x25\x00\x64\x00\x42\x00\x79\x00\x74\x00\x65\x00\x20\x00\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"非同期読み込みデータを格納するメモリ領域 %dByte の確保に失敗しました" @*/, AddAllocSize + sizeof( ASYNCLOADDATA_COMMON ) )) ;
 		return NULL ;
 	}
 
@@ -256,7 +260,7 @@ extern	void	AddASyncLoadParamStruct( BYTE *Data, int *Addr, const void *Param, i
 	if( Data )
 	{
 		*( ( WORD * )( Data + *Addr ) ) = ( WORD )( Size + sizeof( WORD ) ) ;
-		_MEMCPY( Data + *Addr + sizeof( WORD ), Param, Size ) ;
+		_MEMCPY( Data + *Addr + sizeof( WORD ), Param, ( size_t )Size ) ;
 	}
 	*Addr += Size + sizeof( WORD ) ;
 }
@@ -322,9 +326,9 @@ extern	void	AddASyncLoadParamFloat( BYTE *Data, int *Addr, float Param )
 }
 
 // 非同期読み込みデータのパラメータに文字列パラメータを追加
-extern	void	AddASyncLoadParamString( BYTE *Data, int *Addr, const TCHAR *Param )
+extern	void	AddASyncLoadParamString( BYTE *Data, int *Addr, const wchar_t *Param )
 {
-	int StrLen ;
+	DWORD StrLen ;
 
 	if( Param == NULL )
 	{
@@ -332,7 +336,7 @@ extern	void	AddASyncLoadParamString( BYTE *Data, int *Addr, const TCHAR *Param )
 	}
 	else
 	{
-		StrLen = ( lstrlen( Param ) + 1 ) * sizeof( TCHAR ) ;
+		StrLen = ( _WCSLEN( Param ) + 1 ) * sizeof( wchar_t ) ;
 	}
 
 	if( Data )
@@ -424,12 +428,12 @@ extern	float	GetASyncLoadParamFloat( BYTE *Data, int *Addr )
 }
 
 // 非同期読み込みデータのパラメータから文字列パラメータを取得
-extern	TCHAR *	GetASyncLoadParamString( BYTE *Data, int *Addr )
+extern	wchar_t *	GetASyncLoadParamString( BYTE *Data, int *Addr )
 {
-	TCHAR *Ret ;
-	int StrLen ;
+	wchar_t *Ret ;
+	DWORD StrLen ;
 
-	Ret = ( TCHAR * )( ( Data + *Addr ) + sizeof( WORD ) ) ;
+	Ret = ( wchar_t * )( ( Data + *Addr ) + sizeof( WORD ) ) ;
 	StrLen = *( ( WORD * )( Data + *Addr ) ) - sizeof( WORD ) ;
 	*Addr += *( ( WORD * )( Data + *Addr ) ) ;
 
@@ -450,7 +454,7 @@ extern int AddASyncLoadData( ASYNCLOADDATA_COMMON *ASyncData )
 		// クリティカルセクションの解放
 		CriticalSection_Unlock( &GASyncLoadData.CriticalSection ) ;
 
-		return DxLib_Error( DXSTRING( _T( "非同期読み込みデータの数が許容量を越えました終了します" ) ) ) ;
+		return DxLib_ErrorUTF16LE( "\x5e\x97\x0c\x54\x1f\x67\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\xc7\x30\xfc\x30\xbf\x30\x6e\x30\x70\x65\x4c\x30\x31\x8a\xb9\x5b\xcf\x91\x92\x30\x8a\x8d\x48\x30\x7e\x30\x57\x30\x5f\x30\x42\x7d\x86\x4e\x57\x30\x7e\x30\x59\x30\x00"/*@ L"非同期読み込みデータの数が許容量を越えました終了します" @*/ ) ;
 	}
 
 	// 使用されていない配列要素を探す
@@ -653,7 +657,7 @@ SLEEP_LABEL :
 			CriticalSection_Unlock( &GASyncLoadData.CriticalSection ) ;
 
 			// 休止状態にする
-			Thread_Suspend() ;
+			Thread_Suspend( pThreadInfo ) ;
 
 			// 最初に戻る
 			continue ;
@@ -687,8 +691,6 @@ SLEEP_LABEL :
 
 			// 寝る
 			goto SLEEP_LABEL ;
-
-			continue ;
 		}
 
 		// データを処理中フラグを立てる
@@ -907,7 +909,7 @@ extern int AddASyncLoadRequestMainThreadInfo( ASYNCLOAD_MAINTHREAD_REQUESTINFO *
 	// 既にメインスレッドへの処理依頼数が最大数に達している場合はエラー
 	if( GASyncLoadData.MainThreadRequestInfoNum == ASYNCLOADDATA_MAXNUM )
 	{
-		DxLib_Error( DXSTRING( _T( "非同期読み込みスレッドからメインスレッドへの処理依頼数が許容量を越えました終了します" ) ) ) ;
+		DxLib_ErrorUTF16LE( "\x5e\x97\x0c\x54\x1f\x67\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\xb9\x30\xec\x30\xc3\x30\xc9\x30\x4b\x30\x89\x30\xe1\x30\xa4\x30\xf3\x30\xb9\x30\xec\x30\xc3\x30\xc9\x30\x78\x30\x6e\x30\xe6\x51\x06\x74\x9d\x4f\x3c\x98\x70\x65\x4c\x30\x31\x8a\xb9\x5b\xcf\x91\x92\x30\x8a\x8d\x48\x30\x7e\x30\x57\x30\x5f\x30\x42\x7d\x86\x4e\x57\x30\x7e\x30\x59\x30\x00"/*@ L"非同期読み込みスレッドからメインスレッドへの処理依頼数が許容量を越えました終了します" @*/ ) ;
 		goto ERR ;
 	}
 
@@ -921,7 +923,7 @@ extern int AddASyncLoadRequestMainThreadInfo( ASYNCLOAD_MAINTHREAD_REQUESTINFO *
 	for( i = 0 ; i < ASYNCLOADTHREAD_MAXNUM && Thread_GetId( &AInfo->ThreadInfo ) != CurrentThreadId ; i ++, AInfo ++ ){}
 	if( i == ASYNCLOADTHREAD_MAXNUM )
 	{
-		DxLib_Error( DXSTRING( _T( "非同期読み込みスレッド以外からメインスレッドへの処理依頼が行われました" ) ) ) ;
+		DxLib_ErrorUTF16LE( "\x5e\x97\x0c\x54\x1f\x67\xad\x8a\x7f\x30\xbc\x8f\x7f\x30\xb9\x30\xec\x30\xc3\x30\xc9\x30\xe5\x4e\x16\x59\x4b\x30\x89\x30\xe1\x30\xa4\x30\xf3\x30\xb9\x30\xec\x30\xc3\x30\xc9\x30\x78\x30\x6e\x30\xe6\x51\x06\x74\x9d\x4f\x3c\x98\x4c\x30\x4c\x88\x8f\x30\x8c\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"非同期読み込みスレッド以外からメインスレッドへの処理依頼が行われました" @*/ ) ;
 		goto ERR ;
 	}
 
@@ -949,7 +951,7 @@ extern int AddASyncLoadRequestMainThreadInfo( ASYNCLOAD_MAINTHREAD_REQUESTINFO *
 	CriticalSection_Unlock( &GASyncLoadData.CriticalSection ) ;
 
 	// スレッドを止める
-	Thread_Suspend() ;
+	Thread_Suspend( &AInfo->ThreadInfo ) ;
 
 	// 処理終了待ち
 //	WaitForSingleObject( Info->EndEvent, INFINITE ) ;
@@ -964,6 +966,7 @@ ERR :
 	// エラー終了
 	return -1 ;
 }
+
 
 
 
@@ -985,6 +988,10 @@ extern int NS_GetASyncLoadNum( void )
 }
 
 
+#ifdef DX_USE_NAMESPACE
+
 }
+
+#endif // DX_USE_NAMESPACE
 
 #endif // DX_NON_ASYNCLOAD

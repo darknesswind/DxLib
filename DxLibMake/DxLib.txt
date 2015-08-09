@@ -2,7 +2,7 @@
 //
 //	ＤＸライブラリ　さわり
 //
-//	Ver 3.11f		By 山田　巧
+//	Ver 3.14d		By 山田　巧
 //
 //===============================================================================================
 
@@ -64,47 +64,51 @@
 
 	　　JPEG 画像を読みこむ機能を使用した場合
 
-	　　　libjpeg　Copyright (C) 1991-1998, Thomas G. Lane.
-	　　　this software is based in part on the work of the Independent JPEG Group.
+	　　　libjpeg　Copyright (C) 1991-2013, Thomas G. Lane, Guido Vollbeding.
 
 
 	　　PNG 画像を読みこむ機能を使用した場合
 
-	　　　libpng　Copyright (c) 1998-2004 Glenn Randers-Pehrson.
-	　　　zlib　Copyright (C) 1995-2004 Jean-loup Gailly and Mark Adler.
+	　　　libpng　Copyright (C) 2004, 2006-2012 Glenn Randers-Pehrson.
+	　　　zlib　Copyright (C) 1995-2012 Jean-loup Gailly and Mark Adler.
 
 
-	　　Ogg Vorbis 音声データを読み込む機能を使用した場合
+	　　TIFF 画像を読み込む機能を使用した場合
 
-	　　　ogg_static, vorbis_static, vorbisfile_static
-	　　　Copyright (C) 1994-2002 XIPHOPHORUS Company http://www.xiph.org/ .
+	　　　libtiff　Copyright (c) 1988-1997 Sam Leffler
+	　　　libtiff　Copyright (c) 1991-1997 Silicon Graphics, Inc.
 
-	　　　Please note that this is only a sample license; authoritative license terms are included with each software bundle. 
-	　　　　　　
-	　　　c year, Xiph.Org Foundation
-	　　　　　　
-	　　　Redistribution and use in source and binary forms, with or without modification,
-	　　　are permitted provided that the following conditions are met: 
-	　　　　　　
-	　　　- Redistributions of source code must retain the above copyright notice,
-	　　　this list of conditions and the following disclaimer. 
+　　　
+	　　Ogg Vorbis 音声データを読み込む機能、又は Ogg Theora 動画データを読み込む機能を使用した場合
 
-	　　　- Redistributions in binary form must reproduce the above copyright notice,
-	　　　this list of conditions and the following disclaimer in the documentation
-	　　　and/or other materials provided with the distribution. 
+	　　　Copyright (C) 2002-2009 Xiph.org Foundation
 
-	　　　- Neither the name of the Xiph.org Foundation nor the names of its contributors may be used
-	　　　to endorse or promote products derived from this software without specific prior written permission. 
+	　　　Redistribution and use in source and binary forms, with or without
+	　　　modification, are permitted provided that the following conditions
+	　　　are met:
 
-	　　　This software is provided by the copyright holders and contributors “as is” and
-	　　　any express or implied warranties, including, but not limited to, the implied warranties
-	　　　of merchantability and fitness for a particular purpose are disclaimed. In no event shall
-	　　　the foundation or contributors be liable for any direct, indirect, incidental, special,
-	　　　exemplary, or consequential damages (including, but not limited to, procurement of
-	　　　substitute goods or services; loss of use, data, or profits; or business interruption)
-	　　　however caused and on any theory of liability, whether in contract, strict liability,
-	　　　or tort (including negligence or otherwise) arising in any way out of the use of this
-	　　　software, even if advised of the possibility of such damage. 
+	　　　- Redistributions of source code must retain the above copyright
+	　　　notice, this list of conditions and the following disclaimer.
+
+	　　　- Redistributions in binary form must reproduce the above copyright
+	　　　notice, this list of conditions and the following disclaimer in the
+	　　　documentation and/or other materials provided with the distribution.
+
+	　　　- Neither the name of the Xiph.org Foundation nor the names of its
+	　　　contributors may be used to endorse or promote products derived from
+	　　　this software without specific prior written permission.
+
+	　　　THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+	　　　``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+	　　　LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+	　　　A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE FOUNDATION
+	　　　OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+	　　　SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+	　　　LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+	　　　DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+	　　　THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	　　　(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+	　　　OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 	　　関数 GetRand を使用した場合
@@ -138,14 +142,18 @@
 	　　　(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 	　　　THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	<<ＤＸライブラリのソースコードの再配布について>>
-	　　　ＤＸライブラリのプログラムソースを配布する場合は、一部、全部問わず以下の著作権表示を
-	　　配布物とともに提供される文書、または他の資料に含めて下さい。
 
-	　　　DX Library Copyright (C) 2001-2008 Takumi Yamada.
+	　　PMD+VMDファイルの読み込みで物理演算を使用した場合
 
-		　ライブラリを使用して作成した実行ファイルを配布する場合は必要ありません。
-		　あくまでＤＸライブラリのソースコードやライブラリファイルそのものを配布する場合、です。
+	　　　Bullet　Copyright (c) 2003-2006 Erwin Coumans.
+
+
+	<<ＤＸライブラリのライブラリファイルやソースコードの再配布について>>
+		　ＤＸライブラリのライブラリファイル( 拡張子が lib や a のファイル )や、プログラムソースファイル
+		　( DxGraphics.cpp や DxLib.h などのファイル )を配布する場合は、一部、全部問わず以下の著作権表示を
+		　配布物とともに提供される文書、または他の資料に含めて下さい。
+
+	　　　DX Library Copyright (C) 2001-2014 Takumi Yamada.
 
 
 // 連絡------------------------------------------------------------------------

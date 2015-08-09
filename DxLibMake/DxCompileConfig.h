@@ -2,7 +2,7 @@
 //
 //		ＤＸライブラリ　コンパイルコンフィグヘッダファイル
 //
-//				Ver 3.11f
+//				Ver 3.14d
 //
 // ----------------------------------------------------------------------------
 
@@ -17,6 +17,9 @@
 #define __DXCOMPILECONFIG_H__
 
 // スタティックライブラリ生成時ライブラリ機能制限用定義 -----------------------
+
+// namespace DxLib を使用する場合は次のコメントを外してください
+#define DX_USE_NAMESPACE
 
 // インラインアセンブラを使用しないソースコードでコンパイルする場合は以下のコメントアウトを外してください
 //#define DX_NON_INLINE_ASM
@@ -33,7 +36,7 @@
 #define DX_THREAD_SAFE_NETWORK_ONLY
 
 // ＤＸアーカイブがいらない方は次のコメントを外してください
-// ( ＤＸアーカイブを無効にすると、ＤＸアーカイブを内部で使っている関係上 DX_NON_MODEL と DX_NON_FILTER も有効になります )
+// ( ＤＸアーカイブを無効にすると、ＤＸアーカイブを内部で使っている関係上 DX_NON_MODEL と DX_NON_FILTER と DX_NON_NORMAL_DRAW_SHADER も有効になります )
 //#define DX_NON_DXA
 
 // ムービー機能がいらない方は次のコメントを外してください
@@ -50,8 +53,15 @@
 // ※DxUseCLib.lib も再コンパイルする必要があります
 //#define DX_NON_PNGREAD
 
+// ＴＩＦＦ画像の読みこみ機能がいらない方は次のコメントを外してください
+// ※DxUseCLib.lib も再コンパイルする必要があります
+#define DX_NON_TIFFREAD
+
 // GraphFilter や GraphBlend を使用しない方は次のコメントを外して下さい
 //#define DX_NON_FILTER
+
+// 通常描画にプログラマブルシェーダーを使用しない方は次のコメントを外してください
+//#define DX_NON_NORMAL_DRAW_SHADER
 
 // ソフトウエア２Ｄ描画がいらない方は次のコメントを外してください
 //#define DX_NON_2DDRAW
@@ -97,7 +107,7 @@
 
 // Bullet Physics をリンクしない場合は次のコメントを外してください
 // ※DxUseCLib.lib も再コンパイルする必要があります
-//#define DX_NON_BULLET_PHYSICS
+#define DX_NON_BULLET_PHYSICS
 
 // ＦＢＸファイルを読み込む機能を使用する方は次のコメントを外してください( 使用には FBX SDK のセットアップが必要です )
 //#define DX_LOAD_FBX_MODEL
@@ -139,8 +149,58 @@
 // 各ハンドルのエラーチェックを無効にする場合は次のコメントを外してください( 若干高速化される代わりに無効なハンドルを関数に渡すと即不正なメモリアクセスエラーが発生するようになります )
 //#define DX_NON_HANDLE_ERROR_CHECK
 
+// Direct3D11 を使用しない場合は以下のコメントを外してください( 現在開発中なので、必ずコメントを外した状態にしてください )
+//#define DX_NON_DIRECT3D11
+
+// Direct3D9 を使用しない場合は以下のコメントを外してください
+//#define DX_NON_DIRECT3D9
+
 // 軽量バージョンのＤＸライブラリを生成する場合は次のコメントを外してください
 //#define DX_LIB_LITEVER
+
+#if !defined( __ANDROID ) && !defined( __PSVITA ) && !defined( __PS4 )
+#define __WINDOWS__
+#endif
+
+#ifndef __WINDOWS__
+	#ifndef DX_NON_BEEP
+		#define DX_NON_BEEP
+	#endif // DX_NON_BEEP
+	#ifndef DX_NON_ACM
+		#define DX_NON_ACM
+	#endif // DX_NON_ACM
+	#ifndef DX_NON_DSHOW_MP3
+		#define DX_NON_DSHOW_MP3
+	#endif // DX_NON_DSHOW_MP3
+	#ifndef DX_NON_DSHOW_MOVIE
+		#define DX_NON_DSHOW_MOVIE
+	#endif // DX_NON_DSHOW_MOVIE
+#endif // __WINDOWS__
+
+#if defined( __ANDROID )
+	#undef DX_THREAD_SAFE_NETWORK_ONLY
+#endif
+
+#ifdef __PSVITA
+#define DX_NON_MOVIE
+//#define DX_NON_FILTER
+#define DX_NON_2DDRAW
+#define DX_NON_ACM
+#define DX_NON_MASK
+#define DX_NON_DSHOW_MP3
+#define DX_NON_DSHOW_MOVIE
+#define DX_NON_KEYEX
+#define DX_NON_INPUTSTRING
+#define DX_NON_NETWORK
+#define DX_NON_OGGVORBIS
+#define DX_NON_OGGTHEORA
+#define DX_NON_MODEL
+#define DX_NON_BULLET_PHYSICS
+#define DX_NON_STOPTASKSWITCH
+#define DX_NON_SAVEFUNCTION
+#define DX_NON_DIRECT3D11
+#define DX_NON_DIRECT3D9
+#endif
 
 #ifdef DX_LIB_LITEVER
 #define DX_NON_ACM
@@ -179,6 +239,9 @@
 
 
 #ifdef DX_NON_DXA
+	#ifndef DX_NON_NORMAL_DRAW_SHADER
+		#define DX_NON_NORMAL_DRAW_SHADER
+	#endif
 	#ifndef DX_NON_MODEL
 		#define DX_NON_MODEL
 	#endif
@@ -208,22 +271,14 @@
 	#endif
 #endif
 
-#ifdef _WIN64
+#if defined( _WIN64 ) || defined( __PS4 )
+	#define __64BIT__
+#endif
+
+#if defined( _WIN64 ) || defined( __PSVITA ) || defined( __PS4 )
 	#ifndef DX_NON_INLINE_ASM
 		#define DX_NON_INLINE_ASM
 	#endif
-#endif
-
-#if !defined( __ANDROID )
-#define __WINDOWS__
-#endif
-
-#ifdef __ANDROID
-#ifndef DX_NON_ACM
-#define DX_NON_ACM
-#undef DX_THREAD_SAFE
-#undef DX_THREAD_SAFE_NETWORK_ONLY
-#endif
 #endif
 
 #include "DxDataType.h"
