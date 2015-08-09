@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ＰＭＤモデルデータ読み込みプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -53,11 +53,11 @@ namespace DxLib
 
 // データ宣言 -----------------------------------
 
-static int     WCHAR_T_StringSetup = 0 ;
-static char *  HizaString_UTF16LE   = "\x72\x30\x56\x30\x00"/*@ L"ひざ" @*/ ;
-static char *  CenterString_UTF16LE = "\xbb\x30\xf3\x30\xbf\x30\xfc\x30\x00"/*@ L"センター" @*/ ;
-static wchar_t HizaString_WCHAR_T[ 8 ] ;
-static wchar_t CenterString_WCHAR_T[ 8 ] ;
+static int           WCHAR_T_StringSetup = 0 ;
+static const char *  HizaString_UTF16LE   = "\x72\x30\x56\x30\x00"/*@ L"ひざ" @*/ ;
+static const char *  CenterString_UTF16LE = "\xbb\x30\xf3\x30\xbf\x30\xfc\x30\x00"/*@ L"センター" @*/ ;
+static wchar_t       HizaString_WCHAR_T[ 8 ] ;
+static wchar_t       CenterString_WCHAR_T[ 8 ] ;
 
 // 関数宣言 -------------------------------------
 
@@ -68,6 +68,7 @@ static int _MV1LoadModelToVMD_PMD(
 	void *							DataBuffer,
 	int								DataSize,
 	const char *					Name,
+	int								LoopMotionFlag,
 	PMD_READ_BONE_INFO *			PmdBoneInfo,
 	int								PmdBoneNum,
 	PMD_READ_IK_INFO *				PmdIKInfoFirst,
@@ -174,8 +175,8 @@ extern int MV1LoadModelToPMD( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	// 文字列のセットアップ
 	if( WCHAR_T_StringSetup == 0 )
 	{
-		ConvString( HizaString_UTF16LE,   DX_CODEPAGE_UTF16LE, ( char * )HizaString_WCHAR_T,   WCHAR_T_CODEPAGE ) ;
-		ConvString( CenterString_UTF16LE, DX_CODEPAGE_UTF16LE, ( char * )CenterString_WCHAR_T, WCHAR_T_CODEPAGE ) ;
+		ConvString( HizaString_UTF16LE,   DX_CHARCODEFORMAT_UTF16LE, ( char * )HizaString_WCHAR_T,   WCHAR_T_CHARCODEFORMAT ) ;
+		ConvString( CenterString_UTF16LE, DX_CHARCODEFORMAT_UTF16LE, ( char * )CenterString_WCHAR_T, WCHAR_T_CHARCODEFORMAT ) ;
 		WCHAR_T_StringSetup = 1 ;
 	}
 
@@ -200,8 +201,8 @@ extern int MV1LoadModelToPMD( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		return -1 ;
 	}
 
-	// モデル名とファイル名とコードページをセット
-	RModel.CodePage = DX_CODEPAGE_SHIFTJIS ;
+	// モデル名とファイル名と文字コード形式をセット
+	RModel.CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
 	RModel.FilePath = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->FilePath ) + 1 ) * sizeof( wchar_t ) ) ;
 	RModel.Name     = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->Name     ) + 1 ) * sizeof( wchar_t ) ) ;
 	_WCSCPY( RModel.FilePath, LoadParam->FilePath ) ;
@@ -1389,6 +1390,7 @@ PHYSICSDATAREADEND :
 					VmdData,
 					FileSize,
 					String,
+					LoopMotionFlag,
 					BoneInfoDim,
 					PmdBoneNum,
 					IKInfoFirst,
@@ -1532,8 +1534,11 @@ static void MV1LoadModelToPMD_SetupMatrix_One( PMD_READ_BONE_INFO *BoneInfo )
 static void MV1LoadModelToPMD_SetupMatrix( PMD_READ_BONE_INFO *BoneInfo, int BoneNum, int UseInitParam, int IKSkip )
 {
 	int i ;
-	MATRIX Matrix ;
+	int SetupBoneNum ;
+	PMD_READ_BONE_INFO *BoneInfoTemp ;
 
+	// すべてのボーンのローカル行列を計算
+	BoneInfoTemp = BoneInfo ;
 	for( i = 0 ; i < BoneNum ; i ++, BoneInfo ++ )
 	{
 		float x2 ;
@@ -1545,6 +1550,8 @@ static void MV1LoadModelToPMD_SetupMatrix( PMD_READ_BONE_INFO *BoneInfo, int Bon
 		float xw ;
 		float yw ;
 		float zw ;
+
+		BoneInfo->SetupLocalWorldMatrix = FALSE ;
 
 		if( IKSkip && BoneInfo->IsIK ) continue ;
 
@@ -1562,10 +1569,10 @@ static void MV1LoadModelToPMD_SetupMatrix( PMD_READ_BONE_INFO *BoneInfo, int Bon
 
 			BoneInfo->IKQuat = BoneInfo->InitRotate ;
 
-			Matrix.m[ 3 ][ 0 ] = BoneInfo->InitTranslate.x ;
-			Matrix.m[ 3 ][ 1 ] = BoneInfo->InitTranslate.y ;
-			Matrix.m[ 3 ][ 2 ] = BoneInfo->InitTranslate.z ;
-			Matrix.m[ 3 ][ 3 ] = 1.0f ;
+			BoneInfo->LocalMatrix.m[ 3 ][ 0 ] = BoneInfo->InitTranslate.x ;
+			BoneInfo->LocalMatrix.m[ 3 ][ 1 ] = BoneInfo->InitTranslate.y ;
+			BoneInfo->LocalMatrix.m[ 3 ][ 2 ] = BoneInfo->InitTranslate.z ;
+			BoneInfo->LocalMatrix.m[ 3 ][ 3 ] = 1.0f ;
 		}
 		else
 		{
@@ -1581,32 +1588,67 @@ static void MV1LoadModelToPMD_SetupMatrix( PMD_READ_BONE_INFO *BoneInfo, int Bon
 
 			BoneInfo->IKQuat = BoneInfo->Rotate ;
 
-			Matrix.m[ 3 ][ 0 ] = BoneInfo->Translate.x ;
-			Matrix.m[ 3 ][ 1 ] = BoneInfo->Translate.y ;
-			Matrix.m[ 3 ][ 2 ] = BoneInfo->Translate.z ;
-			Matrix.m[ 3 ][ 3 ] = 1.0f ;
+			BoneInfo->LocalMatrix.m[ 3 ][ 0 ] = BoneInfo->Translate.x ;
+			BoneInfo->LocalMatrix.m[ 3 ][ 1 ] = BoneInfo->Translate.y ;
+			BoneInfo->LocalMatrix.m[ 3 ][ 2 ] = BoneInfo->Translate.z ;
+			BoneInfo->LocalMatrix.m[ 3 ][ 3 ] = 1.0f ;
 		}
 
-		Matrix.m[ 0 ][ 0 ] = 1.0f - y2 - z2 ;
-		Matrix.m[ 0 ][ 1 ] = xy + zw ;
-		Matrix.m[ 0 ][ 2 ] = zx - yw ;
-		Matrix.m[ 0 ][ 3 ] = 0.0f ;
-		Matrix.m[ 1 ][ 0 ] = xy - zw ;
-		Matrix.m[ 1 ][ 1 ] = 1.0f - z2 - x2 ;
-		Matrix.m[ 1 ][ 2 ] = yz + xw ;
-		Matrix.m[ 1 ][ 3 ] = 0.0f ;
-		Matrix.m[ 2 ][ 0 ] = zx + yw ;
-		Matrix.m[ 2 ][ 1 ] = yz - xw ;
-		Matrix.m[ 2 ][ 2 ] = 1.0f - x2 - y2 ;
-		Matrix.m[ 2 ][ 3 ] = 0.0f ;
+		BoneInfo->LocalMatrix.m[ 0 ][ 0 ] = 1.0f - y2 - z2 ;
+		BoneInfo->LocalMatrix.m[ 0 ][ 1 ] = xy + zw ;
+		BoneInfo->LocalMatrix.m[ 0 ][ 2 ] = zx - yw ;
+		BoneInfo->LocalMatrix.m[ 0 ][ 3 ] = 0.0f ;
+		BoneInfo->LocalMatrix.m[ 1 ][ 0 ] = xy - zw ;
+		BoneInfo->LocalMatrix.m[ 1 ][ 1 ] = 1.0f - z2 - x2 ;
+		BoneInfo->LocalMatrix.m[ 1 ][ 2 ] = yz + xw ;
+		BoneInfo->LocalMatrix.m[ 1 ][ 3 ] = 0.0f ;
+		BoneInfo->LocalMatrix.m[ 2 ][ 0 ] = zx + yw ;
+		BoneInfo->LocalMatrix.m[ 2 ][ 1 ] = yz - xw ;
+		BoneInfo->LocalMatrix.m[ 2 ][ 2 ] = 1.0f - x2 - y2 ;
+		BoneInfo->LocalMatrix.m[ 2 ][ 3 ] = 0.0f ;
+	}
 
-		if( BoneInfo->Frame->Parent == NULL )
+	// すべてのボーンの親子関係の行列を計算
+	SetupBoneNum = 0 ;
+	while( SetupBoneNum < BoneNum )
+	{
+		BoneInfo = BoneInfoTemp ;
+		for( i = 0 ; i < BoneNum ; i ++, BoneInfo ++ )
 		{
-			BoneInfo->LocalWorldMatrix = Matrix ;
-		}
-		else
-		{
-			MV1LoadModelToVMD_CreateMultiplyMatrix( &BoneInfo->LocalWorldMatrix, &Matrix, &( ( PMD_READ_BONE_INFO * )BoneInfo->Frame->Parent->UserData )->LocalWorldMatrix ) ;
+			// すでにセットアップがされていたら何もしない
+			if( BoneInfo->SetupLocalWorldMatrix )
+			{
+				continue ;
+			}
+
+			// IK で計算するボーンの場合は何もしない
+			if( IKSkip && BoneInfo->IsIK )
+			{
+				BoneInfo->SetupLocalWorldMatrix = TRUE ;
+				SetupBoneNum ++ ;
+				continue ;
+			}
+
+			if( BoneInfo->Frame->Parent == NULL )
+			{
+				BoneInfo->LocalWorldMatrix = BoneInfo->LocalMatrix ;
+				BoneInfo->SetupLocalWorldMatrix = TRUE ;
+				SetupBoneNum ++ ;
+			}
+			else
+			{
+				PMD_READ_BONE_INFO *ParentBoneInfo ;
+
+				ParentBoneInfo = ( PMD_READ_BONE_INFO * )BoneInfo->Frame->Parent->UserData ;
+
+				// 親のセットアップが完了している場合のみセットアップを行う
+				if( ParentBoneInfo->SetupLocalWorldMatrix )
+				{
+					MV1LoadModelToVMD_CreateMultiplyMatrix( &BoneInfo->LocalWorldMatrix, &BoneInfo->LocalMatrix, &ParentBoneInfo->LocalWorldMatrix ) ;
+					BoneInfo->SetupLocalWorldMatrix = TRUE ;
+					SetupBoneNum ++ ;
+				}
+			}
 		}
 	}
 }
@@ -1930,6 +1972,7 @@ static int _MV1LoadModelToVMD_PMD(
 	void *							DataBuffer,
 	int								DataSize,
 	const char *					Name,
+	int								LoopMotionFlag,
 	PMD_READ_BONE_INFO *			PmdBoneInfo,
 	int								PmdBoneNum,
 	PMD_READ_IK_INFO *				PmdIKInfoFirst,
@@ -1977,6 +2020,9 @@ static int _MV1LoadModelToVMD_PMD(
 		goto ENDLABEL ;
 	}
 
+	// ループモーションかどうかをセット
+	AnimSet->IsLoopAnim = LoopMotionFlag ? 1 : 0 ;
+
 	// ボーンのアニメーションポインタの初期化
 	BoneInfo = PmdBoneInfo ;
 	for( i = 0 ; i < PmdBoneNum ; i ++, BoneInfo ++ )
@@ -1994,7 +2040,7 @@ static int _MV1LoadModelToVMD_PMD(
 	{
 		// フレームの検索
 		wchar_t VmdNodeNameW[ 64 ] ;
-		ConvString( VmdNode->Name, DX_CODEPAGE_SHIFTJIS, ( char * )VmdNodeNameW, WCHAR_T_CODEPAGE ) ;
+		ConvString( VmdNode->Name, DX_CHARCODEFORMAT_SHIFTJIS, ( char * )VmdNodeNameW, WCHAR_T_CHARCODEFORMAT ) ;
 		for( Frame = RModel->FrameFirst ; Frame && _WCSCMP( Frame->NameW, VmdNodeNameW ) != 0 ; Frame = Frame->DataNext ){}
 		if( Frame == NULL ) continue ;
 
@@ -3012,7 +3058,7 @@ static int _MV1LoadModelToVMD_PMD(
 			{
 				// 対象となるシェイプデータの検索
 				wchar_t VmdFaceKeySetNameW[ 128 ] ;
-				ConvString( VmdFaceKeySet->Name, DX_CODEPAGE_SHIFTJIS, ( char * )VmdFaceKeySetNameW, WCHAR_T_CODEPAGE ) ;
+				ConvString( VmdFaceKeySet->Name, DX_CHARCODEFORMAT_SHIFTJIS, ( char * )VmdFaceKeySetNameW, WCHAR_T_CHARCODEFORMAT ) ;
 
 				Shape = Frame->ShapeFirst ;
 				for( j = 0 ; j < Frame->ShapeNum ; j ++, Shape = Shape->Next )
@@ -3174,6 +3220,7 @@ extern int MV1LoadModelToVMD( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		LoadParam->DataBuffer,
 		LoadParam->DataSize,
 		"Anim000",
+		FALSE,
 		NULL,
 		0,
 		NULL,

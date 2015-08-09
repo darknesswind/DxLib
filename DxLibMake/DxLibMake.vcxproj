@@ -97,6 +97,7 @@
     <ClInclude Include="DxDataTypeWin.h" />
     <ClInclude Include="DxFile.h" />
     <ClInclude Include="DxFont.h" />
+    <ClInclude Include="DxFunctionWin.h" />
     <ClInclude Include="DxGraphics.h" />
     <ClInclude Include="DxGraphicsFilter.h" />
     <ClInclude Include="DxHandle.h" />
@@ -124,9 +125,6 @@
     <ClInclude Include="DxStatic.h" />
     <ClInclude Include="DxSystem.h" />
     <ClInclude Include="DxThread.h" />
-    <ClInclude Include="DxUseCLib.h" />
-    <ClInclude Include="DxUseCLibOgg.h" />
-    <ClInclude Include="DxUseCStrmBaseFilter.h" />
     <ClInclude Include="Windows\DxBaseFuncWin.h" />
     <ClInclude Include="Windows\DxDirectX.h" />
     <ClInclude Include="Windows\DxFileWin.h" />
@@ -160,17 +158,12 @@
     <ClInclude Include="Windows\DxSoundWin.h" />
     <ClInclude Include="Windows\DxSystemWin.h" />
     <ClInclude Include="Windows\DxThreadWin.h" />
-    <ClInclude Include="Windows\DxUseCLibOggD3D11.h" />
-    <ClInclude Include="Windows\DxUseCLibOggD3D9.h" />
-    <ClInclude Include="Windows\DxUseCLibOggWin.h" />
-    <ClInclude Include="Windows\DxUseCStrmBaseFilter.h" />
     <ClInclude Include="Windows\DxWinAPI.h" />
     <ClInclude Include="Windows\DxWindow.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E4222A5C-B8C6-4B8D-9840-4633AD2D941F}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">

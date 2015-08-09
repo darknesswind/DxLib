@@ -1,4 +1,4 @@
-﻿float3 RGBToY     : register( c0 ) ;
+float3 RGBToY     : register( c0 ) ;
 float3 YCbCrToRGB : register( c1 ) ;
 
 sampler SrcTexture      : register( s0 ) ;

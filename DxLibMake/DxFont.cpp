@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ＤｉｒｅｃｔＤｒａｗ制御プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // ----------------------------------------------------------------------------
 
@@ -69,7 +69,7 @@ namespace DxLib
 #define FONTHANDLE_TCHAR_TO_WCHAR_TEMPSTRINGLENGTH				(512)
 
 #define FONTHANDLE_TCHAR_TO_WCHAR_T_STRING_BEGIN( str, err_ret )		\
-	int CodePage ;\
+	int CharCodeFormat ;\
 	wchar_t StringBuffer[ FONTHANDLE_TCHAR_TO_WCHAR_TEMPSTRINGLENGTH ] ;\
 	wchar_t *AllocStringBuffer = NULL ;\
 	wchar_t *UseStringBuffer ;\
@@ -77,13 +77,13 @@ namespace DxLib
 	\
 	DEFAULT_FONT_HANDLE_SETUP\
 	\
-	CodePage = GetFontHandleCharCode( FontHandle ) ;\
-	if( CodePage < 0 )\
+	CharCodeFormat = GetFontHandleCharCodeFormat( FontHandle ) ;\
+	if( CharCodeFormat < 0 )\
 	{\
 		return err_ret ;\
 	}\
 	\
-	StrLength = CL_strlen( CodePage, str ) ;\
+	StrLength = CL_strlen( CharCodeFormat, str ) ;\
 	if( StrLength > FONTHANDLE_TCHAR_TO_WCHAR_TEMPSTRINGLENGTH - 8 )\
 	{\
 		AllocStringBuffer = ( wchar_t * )DXALLOC( sizeof( wchar_t ) * ( StrLength + 16 ) ) ;\
@@ -98,7 +98,7 @@ namespace DxLib
 		UseStringBuffer = StringBuffer ;\
 	}\
 	\
-	ConvString( ( const char * )str, CodePage, ( char * )UseStringBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )str, CharCodeFormat, ( char * )UseStringBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 
 
 #define FONTHANDLE_TCHAR_TO_WCHAR_T_STRING_END		\
@@ -109,20 +109,20 @@ namespace DxLib
 	}
 
 #ifdef UNICODE
-	#define TCHAR_CODEPAGE_SETUP( err )		\
-		int CodePage ;\
+	#define TCHAR_CHARCODEFORMAT_SETUP( err )		\
+		int CharCodeFormat ;\
 		\
 		DEFAULT_FONT_HANDLE_SETUP\
 		\
-		CodePage = WCHAR_T_CODEPAGE ;
+		CharCodeFormat = WCHAR_T_CHARCODEFORMAT ;
 #else
-	#define TCHAR_CODEPAGE_SETUP( err )		\
-		int CodePage ;\
+	#define TCHAR_CHARCODEFORMAT_SETUP( err )		\
+		int CharCodeFormat ;\
 		\
 		DEFAULT_FONT_HANDLE_SETUP\
 		\
-		CodePage = GetFontHandleCharCode( FontHandle ) ;\
-		if( CodePage < 0 )\
+		CharCodeFormat = GetFontHandleCharCodeFormat( FontHandle ) ;\
+		if( CharCodeFormat < 0 )\
 		{\
 			return err ;\
 		}
@@ -132,11 +132,11 @@ namespace DxLib
 	va_list VaList ;\
 	TCHAR String[ 2048 ] ;\
 	\
-	TCHAR_CODEPAGE_SETUP( err )\
+	TCHAR_CHARCODEFORMAT_SETUP( err )\
 	\
 	va_start( VaList, FormatString ) ;\
 	\
-	CL_vsprintf( CodePage, _TISWCHAR, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, ( char * )String, ( const char * )FormatString, VaList ) ;\
+	CL_vsprintf( CharCodeFormat, _TISWCHAR, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT, ( char * )String, ( const char * )FormatString, VaList ) ;\
 	\
 	va_end( VaList ) ;
 
@@ -189,45 +189,129 @@ static unsigned char _FontEdgePattern[FONTEDGE_PATTERN_NUM][FONTEDGE_PATTERN_NUM
 	},
 } ;
 
-int CodePageTable[ DX_CHARSET_NUM ] =
+int CharCodeFormatTable[ DX_CHARSET_NUM ] =
 {
-	DX_CODEPAGE_SHIFTJIS,		// DX_CHARSET_DEFAULT
-	DX_CODEPAGE_SHIFTJIS,		// DX_CHARSET_SHFTJIS
-	DX_CODEPAGE_UHC,			// DX_CHARSET_HANGEUL
-	DX_CODEPAGE_BIG5,			// DX_CHARSET_BIG5
-	DX_CODEPAGE_GB2312,			// DX_CHARSET_GB2312
+	DX_CHARCODEFORMAT_SHIFTJIS,		// DX_CHARSET_DEFAULT
+	DX_CHARCODEFORMAT_SHIFTJIS,		// DX_CHARSET_SHFTJIS
+	DX_CHARCODEFORMAT_UHC,			// DX_CHARSET_HANGEUL
+	DX_CHARCODEFORMAT_BIG5,			// DX_CHARSET_BIG5
+	DX_CHARCODEFORMAT_GB2312,			// DX_CHARSET_GB2312
+} ;
+
+static BYTE DefaultFontDataFileImage[] =
+{
+	0x46,0x4e,0x54,0x46,0x00,0x00,0x00,0x00,0x4f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+	0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x78,0x01,0x00,0x00,0x37,0x00,0x00,0x00,
+	0xfe,0x2d,0xff,0x33,0xff,0x20,0x00,0xb4,0x30,0xb7,0x30,0xc3,0x30,0xaf,0x30,0x00,
+	0xfe,0x7c,0x07,0x00,0x10,0x00,0x12,0xfe,0x08,0x07,0x18,0x00,0x01,0x00,0xff,0xff,
+	0xfe,0xcc,0x01,0x4a,0xfe,0x38,0x00,0x20,0xfe,0x28,0x09,0x08,0xfe,0x88,0x1f,
+} ;
+
+static int DefaultFontImageConvert ;
+static BYTE DefaultFontImage[] =
+{
+	0x39,0x72,0x31,0x31,0x31,0x50,0x35,0x31,0x31,0x31,0x75,0x39,0x31,0x31,0x70,0x59,
+	0x55,0xac,0xbb,0x51,0x31,0xc1,0x73,0x31,0x34,0xb3,0x31,0x31,0x31,0x45,0x31,0x31,
+	0x31,0x35,0x34,0xbd,0x31,0x37,0x31,0x70,0x21,0x31,0x39,0x34,0xc0,0x39,0x37,0x50,
+	0x28,0x71,0x34,0xc2,0xc0,0x31,0x31,0x70,0xc2,0xc2,0xb9,0x21,0x50,0xc1,0xac,0x38,
+	0xb3,0x35,0x31,0x36,0x31,0x6f,0x38,0x38,0x52,0x33,0x43,0x35,0x51,0xc2,0x37,0x33,
+	0x34,0x38,0xb7,0x41,0x40,0x72,0x39,0x79,0xa5,0x73,0x43,0x35,0x41,0x71,0x39,0x33,
+	0x31,0x71,0x31,0x32,0x6d,0x6e,0x51,0x31,0x53,0x35,0x39,0x22,0x5b,0x53,0x35,0x39,
+	0x40,0xab,0x51,0x50,0x73,0x74,0x70,0x51,0x31,0xbd,0x43,0x25,0x59,0x35,0x39,0x50,
+	0x21,0x71,0x6f,0x36,0x33,0x71,0x50,0x35,0x39,0x43,0x43,0x55,0x41,0x35,0x35,0x50,
+	0x22,0x71,0x70,0x32,0x31,0xc1,0x71,0x32,0xb5,0x71,0x21,0x42,0xc0,0x4d,0x34,0xb3,
+	0x5a,0x43,0x41,0x79,0x35,0x51,0x35,0x31,0xa2,0xab,0x31,0xc2,0x53,0x72,0x70,0x21,
+	0x59,0x45,0x7b,0x35,0x73,0x32,0x51,0x33,0x31,0x48,0xb7,0x31,0x30,0xa1,0x50,0x50,
+	0x21,0x31,0xc1,0x36,0x33,0xc2,0x70,0x52,0x32,0xc2,0xb7,0x31,0x31,0x41,0x70,0x54,
+	0x31,0x68,0xb7,0x31,0x70,0xc1,0xa1,0x31,0x40,0xb2,0xa3,0x4f,0x7d,0xc1,0x21,0x32,
+	0xb4,0x71,0x71,0xa3,0x63,0xc1,0xbf,0x51,0x31,0x3a,0x2c,0xb3,0x6d,0x50,0x40,0x35,
+	0x38,0xa7,0x39,0x51,0x61,0x73,0x35,0x43,0x59,0x42,0xa3,0x31,0x7d,0x73,0x41,0x79,
+	0x55,0x42,0x33,0x36,0x33,0x39,0x43,0x42,0x32,0x35,0x7b,0x35,0x75,0x31,0x52,0x41,
+	0x59,0x35,0x3b,0x31,0x51,0x32,0x51,0x73,0x39,0x55,0x71,0x52,0x43,0x72,0x51,0x30,
+	0x22,0x71,0x6d,0xb8,0x33,0x39,0x32,0x45,0x40,0xac,0x51,0x50,0xc1,0x41,0x42,0x21,
+	0x52,0x31,0x44,0x32,0xc0,0x45,0x34,0xb3,0x60,0xab,0x31,0xc2,0xc0,0x3d,0x34,0xab,
+	0x7d,0x53,0x3a,0x3d,0x75,0x41,0x52,0x29,0xa2,0xac,0x31,0x2f,0x6d,0x2d,0x40,0x38,
+	0x54,0x78,0xbc,0xb8,0x69,0x39,0x32,0x43,0x32,0x35,0x7c,0x39,0x75,0xc1,0x71,0x68,
+	0x21,0x79,0x39,0x31,0x51,0x31,0x51,0x31,0x31,0xa7,0x51,0x51,0xaf,0x2d,0x3f,0x50,
+	0x23,0x71,0x6d,0x52,0xc0,0x31,0x31,0x71,0x31,0x31,0x44,0xbd,0x59,0x38,0x72,0x50,
+	0x21,0x71,0x6d,0x42,0xc0,0x45,0x3c,0xc2,0x22,0x31,0x6d,0x52,0xc0,0x35,0x34,0xa5,
+	0x60,0xab,0x55,0x37,0x3b,0xc1,0x71,0x32,0xc2,0xab,0x31,0x63,0x33,0x31,0x34,0x50,
+	0x21,0x71,0x70,0xbd,0x35,0x31,0x71,0x41,0x34,0x25,0x39,0xb3,0x41,0x4d,0x35,0x39,
+	0x79,0x41,0x74,0xbf,0x69,0x39,0x3f,0x31,0x40,0xb7,0x32,0x3a,0x35,0x53,0x35,0x39,
+	0xa2,0xab,0x31,0x50,0xc0,0x39,0xc2,0xa3,0x49,0x35,0x5b,0x3a,0x33,0x39,0x51,0x76,
+	0x35,0x58,0xb7,0x74,0xc2,0x31,0xa3,0x43,0x59,0x71,0x3c,0xbd,0x51,0x38,0xc2,0x30,
+	0x21,0x31,0x6f,0x36,0xc0,0x35,0x34,0xb8,0x53,0x71,0x74,0xbd,0x42,0x38,0x71,0x21,
+	0x39,0x45,0x74,0xbd,0xa3,0x38,0x72,0x33,0x39,0x43,0x43,0x25,0x41,0x39,0x35,0x50,
+	0x21,0x72,0x70,0xb4,0x33,0x21,0x3f,0x50,0x23,0x31,0x70,0xbd,0x31,0x40,0xa4,0x41,
+	0x60,0xa5,0x34,0xbd,0x31,0x38,0x7b,0x36,0x31,0x72,0x31,0x22,0xc0,0x35,0x7c,0xa3,
+	0x59,0x45,0x34,0xbd,0xb3,0x38,0xa3,0x23,0x55,0x53,0x41,0x39,0x51,0x53,0x70,0x5e,
+	0x31,0xbd,0x41,0x32,0x35,0x53,0x51,0x79,0x60,0xab,0x31,0x50,0x33,0x72,0x31,0x75,
+	0x39,0x41,0x51,0x21,0x31,0xbf,0x3f,0x50,0x74,0xaa,0xb7,0x43,0x30,0x32,0x51,0x30,
+	0xa6,0x75,0x39,0xb4,0xc0,0x3d,0x7b,0x32,0x70,0xb0,0xa3,0x31,0x6b,0x72,0x70,0x38,
+	0x40,0x78,0xbd,0x31,0x69,0x72,0x3f,0x37,0x39,0x48,0xbd,0x55,0x73,0x4d,0x44,0x41,
+	0x59,0x43,0x43,0x3a,0x31,0x71,0x42,0x41,0x52,0x33,0x53,0x36,0x31,0x7a,0x42,0x79,
+	0x7a,0xb7,0x3c,0xbd,0x31,0x69,0xa3,0x41,0x59,0x41,0x73,0x3a,0x35,0x71,0x55,0x79,
+	0xab,0x46,0x7c,0xbd,0x71,0x38,0xad,0x7a,0x59,0x46,0x3c,0xbd,0x61,0x38,0xa5,0x50,
+	0x21,0x71,0x70,0xc0,0xc0,0x31,0x78,0xa3,0x60,0xab,0x51,0x50,0x41,0xc1,0x75,0x34,
+	0xbb,0x58,0xb7,0x31,0x40,0xa2,0x51,0x73,0x39,0x56,0x34,0xbd,0x41,0x38,0xc1,0x41,
+	0x39,0x48,0xbe,0xc0,0x31,0xc2,0x35,0x31,0x7d,0x35,0x33,0x25,0x23,0x72,0x59,0x79,
+	0xa2,0xab,0x51,0x70,0x31,0xc1,0x71,0x5a,0xb3,0x48,0xb7,0x61,0x40,0xc1,0x71,0x3a,
+	0xc2,0xab,0x31,0x50,0x41,0xc1,0x71,0x32,0xbc,0xba,0xb7,0xa3,0x40,0x75,0x70,0x51,
+	0x31,0xbf,0x3c,0xbd,0x41,0x38,0xc2,0x51,0x46,0xbb,0x3b,0x42,0x31,0x26,0x49,0x21,
+	0x55,0x52,0x53,0x3a,0xc0,0x3d,0x5c,0xa3,0x79,0x55,0x34,0x3d,0xa5,0x53,0x3f,0x33,
+	0x40,0x72,0xa6,0xb4,0xc1,0xc1,0x71,0x50,0x62,0xb7,0x3b,0x32,0x33,0x52,0x3f,0x50,
+	0x2e,0x78,0xbb,0x32,0xc1,0x4d,0x70,0x30,0xa3,0x58,0xbe,0xbf,0x41,0xc2,0x70,0x71,
+	0x33,0x31,0x39,0x31,0x71,0x39,0x61,0x73,0x39,0x31,0x39,0x39,0x33,0x72,0x35,0x41,
+	0x51,0x41,0x31,0x71,0x35,0x31,0x39,0x50,0x24,0x71,0x6d,0xa3,0x61,0x35,0x31,0x33,
+	0x31,0x36,0x3c,0xbd,0x69,0x38,0x75,0x31,0x31,0x78,0xb7,0xb3,0x40,0x31,0x31,0x35,
+	0x38,0xa3,0x41,0x52,0x53,0x39,0x41,0x31,0x60,0xb3,0x3b,0x35,0x39,0xc1,0x71,0x32,
+	0xb7,0x31,0x31,0x35,0x41,0x7a,0x35,0x35,0x31,0x45,0x44,0xbd,0x49,0x38,0x79,0x40,
+	0x71,0x51,0x53,0x55,0x41,0x39,0x70,0x21,0xa2,0xba,0xbb,0x42,0xc1,0xc2,0x70,0x52,
+	0x34,0xbb,0x43,0x55,0x41,0x35,0x31,0x21,0x79,0x35,0x31,0x3a,0x33,0x72,0x70,0x52,
+	0x36,0xbd,0x3b,0x45,0x41,0x33,0x70,0x54,0x31,0xc2,0xb7,0x34,0xbe,0x32,0x39,0x41,
+	0x59,0x21,0x71,0x36,0xc0,0x31,0x34,0xa3,0x60,0xab,0x31,0x4f,0x33,0x31,0x41,0x41,
+	0x59,0x21,0x73,0x36,0xc0,0x31,0x34,0xb3,0x60,0xab,0x31,0x4f,0x31,0x31,0x31,0x41,
+	0x59,0x62,0x74,0xbd,0x79,0x38,0x22,0x50,0x21,0x37,0x57,0x3a,0xc1,0xc1,0x71,0x31,
+	0x40,0xab,0x51,0x50,0xc0,0xb7,0xc2,0xa3,0x31,0x31,0x71,0x31,0x75,0x39,0x51,0x31,
+	0x31,0x31,0x51,0x72,0xc0,0x3d,0x2e,0xa3,0x72,0x31,0x32,0x39,0xbf,0x78,0x4d,0x71,
+	0x32,0x31,0x74,0xbd,0x39,0x38,0x21,0x50,0x21,0x33,0xa1,0x55,0x7b,0x77,0x70,0x52,
+	0x31,0xbc,0x71,0x31,0x61,0xc1,0x73,0x32,0xb4,0x43,0x6b,0x49,0x31,0x41,0x33,0x50,
+	0x21,0x71,0x6d,0x71,0x31,0x39,0x31,0x50,0xa4,0x42,0x34,0xbd,0x31,0x38,0xc2,0x51,
+	0x33,0x39,0x34,0xbd,0x31,0x38,0x22,0x33,0x53,0x35,0x79,0x31,0x51,0x35,0x46,0x50,
+	0x22,0x3d,0xbb,0x38,0xc0,0x31,0x34,0xa5,0x36,0x41,0x31,0x71,0x39,0xc1,0x73,0x62,
+	0x71,0x48,0xb7,0x41,0x40,0x6f,0x35,0x35,0x40,0xab,0x31,0x2f,0xbf,0x31,0x50,0x31,
+	0x40,0xab,0x36,0x55,0x32,0x53,0x55,0x32,0x34,0x38,0xb7,0x71,0x50,0xc1,0x77,0x32,
+	0xb7,0x78,0xb7,0x71,0x70,0x33,0x70,0x51,0x36,0xbf,0x74,0x7a,0x35,0xc1,0x79,0x3c,
+	0xb3,0x51,0x31,0x51,0x75,0x53,0x55,0x25,0x79,0x52,0x34,0xbd,0x39,0x37,0xc2,0x51,
+	0x42,0x41,0x35,0x51,0xa9,0x53,0x50,0x4d,0x59,0x52,0x74,0xbd,0x71,0x38,0x75,0x31,
+	0x58,0x72,0x74,0xbd,0x31,0xaa,0xc2,0x61,0x72,0x31,0x31,
 } ;
 
 FONTSYSTEM FontSystem ;
 
 // 関数プロトタイプ宣言--------------------------------------------------------
 
-static	int FontCacheStringAddToHandle(		int FontHandle, const wchar_t *String, int StrLen = -1,
+static	int FontCacheStringAddToHandle(		FONTMANAGE *ManageData, const wchar_t *String, int StrLen = -1,
 											DWORD *DrawStrBuffer = NULL, int *DrawCharNumP = NULL ) ;	// 文字キャッシュに新しい文字を加える
 
-static int DrawStringHardware(				int xi, int yi, float xf, float yf, int PosIntFlag,                                                                                        const wchar_t *String, unsigned int Color, int FontHandle, unsigned int EdgeColor, int VerticalFlag ) ;
-static int DrawExtendStringHardware(		int xi, int yi, float xf, float yf, int PosIntFlag, double ExRateX, double ExRateY,                                                        const wchar_t *String, unsigned int Color, int FontHandle, unsigned int EdgeColor, int VerticalFlag ) ;
-static int DrawRotaStringHardware(			int xi, int yi, float xf, float yf, int PosIntFlag, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, const wchar_t *String, unsigned int Color, int FontHandle, unsigned int EdgeColor, int VerticalFlag ) ;
+static int DrawStringHardware(				int xi, int yi, float xf, float yf, int PosIntFlag,                                                                                        const wchar_t *String, unsigned int Color, FONTMANAGE *Font, unsigned int EdgeColor, int VerticalFlag ) ;
+static int DrawExtendStringHardware(		int xi, int yi, float xf, float yf, int PosIntFlag, double ExRateX, double ExRateY,                                                        const wchar_t *String, unsigned int Color, FONTMANAGE *Font, unsigned int EdgeColor, int VerticalFlag ) ;
+static int DrawRotaStringHardware(			int xi, int yi, float xf, float yf, int PosIntFlag, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, const wchar_t *String, unsigned int Color, FONTMANAGE *Font, unsigned int EdgeColor, int VerticalFlag ) ;
 
-static int DrawStringSoftware(				int x, int y,                                 const wchar_t *String, unsigned int Color, int FontHandle, unsigned int EdgeColor, int VerticalFlag ) ;
-static int DrawExtendStringSoftware(		int x, int y, double ExRateX, double ExRateY, const wchar_t *String, unsigned int Color, int FontHandle, unsigned int EdgeColor, int VerticalFlag ) ;
+static int DrawStringSoftware(				int x, int y,                                 const wchar_t *String, unsigned int Color, FONTMANAGE *Font, unsigned int EdgeColor, int VerticalFlag ) ;
+static int DrawExtendStringSoftware(		int x, int y, double ExRateX, double ExRateY, const wchar_t *String, unsigned int Color, FONTMANAGE *Font, unsigned int EdgeColor, int VerticalFlag ) ;
 
 static int EnumFontNameBase(  wchar_t *NameBuffer, int NameBufferNum, int JapanOnlyFlag, int IsEx = FALSE, int CharSet = -1, const wchar_t *EnumFontName = NULL, int IsReturnValid = FALSE ) ;
 static int EnumFontNameBaseT( TCHAR   *NameBuffer, int NameBufferNum, int JapanOnlyFlag, int IsEx = FALSE, int CharSet = -1, const TCHAR   *EnumFontName = NULL, int IsReturnValid = FALSE ) ;
 
 // プログラムコード------------------------------------------------------------
 
-static int DrawStringHardware( int xi, int yi, float xf, float yf, int PosIntFlag, const wchar_t *String, unsigned int Color, int FontHandle, unsigned int EdgeColor, int VerticalFlag )
+static int DrawStringHardware( int xi, int yi, float xf, float yf, int PosIntFlag, const wchar_t *String, unsigned int Color, FONTMANAGE *Font, unsigned int EdgeColor, int VerticalFlag )
 {
-	FONTMANAGE *Font ;
-
-	// 描画先のグラフィックの情報と使用するフォントの情報を取得する
-	Font = GetFontManageDataToHandle( FontHandle ) ;
-
 	// フォントにテクスチャキャッシュが使用されている場合
 	if( Font->TextureCacheFlag )
 	{
-		RefreshFontDrawResourceToHandle( FontHandle ) ;
+		RefreshFontDrawResourceToHandle( Font ) ;
 		FontCacheStringDrawToHandleST(
 			TRUE,
 			xi,
@@ -244,7 +328,7 @@ static int DrawStringHardware( int xi, int yi, float xf, float yf, int PosIntFla
 			NULL,
 			&GSYS.DrawSetting.DrawArea,
 			TRUE,
-			FontHandle,
+			Font,
 			EdgeColor,
 			_WCSLEN( String ),
 			VerticalFlag,
@@ -260,18 +344,13 @@ static int DrawStringHardware( int xi, int yi, float xf, float yf, int PosIntFla
 	return 0 ;
 }
 
-static int DrawExtendStringHardware( int xi, int yi, float xf, float yf, int PosIntFlag, double ExRateX, double ExRateY, const wchar_t *String, unsigned int Color, int FontHandle, unsigned int EdgeColor, int VerticalFlag )
+static int DrawExtendStringHardware( int xi, int yi, float xf, float yf, int PosIntFlag, double ExRateX, double ExRateY, const wchar_t *String, unsigned int Color, FONTMANAGE *Font, unsigned int EdgeColor, int VerticalFlag )
 {
-	FONTMANAGE * Font ;
-
-	// 描画先のグラフィックの情報と使用するフォントの情報を取得する
-	Font = GetFontManageDataToHandle( FontHandle ) ;
-
 	// フォントにテクスチャキャッシュが使用されている場合
 	if( Font->TextureCacheFlag )
 	{
 		// 描画先が３Ｄデバイスによる描画が出来ない場合はエラー
-		RefreshFontDrawResourceToHandle( FontHandle ) ;
+		RefreshFontDrawResourceToHandle( Font ) ;
 		FontCacheStringDrawToHandleST(
 			TRUE,
 			xi,
@@ -288,7 +367,7 @@ static int DrawExtendStringHardware( int xi, int yi, float xf, float yf, int Pos
 			NULL,
 			&GSYS.DrawSetting.DrawArea,
 			TRUE,
-			FontHandle,
+			Font,
 			EdgeColor,
 			_WCSLEN( String ),
 			VerticalFlag,
@@ -304,18 +383,13 @@ static int DrawExtendStringHardware( int xi, int yi, float xf, float yf, int Pos
 	return 0 ;
 }
 
-static int DrawRotaStringHardware( int xi, int yi, float xf, float yf, int PosIntFlag, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, const wchar_t *String, unsigned int Color, int FontHandle, unsigned int EdgeColor, int VerticalFlag )
+static int DrawRotaStringHardware( int xi, int yi, float xf, float yf, int PosIntFlag, double ExRateX, double ExRateY, double RotCenterX, double RotCenterY, double RotAngle, const wchar_t *String, unsigned int Color, FONTMANAGE *Font, unsigned int EdgeColor, int VerticalFlag )
 {
-	FONTMANAGE * Font ;
-
-	// 描画先のグラフィックの情報と使用するフォントの情報を取得する
-	Font = GetFontManageDataToHandle( FontHandle ) ;
-
 	// フォントにテクスチャキャッシュが使用されている場合
 	if( Font->TextureCacheFlag )
 	{
 		// 描画先が３Ｄデバイスによる描画が出来ない場合はエラー
-		RefreshFontDrawResourceToHandle( FontHandle ) ;
+		RefreshFontDrawResourceToHandle( Font ) ;
 		FontCacheStringDrawToHandleST(
 			TRUE,
 			xi,
@@ -335,7 +409,7 @@ static int DrawRotaStringHardware( int xi, int yi, float xf, float yf, int PosIn
 			NULL,
 			&GSYS.DrawSetting.DrawArea,
 			TRUE,
-			FontHandle,
+			Font,
 			EdgeColor,
 			_WCSLEN( String ),
 			VerticalFlag,
@@ -351,15 +425,15 @@ static int DrawRotaStringHardware( int xi, int yi, float xf, float yf, int PosIn
 	return 0 ;
 }
 
-static int DrawStringSoftware( int x, int y, const wchar_t *String, unsigned int Color, int FontHandle, unsigned int EdgeColor, int VerticalFlag )
+static int DrawStringSoftware( int x, int y, const wchar_t *String, unsigned int Color, FONTMANAGE *ManageData, unsigned int EdgeColor, int VerticalFlag )
 {
 	SIZE DrawSize ;
-	FONTMANAGE * ManageData ;
+//	FONTMANAGE * ManageData ;
 	RECT DrawArea, ClipRect, BRect, Rect ;
 	DWORD bright ;
 	MEMIMG *ScreenImg ;
 
-	ManageData = GetFontManageDataToHandle( FontHandle ) ;
+//	ManageData = GetFontManageDataToHandle( FontHandle ) ;
 
 	// 描画領域を得る
 	FontCacheStringDrawToHandleST(
@@ -378,7 +452,7 @@ static int DrawStringSoftware( int x, int y, const wchar_t *String, unsigned int
 		NULL,
 		NULL,
 		FALSE,
-		FontHandle,
+		ManageData,
 		0,
 		-1,
 		VerticalFlag,
@@ -460,7 +534,7 @@ static int DrawStringSoftware( int x, int y, const wchar_t *String, unsigned int
 			ScreenImg,
 			&DrawArea,
 			TRUE,
-			FontHandle,
+			ManageData,
 			EdgeColor,
 			-1,
 			VerticalFlag,
@@ -508,7 +582,7 @@ NORMALDRAW:
 		GSYS.SoftRender.TargetMemImg,
 		&GSYS.DrawSetting.DrawArea,
 		TRUE,
-		FontHandle,
+		ManageData,
 		EdgeColor,
 		-1,
 		VerticalFlag,
@@ -519,15 +593,15 @@ NORMALDRAW:
 	return 0 ;
 }
 
-static int DrawExtendStringSoftware( int x, int y, double ExRateX, double ExRateY, const wchar_t *String, unsigned int Color, int FontHandle, unsigned int EdgeColor, int VerticalFlag )
+static int DrawExtendStringSoftware( int x, int y, double ExRateX, double ExRateY, const wchar_t *String, unsigned int Color, FONTMANAGE *ManageData, unsigned int EdgeColor, int VerticalFlag )
 {
 	SIZE DrawSize ;
-	FONTMANAGE * ManageData ;
+//	FONTMANAGE * ManageData ;
 	RECT DrawArea, ClipRect, BRect, Rect, DrawRect ;
 	DWORD bright ;
 	MEMIMG *ScreenImg ;
 
-	ManageData = GetFontManageDataToHandle( FontHandle ) ;
+//	ManageData = GetFontManageDataToHandle( FontHandle ) ;
 
 	// 描画領域を得る
 	FontCacheStringDrawToHandleST(
@@ -546,7 +620,7 @@ static int DrawExtendStringSoftware( int x, int y, double ExRateX, double ExRate
 		NULL,
 		NULL,
 		FALSE,
-		FontHandle,
+		ManageData,
 		0,
 		-1,
 		VerticalFlag,
@@ -621,7 +695,7 @@ static int DrawExtendStringSoftware( int x, int y, double ExRateX, double ExRate
 		ScreenImg,
 		&DrawArea,
 		TRUE,
-		FontHandle,
+		ManageData,
 		EdgeColor,
 		-1,
 		VerticalFlag,
@@ -676,7 +750,7 @@ extern int InitFontManage( void )
 	{
 		const char *UTF16LE_DoubleByteSpaceString = "\x00\x30\x00"/*@ L"　" @*/ ;
 		wchar_t     WCHAR_T_DoubleByteSpaceString[ 16 ] ;
-		ConvString( UTF16LE_DoubleByteSpaceString, DX_CODEPAGE_UTF16LE, ( char * )WCHAR_T_DoubleByteSpaceString, WCHAR_T_CODEPAGE ) ;
+		ConvString( UTF16LE_DoubleByteSpaceString, DX_CHARCODEFORMAT_UTF16LE, ( char * )WCHAR_T_DoubleByteSpaceString, WCHAR_T_CHARCODEFORMAT ) ;
 		FSYS.DoubleByteSpaceCharCode = WCHAR_T_DoubleByteSpaceString[ 0 ] ;
 	}
 
@@ -762,14 +836,39 @@ extern int InitFontManage( void )
 // フォント制御の終了
 extern int TermFontManage( void )
 {
+	int i ;
+	int j ;
+
 	if( FSYS.InitializeFlag == FALSE )
+	{
 		return -1 ;
+	}
 
 	// 全てのフォントを削除
 	InitFontToHandleBase( TRUE ) ;
 
 	// フォントハンドル管理情報の後始末
 	TerminateHandleManage( DX_HANDLETYPE_FONT ) ;
+
+	// デフォルトフォントイメージ用にメモリを確保していたら解放する
+	if( FSYS.DefaultFontImage != NULL )
+	{
+		DXFREE( FSYS.DefaultFontImage ) ;
+		FSYS.DefaultFontImage = NULL ;
+	}
+
+	// デフォルトフォントイメージのグラフィックハンドルがある場合は削除する
+	if( FSYS.DefaultFontImageGraphHandle[ 0 ][ 0 ] > 1 )
+	{
+		for( i = 0 ; i < 8 ; i ++ )
+		{
+			for( j = 0 ; j < 16 ; j ++ )
+			{
+				NS_DeleteGraph( FSYS.DefaultFontImageGraphHandle[ i ][ j ] ) ;
+				FSYS.DefaultFontImageGraphHandle[ i ][ j ] = 0 ;
+			}
+		}
+	}
 
 	// 初期化フラグを倒す
 	FSYS.InitializeFlag = FALSE ;
@@ -787,7 +886,7 @@ extern int InitCacheFontToHandle( void )
 	FONTMANAGE * ManageData ;
 	wchar_t FontName[ 256 ] ;
 	CREATEFONTTOHANDLE_GPARAM GParam ;
-	int Space, Size, Thick, FontType, CharSet, EdgeSize, Italic ;
+	int Space, Size, Thick, FontType, CharSet, EdgeSize, Italic, UseCharCodeFormat ;
 
 	if( HandleManageArray[ DX_HANDLETYPE_FONT ].InitializeFlag == FALSE )
 		return -1 ;
@@ -798,13 +897,14 @@ extern int InitCacheFontToHandle( void )
 		if( ManageData == NULL ) continue ;
 
 		_WCSCPY( FontName, ManageData->FontName ) ;
-		Size		= ManageData->BaseInfo.FontSize ;
-		Thick		= ManageData->BaseInfo.FontThickness ;
-		FontType	= ManageData->FontType ;
-		CharSet		= ManageData->BaseInfo.CharSet ;
-		EdgeSize	= ManageData->EdgeSize ;
-		Italic		= ManageData->BaseInfo.Italic ;
-		Space       = ManageData->Space ;
+		Size				= ManageData->BaseInfo.FontSize ;
+		Thick				= ManageData->BaseInfo.FontThickness ;
+		FontType			= ManageData->FontType ;
+		CharSet				= ManageData->BaseInfo.CharSet ;
+		EdgeSize			= ManageData->EdgeSize ;
+		Italic				= ManageData->BaseInfo.Italic ;
+		Space				= ManageData->Space ;
+		UseCharCodeFormat	= ManageData->UseCharCodeFormat ;
 
 		// フォントハンドルの作り直し
 		Handle = ManageData->HandleInfo.Handle ;
@@ -812,6 +912,7 @@ extern int InitCacheFontToHandle( void )
 		InitCreateFontToHandleGParam( &GParam ) ;
 		CreateFontToHandle_UseGParam( &GParam, FontName, Size, Thick, FontType, CharSet, EdgeSize, Italic, Handle, FALSE ) ;
 		NS_SetFontSpaceToHandle( Space, Handle ) ;
+		NS_SetFontCharCodeFormatToHandle( UseCharCodeFormat, Handle ) ;
 	}
 
 	// 終了
@@ -819,23 +920,23 @@ extern int InitCacheFontToHandle( void )
 }
 
 // 特定のフォントのキャッシュ情報を初期化する
-extern int InitFontCacheToHandle( int FontHandle, int ASyncThread )
+extern int InitFontCacheToHandle( FONTMANAGE *ManageData, int ASyncThread )
 {
-	FONTMANAGE * ManageData ;
+//	FONTMANAGE * ManageData ;
 
-	DEFAULT_FONT_HANDLE_SETUP
+//	DEFAULT_FONT_HANDLE_SETUP
 
-	// エラー判定
-	if( ASyncThread )
-	{
-		if( FONTHCHK_ASYNC( FontHandle, ManageData ) )
-			return -1  ;
-	}
-	else
-	{
-		if( FONTHCHK( FontHandle, ManageData ) )
-			return -1  ;
-	}
+//	// エラー判定
+//	if( ASyncThread )
+//	{
+//		if( FONTHCHK_ASYNC( FontHandle, ManageData ) )
+//			return -1  ;
+//	}
+//	else
+//	{
+//		if( FONTHCHK( FontHandle, ManageData ) )
+//			return -1  ;
+//	}
 
 	// テキストキャッシュデータの初期化
 	{
@@ -850,7 +951,9 @@ extern int InitFontCacheToHandle( int FontHandle, int ASyncThread )
 		CharData = ManageData->CharData ;
 		for( i = 0 ; i < ManageData->MaxCacheCharNum ; i ++, CharData ++ )
 		{
-			CharData->GraphIndex = i ;	
+			CharData->GraphIndex  = i ;	
+			CharData->GraphIndexX = i / ManageData->LengthCharNum ;
+			CharData->GraphIndexY = i % ManageData->LengthCharNum ;
 		}
 		CharData->GraphIndex = -1 ;
 
@@ -862,23 +965,23 @@ extern int InitFontCacheToHandle( int FontHandle, int ASyncThread )
 }
 
 // フォントハンドルが使用する描画バッファやテクスチャキャッシュを再初期化する
-extern int RefreshFontDrawResourceToHandle( int FontHandle, int ASyncThread )
+extern int RefreshFontDrawResourceToHandle( FONTMANAGE *ManageData, int ASyncThread )
 {
-	FONTMANAGE * ManageData ;
-
-	DEFAULT_FONT_HANDLE_SETUP
-
-	// エラー判定
-	if( ASyncThread )
-	{
-		if( FONTHCHK_ASYNC( FontHandle, ManageData ) )
-			return -1  ;
-	}
-	else
-	{
-		if( FONTHCHK( FontHandle, ManageData ) )
-			return -1  ;
-	}
+//	FONTMANAGE * ManageData ;
+//
+//	DEFAULT_FONT_HANDLE_SETUP
+//
+//	// エラー判定
+//	if( ASyncThread )
+//	{
+//		if( FONTHCHK_ASYNC( FontHandle, ManageData ) )
+//			return -1  ;
+//	}
+//	else
+//	{
+//		if( FONTHCHK( FontHandle, ManageData ) )
+//			return -1  ;
+//	}
 
 	// テクスチャキャッシュを使用するフォントハンドルで、何時の間にか画面が
 	// MEMIMG を使用するモードになっていたらテクスチャキャッシュを使用しないハンドルとして作り直す
@@ -909,17 +1012,40 @@ extern int RefreshFontDrawResourceToHandle( int FontHandle, int ASyncThread )
 	if( ManageData->TextureCacheLostFlag == TRUE )
 	{
 		int Use3D, w ;
+		int UsePaletteFlag ;
+		int PaletteBitDepth ;
 		SETUP_GRAPHHANDLE_GPARAM GParam ;
 
 		ManageData->TextureCacheLostFlag = FALSE ;
 
-		if( ( ManageData->FontType & DX_FONTTYPE_ANTIALIASING ) == 0 )
+		// パレットテクスチャかどうかで処理を分岐
+		if( ManageData->TextureCacheBaseImage.ColorData.ColorBitDepth == 8 )
 		{
-			Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam, 16, FALSE, TRUE ) ;
+			UsePaletteFlag = TRUE ;
+
+			Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam, 16, TRUE, FALSE ) ;
+			if( ( ManageData->FontType & DX_FONTTYPE_ANTIALIASING ) == 0 )
+			{
+				PaletteBitDepth = 4 ;
+			}
+			else
+			{
+				PaletteBitDepth = ManageData->TextureCacheBaseImage.ColorData.MaxPaletteNo == 255 ? 8 : 4 ;
+			}
 		}
 		else
 		{
-			Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam, ManageData->TextureCacheColorBitDepth, TRUE, FALSE ) ;
+			UsePaletteFlag  = FALSE ;
+			PaletteBitDepth = 0 ;
+
+			if( ( ManageData->FontType & DX_FONTTYPE_ANTIALIASING ) == 0 )
+			{
+				Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam, 16, FALSE, TRUE ) ;
+			}
+			else
+			{
+				Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam, ManageData->TextureCacheColorBitDepth, TRUE, FALSE ) ;
+			}
 		}
 
 		Use3D = NS_GetUse3DFlag() ;
@@ -928,7 +1054,7 @@ extern int RefreshFontDrawResourceToHandle( int FontHandle, int ASyncThread )
 		// エッジつきの場合は横幅を倍にする
 		w = ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 ? ManageData->CacheImageSize.cx * 2 : ManageData->CacheImageSize.cx ;
 		GParam.NotInitGraphDelete = TRUE ;
-		ManageData->TextureCache = Graphics_Image_MakeGraph_UseGParam( &GParam, w, ManageData->CacheImageSize.cy, FALSE, FALSE, ASyncThread ) ;
+		ManageData->TextureCache = Graphics_Image_MakeGraph_UseGParam( &GParam, w, ManageData->CacheImageSize.cy, FALSE, UsePaletteFlag, PaletteBitDepth, ASyncThread ) ;
 		ManageData->TextureCacheSub = -1 ;
 		
 		// エッジ付きの場合は派生させる
@@ -970,7 +1096,7 @@ extern int RefreshFontDrawResourceToHandle( int FontHandle, int ASyncThread )
 		}
 */
 		// フォントのキャッシュ情報を初期化する
-		InitFontCacheToHandle( FontHandle, ASyncThread ) ;
+		InitFontCacheToHandle( ManageData, ASyncThread ) ;
 	}
 
 	// 終了
@@ -1005,13 +1131,16 @@ extern int RefreshDefaultFont( void )
 		if( CharSet		== -1 ) CharSet   = _GET_CHARSET() ;
 		if( EdgeSize	== -1 ) EdgeSize  = DEFAULT_FONT_EDGESIZE ;
 		
-		if( _WCSCMP( FontName, ManageData->FontName ) == 0 &&
-			FontType 	== ManageData->FontType &&
-			Size 		== ManageData->BaseInfo.FontSize &&
-			Thick 		== ManageData->BaseInfo.FontThickness &&
-			CharSet		== ManageData->BaseInfo.CharSet &&
-			EdgeSize	== ManageData->EdgeSize &&
-			Italic		== ManageData->BaseInfo.Italic )
+		if( ( FSYS.UseDefaultFontImage == TRUE &&
+			    FSYS.DefaultFontImageGraphHandle[ 0 ][ 0 ] > 0 ) ||
+			( FSYS.UseDefaultFontImage == FALSE &&
+			  _WCSCMP( FontName, ManageData->FontName ) == 0 &&
+			  FontType 	== ManageData->FontType &&
+			  Size 		== ManageData->BaseInfo.FontSize &&
+			  Thick 	== ManageData->BaseInfo.FontThickness &&
+			  CharSet	== ManageData->BaseInfo.CharSet &&
+			  EdgeSize	== ManageData->EdgeSize &&
+			  Italic	== ManageData->BaseInfo.Italic ) )
 			return 0 ;
 
 		NS_DeleteFontToHandle( FSYS.DefaultFontHandle ) ;
@@ -1031,8 +1160,86 @@ extern int RefreshDefaultFont( void )
 		FSYS.DefaultFontItalic,
 		-1,
 		FALSE ) ;
+
+	// デフォルトフォントハンドルの作成に失敗したらデフォルトフォントファイルとフォントイメージを使用する
+	if( FSYS.DefaultFontHandle < 0 )
+	{
+		int i ;
+		int j ;
+		TCHAR Char[ 2 ] = { 0 } ;
+
+		FSYS.DefaultFontHandle = NS_LoadFontDataFromMemToHandle( DefaultFontDataFileImage, sizeof( DefaultFontDataFileImage ) ) ;
+
+		// 画像ファイルがデコードされていなかったらデコードする
+		if( FSYS.DefaultFontImage == NULL )
+		{
+			// 文字コードの場合はバイナリコードに変換する
+			if( DefaultFontImageConvert == FALSE )
+			{
+				DefaultFontImageConvert = TRUE ;
+				Char128ToBin( DefaultFontImage, DefaultFontImage ) ;
+			}
+
+			// デコード後のファイルイメージを格納するメモリ領域の確保
+			FSYS.DefaultFontImage = DXCALLOC( ( size_t )DXA_Decode( DefaultFontImage, NULL ) ) ;
+			if( FSYS.DefaultFontImage == NULL )
+			{
+				return -1 ;
+			}
+
+			// デコード
+			DXA_Decode( DefaultFontImage, FSYS.DefaultFontImage ) ;
+		}
+
+		// 文字のグラフィックハンドルが作成されていなかったら作成する
+		if( FSYS.DefaultFontImageGraphHandle[ 0 ][ 0 ] <= 0 )
+		{
+			int TransRed ;
+			int TransGreen ;
+			int TransBlue ;
+
+			// 透過色を紫色に変更
+			NS_GetTransColor( &TransRed, &TransGreen, &TransBlue ) ;
+			NS_SetTransColor( 255,0,255 ) ;
+
+			// グラフィックハンドルの作成
+			NS_CreateDivGraphFromMem( FSYS.DefaultFontImage, DXA_Decode( DefaultFontImage, NULL ), 128, 16, 8, 8, 16, FSYS.DefaultFontImageGraphHandle[ 0 ] ) ;
+
+			// 透過色を元に戻す
+			NS_SetTransColor( TransRed, TransGreen, TransBlue ) ;
+
+			// 削除されたときに -1 が代入されるようにする
+			for( i = 0 ; i < 8 ; i ++ )
+			{
+				for( j = 0 ; j < 16 ; j ++ )
+				{
+					NS_SetDeleteHandleFlag( FSYS.DefaultFontImageGraphHandle[ i ][ j ], &FSYS.DefaultFontImageGraphHandle[ i ][ j ] ) ;
+				}
+			}
+		}
+
+		// フォントハンドルへの文字の割り当て
+		for( i = 0 ; i < 8 ; i ++ )
+		{
+			for( j = 0 ; j < 16 ; j ++ )
+			{
+				Char[ 0 ] = ( TCHAR )( j + i * 16 ) ;
+				NS_AddFontImageToHandle( FSYS.DefaultFontHandle, Char, FSYS.DefaultFontImageGraphHandle[ i ][ j ], 0, 0, 8 ) ;
+			}
+		}
+
+		// デフォルトフォントイメージを使用しているかどうかのフラグを立てる
+		FSYS.UseDefaultFontImage = TRUE ;
+	}
+	else
+	{
+		// デフォルトフォントイメージを使用しているかどうかのフラグを倒す
+		FSYS.UseDefaultFontImage = FALSE ;
+
+		NS_SetFontSpaceToHandle( FSYS.DefaultFontSpace, FSYS.DefaultFontHandle ) ;
+	}
+
 	NS_SetDeleteHandleFlag( FSYS.DefaultFontHandle, &FSYS.DefaultFontHandle ) ;
-	NS_SetFontSpaceToHandle( FSYS.DefaultFontSpace, FSYS.DefaultFontHandle ) ;
 
 	return 0 ;
 }
@@ -1041,18 +1248,18 @@ extern int RefreshDefaultFont( void )
 
 // 文字キャッシュに新しい文字を加える
 static int FontCacheStringAddToHandle(
-	int				FontHandle,
+	FONTMANAGE *	ManageData,
 	const wchar_t *	String,
 	int				StrLen,
 	DWORD *			DrawStrBufferP,
 	int *			DrawCharNumP
 )
 {
-	static DWORD addbuf[ 256 ] ;	// キャッシュに追加する際に使用する文字列データ（３バイトで１文字を表記）
-	static DWORD temp[ 256 ] ;
-	static DWORD resetExist[ 256 ] ;
+	static DWORD addbuf[ 1024 ] ;	// キャッシュに追加する際に使用する文字列データ（３バイトで１文字を表記）
+	static DWORD temp[ 1024 ] ;
+	static DWORD resetExist[ 1024 ] ;
 
-	FONTMANAGE * ManageData ;
+//	FONTMANAGE * ManageData ;
 	FONTCODEDATA * fontcode ;
 	int i, j ;						// 繰り返しと汎用変数
 	DWORD *drstr, *adstr ;		// それぞれDrawStrBuf,CacheAddBufのポインタ
@@ -1065,25 +1272,28 @@ static int FontCacheStringAddToHandle(
 	DWORD *AllocDrawStr    = NULL ;
 	DWORD *AllocResetExist = NULL ;
 
-	DEFAULT_FONT_HANDLE_SETUP
+//	DEFAULT_FONT_HANDLE_SETUP
 
 	// エラー判定
-	if( FONTHCHK( FontHandle, ManageData ) )
-	{
-		return -1  ;
-	}
+//	if( FONTHCHK( FontHandle, ManageData ) )
+//	{
+//		return -1  ;
+//	}
 
 	UseAlloc = FALSE ;
 
 	// 文字列の長さをセット
-	len = _WCSLEN( String ) ;
-	if( StrLen != -1 && StrLen < len )
+	if( StrLen < 0 )
+	{
+		len = _WCSLEN( String ) ;
+	}
+	else
 	{
 		len = StrLen ;
 	}
 
 	// デフォルトバッファのサイズを超える場合はテンポラリバッファの確保
-	if( len > 256 )
+	if( len > 1024 )
 	{
 		UseAlloc        = TRUE ;
 		AllocDrawStr    = ( DWORD * )DXALLOC( len * sizeof( DWORD ) + len * sizeof( DWORD ) ) ;
@@ -1102,56 +1312,67 @@ static int FontCacheStringAddToHandle(
 	fontcode = ManageData->CodeData ;
 	for( i = 0 ; i < len ; drstr ++ )
 	{
-		*drstr = GetCharCode( ( const char * )String, WCHAR_T_CODEPAGE, &UseSize ) ;
+		*drstr = GetCharCode( ( const char * )String, WCHAR_T_CHARCODEFORMAT, &UseSize ) ;
 		String  += UseSize / sizeof( wchar_t ) ;
 		i       += UseSize / sizeof( wchar_t ) ;
 		drawnum ++ ;
 
-		// キャッシュに存在しない文字だった場合キャッシュ文字の一括追加をするためのバッファに保存、キャッシュに追加する文字数を増やす
-		if( addnum != ManageData->MaxCacheCharNum )
+		// 画像置き換え文字だった場合はキャッシュに加えない
+		for( j = 0 ; j < ManageData->GraphHandleFontImageNum ; j ++ )
 		{
-			// 0x10000 個のテーブルに収まらないコードかどうかで処理を分岐
-			if( *drstr > 0xffff )
+			if( ManageData->GraphHandleFontImage[ j ].CodeUnicode == *drstr )
 			{
-				// テーブルに収まらない場合
-				for( j = 0 ; j < addnum ; j ++ )
+				break ;
+			}
+		}
+		if( j == ManageData->GraphHandleFontImageNum )
+		{
+			// キャッシュに存在しない文字だった場合キャッシュ文字の一括追加をするためのバッファに保存、キャッシュに追加する文字数を増やす
+			if( addnum != ManageData->MaxCacheCharNum )
+			{
+				// 0x10000 個のテーブルに収まらないコードかどうかで処理を分岐
+				if( *drstr > 0xffff )
 				{
-					if( rexist[ j ] == *drstr )
+					// テーブルに収まらない場合
+					for( j = 0 ; j < addnum ; j ++ )
 					{
-						break ;
-					}
-				}
-				if( j == addnum )
-				{
-					for( j = 0 ; j < ManageData->CodeDataExNum ; j ++ )
-					{
-						if( ManageData->CodeDataEx[ j ]->CodeUnicode == *drstr )
+						if( rexist[ j ] == *drstr )
 						{
 							break ;
 						}
 					}
-					if( j == ManageData->CodeDataExNum )
+					if( j == addnum )
 					{
+						for( j = 0 ; j < ManageData->CodeDataExNum ; j ++ )
+						{
+							if( ManageData->CodeDataEx[ j ]->CodeUnicode == *drstr )
+							{
+								break ;
+							}
+						}
+						if( j == ManageData->CodeDataExNum )
+						{
+							rexist[ addnum ] = *drstr ;
+							addnum ++ ;
+
+							*adstr = *drstr ;
+							adstr ++ ;
+						}
+					}
+				}
+				else
+				{
+					// テーブルに収まる場合
+					if( fontcode[ *drstr ].ExistFlag == FALSE )
+					{
+						fontcode[ *drstr ].ExistFlag = TRUE ;
+
 						rexist[ addnum ] = *drstr ;
 						addnum ++ ;
 
 						*adstr = *drstr ;
 						adstr ++ ;
 					}
-				}
-			}
-			else
-			{
-				// テーブルに収まる場合
-				if( fontcode[ *drstr ].ExistFlag == FALSE )
-				{
-					fontcode[ *drstr ].ExistFlag = TRUE ;
-
-					rexist[ addnum ] = *drstr ;
-					addnum ++ ;
-
-					*adstr = *drstr ;
-					adstr ++ ;
 				}
 			}
 		}
@@ -1168,7 +1389,7 @@ static int FontCacheStringAddToHandle(
 	// キャッシュ文字の一括追加を行う
 	if( addnum != 0 )
 	{
-		FontCacheCharAddToHandle( addnum, UseAlloc ? AllocDrawStr : addbuf, FontHandle ) ;
+		FontCacheCharAddToHandle( addnum, UseAlloc ? AllocDrawStr : addbuf, ManageData ) ;
 	}
 
 	// 描画する文字の数を保存する
@@ -1265,7 +1486,7 @@ extern int FontCacheCharImageBltToHandle(
 	}
 
 	CharData->CodeUnicode = CharCode ;
-
+	
 	if( Space )
 	{
 		CharData->DrawX = 0 ;
@@ -1309,8 +1530,8 @@ extern int FontCacheCharImageBltToHandle(
 		}
 
 		// 文字を追加する座標のセット
-		DestX =   CharData->GraphIndex / ManageData->LengthCharNum   * ManageData->BaseInfo.MaxWidth ;
-		DestY = ( CharData->GraphIndex % ManageData->LengthCharNum ) * ManageData->BaseInfo.MaxWidth ;
+		DestX = CharData->GraphIndexX * ManageData->BaseInfo.MaxWidth ;
+		DestY = CharData->GraphIndexY * ManageData->BaseInfo.MaxWidth ;
 
 		// 文字イメージを一時的に保存するメモリ領域を初期化
 		if( ManageData->TextureCacheFlag == FALSE )
@@ -1321,7 +1542,9 @@ extern int FontCacheCharImageBltToHandle(
 		}
 		else
 		{
-			if( ManageData->TextureCacheUsePremulAlpha || ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+			if( ManageData->TextureCacheBaseImage.ColorData.ColorBitDepth == 8 ||
+				ManageData->TextureCacheUsePremulAlpha ||
+				( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
 			{
 				NS_ClearRectBaseImage(
 					&ManageData->TextureCacheBaseImage,
@@ -1811,65 +2034,103 @@ extern int FontCacheCharImageBltToHandle(
 				switch( ImageType )
 				{
 				case DX_FONT_SRCIMAGETYPE_1BIT :
-					if( ManageData->TextureCacheUsePremulAlpha )
+					if( BaseImage.ColorData.ColorBitDepth == 8 )
 					{
-						for( i = 0 ; i < Height ; i ++ )
+						if( BaseImage.ColorData.MaxPaletteNo == 15 )
 						{
-							for( j = 0 ; j < Width ; j ++, dat <<= 1 )
+							for( i = 0 ; i < Height ; i ++ )
 							{
-								if( ( j & 0x7 ) == 0 )
+								for( j = 0 ; j < Width ; j ++, dat <<= 1 )
 								{
-									dat = Src[ j >> 3 ] ;
+									if( ( j & 0x7 ) == 0 )
+									{
+										dat = Src[ j >> 3 ] ;
+									}
+
+									Dest[ j ] = ( dat & 0x80 ) ? 0x0f : 0 ;
 								}
 
-								if( dat & 0x80 )
-								{
-									*( ( WORD * )Dest + j ) = ( WORD )( RGBMask | cl.AlphaMask ) ;
-								}
-								else
-								{
-									*( ( WORD * )Dest + j ) = 0 ;
-								}
+								Src  += ImagePitch ;
+								Dest += DestPitch ;
 							}
+						}
+						else
+						{
+							for( i = 0 ; i < Height ; i ++ )
+							{
+								for( j = 0 ; j < Width ; j ++, dat <<= 1 )
+								{
+									if( ( j & 0x7 ) == 0 )
+									{
+										dat = Src[ j >> 3 ] ;
+									}
 
-							Src  += ImagePitch ;
-							Dest += DestPitch ;
+									Dest[ j ] = ( dat & 0x80 ) ? 0xff : 0 ;
+								}
+
+								Src  += ImagePitch ;
+								Dest += DestPitch ;
+							}
 						}
 					}
 					else
 					{
-						for( i = 0 ; i < Height ; i ++ )
+						if( ManageData->TextureCacheUsePremulAlpha )
 						{
-							for( j = 0 ; j < Width ; j ++, dat <<= 1 )
+							for( i = 0 ; i < Height ; i ++ )
 							{
-								if( ( j & 0x7 ) == 0 )
+								for( j = 0 ; j < Width ; j ++, dat <<= 1 )
 								{
-									dat = Src[ j >> 3 ] ;
+									if( ( j & 0x7 ) == 0 )
+									{
+										dat = Src[ j >> 3 ] ;
+									}
+
+									if( dat & 0x80 )
+									{
+										*( ( WORD * )Dest + j ) = ( WORD )( RGBMask | cl.AlphaMask ) ;
+									}
+									else
+									{
+										*( ( WORD * )Dest + j ) = 0 ;
+									}
 								}
 
-								*( ( WORD * )Dest + j ) = ( WORD )( RGBMask | ( ( dat & 0x80 ) ? cl.AlphaMask : 0 ) ) ;
+								Src  += ImagePitch ;
+								Dest += DestPitch ;
 							}
+						}
+						else
+						{
+							for( i = 0 ; i < Height ; i ++ )
+							{
+								for( j = 0 ; j < Width ; j ++, dat <<= 1 )
+								{
+									if( ( j & 0x7 ) == 0 )
+									{
+										dat = Src[ j >> 3 ] ;
+									}
 
-							Src  += ImagePitch ;
-							Dest += DestPitch ;
+									*( ( WORD * )Dest + j ) = ( WORD )( RGBMask | ( ( dat & 0x80 ) ? cl.AlphaMask : 0 ) ) ;
+								}
+
+								Src  += ImagePitch ;
+								Dest += DestPitch ;
+							}
 						}
 					}
 					break ;
 
 				case DX_FONT_SRCIMAGETYPE_8BIT_ON_OFF :
-					if( cl.ColorBitDepth == 16 )
+					if( BaseImage.ColorData.ColorBitDepth == 8 )
 					{
-						WORD 		RGBAMask ;
-
-						RGBAMask = ( WORD )( RGBMask | cl.AlphaMask ) ;
-
-						if( ManageData->TextureCacheUsePremulAlpha )
+						if( BaseImage.ColorData.MaxPaletteNo == 15 )
 						{
 							for( i = 0 ; i < Height ; i ++ )
 							{
 								for( j = 0 ; j < Width ; j ++ )
 								{
-									*( ( WORD * )Dest + j ) = ( WORD )( Src[ j ] != 0 ? RGBAMask : 0 ) ;
+									Dest[ j ] = Src[ j ] != 0 ? 0x0f : 0 ;
 								}
 
 								Src  += ImagePitch ;
@@ -1882,44 +2143,282 @@ extern int FontCacheCharImageBltToHandle(
 							{
 								for( j = 0 ; j < Width ; j ++ )
 								{
-									*( ( WORD * )Dest + j ) = ( WORD )( Src[ j ] != 0 ? RGBAMask : RGBMask ) ;
+									Dest[ j ] = Src[ j ] != 0 ? 0xff : 0 ;
 								}
 
 								Src  += ImagePitch ;
 								Dest += DestPitch ;
+							}
+						}
+					}
+					else
+					{
+						if( cl.ColorBitDepth == 16 )
+						{
+							WORD 		RGBAMask ;
+
+							RGBAMask = ( WORD )( RGBMask | cl.AlphaMask ) ;
+
+							if( ManageData->TextureCacheUsePremulAlpha )
+							{
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++ )
+									{
+										*( ( WORD * )Dest + j ) = ( WORD )( Src[ j ] != 0 ? RGBAMask : 0 ) ;
+									}
+
+									Src  += ImagePitch ;
+									Dest += DestPitch ;
+								}
+							}
+							else
+							{
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++ )
+									{
+										*( ( WORD * )Dest + j ) = ( WORD )( Src[ j ] != 0 ? RGBAMask : RGBMask ) ;
+									}
+
+									Src  += ImagePitch ;
+									Dest += DestPitch ;
+								}
 							}
 						}
 					}
 					break ;
 					
 				case DX_FONT_SRCIMAGETYPE_8BIT_MAX16 :
-					if( cl.AlphaMask == 0xf000 &&
-						cl.RedMask   == 0x0f00 &&
-						cl.GreenMask == 0x00f0 &&
-						cl.BlueMask  == 0x000f )
+					if( BaseImage.ColorData.ColorBitDepth == 8 )
 					{
-						if( ManageData->TextureCacheUsePremulAlpha )
+						if( BaseImage.ColorData.MaxPaletteNo == 15 )
 						{
 							for( i = 0 ; i < Height ; i ++ )
 							{
 								for( j = 0 ; j < Width ; j ++ )
 								{
-									if( Src[j] == 16 )
+									if( Src[ j ] )
 									{
-										*( (WORD *)Dest + j ) = ( WORD )0xffff ;
-									}
-									else
-									if( Src[j] )
-									{
-										*( (WORD *)Dest + j ) = ( WORD )( ( Src[j] << 0 ) | ( Src[j] << 4 ) | ( Src[j] << 8 ) | ( Src[j] << 12 ) ) ;
+										Dest[ j ] = ( BYTE )( Src[ j ] - 1 ) ;
 									}
 									else
 									{
-										*( (WORD *)Dest + j ) = (WORD)0x0000 ;
+										Dest[ j ] = 0 ;
 									}
 								}
 
-								Src += ImagePitch ;
+								Src  += ImagePitch ;
+								Dest += DestPitch ;
+							}
+						}
+						else
+						{
+							for( i = 0 ; i < Height ; i ++ )
+							{
+								for( j = 0 ; j < Width ; j ++ )
+								{
+									if( Src[ j ] )
+									{
+										Dest[ j ] = ( BYTE )( ( Src[ j ] << 4 ) - 1 ) ;
+									}
+									else
+									{
+										Dest[ j ] = 0 ;
+									}
+								}
+
+								Src  += ImagePitch ;
+								Dest += DestPitch ;
+							}
+						}
+					}
+					else
+					{
+						if( cl.AlphaMask == 0xf000 &&
+							cl.RedMask   == 0x0f00 &&
+							cl.GreenMask == 0x00f0 &&
+							cl.BlueMask  == 0x000f )
+						{
+							if( ManageData->TextureCacheUsePremulAlpha )
+							{
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++ )
+									{
+										if( Src[j] == 16 )
+										{
+											*( (WORD *)Dest + j ) = ( WORD )0xffff ;
+										}
+										else
+										if( Src[j] )
+										{
+											*( (WORD *)Dest + j ) = ( WORD )( ( Src[j] << 0 ) | ( Src[j] << 4 ) | ( Src[j] << 8 ) | ( Src[j] << 12 ) ) ;
+										}
+										else
+										{
+											*( (WORD *)Dest + j ) = (WORD)0x0000 ;
+										}
+									}
+
+									Src += ImagePitch ;
+									Dest += DestPitch ;
+								}
+							}
+							else
+							{
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++ )
+									{
+										if( Src[j] )
+										{
+											*( (WORD *)Dest + j ) = ( WORD )( ( ( (DWORD)Src[j] << 12 ) - 1 ) | 0x0fff ) ;
+										}
+										else
+										{
+											*( (WORD *)Dest + j ) = (WORD)0x0fff ;
+										}
+									}
+
+									Src  += ImagePitch ;
+									Dest += DestPitch ;
+								}
+							}
+						}
+						else
+						if( cl.ColorBitDepth == 16 )
+						{
+							if( ManageData->TextureCacheUsePremulAlpha )
+							{
+								BYTE aloc, rloc, gloc, bloc ;
+
+								aloc = ( BYTE )( cl.AlphaLoc + cl.AlphaWidth - 4 ) ;
+								rloc = ( BYTE )( cl.RedLoc   + cl.RedWidth   - 4 ) ;
+								gloc = ( BYTE )( cl.GreenLoc + cl.GreenWidth - 4 ) ;
+								bloc = ( BYTE )( cl.BlueLoc  + cl.BlueWidth  - 4 ) ;
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++ )
+									{
+										if( Src[j] == 16 )
+										{
+											*( (WORD *)Dest + j ) = ( WORD )0xffff ;
+										}
+										else
+										if( Src[j] )
+										{
+											*( (WORD *)Dest + j ) = ( WORD )( ( Src[j] << aloc ) | ( Src[j] << rloc ) | ( Src[j] << gloc ) | ( Src[j] << bloc ) ) ;
+										}
+										else
+										{
+											*( (WORD *)Dest + j ) = (WORD)0x0000 ;
+										}
+									}
+
+									Src += ImagePitch ;
+									Dest += DestPitch ;
+								}
+							}
+							else
+							{
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++ )
+									{
+										if( Src[j] )
+										{
+											*( (WORD *)Dest + j ) = ( WORD )( ( ( (DWORD)Src[j] << ( ( cl.AlphaLoc + cl.AlphaWidth ) - 4 ) ) - 1 ) | RGBMask ) ;
+										}
+										else
+										{
+											*( (WORD *)Dest + j ) = (WORD)RGBMask ;
+										}
+									}
+
+									Src  += ImagePitch ;
+									Dest += DestPitch ;
+								}
+							}
+						}
+						else
+						if( cl.ColorBitDepth == 32 )
+						{
+							if( ManageData->TextureCacheUsePremulAlpha )
+							{
+								BYTE aloc, rloc, gloc, bloc ;
+
+								aloc = ( BYTE )( cl.AlphaLoc + cl.AlphaWidth - 4 ) ;
+								rloc = ( BYTE )( cl.RedLoc   + cl.RedWidth   - 4 ) ;
+								gloc = ( BYTE )( cl.GreenLoc + cl.GreenWidth - 4 ) ;
+								bloc = ( BYTE )( cl.BlueLoc  + cl.BlueWidth  - 4 ) ;
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++ )
+									{
+										if( Src[j] == 16 )
+										{
+											*( (DWORD *)Dest + j ) = ( DWORD )0xffffffff ;
+										}
+										else
+										if( Src[j] )
+										{
+											*( (DWORD *)Dest + j ) = ( DWORD )( ( Src[j] << aloc ) | ( Src[j] << rloc ) | ( Src[j] << gloc ) | ( Src[j] << bloc ) ) ;
+										}
+										else
+										{
+											*( (DWORD *)Dest + j ) = (DWORD)0x00000000 ;
+										}
+									}
+
+									Src  += ImagePitch ;
+									Dest += DestPitch ;
+								}
+							}
+							else
+							{
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++ )
+									{
+										if( Src[j] )
+										{
+											*( (DWORD *)Dest + j ) = ( DWORD )( ( ( (DWORD)Src[j] << ( ( cl.AlphaLoc + cl.AlphaWidth ) - 4 ) ) - 1 ) | RGBMask ) ;
+										}
+										else
+										{
+											*( (DWORD *)Dest + j ) = (DWORD)RGBMask ;
+										}
+									}
+
+									Src  += ImagePitch ;
+									Dest += DestPitch ;
+								}
+							}
+						}
+					}
+					break ;
+
+				case DX_FONT_SRCIMAGETYPE_8BIT_MAX64 :
+					if( BaseImage.ColorData.ColorBitDepth == 8 )
+					{
+						if( BaseImage.ColorData.MaxPaletteNo == 15 )
+						{
+							for( i = 0 ; i < Height ; i ++ )
+							{
+								for( j = 0 ; j < Width ; j ++ )
+								{
+									if( Src[j] > 4 )
+									{
+										Dest[ j ] = ( BYTE )( ( Src[ j ] >> 2 ) - 1 ) ;
+									}
+									else
+									{
+										Dest[ j ] = 0 ;
+									}
+								}
+
+								Src  += ImagePitch ;
 								Dest += DestPitch ;
 							}
 						}
@@ -1931,11 +2430,11 @@ extern int FontCacheCharImageBltToHandle(
 								{
 									if( Src[j] )
 									{
-										*( (WORD *)Dest + j ) = ( WORD )( ( ( (DWORD)Src[j] << 12 ) - 1 ) | 0x0fff ) ;
+										Dest[ j ] = ( BYTE )( ( Src[ j ] << 2 ) - 1 ) ;
 									}
 									else
 									{
-										*( (WORD *)Dest + j ) = (WORD)0x0fff ;
+										Dest[ j ] = 0 ;
 									}
 								}
 
@@ -1945,76 +2444,20 @@ extern int FontCacheCharImageBltToHandle(
 						}
 					}
 					else
-					if( cl.ColorBitDepth == 16 )
 					{
 						if( ManageData->TextureCacheUsePremulAlpha )
 						{
 							BYTE aloc, rloc, gloc, bloc ;
 
-							aloc = ( BYTE )( cl.AlphaLoc + cl.AlphaWidth - 4 ) ;
-							rloc = ( BYTE )( cl.RedLoc   + cl.RedWidth   - 4 ) ;
-							gloc = ( BYTE )( cl.GreenLoc + cl.GreenWidth - 4 ) ;
-							bloc = ( BYTE )( cl.BlueLoc  + cl.BlueWidth  - 4 ) ;
+							aloc = ( BYTE )( cl.AlphaLoc + cl.AlphaWidth - 6 ) ;
+							rloc = ( BYTE )( cl.RedLoc   + cl.RedWidth   - 6 ) ;
+							gloc = ( BYTE )( cl.GreenLoc + cl.GreenWidth - 6 ) ;
+							bloc = ( BYTE )( cl.BlueLoc  + cl.BlueWidth  - 6 ) ;
 							for( i = 0 ; i < Height ; i ++ )
 							{
 								for( j = 0 ; j < Width ; j ++ )
 								{
-									if( Src[j] == 16 )
-									{
-										*( (WORD *)Dest + j ) = ( WORD )0xffff ;
-									}
-									else
-									if( Src[j] )
-									{
-										*( (WORD *)Dest + j ) = ( WORD )( ( Src[j] << aloc ) | ( Src[j] << rloc ) | ( Src[j] << gloc ) | ( Src[j] << bloc ) ) ;
-									}
-									else
-									{
-										*( (WORD *)Dest + j ) = (WORD)0x0000 ;
-									}
-								}
-
-								Src += ImagePitch ;
-								Dest += DestPitch ;
-							}
-						}
-						else
-						{
-							for( i = 0 ; i < Height ; i ++ )
-							{
-								for( j = 0 ; j < Width ; j ++ )
-								{
-									if( Src[j] )
-									{
-										*( (WORD *)Dest + j ) = ( WORD )( ( ( (DWORD)Src[j] << ( ( cl.AlphaLoc + cl.AlphaWidth ) - 4 ) ) - 1 ) | RGBMask ) ;
-									}
-									else
-									{
-										*( (WORD *)Dest + j ) = (WORD)RGBMask ;
-									}
-								}
-
-								Src  += ImagePitch ;
-								Dest += DestPitch ;
-							}
-						}
-					}
-					else
-					if( cl.ColorBitDepth == 32 )
-					{
-						if( ManageData->TextureCacheUsePremulAlpha )
-						{
-							BYTE aloc, rloc, gloc, bloc ;
-
-							aloc = ( BYTE )( cl.AlphaLoc + cl.AlphaWidth - 4 ) ;
-							rloc = ( BYTE )( cl.RedLoc   + cl.RedWidth   - 4 ) ;
-							gloc = ( BYTE )( cl.GreenLoc + cl.GreenWidth - 4 ) ;
-							bloc = ( BYTE )( cl.BlueLoc  + cl.BlueWidth  - 4 ) ;
-							for( i = 0 ; i < Height ; i ++ )
-							{
-								for( j = 0 ; j < Width ; j ++ )
-								{
-									if( Src[j] == 16 )
+									if( Src[j] == 64 )
 									{
 										*( (DWORD *)Dest + j ) = ( DWORD )0xffffffff ;
 									}
@@ -2029,7 +2472,7 @@ extern int FontCacheCharImageBltToHandle(
 									}
 								}
 
-								Src  += ImagePitch ;
+								Src += ImagePitch ;
 								Dest += DestPitch ;
 							}
 						}
@@ -2041,11 +2484,11 @@ extern int FontCacheCharImageBltToHandle(
 								{
 									if( Src[j] )
 									{
-										*( (DWORD *)Dest + j ) = ( DWORD )( ( ( (DWORD)Src[j] << ( ( cl.AlphaLoc + cl.AlphaWidth ) - 4 ) ) - 1 ) | RGBMask ) ;
+										*( (DWORD *)Dest + j ) = ( DWORD )( ( ( DWORD )( Src[j] - 1 ) << ( ( cl.AlphaLoc + cl.AlphaWidth ) - 6 ) ) | RGBMask ) ;
 									}
 									else
 									{
-										*( (DWORD *)Dest + j ) = (DWORD)RGBMask ;
+										*( (DWORD *)Dest + j ) = RGBMask ;
 									}
 								}
 
@@ -2056,91 +2499,69 @@ extern int FontCacheCharImageBltToHandle(
 					}
 					break ;
 
-				case DX_FONT_SRCIMAGETYPE_8BIT_MAX64 :
-					if( ManageData->TextureCacheUsePremulAlpha )
+				case DX_FONT_SRCIMAGETYPE_8BIT_MAX255 :
+					if( BaseImage.ColorData.ColorBitDepth == 8 )
 					{
-						BYTE aloc, rloc, gloc, bloc ;
-
-						aloc = ( BYTE )( cl.AlphaLoc + cl.AlphaWidth - 6 ) ;
-						rloc = ( BYTE )( cl.RedLoc   + cl.RedWidth   - 6 ) ;
-						gloc = ( BYTE )( cl.GreenLoc + cl.GreenWidth - 6 ) ;
-						bloc = ( BYTE )( cl.BlueLoc  + cl.BlueWidth  - 6 ) ;
-						for( i = 0 ; i < Height ; i ++ )
+						if( BaseImage.ColorData.MaxPaletteNo == 15 )
 						{
-							for( j = 0 ; j < Width ; j ++ )
+							for( i = 0 ; i < Height ; i ++ )
 							{
-								if( Src[j] == 64 )
+								for( j = 0 ; j < Width ; j ++ )
 								{
-									*( (DWORD *)Dest + j ) = ( DWORD )0xffffffff ;
+									Dest[ j ] = ( BYTE )( Src[ j ] >> 4 ) ;
 								}
-								else
-								if( Src[j] )
+
+								Src  += ImagePitch ;
+								Dest += DestPitch ;
+							}
+						}
+						else
+						{
+							for( i = 0 ; i < Height ; i ++ )
+							{
+								for( j = 0 ; j < Width ; j ++ )
+								{
+									Dest[ j ] = Src[ j ] ;
+								}
+
+								Src  += ImagePitch ;
+								Dest += DestPitch ;
+							}
+						}
+					}
+					else
+					{
+						if( ManageData->TextureCacheUsePremulAlpha )
+						{
+							BYTE aloc, rloc, gloc, bloc ;
+
+							aloc = ( BYTE )( cl.AlphaLoc + cl.AlphaWidth - 8 ) ;
+							rloc = ( BYTE )( cl.RedLoc   + cl.RedWidth   - 8 ) ;
+							gloc = ( BYTE )( cl.GreenLoc + cl.GreenWidth - 8 ) ;
+							bloc = ( BYTE )( cl.BlueLoc  + cl.BlueWidth  - 8 ) ;
+							for( i = 0 ; i < Height ; i ++ )
+							{
+								for( j = 0 ; j < Width ; j ++ )
 								{
 									*( (DWORD *)Dest + j ) = ( DWORD )( ( Src[j] << aloc ) | ( Src[j] << rloc ) | ( Src[j] << gloc ) | ( Src[j] << bloc ) ) ;
 								}
-								else
-								{
-									*( (DWORD *)Dest + j ) = (DWORD)0x00000000 ;
-								}
-							}
 
-							Src += ImagePitch ;
-							Dest += DestPitch ;
+								Src += ImagePitch ;
+								Dest += DestPitch ;
+							}
 						}
-					}
-					else
-					{
-						for( i = 0 ; i < Height ; i ++ )
+						else
 						{
-							for( j = 0 ; j < Width ; j ++ )
+							for( i = 0 ; i < Height ; i ++ )
 							{
-								if( Src[j] )
+								for( j = 0 ; j < Width ; j ++ )
 								{
-									*( (DWORD *)Dest + j ) = ( DWORD )( ( ( DWORD )( Src[j] - 1 ) << ( ( cl.AlphaLoc + cl.AlphaWidth ) - 6 ) ) | RGBMask ) ;
+									*( (DWORD *)Dest + j ) = ( DWORD )( ( ( DWORD )Src[ j ] << ( ( cl.AlphaLoc + cl.AlphaWidth ) - 8 ) ) | RGBMask ) ;
 								}
-								else
-								{
-									*( (DWORD *)Dest + j ) = RGBMask ;
-								}
+
+								Src  += ImagePitch ;
+								Dest += DestPitch ;
 							}
-
-							Src  += ImagePitch ;
-							Dest += DestPitch ;
-						}
-					}
-					break ;
-
-				case DX_FONT_SRCIMAGETYPE_8BIT_MAX255 :
-					if( ManageData->TextureCacheUsePremulAlpha )
-					{
-						BYTE aloc, rloc, gloc, bloc ;
-
-						aloc = ( BYTE )( cl.AlphaLoc + cl.AlphaWidth - 8 ) ;
-						rloc = ( BYTE )( cl.RedLoc   + cl.RedWidth   - 8 ) ;
-						gloc = ( BYTE )( cl.GreenLoc + cl.GreenWidth - 8 ) ;
-						bloc = ( BYTE )( cl.BlueLoc  + cl.BlueWidth  - 8 ) ;
-						for( i = 0 ; i < Height ; i ++ )
-						{
-							for( j = 0 ; j < Width ; j ++ )
-							{
-								*( (DWORD *)Dest + j ) = ( DWORD )( ( Src[j] << aloc ) | ( Src[j] << rloc ) | ( Src[j] << gloc ) | ( Src[j] << bloc ) ) ;
-							}
-
-							Src += ImagePitch ;
-							Dest += DestPitch ;
-						}
-					}
-					else
-					{
-						for( i = 0 ; i < Height ; i ++ )
-						{
-							for( j = 0 ; j < Width ; j ++ )
-							{
-								*( (DWORD *)Dest + j ) = ( DWORD )( ( ( DWORD )Src[ j ] << ( ( cl.AlphaLoc + cl.AlphaWidth ) - 8 ) ) | RGBMask ) ;
-							}
-
-							Src  += ImagePitch ;
-							Dest += DestPitch ;
 						}
 					}
 					break ;
@@ -2481,6 +2902,22 @@ extern int FontCacheCharImageBltToHandle(
 				Dest		= ( BYTE * )im.GraphData + im.ColorData.PixelByte * ( AddX + DestX ) + DestPitch * ( AddY + DestY ) ;
 				adp			= ( DWORD )( im.Width / 2 ) ;
 
+	#define DB0		*( (BYTE *)dp + j )
+	#define DB1		*( (BYTE *)dp + j - DestPitch )
+	#define DB2		*( (BYTE *)dp + j + DestPitch )
+	#define DB3		*( (BYTE *)dp + j - 1 )
+	#define DB4		*( (BYTE *)dp + j + 1 )
+
+	#define EB0		*( (BYTE *)dp + adp + j )
+	#define EB1		*( (BYTE *)dp + ( j + adp ) - DestPitch )
+	#define EB2		*( (BYTE *)dp + ( j + adp ) + DestPitch )
+	#define EB3		*( (BYTE *)dp + adp + j - 1 )
+	#define EB4		*( (BYTE *)dp + adp + j + 1 )
+	#define EB5		*( (BYTE *)dp + ( j + adp - 1 ) - DestPitch )
+	#define EB6		*( (BYTE *)dp + ( j + adp + 1 ) - DestPitch )
+	#define EB7		*( (BYTE *)dp + ( j + adp - 1 ) + DestPitch )
+	#define EB8		*( (BYTE *)dp + ( j + adp + 1 ) + DestPitch )
+
 	#define D0		*( (WORD *)dp + j )
 	#define D1		*( (WORD *)( dp + ( j << 1 ) - DestPitch ) )
 	#define D2		*( (WORD *)( dp + ( j << 1 ) + DestPitch ) )
@@ -2519,6 +2956,7 @@ extern int FontCacheCharImageBltToHandle(
 					BYTE	*sp ;
 					BYTE	*dp ;
 					WORD	*p ;
+					BYTE	*pb ;
 					DWORD	*pd ;
 					
 					sp = Src ;
@@ -2529,212 +2967,219 @@ extern int FontCacheCharImageBltToHandle(
 					case DX_FONT_SRCIMAGETYPE_1BIT :
 						if( EdgeSize == 1 )
 						{
-							for( i = 0 ; i < Height ; i ++ )
+							if( im.ColorData.ColorBitDepth == 8 )
 							{
-								for( j = 0 ; j < Width ; j ++, dat <<= 1 )
+								for( i = 0 ; i < Height ; i ++ )
 								{
-									if( ( j & 0x7 ) == 0 ) dat = sp[j>>3] ;
-									if( dat & 0x80 )
+									for( j = 0 ; j < Width ; j ++, dat <<= 1 )
 									{
-										D0 = 1 ;
-										E1 = 1 ;
-										E2 = 1 ;
-										E3 = 1 ;
-										E4 = 1 ;
-										E5 = 1 ;
-										E6 = 1 ;
-										E7 = 1 ;
-										E8 = 1 ;
+										if( ( j & 0x7 ) == 0 ) dat = sp[j>>3] ;
+										if( dat & 0x80 )
+										{
+											DB0 = 1 ;
+											EB1 = 1 ;
+											EB2 = 1 ;
+											EB3 = 1 ;
+											EB4 = 1 ;
+											EB5 = 1 ;
+											EB6 = 1 ;
+											EB7 = 1 ;
+											EB8 = 1 ;
+										}
 									}
-								}
 								
-								sp += ImagePitch ;
-								dp += DestPitch ;
+									sp += ImagePitch ;
+									dp += DestPitch ;
+								}
+							}
+							else
+							{
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++, dat <<= 1 )
+									{
+										if( ( j & 0x7 ) == 0 ) dat = sp[j>>3] ;
+										if( dat & 0x80 )
+										{
+											D0 = 1 ;
+											E1 = 1 ;
+											E2 = 1 ;
+											E3 = 1 ;
+											E4 = 1 ;
+											E5 = 1 ;
+											E6 = 1 ;
+											E7 = 1 ;
+											E8 = 1 ;
+										}
+									}
+								
+									sp += ImagePitch ;
+									dp += DestPitch ;
+								}
 							}
 						}
 						else
 						if( EdgeSize <= FONTEDGE_PATTERN_NUM )
 						{
-							for( i = 0 ; i < Height ; i ++ )
+							if( im.ColorData.ColorBitDepth == 8 )
 							{
-								for( j = 0 ; j < Width ; j ++, dat <<= 1 )
+								for( i = 0 ; i < Height ; i ++ )
 								{
-									if( ( j % 8 ) == 0 ) dat = sp[j/8] ;
-									if( dat & 0x80 )
+									for( j = 0 ; j < Width ; j ++, dat <<= 1 )
 									{
-										D0 = 1 ;
-										for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
+										if( ( j % 8 ) == 0 ) dat = sp[j/8] ;
+										if( dat & 0x80 )
 										{
-											for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
+											DB0 = 1 ;
+											for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
 											{
-												if( EdgePat[n][o] == 0 ) continue ;
+												for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
+												{
+													if( EdgePat[n][o] == 0 ) continue ;
 											
-												p = (WORD *)( dp + (j + m + adp) * 2 + (l * DestPitch) ) ;
-												if( *p == 0 ) *p = 1 ;
+													pb = dp + ( j + m + adp ) + ( l * DestPitch ) ;
+													if( *pb == 0 ) *pb = 1 ;
+												}
 											}
 										}
 									}
-								}
 								
-								sp += ImagePitch ;
-								dp += DestPitch ;
+									sp += ImagePitch ;
+									dp += DestPitch ;
+								}
 							}
-						}
-						else
-						{
-							for( i = 0 ; i < Height ; i ++ )
+							else
 							{
-								for( j = 0 ; j < Width ; j ++, dat <<= 1 )
+								for( i = 0 ; i < Height ; i ++ )
 								{
-									if( ( j % 8 ) == 0 ) dat = sp[j/8] ;
-									if( dat & 0x80 )
+									for( j = 0 ; j < Width ; j ++, dat <<= 1 )
 									{
-										D0 = 1 ;
-										for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
+										if( ( j % 8 ) == 0 ) dat = sp[j/8] ;
+										if( dat & 0x80 )
 										{
-											for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+											D0 = 1 ;
+											for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
 											{
-												p = (WORD *)( dp + (j + m + adp) * 2 + (l * DestPitch) ) ;
-												if( *p == 0 ) *p = 1 ;
-											}
-										}
-									}
-								}
-								
-								sp += ImagePitch ;
-								dp += DestPitch ;
-							}
-						}
-
-						sp = Src - AddX - AddY * ImagePitch ;
-						dp = Dest - AddX * 2 - AddY * DestPitch ;
-						if( ManageData->TextureCacheUsePremulAlpha )
-						{
-							for( i = 0 ; i < Height + AddSize ; i ++ )
-							{
-								for( j = 0 ; j < Width + AddSize ; j ++ )
-								{
-									if( D0 != 0 )
-									{
-										D0 = ( WORD )AlphaRGBMask ;
-										E0 = ( WORD )0 ;
-									}
-									else
-									{
-										D0 = ( WORD )0 ;
-										E0 = ( WORD )( E0 != 0 ? AlphaRGBMask : 0 ) ;
-									}
-								}
-
-								sp += ImagePitch ;
-								dp += DestPitch ;
-							}
-						}
-						else
-						{
-							for( i = 0 ; i < Height + AddSize ; i ++ )
-							{
-								for( j = 0 ; j < Width + AddSize ; j ++ )
-								{
-									if( D0 != 0 )
-									{
-										D0 = ( WORD )AlphaRGBMask ;
-										E0 = ( WORD )RGBMask ;
-									}
-									else
-									{
-										D0 = ( WORD )RGBMask ;
-										E0 = ( WORD )( E0 != 0 ? AlphaRGBMask : RGBMask ) ;
-									}
-								}
-
-								sp += ImagePitch ;
-								dp += DestPitch ;
-							}
-						}
-						break ;
-
-					case DX_FONT_SRCIMAGETYPE_8BIT_ON_OFF :
-						if( EdgeSize == 1 )
-						{
-							for( i = 0 ; i < Height ; i ++ )
-							{
-								for( j = 0 ; j < Width ; j ++ )
-								{
-									if( sp[ j ] != 0 )
-									{
-										D0 = 1 ;
-										E1 = 1 ;
-										E2 = 1 ;
-										E3 = 1 ;
-										E4 = 1 ;
-										E5 = 1 ;
-										E6 = 1 ;
-										E7 = 1 ;
-										E8 = 1 ;
-									}
-								}
-								
-								sp += ImagePitch ;
-								dp += DestPitch ;
-							}
-						}
-						else
-						if( EdgeSize <= FONTEDGE_PATTERN_NUM )
-						{
-							for( i = 0 ; i < Height ; i ++ )
-							{
-								for( j = 0 ; j < Width ; j ++ )
-								{
-									if( sp[ j ] != 0 )
-									{
-										D0 = 1 ;
-										for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
-										{
-											for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
-											{
-												if( EdgePat[n][o] == 0 ) continue ;
+												for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
+												{
+													if( EdgePat[n][o] == 0 ) continue ;
 											
-												p = (WORD *)( dp + (j + m + adp) * 2 + (l * DestPitch) ) ;
-												if( *p == 0 ) *p = 1 ;
+													p = (WORD *)( dp + (j + m + adp) * 2 + (l * DestPitch) ) ;
+													if( *p == 0 ) *p = 1 ;
+												}
 											}
 										}
 									}
-								}
 								
-								sp += ImagePitch ;
-								dp += DestPitch ;
+									sp += ImagePitch ;
+									dp += DestPitch ;
+								}
 							}
 						}
 						else
 						{
-							for( i = 0 ; i < Height ; i ++ )
+							if( im.ColorData.ColorBitDepth == 8 )
 							{
-								for( j = 0 ; j < Width ; j ++ )
+								for( i = 0 ; i < Height ; i ++ )
 								{
-									if( sp[ j ] != 0 )
+									for( j = 0 ; j < Width ; j ++, dat <<= 1 )
 									{
-										D0 = 1 ;
-										for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
+										if( ( j % 8 ) == 0 ) dat = sp[j/8] ;
+										if( dat & 0x80 )
 										{
-											for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+											DB0 = 1 ;
+											for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
 											{
-												p = (WORD *)( dp + (j + m + adp) * 2 + (l * DestPitch) ) ;
-												if( *p == 0 ) *p = 1 ;
+												for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+												{
+													pb = dp + ( j + m + adp ) + ( l * DestPitch ) ;
+													if( *pb == 0 ) *pb = 1 ;
+												}
 											}
 										}
 									}
-								}
 								
-								sp += ImagePitch ;
-								dp += DestPitch ;
+									sp += ImagePitch ;
+									dp += DestPitch ;
+								}
+							}
+							else
+							{
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++, dat <<= 1 )
+									{
+										if( ( j % 8 ) == 0 ) dat = sp[j/8] ;
+										if( dat & 0x80 )
+										{
+											D0 = 1 ;
+											for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
+											{
+												for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+												{
+													p = (WORD *)( dp + (j + m + adp) * 2 + (l * DestPitch) ) ;
+													if( *p == 0 ) *p = 1 ;
+												}
+											}
+										}
+									}
+								
+									sp += ImagePitch ;
+									dp += DestPitch ;
+								}
 							}
 						}
 
-						// テクスチャのピクセルフォーマットに変換
+						if( im.ColorData.ColorBitDepth == 8 )
+						{
+							dp = Dest - AddX - AddY * DestPitch ;
+							if( im.ColorData.MaxPaletteNo == 15 )
+							{
+								for( i = 0 ; i < Height + AddSize ; i ++ )
+								{
+									for( j = 0 ; j < Width + AddSize ; j ++ )
+									{
+										if( DB0 != 0 )
+										{
+											DB0 = ( BYTE )0x0f ;
+											EB0 = ( BYTE )0x00 ;
+										}
+										else
+										{
+											DB0 = ( BYTE )0x00 ;
+											EB0 = ( BYTE )( E0 != 0 ? 0x0f : 0x00 ) ;
+										}
+									}
+
+									dp += DestPitch ;
+								}
+							}
+							else
+							{
+								for( i = 0 ; i < Height + AddSize ; i ++ )
+								{
+									for( j = 0 ; j < Width + AddSize ; j ++ )
+									{
+										if( DB0 != 0 )
+										{
+											DB0 = ( BYTE )0xff ;
+											EB0 = ( BYTE )0x00 ;
+										}
+										else
+										{
+											DB0 = ( BYTE )0x00 ;
+											EB0 = ( BYTE )( E0 != 0 ? 0xff : 0x00 ) ;
+										}
+									}
+
+									dp += DestPitch ;
+								}
+							}
+						}
+						else
 						{
 							sp = Src  - AddX     - AddY * ImagePitch ;
-							dp = Dest - AddX * 2 - AddY * DestPitch  ;
+							dp = Dest - AddX * 2 - AddY * DestPitch ;
 							if( ManageData->TextureCacheUsePremulAlpha )
 							{
 								for( i = 0 ; i < Height + AddSize ; i ++ )
@@ -2781,59 +3226,84 @@ extern int FontCacheCharImageBltToHandle(
 							}
 						}
 						break ;
-						
-					case DX_FONT_SRCIMAGETYPE_8BIT_MAX16 :
+
+					case DX_FONT_SRCIMAGETYPE_8BIT_ON_OFF :
+						if( EdgeSize == 1 )
 						{
-							DWORD s ;
-							
-							if( EdgeSize == 1 )
+							if( im.ColorData.ColorBitDepth == 8 )
 							{
 								for( i = 0 ; i < Height ; i ++ )
 								{
 									for( j = 0 ; j < Width ; j ++ )
 									{
-										s = (DWORD)sp[j] ;
-										if( s > 0 )
+										if( sp[ j ] != 0 )
 										{
-											D0 = (WORD)s ;
-											E1 = (WORD)( E1 + ( ( ( 0x10 - E1 ) * s ) >> 4 ) ) ;
-											E2 = (WORD)( E2 + ( ( ( 0x10 - E2 ) * s ) >> 4 ) ) ;
-											E3 = (WORD)( E3 + ( ( ( 0x10 - E3 ) * s ) >> 4 ) ) ;
-											E4 = (WORD)( E4 + ( ( ( 0x10 - E4 ) * s ) >> 4 ) ) ;
-											E5 = (WORD)( E5 + ( ( ( 0x10 - E5 ) * s ) >> 4 ) ) ;
-											E6 = (WORD)( E6 + ( ( ( 0x10 - E6 ) * s ) >> 4 ) ) ;
-											E7 = (WORD)( E7 + ( ( ( 0x10 - E7 ) * s ) >> 4 ) ) ;
-											E8 = (WORD)( E8 + ( ( ( 0x10 - E8 ) * s ) >> 4 ) ) ;
+											DB0 = 1 ;
+											EB1 = 1 ;
+											EB2 = 1 ;
+											EB3 = 1 ;
+											EB4 = 1 ;
+											EB5 = 1 ;
+											EB6 = 1 ;
+											EB7 = 1 ;
+											EB8 = 1 ;
 										}
 									}
-
+								
 									sp += ImagePitch ;
 									dp += DestPitch ;
 								}
 							}
 							else
-							if( EdgeSize <= FONTEDGE_PATTERN_NUM )
 							{
 								for( i = 0 ; i < Height ; i ++ )
 								{
 									for( j = 0 ; j < Width ; j ++ )
 									{
-										s = (DWORD)sp[j] ;
-										if( s > 0 )
+										if( sp[ j ] != 0 )
 										{
-											D0 = (WORD)s ;
+											D0 = 1 ;
+											E1 = 1 ;
+											E2 = 1 ;
+											E3 = 1 ;
+											E4 = 1 ;
+											E5 = 1 ;
+											E6 = 1 ;
+											E7 = 1 ;
+											E8 = 1 ;
+										}
+									}
+								
+									sp += ImagePitch ;
+									dp += DestPitch ;
+								}
+							}
+						}
+						else
+						if( EdgeSize <= FONTEDGE_PATTERN_NUM )
+						{
+							if( im.ColorData.ColorBitDepth == 8 )
+							{
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++ )
+									{
+										if( sp[ j ] != 0 )
+										{
+											DB0 = 1 ;
 											for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
 											{
 												for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
 												{
 													if( EdgePat[n][o] == 0 ) continue ;
-													p = (WORD *)( dp + (j + m + adp) * 2 + (l * DestPitch) ) ;
-													*p = (WORD)( ( 0x100 - ( ( 0x10 - *p ) * ( 0x10 - s ) ) ) >> 4 ) ;
+											
+													pb = dp + ( j + m + adp ) + ( l * DestPitch ) ;
+													if( *pb == 0 ) *pb = 1 ;
 												}
 											}
 										}
 									}
-
+								
 									sp += ImagePitch ;
 									dp += DestPitch ;
 								}
@@ -2844,35 +3314,130 @@ extern int FontCacheCharImageBltToHandle(
 								{
 									for( j = 0 ; j < Width ; j ++ )
 									{
-										s = (DWORD)sp[j] ;
-										if( s > 0 )
+										if( sp[ j ] != 0 )
 										{
-											D0 = (WORD)s ;
+											D0 = 1 ;
+											for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
+											{
+												for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
+												{
+													if( EdgePat[n][o] == 0 ) continue ;
+											
+													p = (WORD *)( dp + (j + m + adp) * 2 + (l * DestPitch) ) ;
+													if( *p == 0 ) *p = 1 ;
+												}
+											}
+										}
+									}
+								
+									sp += ImagePitch ;
+									dp += DestPitch ;
+								}
+							}
+						}
+						else
+						{
+							if( im.ColorData.ColorBitDepth == 8 )
+							{
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++ )
+									{
+										if( sp[ j ] != 0 )
+										{
+											DB0 = 1 ;
+											for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
+											{
+												for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+												{
+													pb = dp + ( j + m + adp ) + ( l * DestPitch ) ;
+													if( *pb == 0 ) *pb = 1 ;
+												}
+											}
+										}
+									}
+								
+									sp += ImagePitch ;
+									dp += DestPitch ;
+								}
+							}
+							else
+							{
+								for( i = 0 ; i < Height ; i ++ )
+								{
+									for( j = 0 ; j < Width ; j ++ )
+									{
+										if( sp[ j ] != 0 )
+										{
+											D0 = 1 ;
 											for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
 											{
 												for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
 												{
 													p = (WORD *)( dp + (j + m + adp) * 2 + (l * DestPitch) ) ;
-													*p = (WORD)( ( 0x100 - ( ( 0x10 - *p ) * ( 0x10 - s ) ) ) >> 4 ) ;
+													if( *p == 0 ) *p = 1 ;
 												}
 											}
 										}
 									}
-
+								
 									sp += ImagePitch ;
 									dp += DestPitch ;
 								}
 							}
+						}
 
-							// テクスチャのピクセルフォーマットに変換
+						// テクスチャのピクセルフォーマットに変換
+						{
+							if( im.ColorData.ColorBitDepth == 8 )
 							{
-								BYTE aloc, rloc, gloc, bloc ;
+								dp = Dest - AddX - AddY * DestPitch  ;
 
-								aloc = ( BYTE )( ( cl.AlphaLoc + cl.AlphaWidth ) - 4 ) ;
-								rloc = ( BYTE )( ( cl.RedLoc   + cl.RedWidth   ) - 4 ) ;
-								gloc = ( BYTE )( ( cl.GreenLoc + cl.GreenWidth ) - 4 ) ;
-								bloc = ( BYTE )( ( cl.BlueLoc  + cl.BlueWidth  ) - 4 ) ;
+								if( im.ColorData.MaxPaletteNo == 15 )
+								{
+									for( i = 0 ; i < Height + AddSize ; i ++ )
+									{
+										for( j = 0 ; j < Width + AddSize ; j ++ )
+										{
+											if( DB0 != 0 )
+											{
+												DB0 = 0x0f ;
+												EB0 = 0x00 ;
+											}
+											else
+											{
+												DB0 = 0x00 ;
+												EB0 = EB0 != 0 ? 0x0f : 0x00 ;
+											}
+										}
 
+										dp += DestPitch ;
+									}
+								}
+								else
+								{
+									for( i = 0 ; i < Height + AddSize ; i ++ )
+									{
+										for( j = 0 ; j < Width + AddSize ; j ++ )
+										{
+											if( DB0 != 0 )
+											{
+												DB0 = 0xff ;
+												EB0 = 0x00 ;
+											}
+											else
+											{
+												DB0 = 0x00 ;
+												EB0 = EB0 != 0 ? 0xff : 0x00 ;
+											}
+										}
+
+										dp += DestPitch ;
+									}
+								}
+							}
+							else
+							{
 								sp = Src  - AddX     - AddY * ImagePitch ;
 								dp = Dest - AddX * 2 - AddY * DestPitch  ;
 								if( ManageData->TextureCacheUsePremulAlpha )
@@ -2881,27 +3446,15 @@ extern int FontCacheCharImageBltToHandle(
 									{
 										for( j = 0 ; j < Width + AddSize ; j ++ )
 										{
-											if( D0 == 16 )
+											if( D0 != 0 )
 											{
-												D0 = ( WORD )0xffff ;
-												E0 = 0 ;
+												D0 = ( WORD )AlphaRGBMask ;
+												E0 = ( WORD )0 ;
 											}
 											else
 											{
-												if( D0 )
-												{
-													D0 = ( WORD )( ( (DWORD)D0 << aloc ) | ( (DWORD)D0 << rloc ) | ( (DWORD)D0 << gloc ) | ( (DWORD)D0 << bloc ) ) ;
-												}
-
-												if( E0 == 16 )
-												{
-													E0 = ( WORD )0xffff ;
-												}
-												else
-												if( E0 )
-												{
-													E0 = ( WORD )( ( (DWORD)E0 << aloc ) | ( (DWORD)E0 << rloc ) | ( (DWORD)E0 << gloc ) | ( (DWORD)E0 << bloc ) ) ;
-												}
+												D0 = ( WORD )0 ;
+												E0 = ( WORD )( E0 != 0 ? AlphaRGBMask : 0 ) ;
 											}
 										}
 
@@ -2915,35 +3468,352 @@ extern int FontCacheCharImageBltToHandle(
 									{
 										for( j = 0 ; j < Width + AddSize ; j ++ )
 										{
-											if( D0 == 16 )
+											if( D0 != 0 )
 											{
-												D0 = ( WORD )( ( ( (DWORD)D0 << aloc ) - 1 ) | RGBMask ) ;
-												E0 = (WORD)RGBMask ;
+												D0 = ( WORD )AlphaRGBMask ;
+												E0 = ( WORD )RGBMask ;
 											}
 											else
 											{
-												if( D0 )
-												{
-													D0 = ( WORD )( ( ( (DWORD)D0 << aloc ) - 1 ) | RGBMask ) ;
-												}
-												else
-												{
-													D0 = (WORD)RGBMask ;
-												}
+												D0 = ( WORD )RGBMask ;
+												E0 = ( WORD )( E0 != 0 ? AlphaRGBMask : RGBMask ) ;
+											}
+										}
 
-												if( E0 )
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+							}
+						}
+						break ;
+						
+					case DX_FONT_SRCIMAGETYPE_8BIT_MAX16 :
+						{
+							DWORD s ;
+							
+							if( EdgeSize == 1 )
+							{
+								if( im.ColorData.ColorBitDepth == 8 )
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DB0 = (BYTE)s ;
+												EB1 = (BYTE)( E1 + ( ( ( 0x10 - E1 ) * s ) >> 4 ) ) ;
+												EB2 = (BYTE)( E2 + ( ( ( 0x10 - E2 ) * s ) >> 4 ) ) ;
+												EB3 = (BYTE)( E3 + ( ( ( 0x10 - E3 ) * s ) >> 4 ) ) ;
+												EB4 = (BYTE)( E4 + ( ( ( 0x10 - E4 ) * s ) >> 4 ) ) ;
+												EB5 = (BYTE)( E5 + ( ( ( 0x10 - E5 ) * s ) >> 4 ) ) ;
+												EB6 = (BYTE)( E6 + ( ( ( 0x10 - E6 ) * s ) >> 4 ) ) ;
+												EB7 = (BYTE)( E7 + ( ( ( 0x10 - E7 ) * s ) >> 4 ) ) ;
+												EB8 = (BYTE)( E8 + ( ( ( 0x10 - E8 ) * s ) >> 4 ) ) ;
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+								else
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												D0 = (WORD)s ;
+												E1 = (WORD)( E1 + ( ( ( 0x10 - E1 ) * s ) >> 4 ) ) ;
+												E2 = (WORD)( E2 + ( ( ( 0x10 - E2 ) * s ) >> 4 ) ) ;
+												E3 = (WORD)( E3 + ( ( ( 0x10 - E3 ) * s ) >> 4 ) ) ;
+												E4 = (WORD)( E4 + ( ( ( 0x10 - E4 ) * s ) >> 4 ) ) ;
+												E5 = (WORD)( E5 + ( ( ( 0x10 - E5 ) * s ) >> 4 ) ) ;
+												E6 = (WORD)( E6 + ( ( ( 0x10 - E6 ) * s ) >> 4 ) ) ;
+												E7 = (WORD)( E7 + ( ( ( 0x10 - E7 ) * s ) >> 4 ) ) ;
+												E8 = (WORD)( E8 + ( ( ( 0x10 - E8 ) * s ) >> 4 ) ) ;
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+							}
+							else
+							if( EdgeSize <= FONTEDGE_PATTERN_NUM )
+							{
+								if( im.ColorData.ColorBitDepth == 8 )
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DB0 = (BYTE)s ;
+												for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
 												{
-													E0 = ( WORD )( ( ( (DWORD)E0 << aloc ) - 1 ) | RGBMask ) ;
-												}
-												else
-												{
-													E0 = (WORD)RGBMask ;
+													for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
+													{
+														if( EdgePat[n][o] == 0 ) continue ;
+														pb  = (BYTE *)( dp + (j + m + adp) + (l * DestPitch) ) ;
+														*pb = (BYTE)( ( 0x100 - ( ( 0x10 - *pb ) * ( 0x10 - s ) ) ) >> 4 ) ;
+													}
 												}
 											}
 										}
 
 										sp += ImagePitch ;
 										dp += DestPitch ;
+									}
+								}
+								else
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												D0 = (WORD)s ;
+												for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
+												{
+													for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
+													{
+														if( EdgePat[n][o] == 0 ) continue ;
+														p = (WORD *)( dp + (j + m + adp) * 2 + (l * DestPitch) ) ;
+														*p = (WORD)( ( 0x100 - ( ( 0x10 - *p ) * ( 0x10 - s ) ) ) >> 4 ) ;
+													}
+												}
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+							}
+							else
+							{
+								if( im.ColorData.ColorBitDepth == 8 )
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DB0 = (BYTE)s ;
+												for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
+												{
+													for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+													{
+														pb  = (BYTE *)( dp + (j + m + adp) + (l * DestPitch) ) ;
+														*pb = (BYTE)( ( 0x100 - ( ( 0x10 - *pb ) * ( 0x10 - s ) ) ) >> 4 ) ;
+													}
+												}
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+								else
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												D0 = (WORD)s ;
+												for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
+												{
+													for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+													{
+														p = (WORD *)( dp + (j + m + adp) * 2 + (l * DestPitch) ) ;
+														*p = (WORD)( ( 0x100 - ( ( 0x10 - *p ) * ( 0x10 - s ) ) ) >> 4 ) ;
+													}
+												}
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+							}
+
+							// テクスチャのピクセルフォーマットに変換
+							{
+								if( im.ColorData.ColorBitDepth == 8 )
+								{
+									dp = Dest - AddX - AddY * DestPitch  ;
+									if( im.ColorData.MaxPaletteNo == 15 )
+									{
+										for( i = 0 ; i < Height + AddSize ; i ++ )
+										{
+											for( j = 0 ; j < Width + AddSize ; j ++ )
+											{
+												if( DB0 == 16 )
+												{
+													DB0 = 0x0f ;
+													EB0 = 0x00 ;
+												}
+												else
+												{
+													if( DB0 )
+													{
+														DB0 = ( BYTE )( DB0 - 1 ) ;
+													}
+													else
+													{
+														DB0 = 0x00 ;
+													}
+
+													if( EB0 )
+													{
+														EB0 = ( BYTE )( EB0 - 1 ) ;
+													}
+													else
+													{
+														EB0 = 0x00 ;
+													}
+												}
+											}
+
+											dp += DestPitch ;
+										}
+									}
+									else
+									{
+										for( i = 0 ; i < Height + AddSize ; i ++ )
+										{
+											for( j = 0 ; j < Width + AddSize ; j ++ )
+											{
+												if( DB0 == 16 )
+												{
+													DB0 = 0xff ;
+													EB0 = 0x00 ;
+												}
+												else
+												{
+													if( DB0 )
+													{
+														DB0 = ( BYTE )( ( DB0 << 4 ) - 1 ) ;
+													}
+													else
+													{
+														DB0 = 0x00 ;
+													}
+
+													if( EB0 )
+													{
+														EB0 = ( BYTE )( ( EB0 << 4 ) - 1 ) ;
+													}
+													else
+													{
+														EB0 = 0x00 ;
+													}
+												}
+											}
+
+											dp += DestPitch ;
+										}
+									}
+								}
+								else
+								{
+									BYTE aloc, rloc, gloc, bloc ;
+
+									aloc = ( BYTE )( ( cl.AlphaLoc + cl.AlphaWidth ) - 4 ) ;
+									rloc = ( BYTE )( ( cl.RedLoc   + cl.RedWidth   ) - 4 ) ;
+									gloc = ( BYTE )( ( cl.GreenLoc + cl.GreenWidth ) - 4 ) ;
+									bloc = ( BYTE )( ( cl.BlueLoc  + cl.BlueWidth  ) - 4 ) ;
+
+									sp = Src  - AddX     - AddY * ImagePitch ;
+									dp = Dest - AddX * 2 - AddY * DestPitch  ;
+									if( ManageData->TextureCacheUsePremulAlpha )
+									{
+										for( i = 0 ; i < Height + AddSize ; i ++ )
+										{
+											for( j = 0 ; j < Width + AddSize ; j ++ )
+											{
+												if( D0 == 16 )
+												{
+													D0 = ( WORD )0xffff ;
+													E0 = 0 ;
+												}
+												else
+												{
+													if( D0 )
+													{
+														D0 = ( WORD )( ( (DWORD)D0 << aloc ) | ( (DWORD)D0 << rloc ) | ( (DWORD)D0 << gloc ) | ( (DWORD)D0 << bloc ) ) ;
+													}
+
+													if( E0 == 16 )
+													{
+														E0 = ( WORD )0xffff ;
+													}
+													else
+													if( E0 )
+													{
+														E0 = ( WORD )( ( (DWORD)E0 << aloc ) | ( (DWORD)E0 << rloc ) | ( (DWORD)E0 << gloc ) | ( (DWORD)E0 << bloc ) ) ;
+													}
+												}
+											}
+
+											sp += ImagePitch ;
+											dp += DestPitch ;
+										}
+									}
+									else
+									{
+										for( i = 0 ; i < Height + AddSize ; i ++ )
+										{
+											for( j = 0 ; j < Width + AddSize ; j ++ )
+											{
+												if( D0 == 16 )
+												{
+													D0 = ( WORD )( ( ( (DWORD)D0 << aloc ) - 1 ) | RGBMask ) ;
+													E0 = (WORD)RGBMask ;
+												}
+												else
+												{
+													if( D0 )
+													{
+														D0 = ( WORD )( ( ( (DWORD)D0 << aloc ) - 1 ) | RGBMask ) ;
+													}
+													else
+													{
+														D0 = (WORD)RGBMask ;
+													}
+
+													if( E0 )
+													{
+														E0 = ( WORD )( ( ( (DWORD)E0 << aloc ) - 1 ) | RGBMask ) ;
+													}
+													else
+													{
+														E0 = (WORD)RGBMask ;
+													}
+												}
+											}
+
+											sp += ImagePitch ;
+											dp += DestPitch ;
+										}
 									}
 								}
 							}
@@ -2956,79 +3826,164 @@ extern int FontCacheCharImageBltToHandle(
 							
 							if( EdgeSize == 1 )
 							{
-								for( i = 0 ; i < Height ; i ++ )
+								if( im.ColorData.ColorBitDepth == 8 )
 								{
-									for( j = 0 ; j < Width ; j ++ )
+									for( i = 0 ; i < Height ; i ++ )
 									{
-										s = (DWORD)sp[j] ;
-										if( s > 0 )
+										for( j = 0 ; j < Width ; j ++ )
 										{
-											DD0 = (DWORD)s ;
-											ED1 = (DWORD)( ED1 + ( ( ( 0x40 - ED1 ) * s ) >> 6 ) ) ;
-											ED2 = (DWORD)( ED2 + ( ( ( 0x40 - ED2 ) * s ) >> 6 ) ) ;
-											ED3 = (DWORD)( ED3 + ( ( ( 0x40 - ED3 ) * s ) >> 6 ) ) ;
-											ED4 = (DWORD)( ED4 + ( ( ( 0x40 - ED4 ) * s ) >> 6 ) ) ;
-											ED5 = (DWORD)( ED5 + ( ( ( 0x40 - ED5 ) * s ) >> 6 ) ) ;
-											ED6 = (DWORD)( ED6 + ( ( ( 0x40 - ED6 ) * s ) >> 6 ) ) ;
-											ED7 = (DWORD)( ED7 + ( ( ( 0x40 - ED7 ) * s ) >> 6 ) ) ;
-											ED8 = (DWORD)( ED8 + ( ( ( 0x40 - ED8 ) * s ) >> 6 ) ) ;
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DB0 = (BYTE)s ;
+												EB1 = (BYTE)( EB1 + ( ( ( 0x40 - EB1 ) * s ) >> 6 ) ) ;
+												EB2 = (BYTE)( EB2 + ( ( ( 0x40 - EB2 ) * s ) >> 6 ) ) ;
+												EB3 = (BYTE)( EB3 + ( ( ( 0x40 - EB3 ) * s ) >> 6 ) ) ;
+												EB4 = (BYTE)( EB4 + ( ( ( 0x40 - EB4 ) * s ) >> 6 ) ) ;
+												EB5 = (BYTE)( EB5 + ( ( ( 0x40 - EB5 ) * s ) >> 6 ) ) ;
+												EB6 = (BYTE)( EB6 + ( ( ( 0x40 - EB6 ) * s ) >> 6 ) ) ;
+												EB7 = (BYTE)( EB7 + ( ( ( 0x40 - EB7 ) * s ) >> 6 ) ) ;
+												EB8 = (BYTE)( EB8 + ( ( ( 0x40 - EB8 ) * s ) >> 6 ) ) ;
+											}
 										}
-									}
 
-									sp += ImagePitch ;
-									dp += DestPitch ;
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+								else
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DD0 = (DWORD)s ;
+												ED1 = (DWORD)( ED1 + ( ( ( 0x40 - ED1 ) * s ) >> 6 ) ) ;
+												ED2 = (DWORD)( ED2 + ( ( ( 0x40 - ED2 ) * s ) >> 6 ) ) ;
+												ED3 = (DWORD)( ED3 + ( ( ( 0x40 - ED3 ) * s ) >> 6 ) ) ;
+												ED4 = (DWORD)( ED4 + ( ( ( 0x40 - ED4 ) * s ) >> 6 ) ) ;
+												ED5 = (DWORD)( ED5 + ( ( ( 0x40 - ED5 ) * s ) >> 6 ) ) ;
+												ED6 = (DWORD)( ED6 + ( ( ( 0x40 - ED6 ) * s ) >> 6 ) ) ;
+												ED7 = (DWORD)( ED7 + ( ( ( 0x40 - ED7 ) * s ) >> 6 ) ) ;
+												ED8 = (DWORD)( ED8 + ( ( ( 0x40 - ED8 ) * s ) >> 6 ) ) ;
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
 								}
 							}
 							else
 							if( EdgeSize <= FONTEDGE_PATTERN_NUM )
 							{
-								for( i = 0 ; i < Height ; i ++ )
+								if( im.ColorData.ColorBitDepth == 8 )
 								{
-									for( j = 0 ; j < Width ; j ++ )
+									for( i = 0 ; i < Height ; i ++ )
 									{
-										s = (DWORD)sp[j] ;
-										if( s > 0 )
+										for( j = 0 ; j < Width ; j ++ )
 										{
-											DD0 = (DWORD)s ;
-											for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
 											{
-												for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
+												DB0 = (BYTE)s ;
+												for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
 												{
-													if( EdgePat[n][o] == 0 ) continue ;
-													pd = (DWORD *)( dp + (j + m + adp) * 4 + (l * DestPitch) ) ;
-													*pd = (DWORD)( *pd + ( ( ( 0x40 - *pd ) * s ) >> 6 ) ) ;
+													for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
+													{
+														if( EdgePat[n][o] == 0 ) continue ;
+														pb  = (BYTE *)( dp + (j + m + adp) + (l * DestPitch) ) ;
+														*pb = (BYTE)( *pb + ( ( ( 0x40 - *pb ) * s ) >> 6 ) ) ;
+													}
 												}
 											}
 										}
-									}
 
-									sp += ImagePitch ;
-									dp += DestPitch ;
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+								else
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DD0 = (DWORD)s ;
+												for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
+												{
+													for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
+													{
+														if( EdgePat[n][o] == 0 ) continue ;
+														pd = (DWORD *)( dp + (j + m + adp) * 4 + (l * DestPitch) ) ;
+														*pd = (DWORD)( *pd + ( ( ( 0x40 - *pd ) * s ) >> 6 ) ) ;
+													}
+												}
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
 								}
 							}
 							else
 							{
-								for( i = 0 ; i < Height ; i ++ )
+								if( im.ColorData.ColorBitDepth == 8 )
 								{
-									for( j = 0 ; j < Width ; j ++ )
+									for( i = 0 ; i < Height ; i ++ )
 									{
-										s = (DWORD)sp[j] ;
-										if( s > 0 )
+										for( j = 0 ; j < Width ; j ++ )
 										{
-											DD0 = (DWORD)s ;
-											for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
 											{
-												for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+												DB0 = (BYTE)s ;
+												for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
 												{
-													pd = (DWORD *)( dp + (j + m + adp) * 4 + (l * DestPitch) ) ;
-													*pd = (DWORD)( *pd + ( ( ( 0x40 - *pd ) * s ) >> 6 ) ) ;
+													for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+													{
+														pb  = (BYTE *)( dp + (j + m + adp) + (l * DestPitch) ) ;
+														*pb = (BYTE)( *pb + ( ( ( 0x40 - *pb ) * s ) >> 6 ) ) ;
+													}
 												}
 											}
 										}
-									}
 
-									sp += ImagePitch ;
-									dp += DestPitch ;
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+								else
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DD0 = (DWORD)s ;
+												for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
+												{
+													for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+													{
+														pd = (DWORD *)( dp + (j + m + adp) * 4 + (l * DestPitch) ) ;
+														*pd = (DWORD)( *pd + ( ( ( 0x40 - *pd ) * s ) >> 6 ) ) ;
+													}
+												}
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
 								}
 							}
 
@@ -3043,81 +3998,138 @@ extern int FontCacheCharImageBltToHandle(
 									255, 
 								} ;
 
-								sp = Src  - AddX     - AddY * ImagePitch ;
-								dp = Dest - AddX * 4 - AddY * DestPitch  ;
-								if( ManageData->TextureCacheUsePremulAlpha )
+								if( im.ColorData.ColorBitDepth == 8 )
 								{
-									DWORD tmp ;
+									dp = Dest - AddX - AddY * DestPitch  ;
 
-									for( i = 0 ; i < Height + AddSize ; i ++ )
+									if( im.ColorData.MaxPaletteNo == 15 )
 									{
-										for( j = 0 ; j < Width + AddSize ; j ++ )
+										for( i = 0 ; i < Height + AddSize ; i ++ )
 										{
-											if( DD0 == 64 )
+											for( j = 0 ; j < Width + AddSize ; j ++ )
 											{
-												DD0 = 0xffffffff ;
-												ED0 = 0 ;
-											}
-											else
-											{
-												if( DD0 )
+												if( DB0 == 64 )
 												{
-													tmp = NumConvTable[ DD0 ] ;
-													DD0 = ( DWORD )( ( tmp << cl.AlphaLoc ) | ( tmp << cl.RedLoc ) | ( tmp << cl.GreenLoc ) | ( tmp << cl.BlueLoc ) ) ;
-												}
-
-												if( ED0 == 64 )
-												{
-													ED0 = 0xffffffff ;
+													DB0 = 0x0f ;
+													EB0 = 0x00 ;
 												}
 												else
-												if( ED0 )
 												{
-													tmp = NumConvTable[ ED0 ] ;
-													ED0 = ( DWORD )( ( tmp << cl.AlphaLoc ) | ( tmp << cl.RedLoc ) | ( tmp << cl.GreenLoc ) | ( tmp << cl.BlueLoc ) ) ;
+													if( DB0 )
+													{
+														DB0 = ( BYTE )( DB0 >> 2 ) ;
+													}
+													else
+													{
+														DB0 = 0x00 ;
+													}
+
+													if( EB0 )
+													{
+														EB0 = ( BYTE )( EB0 >> 2 ) ;
+													}
+													else
+													{
+														EB0 = 0x00 ;
+													}
 												}
 											}
-										}
 
-										sp += ImagePitch ;
-										dp += DestPitch ;
+											dp += DestPitch ;
+										}
+									}
+									else
+									{
+										for( i = 0 ; i < Height + AddSize ; i ++ )
+										{
+											for( j = 0 ; j < Width + AddSize ; j ++ )
+											{
+												DB0 = ( BYTE )NumConvTable[ DB0 ] ;
+												EB0 = ( BYTE )NumConvTable[ EB0 ] ;
+											}
+
+											dp += DestPitch ;
+										}
 									}
 								}
 								else
 								{
-									for( i = 0 ; i < Height + AddSize ; i ++ )
+									sp = Src  - AddX     - AddY * ImagePitch ;
+									dp = Dest - AddX * 4 - AddY * DestPitch  ;
+									if( ManageData->TextureCacheUsePremulAlpha )
 									{
-										for( j = 0 ; j < Width + AddSize ; j ++ )
-										{
-											if( DD0 == 64 )
-											{
-												DD0 = AlphaRGBMask ;
-												ED0 = (DWORD)RGBMask ;
-											}
-											else
-											{
-												if( DD0 )
-												{
-													DD0 = ( DWORD )( ( ( DWORD )NumConvTable[ DD0 ] << cl.AlphaLoc ) | RGBMask ) ;
-												}
-												else
-												{
-													DD0 = (DWORD)RGBMask ;
-												}
+										DWORD tmp ;
 
-												if( ED0 )
+										for( i = 0 ; i < Height + AddSize ; i ++ )
+										{
+											for( j = 0 ; j < Width + AddSize ; j ++ )
+											{
+												if( DD0 == 64 )
 												{
-													ED0 = ( DWORD )( ( ( DWORD )NumConvTable[ ED0 ] << cl.AlphaLoc ) | RGBMask ) ;
+													DD0 = 0xffffffff ;
+													ED0 = 0 ;
 												}
 												else
 												{
+													if( DD0 )
+													{
+														tmp = NumConvTable[ DD0 ] ;
+														DD0 = ( DWORD )( ( tmp << cl.AlphaLoc ) | ( tmp << cl.RedLoc ) | ( tmp << cl.GreenLoc ) | ( tmp << cl.BlueLoc ) ) ;
+													}
+
+													if( ED0 == 64 )
+													{
+														ED0 = 0xffffffff ;
+													}
+													else
+													if( ED0 )
+													{
+														tmp = NumConvTable[ ED0 ] ;
+														ED0 = ( DWORD )( ( tmp << cl.AlphaLoc ) | ( tmp << cl.RedLoc ) | ( tmp << cl.GreenLoc ) | ( tmp << cl.BlueLoc ) ) ;
+													}
+												}
+											}
+
+											sp += ImagePitch ;
+											dp += DestPitch ;
+										}
+									}
+									else
+									{
+										for( i = 0 ; i < Height + AddSize ; i ++ )
+										{
+											for( j = 0 ; j < Width + AddSize ; j ++ )
+											{
+												if( DD0 == 64 )
+												{
+													DD0 = AlphaRGBMask ;
 													ED0 = (DWORD)RGBMask ;
 												}
-											}
-										}
+												else
+												{
+													if( DD0 )
+													{
+														DD0 = ( DWORD )( ( ( DWORD )NumConvTable[ DD0 ] << cl.AlphaLoc ) | RGBMask ) ;
+													}
+													else
+													{
+														DD0 = (DWORD)RGBMask ;
+													}
 
-										sp += ImagePitch ;
-										dp += DestPitch ;
+													if( ED0 )
+													{
+														ED0 = ( DWORD )( ( ( DWORD )NumConvTable[ ED0 ] << cl.AlphaLoc ) | RGBMask ) ;
+													}
+													else
+													{
+														ED0 = (DWORD)RGBMask ;
+													}
+												}
+											}
+
+											sp += ImagePitch ;
+											dp += DestPitch ;
+										}
 									}
 								}
 							}
@@ -3130,99 +4142,25 @@ extern int FontCacheCharImageBltToHandle(
 							
 							if( EdgeSize == 1 )
 							{
-								for( i = 0 ; i < Height ; i ++ )
+								if( im.ColorData.ColorBitDepth == 8 )
 								{
-									for( j = 0 ; j < Width ; j ++ )
+									for( i = 0 ; i < Height ; i ++ )
 									{
-										s = (DWORD)sp[j] ;
-										if( s > 0 )
+										for( j = 0 ; j < Width ; j ++ )
 										{
-											DD0 = (DWORD)s ;
-											ED1 = (DWORD)( ED1 + ( ( ( 0xff - ED1 ) * s ) >> 8 ) ) ;
-											ED2 = (DWORD)( ED2 + ( ( ( 0xff - ED2 ) * s ) >> 8 ) ) ;
-											ED3 = (DWORD)( ED3 + ( ( ( 0xff - ED3 ) * s ) >> 8 ) ) ;
-											ED4 = (DWORD)( ED4 + ( ( ( 0xff - ED4 ) * s ) >> 8 ) ) ;
-											ED5 = (DWORD)( ED5 + ( ( ( 0xff - ED5 ) * s ) >> 8 ) ) ;
-											ED6 = (DWORD)( ED6 + ( ( ( 0xff - ED6 ) * s ) >> 8 ) ) ;
-											ED7 = (DWORD)( ED7 + ( ( ( 0xff - ED7 ) * s ) >> 8 ) ) ;
-											ED8 = (DWORD)( ED8 + ( ( ( 0xff - ED8 ) * s ) >> 8 ) ) ;
-										}
-									}
-
-									sp += ImagePitch ;
-									dp += DestPitch ;
-								}
-							}
-							else
-							if( EdgeSize <= FONTEDGE_PATTERN_NUM )
-							{
-								for( i = 0 ; i < Height ; i ++ )
-								{
-									for( j = 0 ; j < Width ; j ++ )
-									{
-										s = (DWORD)sp[j] ;
-										if( s > 0 )
-										{
-											DD0 = (DWORD)s ;
-											for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
 											{
-												for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
-												{
-													if( EdgePat[n][o] == 0 ) continue ;
-													pd = (DWORD *)( dp + (j + m + adp) * 4 + (l * DestPitch) ) ;
-													*pd = (DWORD)( *pd + ( ( ( 0xff - *pd ) * s ) >> 8 ) ) ;
-												}
+												DB0 = (BYTE)s ;
+												EB1 = (BYTE)( EB1 + ( ( ( 0xff - EB1 ) * s ) >> 8 ) ) ;
+												EB2 = (BYTE)( EB2 + ( ( ( 0xff - EB2 ) * s ) >> 8 ) ) ;
+												EB3 = (BYTE)( EB3 + ( ( ( 0xff - EB3 ) * s ) >> 8 ) ) ;
+												EB4 = (BYTE)( EB4 + ( ( ( 0xff - EB4 ) * s ) >> 8 ) ) ;
+												EB5 = (BYTE)( EB5 + ( ( ( 0xff - EB5 ) * s ) >> 8 ) ) ;
+												EB6 = (BYTE)( EB6 + ( ( ( 0xff - EB6 ) * s ) >> 8 ) ) ;
+												EB7 = (BYTE)( EB7 + ( ( ( 0xff - EB7 ) * s ) >> 8 ) ) ;
+												EB8 = (BYTE)( EB8 + ( ( ( 0xff - EB8 ) * s ) >> 8 ) ) ;
 											}
-										}
-									}
-
-									sp += ImagePitch ;
-									dp += DestPitch ;
-								}
-							}
-							else
-							{
-								for( i = 0 ; i < Height ; i ++ )
-								{
-									for( j = 0 ; j < Width ; j ++ )
-									{
-										s = (DWORD)sp[j] ;
-										if( s > 0 )
-										{
-											DD0 = (DWORD)s ;
-											for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
-											{
-												for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
-												{
-													pd = (DWORD *)( dp + (j + m + adp) * 4 + (l * DestPitch) ) ;
-													*pd = (DWORD)( *pd + ( ( ( 0xff - *pd ) * s ) >> 8 ) ) ;
-												}
-											}
-										}
-									}
-
-									sp += ImagePitch ;
-									dp += DestPitch ;
-								}
-							}
-
-							// テクスチャのピクセルフォーマットに変換
-							{
-								sp = Src - AddX - AddY * ImagePitch ;
-								dp = Dest - AddX * 4 - AddY * DestPitch ;
-								if( ManageData->TextureCacheUsePremulAlpha )
-								{
-									DWORD tmp ;
-
-									for( i = 0 ; i < Height + AddSize ; i ++ )
-									{
-										for( j = 0 ; j < Width + AddSize ; j ++ )
-										{
-											tmp = DD0 ;
-											DD0 = ( DWORD )( ( tmp << cl.AlphaLoc ) | ( tmp << cl.RedLoc ) | ( tmp << cl.GreenLoc ) | ( tmp << cl.BlueLoc ) ) ;
-
-											tmp = ED0 ;
-											ED0 = ( DWORD )( ( tmp << cl.AlphaLoc ) | ( tmp << cl.RedLoc ) | ( tmp << cl.GreenLoc ) | ( tmp << cl.BlueLoc ) ) ;
 										}
 
 										sp += ImagePitch ;
@@ -3231,16 +4169,198 @@ extern int FontCacheCharImageBltToHandle(
 								}
 								else
 								{
-									for( i = 0 ; i < Height + AddSize ; i ++ )
+									for( i = 0 ; i < Height ; i ++ )
 									{
-										for( j = 0 ; j < Width + AddSize ; j ++ )
+										for( j = 0 ; j < Width ; j ++ )
 										{
-											DD0 = ( DWORD )( ( ( DWORD )DD0 << cl.AlphaLoc ) | RGBMask ) ;
-											ED0 = ( DWORD )( ( ( DWORD )ED0 << cl.AlphaLoc ) | RGBMask ) ;
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DD0 = (DWORD)s ;
+												ED1 = (DWORD)( ED1 + ( ( ( 0xff - ED1 ) * s ) >> 8 ) ) ;
+												ED2 = (DWORD)( ED2 + ( ( ( 0xff - ED2 ) * s ) >> 8 ) ) ;
+												ED3 = (DWORD)( ED3 + ( ( ( 0xff - ED3 ) * s ) >> 8 ) ) ;
+												ED4 = (DWORD)( ED4 + ( ( ( 0xff - ED4 ) * s ) >> 8 ) ) ;
+												ED5 = (DWORD)( ED5 + ( ( ( 0xff - ED5 ) * s ) >> 8 ) ) ;
+												ED6 = (DWORD)( ED6 + ( ( ( 0xff - ED6 ) * s ) >> 8 ) ) ;
+												ED7 = (DWORD)( ED7 + ( ( ( 0xff - ED7 ) * s ) >> 8 ) ) ;
+												ED8 = (DWORD)( ED8 + ( ( ( 0xff - ED8 ) * s ) >> 8 ) ) ;
+											}
 										}
 
 										sp += ImagePitch ;
 										dp += DestPitch ;
+									}
+								}
+							}
+							else
+							if( EdgeSize <= FONTEDGE_PATTERN_NUM )
+							{
+								if( im.ColorData.ColorBitDepth == 8 )
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DB0 = (BYTE)s ;
+												for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
+												{
+													for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
+													{
+														if( EdgePat[n][o] == 0 ) continue ;
+														pb  = (BYTE *)( dp + (j + m + adp) + (l * DestPitch) ) ;
+														*pb = (BYTE )( *pb + ( ( ( 0xff - *pb ) * s ) >> 8 ) ) ;
+													}
+												}
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+								else
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DD0 = (DWORD)s ;
+												for( n = 0, l = -EdgeSize ; l < EdgeSize + 1 ; n ++, l ++ )
+												{
+													for( o = 0, m = -EdgeSize ; m < EdgeSize + 1 ; o ++, m ++ )
+													{
+														if( EdgePat[n][o] == 0 ) continue ;
+														pd = (DWORD *)( dp + (j + m + adp) * 4 + (l * DestPitch) ) ;
+														*pd = (DWORD)( *pd + ( ( ( 0xff - *pd ) * s ) >> 8 ) ) ;
+													}
+												}
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+							}
+							else
+							{
+								if( im.ColorData.ColorBitDepth == 8 )
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DB0 = (BYTE)s ;
+												for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
+												{
+													for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+													{
+														pb  = (BYTE *)( dp + (j + m + adp) + (l * DestPitch) ) ;
+														*pb = (BYTE)( *pb + ( ( ( 0xff - *pb ) * s ) >> 8 ) ) ;
+													}
+												}
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+								else
+								{
+									for( i = 0 ; i < Height ; i ++ )
+									{
+										for( j = 0 ; j < Width ; j ++ )
+										{
+											s = (DWORD)sp[j] ;
+											if( s > 0 )
+											{
+												DD0 = (DWORD)s ;
+												for( l = -EdgeSize ; l < EdgeSize + 1 ; l ++ )
+												{
+													for( m = -EdgeSize ; m < EdgeSize + 1 ; m ++ )
+													{
+														pd = (DWORD *)( dp + (j + m + adp) * 4 + (l * DestPitch) ) ;
+														*pd = (DWORD)( *pd + ( ( ( 0xff - *pd ) * s ) >> 8 ) ) ;
+													}
+												}
+											}
+										}
+
+										sp += ImagePitch ;
+										dp += DestPitch ;
+									}
+								}
+							}
+
+							// テクスチャのピクセルフォーマットに変換
+							{
+								if( im.ColorData.ColorBitDepth == 8 )
+								{
+									dp = Dest - AddX * 4 - AddY * DestPitch ;
+									if( im.ColorData.MaxPaletteNo == 15 )
+									{
+										for( i = 0 ; i < Height + AddSize ; i ++ )
+										{
+											for( j = 0 ; j < Width + AddSize ; j ++ )
+											{
+												DB0 = ( BYTE )( DB0 >> 4 ) ;
+												EB0 = ( BYTE )( EB0 >> 4 ) ;
+											}
+
+											dp += DestPitch ;
+										}
+									}
+									else
+									{
+									}
+								}
+								else
+								{
+									sp = Src - AddX - AddY * ImagePitch ;
+									dp = Dest - AddX * 4 - AddY * DestPitch ;
+									if( ManageData->TextureCacheUsePremulAlpha )
+									{
+										DWORD tmp ;
+
+										for( i = 0 ; i < Height + AddSize ; i ++ )
+										{
+											for( j = 0 ; j < Width + AddSize ; j ++ )
+											{
+												tmp = DD0 ;
+												DD0 = ( DWORD )( ( tmp << cl.AlphaLoc ) | ( tmp << cl.RedLoc ) | ( tmp << cl.GreenLoc ) | ( tmp << cl.BlueLoc ) ) ;
+
+												tmp = ED0 ;
+												ED0 = ( DWORD )( ( tmp << cl.AlphaLoc ) | ( tmp << cl.RedLoc ) | ( tmp << cl.GreenLoc ) | ( tmp << cl.BlueLoc ) ) ;
+											}
+
+											sp += ImagePitch ;
+											dp += DestPitch ;
+										}
+									}
+									else
+									{
+										for( i = 0 ; i < Height + AddSize ; i ++ )
+										{
+											for( j = 0 ; j < Width + AddSize ; j ++ )
+											{
+												DD0 = ( DWORD )( ( ( DWORD )DD0 << cl.AlphaLoc ) | RGBMask ) ;
+												ED0 = ( DWORD )( ( ( DWORD )ED0 << cl.AlphaLoc ) | RGBMask ) ;
+											}
+
+											sp += ImagePitch ;
+											dp += DestPitch ;
+										}
 									}
 								}
 							}
@@ -3279,6 +4399,23 @@ extern int FontCacheCharImageBltToHandle(
 	#undef D2
 	#undef D3
 	#undef D4
+
+	#undef EB0
+	#undef EB1
+	#undef EB2
+	#undef EB3
+	#undef EB4
+	#undef EB5
+	#undef EB6
+	#undef EB7
+	#undef EB8
+
+	#undef DB0
+	#undef DB1
+	#undef DB2
+	#undef DB3
+	#undef DB4
+
 				// テクスチャキャッシュに転送
 				if( TextureCacheUpdate )
 				{
@@ -3356,6 +4493,9 @@ extern int FontCacheCharImageBltToHandle(
 	// 情報を有効にする
 	CharData->ValidFlag = TRUE ;
 
+	// グラフィックハンドルかどうかのフラグを倒す
+	CharData->GraphHandleFlag = FALSE ;
+
 //	// リサイズ処理用のメモリを確保していた場合は解放
 //	if( ResizeBuffer != NULL )
 //	{
@@ -3367,8 +4507,8 @@ extern int FontCacheCharImageBltToHandle(
 	return 0 ;
 }
 
-// フォントハンドルに設定されているコードページを取得する( 戻り値  -1:エラー  -1以外:コードページ )
-extern int GetFontHandleCharCode( int FontHandle )
+// フォントハンドルに設定されている文字コード形式を取得する( 戻り値  -1:エラー  -1以外:文字コード形式 )
+extern int GetFontHandleCharCodeFormat( int FontHandle )
 {
 	FONTMANAGE * ManageData ;
 
@@ -3377,7 +4517,12 @@ extern int GetFontHandleCharCode( int FontHandle )
 		return -1 ;
 	}
 
-	return ( int )( ManageData->BaseInfo.CodePage == 0xffff ? _TCODEPAGE : ManageData->BaseInfo.CodePage ) ;
+	if( ManageData->UseCharCodeFormat >= 0 )
+	{
+		return ManageData->UseCharCodeFormat ;
+	}
+
+	return ( int )( ManageData->BaseInfo.CharCodeFormat == 0xffff ? _TCHARCODEFORMAT : ManageData->BaseInfo.CharCodeFormat ) ;
 }
 
 
@@ -3485,15 +4630,6 @@ R1 :
 		// 縦一列に格納できる文字数を算出
 		ManageData->LengthCharNum = ManageData->CacheImageSize.cy / ManageData->BaseInfo.MaxWidth ;
 
-		// キャッシュに使用するテクスチャグラフィックを作成する
-		ManageData->TextureCacheLostFlag = TRUE ;
-		if( RefreshFontDrawResourceToHandle( ManageData->HandleInfo.Handle, ASyncThread ) < 0 )
-		{
-			DXST_ERRORLOG_ADDUTF16LE( "\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x87\x65\x57\x5b\xad\x30\xe3\x30\xc3\x30\xb7\x30\xe5\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"テクスチャ文字キャッシュの作成に失敗しました\n" @*/ ) ;
-			ManageData->TextureCacheFlag = FALSE ;
-			goto R1 ;
-		}
-
 		// 基本イメージ関係の初期化
 		{
 			int alpha ;
@@ -3515,8 +4651,72 @@ R1 :
 
 			// キャッシュに転送するイメージと同じものを格納しておく基本イメージの作成
 			{
-				BaseImage					= &ManageData->TextureCacheBaseImage ;
-				BaseImage->ColorData		= *( NS_GetTexColorData( alpha, test, ManageData->TextureCacheColorBitDepth == 16 ? 0 : 1 ) ) ;
+				BaseImage = &ManageData->TextureCacheBaseImage ;
+
+				// デバイスがパレットテクスチャに対応している場合はパレット形式にする
+				if( GSYS.HardInfo.Support4bitPaletteTexture )
+				{
+					int i ;
+
+					NS_CreatePaletteColorData( &BaseImage->ColorData ) ;
+
+					// さらにビット数を4にするか8にするか分岐
+					if( ( ManageData->FontType & DX_FONTTYPE_ANTIALIASING ) != 0 &&
+						( ManageData->UseFontDataFile == FALSE ||
+						  ManageData->FontDataFile.ImageType == DX_FONT_SRCIMAGETYPE_8BIT_MAX64 ||
+						  ManageData->FontDataFile.ImageType == DX_FONT_SRCIMAGETYPE_8BIT_MAX255 ) )
+					{
+						BaseImage->ColorData.MaxPaletteNo = 255 ;
+						if( ManageData->TextureCacheUsePremulAlpha )
+						{
+							for( i = 0 ; i < 256 ; i ++ )
+							{
+								BaseImage->ColorData.Palette[ i ].Red   = i ;
+								BaseImage->ColorData.Palette[ i ].Green = i ;
+								BaseImage->ColorData.Palette[ i ].Blue  = i ;
+								BaseImage->ColorData.Palette[ i ].Alpha = i ;
+							}
+						}
+						else
+						{
+							for( i = 0 ; i < 256 ; i ++ )
+							{
+								BaseImage->ColorData.Palette[ i ].Red   = 255 ;
+								BaseImage->ColorData.Palette[ i ].Green = 255 ;
+								BaseImage->ColorData.Palette[ i ].Blue  = 255 ;
+								BaseImage->ColorData.Palette[ i ].Alpha = i ;
+							}
+						}
+					}
+					else
+					{
+						BaseImage->ColorData.MaxPaletteNo = 15 ;
+						if( ManageData->TextureCacheUsePremulAlpha )
+						{
+							for( i = 0 ; i < 16 ; i ++ )
+							{
+								BaseImage->ColorData.Palette[ i ].Red   = i * 255 / 15 ;
+								BaseImage->ColorData.Palette[ i ].Green = i * 255 / 15 ;
+								BaseImage->ColorData.Palette[ i ].Blue  = i * 255 / 15 ;
+								BaseImage->ColorData.Palette[ i ].Alpha = i * 255 / 15 ;
+							}
+						}
+						else
+						{
+							for( i = 0 ; i < 16 ; i ++ )
+							{
+								BaseImage->ColorData.Palette[ i ].Red   = 255 ;
+								BaseImage->ColorData.Palette[ i ].Green = 255 ;
+								BaseImage->ColorData.Palette[ i ].Blue  = 255 ;
+								BaseImage->ColorData.Palette[ i ].Alpha = i * 255 / 15 ;
+							}
+						}
+					}
+				}
+				else
+				{
+					BaseImage->ColorData	= *( NS_GetTexColorData( alpha, test, ManageData->TextureCacheColorBitDepth == 16 ? 0 : 1 ) ) ;
+				}
 
 				BaseImage->MipMapCount		= 0 ;
 				BaseImage->GraphDataCount	= 0 ;
@@ -3530,16 +4730,33 @@ R1 :
 					return -1 ;
 				}
 
-				// 乗算済みアルファを使用する場合はRGBA=0に、使用しない場合はAだけを0にして初期化
-				if( ManageData->TextureCacheUsePremulAlpha )
+				if( GSYS.HardInfo.Support4bitPaletteTexture )
 				{
 					NS_FillBaseImage( BaseImage,   0,  0,  0,  0 ) ;
 				}
 				else
 				{
-					NS_FillBaseImage( BaseImage, 255,255,255,  0 ) ;
+					// 乗算済みアルファを使用する場合はRGBA=0に、使用しない場合はAだけを0にして初期化
+
+					if( ManageData->TextureCacheUsePremulAlpha )
+					{
+						NS_FillBaseImage( BaseImage,   0,  0,  0,  0 ) ;
+					}
+					else
+					{
+						NS_FillBaseImage( BaseImage, 255,255,255,  0 ) ;
+					}
 				}
 			}
+		}
+
+		// キャッシュに使用するテクスチャグラフィックを作成する
+		ManageData->TextureCacheLostFlag = TRUE ;
+		if( RefreshFontDrawResourceToHandle( ManageData, ASyncThread ) < 0 )
+		{
+			DXST_ERRORLOG_ADDUTF16LE( "\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x87\x65\x57\x5b\xad\x30\xe3\x30\xc3\x30\xb7\x30\xe5\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"テクスチャ文字キャッシュの作成に失敗しました\n" @*/ ) ;
+			ManageData->TextureCacheFlag = FALSE ;
+			goto R1 ;
 		}
 	}
 	else
@@ -3595,7 +4812,7 @@ R1 :
 		}
 
 		// ブレンド描画時用フォントグラフィックの作成
-		if( RefreshFontDrawResourceToHandle( ManageData->HandleInfo.Handle, ASyncThread ) < 0 )
+		if( RefreshFontDrawResourceToHandle( ManageData, ASyncThread ) < 0 )
 		{
 			DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xa9\x30\xf3\x30\xc8\x30\x28\x75\xcf\x63\x3b\x75\xb9\x30\xaf\x30\xea\x30\xfc\x30\xf3\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"フォント用描画スクリーンの作成に失敗しました\n" @*/ ) ;
 			return -1 ;
@@ -3612,32 +4829,32 @@ R1 :
 	}
 
 	// テキストキャッシュデータの初期化
-	InitFontCacheToHandle( ManageData->HandleInfo.Handle, ASyncThread ) ; 
+	InitFontCacheToHandle( ManageData, ASyncThread ) ; 
 
 	// 正常終了
 	return 0 ;
 }
 
 // 文字キャッシュに新しい文字を加える
-extern FONTCHARDATA * FontCacheCharAddToHandle( int AddNum, const DWORD *CharCodeList, int FontHandle, int TextureCacheUpdate )
+extern FONTCHARDATA * FontCacheCharAddToHandle( int AddNum, const DWORD *CharCodeList, FONTMANAGE *ManageData, int TextureCacheUpdate )
 {
-	FONTMANAGE * 	ManageData ;
+//	FONTMANAGE * 	ManageData ;
 	FONTCHARDATA * 	CharData = NULL ;
 	int 			i ;
 	int             j ;
 	void *			Image ;
 
-	DEFAULT_FONT_HANDLE_SETUP
+//	DEFAULT_FONT_HANDLE_SETUP
 
 	// エラー判定
 	if( Graphics_Hardware_CheckValid_PF() == 0 )
 	{
 		return NULL ;
 	}
-	if( FONTHCHK( FontHandle, ManageData ) )
-	{
-		return NULL ;
-	}
+//	if( FONTHCHK( FontHandle, ManageData ) )
+//	{
+//		return NULL ;
+//	}
 
 	// フォントデータファイルを使用しない場合は環境依存の準備を行う
 	if( ManageData->UseFontDataFile == FALSE )
@@ -3852,7 +5069,7 @@ static int EnumFontNameBaseT( TCHAR *NameBuffer, int NameBufferNum, int JapanOnl
 	{
 		for( i = 0 ; i < Result ; i ++ )
 		{
-			ConvString( ( const char * )( &TempNameBuffer[ i * 64 ] ), WCHAR_T_CODEPAGE, ( char * )&NameBuffer[ i * 64 ], _TCODEPAGE ) ;
+			ConvString( ( const char * )( &TempNameBuffer[ i * 64 ] ), WCHAR_T_CHARCODEFORMAT, ( char * )&NameBuffer[ i * 64 ], _TCHARCODEFORMAT ) ;
 		}
 	}
 
@@ -4086,7 +5303,7 @@ static int CreateFontToHandle_Static(
 {
 	FONTMANAGE *	ManageData		= NULL ;
 	int				DefaultCharSet	= FALSE ;
-	int				CodePage ;
+	int				CharCodeFormat ;
 
 	if( FontType 	< 0 ) FontType 	 = DEFAULT_FONT_TYPE ;
 	if( EdgeSize	> 1 ) FontType	|= DX_FONTTYPE_EDGE ;
@@ -4098,11 +5315,11 @@ static int CreateFontToHandle_Static(
 	{
 		DefaultCharSet = TRUE ;
 		CharSet  = _GET_CHARSET() ;
-		CodePage = 0xffff ;
+		CharCodeFormat = 0xffff ;
 	}
 	else
 	{
-		CodePage = CodePageTable[ CharSet ] ;
+		CharCodeFormat = CharCodeFormatTable[ CharSet ] ;
 	}
 
 	FONTHCHK( FontHandle, ManageData ) ;
@@ -4117,10 +5334,11 @@ static int CreateFontToHandle_Static(
 	ManageData->BaseInfo.FontThickness 	= ( WORD )Thick ;
 	ManageData->BaseInfo.Italic			= ( BYTE )Italic ;
 	ManageData->BaseInfo.CharSet		= ( WORD )CharSet ;
-	ManageData->BaseInfo.CodePage		= ( WORD )CodePage ;
+	ManageData->BaseInfo.CharCodeFormat	= ( WORD )CharCodeFormat ;
 	ManageData->FontType				= FontType ;
 	ManageData->EdgeSize				= EdgeSize ;
 	ManageData->Space					= 0 ;
+	ManageData->UseCharCodeFormat		= -1 ;
 
 	// ロストフラグへのポインタを NULL にしておく
 	ManageData->LostFlag = NULL ;
@@ -4418,12 +5636,13 @@ static int LoadFontDataFromMemToHandle_UseGParam_Static(
 	}
 
 	// フォントのパラメータのセット
-	ManageData->BaseInfo = ManageData->FontDataFile.Header->Press.BaseInfo ;
-	ManageData->EdgeSize = EdgeSize ;
-	ManageData->Space    = 0 ;
+	ManageData->BaseInfo			= ManageData->FontDataFile.Header->Press.BaseInfo ;
+	ManageData->EdgeSize			= EdgeSize ;
+	ManageData->Space			    = 0 ;
+	ManageData->UseCharCodeFormat	= -1 ;
 
 	// フォント名の保存
-	ConvString( ( const char * )ManageData->FontDataFile.Header->Press.FontName, DX_CODEPAGE_UTF16LE, ( char * )ManageData->FontName, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )ManageData->FontDataFile.Header->Press.FontName, DX_CHARCODEFORMAT_UTF16LE, ( char * )ManageData->FontName, WCHAR_T_CHARCODEFORMAT ) ;
 
 	// ロストフラグへのポインタを NULL にしておく
 	ManageData->LostFlag = NULL ;
@@ -4830,6 +6049,23 @@ extern int NS_SetFontSpaceToHandle( int Point, int FontHandle )
 	return 0 ;
 }
 
+// 指定のフォントハンドルを使用する関数の引数に渡す文字列の文字コード形式を設定する( UNICODE版では無効 )
+extern int NS_SetFontCharCodeFormatToHandle( int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ , int FontHandle )
+{
+	FONTMANAGE * ManageData ;
+
+	DEFAULT_FONT_HANDLE_SETUP
+
+	// エラー判定
+	if( FONTHCHK( FontHandle, ManageData ) )
+		return -1 ;
+	
+	ManageData->UseCharCodeFormat = CharCodeFormat ;
+	
+	// 終了
+	return 0 ;
+}
+
 // デフォルトフォントのステータスを一括設定する
 extern int SetDefaultFontState_WCHAR_T( const wchar_t *FontName, int Size, int Thick, int FontType, int CharSet, int EdgeSize, int Italic )
 {
@@ -4876,7 +6112,7 @@ extern int NS_SetDefaultFontState( const TCHAR *FontName, int Size, int Thick, i
 	return SetDefaultFontState_WCHAR_T( FontName, Size, Thick, FontType, CharSet, EdgeSize, Italic ) ;
 #else
 	wchar_t FontNameBuffer[ 256 ] ;
-	ConvString( ( const char * )FontName, _TCODEPAGE, ( char * )FontNameBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )FontName, _TCHARCODEFORMAT, ( char * )FontNameBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	return SetDefaultFontState_WCHAR_T( FontNameBuffer, Size, Thick, FontType, CharSet, EdgeSize, Italic ) ;
 #endif
 }
@@ -4903,6 +6139,152 @@ extern int NS_SetFontLostFlag( int FontHandle, int *LostFlag )
 	if( LostFlag != NULL ) *LostFlag = FALSE ;
 
 	return 0 ;
+}
+
+// 指定の文字の代わりに描画するグラフィックハンドルを登録する
+extern int AddFontImageToHandle_WCHAR_T( int FontHandle, const wchar_t *Char, int GrHandle, int DrawX, int DrawY, int AddX )
+{
+	DWORD CodeUnicode ;
+	int UseSize ;
+	int SizeX ;
+	int SizeY ;
+	int i ;
+	FONTMANAGE * ManageData ;
+	FONTCHARDATA *fontcode ;
+
+	DEFAULT_FONT_HANDLE_SETUP
+
+	// エラー判定
+	if( FONTHCHK( FontHandle, ManageData ) )
+	{
+		return -1  ;
+	}
+
+	// コードを取得
+	CodeUnicode = GetCharCode( ( const char * )Char, WCHAR_T_CHARCODEFORMAT, &UseSize ) ;
+
+	// 既に同じ文字が登録されていたら上書きする
+	fontcode = ManageData->GraphHandleFontImage ;
+	for( i = 0 ; i < ManageData->GraphHandleFontImageNum ; i ++, fontcode ++ )
+	{
+		if( fontcode->CodeUnicode == CodeUnicode )
+		{
+			break ;
+		}
+	}
+
+	// 無かった場合は情報を一つ増やす
+	if( i == ManageData->GraphHandleFontImageNum )
+	{
+		// 既に登録数が一杯の場合はエラー
+		if( ManageData->GraphHandleFontImageNum >= FONT_GRAPHICHANDLE_IMAGE_MAXNUM )
+		{
+			return -1 ;
+		}
+
+		ManageData->GraphHandleFontImageNum ++ ;
+	}
+
+	// 情報を設定
+	fontcode->CodeUnicode     = CodeUnicode ;
+	fontcode->ValidFlag       = TRUE ;
+	fontcode->GraphHandleFlag = TRUE ;
+	fontcode->DrawX           = ( short )DrawX ;
+	fontcode->DrawY           = ( short )DrawY ;
+	fontcode->AddX            = ( short )AddX ;
+	NS_GetGraphSize( GrHandle, &SizeX, &SizeY ) ;
+	fontcode->SizeX           = ( WORD )SizeX ;
+	fontcode->SizeY           = ( WORD )SizeY ;
+	fontcode->GraphIndex      = GrHandle ;
+	fontcode->CodeData        = NULL ;
+
+	// 正常終了
+	return 0 ;
+}
+
+// 指定の文字の代わりに描画するグラフィックハンドルを登録する
+extern int NS_AddFontImageToHandle( int FontHandle, const TCHAR *Char, int GrHandle, int DrawX, int DrawY, int AddX )
+{
+#ifdef UNICODE
+	return AddFontImageToHandle_WCHAR_T( FontHandle, Char, GrHandle, DrawX, DrawY, AddX ) ;
+#else
+	int Result ;
+	FONTHANDLE_TCHAR_TO_WCHAR_T_STRING_BEGIN( Char, -1 )
+
+	Result = AddFontImageToHandle_WCHAR_T( FontHandle, UseStringBuffer, GrHandle, DrawX, DrawY, AddX ) ;
+
+	FONTHANDLE_TCHAR_TO_WCHAR_T_STRING_END
+
+	return Result ;
+#endif
+}
+
+// 指定の文字の代わりに描画するグラフィックハンドルの登録を解除する
+extern int SubFontImageToHandle_WCHAR_T( int FontHandle, const wchar_t *Char )
+{
+	DWORD CodeUnicode ;
+	int UseSize ;
+	int i ;
+	FONTMANAGE * ManageData ;
+	FONTCHARDATA *fontcode ;
+
+	DEFAULT_FONT_HANDLE_SETUP
+
+	// エラー判定
+	if( FONTHCHK( FontHandle, ManageData ) )
+	{
+		return -1  ;
+	}
+
+	// コードを取得
+	CodeUnicode = GetCharCode( ( const char * )Char, WCHAR_T_CHARCODEFORMAT, &UseSize ) ;
+
+	// 指定の文字が登録されていなかったらエラー
+	fontcode = ManageData->GraphHandleFontImage ;
+	for( i = 0 ; i < ManageData->GraphHandleFontImageNum ; i ++, fontcode ++ )
+	{
+		if( fontcode->CodeUnicode == CodeUnicode )
+		{
+			break ;
+		}
+	}
+	if( i == ManageData->GraphHandleFontImageNum )
+	{
+		return -1 ;
+	}
+
+	// 情報の数を減らす
+	ManageData->GraphHandleFontImageNum -- ;
+
+	// 末端では無かった場合情報を詰める
+	if( i != ManageData->GraphHandleFontImageNum )
+	{
+		_MEMMOVE(
+			&ManageData->GraphHandleFontImage[ i     ],
+			&ManageData->GraphHandleFontImage[ i + 1 ],
+			sizeof( FONTCHARDATA ) * ( ManageData->GraphHandleFontImageNum - i )
+		) ;
+	}
+
+	// 正常終了
+	return 0 ;
+}
+
+// 指定の文字の代わりに描画するグラフィックハンドルの登録を解除する
+extern int NS_SubFontImageToHandle( int FontHandle, const TCHAR *Char )
+{
+#ifdef UNICODE
+	return SubFontImageToHandle_WCHAR_T( FontHandle, Char ) ;
+#else
+	int Result ;
+	FONTHANDLE_TCHAR_TO_WCHAR_T_STRING_BEGIN( Char, -1 )
+
+	Result = SubFontImageToHandle_WCHAR_T( FontHandle, UseStringBuffer ) ;
+
+	FONTHANDLE_TCHAR_TO_WCHAR_T_STRING_END
+
+	return Result ;
+#endif
 }
 
 // 描画するフォントのサイズをセットする
@@ -4977,6 +6359,12 @@ extern int NS_GetFontSpace( void )
 	return NS_GetFontSpaceToHandle( DX_DEFAULT_FONT_HANDLE ) ;
 }
 
+// デフォルトフォントハンドルを使用する関数の引数に渡す文字列の文字コード形式を設定する( UNICODE版では無効 )
+extern int NS_SetFontCharCodeFormat( int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ )
+{
+	return NS_SetFontCharCodeFormatToHandle( CharCodeFormat, DX_DEFAULT_FONT_HANDLE ) ;
+}
+
 // フォントのキャッシュにテクスチャを使用するか、フラグをセットする
 extern int NS_SetFontCacheToTextureFlag( int Flag )
 {
@@ -5035,7 +6423,7 @@ extern int NS_ChangeFont( const TCHAR *FontName, int CharSet )
 	return ChangeFont_WCHAR_T( FontName, CharSet ) ;
 #else
 	wchar_t FontNameBuffer[ 256 ] ;
-	ConvString( ( const char * )FontName, _TCODEPAGE, ( char * )FontNameBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )FontName, _TCHARCODEFORMAT, ( char * )FontNameBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	return ChangeFont_WCHAR_T( FontNameBuffer, CharSet ) ;
 #endif
 }
@@ -5095,7 +6483,7 @@ __inline FONTCHARDATA *GetFontCacheChar_Inline( FONTMANAGE *ManageData, DWORD Ch
 	}
 
 	// 無かった場合キャッシュに追加
-	Cache = FontCacheCharAddToHandle( 1, &CharCode, ManageData->HandleInfo.Handle ) ;
+	Cache = FontCacheCharAddToHandle( 1, &CharCode, ManageData ) ;
 	if( Cache == NULL )
 	{
 		if( ErrorMessage )
@@ -5132,20 +6520,20 @@ extern int FontCacheStringDrawToHandleST(
 	MEMIMG *		DestMemImg,
 	const RECT *	ClipRect,
 	int				TransFlag,
-	int				FontHandle,
+	FONTMANAGE *	ManageData,
 	unsigned int	EdgeColor,
 	int				StrLen,
 	int				VerticalFlag,
 	SIZE *			DrawSize
 )
 {
-	static DWORD	DrawStrBuf[ 256 ] ;			// 描画する際に使用する文字列データ（３バイトで１文字を表現）
-	FONTMANAGE *	ManageData ;
+	static DWORD	DrawStrBuf[ 1024 ] ;		// 描画する際に使用する文字列データ（３バイトで１文字を表現）
 	FONTCHARDATA *	CharData ;
 	RECT			SrcRect ;
 	RECT			DstRect ;
 	int				DrawCharNum ;				// ２バイト文字１バイト文字全部ひっくるめて何文字あるか保存する変数
 	int				i ;							// 繰り返しと汎用変数
+	int				j ;
 	int				SrcX ;						// テキストキャッシュ中の目的テキストの座標決定に使用
 	int				SrcY ;
 	const DWORD *	CharCode ;
@@ -5161,17 +6549,17 @@ extern int FontCacheStringDrawToHandleST(
 	float			RotSin = 0.0f ;
 	float			RotCos = 1.0f ;
 
-	DEFAULT_FONT_HANDLE_SETUP
+//	DEFAULT_FONT_HANDLE_SETUP
 
 	// エラー判定
 	if( Graphics_Hardware_CheckValid_PF() == 0 )
 	{
 		return -1 ;
 	}
-	if( FONTHCHK( FontHandle, ManageData ) )
-	{
-		return -1  ;
-	}
+//	if( FONTHCHK( FontHandle, ManageData ) )
+//	{
+//		return -1  ;
+//	}
 //	DXST_ERRORLOG_ADDW( L"フォントハンドル値が異常です終了します\n" ) ;
 //	DXST_ERRORLOGFMT_ADDW(( L"	in FontCacheStringDrawToHandle  StrData = %s   FontHandle = %d  ", StrData, FontHandle )) ;
 
@@ -5213,26 +6601,29 @@ extern int FontCacheStringDrawToHandleST(
 	}
 
 	// 描画座標の補正
-	if( VerticalFlag )
+	if( ManageData->BaseInfo.FontAddHeight != 0 )
 	{
-		if( PosIntFlag )
+		if( VerticalFlag )
 		{
-			xi -=     _DTOL( ManageData->BaseInfo.FontAddHeight * ExRateY ) / 2 ;
+			if( PosIntFlag )
+			{
+				xi -=     _DTOL( ManageData->BaseInfo.FontAddHeight * ExRateY ) / 2 ;
+			}
+			else
+			{
+				xf -= ( float )( ManageData->BaseInfo.FontAddHeight * ExRateY ) / 2.0f ;
+			}
 		}
 		else
 		{
-			xf -= ( float )( ManageData->BaseInfo.FontAddHeight * ExRateY ) / 2.0f ;
-		}
-	}
-	else
-	{
-		if( PosIntFlag )
-		{
-			yi -=     _DTOL( ManageData->BaseInfo.FontAddHeight * ExRateY ) / 2 ;
-		}
-		else
-		{
-			yf -= ( float )( ManageData->BaseInfo.FontAddHeight * ExRateY ) / 2.0f ;
+			if( PosIntFlag )
+			{
+				yi -=     _DTOL( ManageData->BaseInfo.FontAddHeight * ExRateY ) / 2 ;
+			}
+			else
+			{
+				yf -= ( float )( ManageData->BaseInfo.FontAddHeight * ExRateY ) / 2.0f ;
+			}
 		}
 	}
 
@@ -5248,24 +6639,37 @@ extern int FontCacheStringDrawToHandleST(
 	// ３２ビット色カラー値を取得しておく
 	{
 		int r, g, b ;
-		RGBCOLOR *bright ;
+		int er, eg, eb ;
+		DWORD NoneRevMask ;
 	
-		bright = &GSYS.DrawSetting.DrawBright ;
-		
 		// ＤＸライブラリに設定されている描画輝度と乗算する
-		NS_GetColor2( Color, &r, &g, &b ) ;
-		r          = bright->Red   * r / 255 ;
-		g          = bright->Green * g / 255 ;
-		b          = bright->Blue  * b / 255 ;
-		Color      = NS_GetColor( r, g, b ) & ~NS_GetColor( 0, 0, 0 ) ;
-		FColor     = ( 0xff000000 ) | ( r << 16 ) | ( g << 8 ) | ( b ) ;
+		NoneRevMask = ~NS_GetColor( 0, 0, 0 ) ;
+		NS_GetColor2( Color,     &r,  &g,  &b  ) ;
+		NS_GetColor2( EdgeColor, &er, &eg, &eb ) ;
+		if( ( GSYS.DrawSetting.bDrawBright & 0x00ffffff ) != 0x00ffffff )
+		{
+			RGBCOLOR *bright ;
 
-		NS_GetColor2( EdgeColor, &r, &g, &b ) ;
-		r          = bright->Red   * r / 255 ;
-		g          = bright->Green * g / 255 ;
-		b          = bright->Blue  * b / 255 ;
-		EdgeColor  = NS_GetColor( r, g, b ) & ~NS_GetColor( 0, 0, 0 ) ;;
-		FEdgeColor = ( 0xff000000 ) | ( r << 16 ) | ( g << 8 ) | ( b ) ;
+			bright = &GSYS.DrawSetting.DrawBright ;	
+
+			r  = bright->Red   * r  / 255 ;
+			g  = bright->Green * g  / 255 ;
+			b  = bright->Blue  * b  / 255 ;
+
+			er = bright->Red   * er / 255 ;
+			eg = bright->Green * eg / 255 ;
+			eb = bright->Blue  * eb / 255 ;
+
+			Color      = NS_GetColor( r,   g,  b ) & NoneRevMask ;
+			EdgeColor  = NS_GetColor( er, eg, eb ) & NoneRevMask ;
+		}
+		else
+		{
+			Color      &= NoneRevMask ;
+			EdgeColor  &= NoneRevMask ;
+		}
+		FColor     = ( 0xff000000 ) | ( r  << 16 ) | ( g  << 8 ) | (  b ) ;
+		FEdgeColor = ( 0xff000000 ) | ( er << 16 ) | ( eg << 8 ) | ( eb ) ;
 	}
 
 	// 文字列がない場合は終了
@@ -5280,22 +6684,15 @@ extern int FontCacheStringDrawToHandleST(
 
 	// 描画する文字列の長さを保存
 	{
-		int len ;
-
-		len = _WCSLEN( StrData ) ;
-		if( StrLen == -1 )
+		if( StrLen < 0 )
 		{
-			StrLen = len ;
-		}
-		if( StrLen > len )
-		{
-			StrLen = len ;
+			StrLen = _WCSLEN( StrData ) ;
 		}
 
-		if( len > 256 )
+		if( StrLen > 1024 )
 		{
 			UseAlloc = TRUE ;
-			AllocDrawStrBuf = ( DWORD * )DXALLOC( len * sizeof( DWORD ) ) ;
+			AllocDrawStrBuf = ( DWORD * )DXALLOC( StrLen * sizeof( DWORD ) ) ;
 			if( AllocDrawStrBuf == NULL )
 			{
 				return -1 ;
@@ -5316,31 +6713,55 @@ extern int FontCacheStringDrawToHandleST(
 	SrcPitch = ( DWORD )ManageData->CachePitch ;
 
 	// キャッシュに入っていない文字列をキャッシュに入れる
-	FontCacheStringAddToHandle( FontHandle, StrData, StrLen, UseDrawStrBuf, &DrawCharNum ) ;
+	FontCacheStringAddToHandle( ManageData, StrData, StrLen, UseDrawStrBuf, &DrawCharNum ) ;
 
 	if( DrawFlag == TRUE )
 	{
+		float AdjustPos = 0.0f ;
+
+		// 座標補正値をセット
+		if( ManageData->TextureCacheFlag == TRUE )
+		{
+			AdjustPos = NS_GetDrawFloatCoordType() == DX_DRAWFLOATCOORDTYPE_DIRECT3D9 ? -0.5f : 0.0f ;
+		}
+
 		// 文字の数だけ繰り返し
 		CharCode = UseDrawStrBuf ;			// 描画用文字データの先頭アドレスをセット
 		DrawPos = 0.0 ;
 		for( i = 0 ; i < DrawCharNum ; i ++, DrawPos += ( ( CharData != NULL ? CharData->AddX : 0 ) + ManageData->Space ) * ExRate, CharCode ++ )
 		{
-			// キャッシュデータを取得
-			CharData = GetFontCacheChar_Inline( ManageData, *CharCode, FALSE ) ;
-			if( CharData == NULL )
+			CharData = NULL ;
+
+			// 画像置き換え文字のチェック
+			for( j = 0 ; j < ManageData->GraphHandleFontImageNum ; j ++ )
 			{
-				continue ;
+				if( ManageData->GraphHandleFontImage[ j ].CodeUnicode == *CharCode )
+				{
+					CharData = &ManageData->GraphHandleFontImage[ j ] ;
+					break ;
+				}
 			}
 
-			// 画像データが存在する矩形を算出
-			SrcY = ( CharData->GraphIndex % ManageData->LengthCharNum ) * ManageData->BaseInfo.MaxWidth ;
-			SrcX =   CharData->GraphIndex / ManageData->LengthCharNum   * ManageData->BaseInfo.MaxWidth ;
-			if( ManageData->TextureCacheFlag == TRUE )
+			// 画像置き換え文字ではない場合
+			if( CharData == NULL )
 			{
-				SrcX += 1 ;
-				SrcY += 1 ;
+				// キャッシュデータを取得
+				CharData = GetFontCacheChar_Inline( ManageData, *CharCode, FALSE ) ;
+				if( CharData == NULL )
+				{
+					continue ;
+				}
+
+				// 画像データが存在する矩形を算出
+				SrcY = CharData->GraphIndexY * ManageData->BaseInfo.MaxWidth ;
+				SrcX = CharData->GraphIndexX * ManageData->BaseInfo.MaxWidth ;
+				if( ManageData->TextureCacheFlag == TRUE )
+				{
+					SrcX += 1 ;
+					SrcY += 1 ;
+				}
+				SETRECT( SrcRect, SrcX, SrcY, SrcX + CharData->SizeX, SrcY + CharData->SizeY ) ;
 			}
-			SETRECT( SrcRect, SrcX, SrcY, SrcX + CharData->SizeX, SrcY + CharData->SizeY ) ;
 
 			// スペース文字だった場合はキャンセルする
 			if( *CharCode == L' ' || *CharCode == FSYS.DoubleByteSpaceCharCode )
@@ -5360,10 +6781,6 @@ extern int FontCacheStringDrawToHandleST(
 				DWORD color ;
 //				int anti ;
 				int BlendGraph, BorderParam, BorderRange ;
-				float AdjustPos ;
-
-				// 座標補正値をセット
-				AdjustPos = NS_GetDrawFloatCoordType() == DX_DRAWFLOATCOORDTYPE_DIRECT3D9 ? -0.5f : 0.0f ;
 
 				// 既存のブレンド画像の情報を保存しておく
 				BlendGraph  = GSYS.DrawSetting.BlendGraph ;
@@ -5371,7 +6788,10 @@ extern int FontCacheStringDrawToHandleST(
 				BorderRange = GSYS.DrawSetting.BlendGraphBorderRange ;
 
 				// ブレンド画像を無効にする
-				NS_SetBlendGraph( -1, 0, 0 ) ;
+				if( BlendGraph != -1 )
+				{
+					NS_SetBlendGraph( -1, 0, 0 ) ;
+				}
 
 				// 描画色を保存しておく
 				color = GSYS.DrawSetting.bDrawBright ;
@@ -5480,207 +6900,315 @@ extern int FontCacheStringDrawToHandleST(
 				{
 					// 縦書き
 
-					RECT MotoDrawRect, TempRect ;
-					int GraphSizeX, GraphSizeY ;
-					int TempGraph ;
-
-					// 元の描画可能矩形を保存しておく
-					MotoDrawRect = GSYS.DrawSetting.DrawArea ;
-
-					// キャッシュテクスチャのサイズを取得する
-					NS_GetGraphSize( ManageData->TextureCache, &GraphSizeX, &GraphSizeY ) ;
-
-					// 拡大描画かどうかで処理を分岐
-					if( ExRateValidFlag == FALSE )
+					// 画像置き換え文字かどうかで処理を分岐
+					if( CharData->GraphHandleFlag )
 					{
-						// 等倍描画
-
-						if( PosIntFlag )
+						// 拡大描画かどうかで処理を分岐
+						if( ExRateValidFlag == FALSE )
 						{
-							int DrawX, DrawY, x1, y1, x2, y2 ;
+							// 等倍描画
 
-							// 描画元座標の算出
-							DrawX = xi + ManageData->BaseInfo.FontHeight - CharData->DrawY ;
-							DrawY = yi + _DTOL( DrawPos )                + CharData->DrawX ;
-
-							x1 = DrawX + SrcY ;
-							y1 = DrawY - SrcX ;
-							x2 = DrawX + SrcY - GraphSizeY ;
-							y2 = DrawY - SrcX + GraphSizeX ;
-
-							// 指定矩形だけしか描画出来ないようにする
-							TempRect.left   = ( DrawX - CharData->SizeY ) - 1 ;
-							TempRect.top    = DrawY ;
-							TempRect.right  = DrawX + 1 ;
-							TempRect.bottom = DrawY + CharData->SizeX ;
-							RectClipping( &TempRect, &MotoDrawRect ) ;
-							NS_SetDrawArea( TempRect.left, TempRect.top, TempRect.right, TempRect.bottom ) ;
-
-							// エッジがある場合はそれを先に描画する
-							if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+							if( PosIntFlag )
 							{
-								Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
+								int DrawX, DrawY, x1, y1, x2, y2 ;
+
+								// 描画座標の算出
+								DrawX = xi + ManageData->BaseInfo.FontHeight - CharData->DrawY ;
+								DrawY = yi + _DTOL( DrawPos )                + CharData->DrawX ;
+
+								x1 = DrawX ;
+								y1 = DrawY ;
+								x2 = DrawX - CharData->SizeY ;
+								y2 = DrawY + CharData->SizeX ;
+
+								Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
 								NS_DrawModiGraphF(
-									x1 + AdjustPos, y1                       + AdjustPos,
-									x1 + AdjustPos, y2 - ( GraphSizeX >> 1 ) + AdjustPos,
-									x2 + AdjustPos, y2 - ( GraphSizeX >> 1 ) + AdjustPos,
-									x2 + AdjustPos, y1                       + AdjustPos,
-									ManageData->TextureCacheSub, TRUE
+									x1 + AdjustPos, y1 + AdjustPos,
+									x1 + AdjustPos, y2 + AdjustPos,
+									x2 + AdjustPos, y2 + AdjustPos,
+									x2 + AdjustPos, y1 + AdjustPos,
+									CharData->GraphIndex,
+									TRUE/*anti ? FALSE : TRUE*/
 								) ;
 							}
+							else
+							{
+								float DrawX, DrawY, x1, y1, x2, y2 ;
 
-							// 本体を描画
-							Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
-							NS_DrawModiGraphF(
-								x1 + AdjustPos, y1 + AdjustPos,
-								x1 + AdjustPos, y2 + AdjustPos,
-								x2 + AdjustPos, y2 + AdjustPos,
-								x2 + AdjustPos, y1 + AdjustPos,
-								 ManageData->TextureCache,
-								 TRUE/*anti ? FALSE : TRUE*/
-							) ;
+								// 描画座標の算出
+								DrawX = xf + ManageData->BaseInfo.FontHeight - CharData->DrawY ;
+								DrawY = yf + ( float )DrawPos                + CharData->DrawX ;
 
-							// 描画可能矩形を元に戻す
-							NS_SetDrawArea( MotoDrawRect.left,  MotoDrawRect.top,
-											MotoDrawRect.right, MotoDrawRect.bottom ) ;
+								x1 = DrawX ;
+								y1 = DrawY ;
+								x2 = DrawX - CharData->SizeY ;
+								y2 = DrawY + CharData->SizeX ;
+
+								Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
+								NS_DrawModiGraphF(
+									x1 + AdjustPos, y1 + AdjustPos,
+									x1 + AdjustPos, y2 + AdjustPos,
+									x2 + AdjustPos, y2 + AdjustPos,
+									x2 + AdjustPos, y1 + AdjustPos,
+									CharData->GraphIndex,
+									TRUE
+								) ;
+							}
 						}
 						else
 						{
 							float DrawX, DrawY, x1, y1, x2, y2 ;
 
-							// 描画元座標の算出
-							DrawX = xf +                    ManageData->BaseInfo.FontHeight - CharData->DrawY ;
-							DrawY = yf + ( float )DrawPos +                                   CharData->DrawX ;
+							// 拡大描画
 
-							x1 = DrawX ;
-							y1 = DrawY ;
-							x2 = DrawX + -CharData->SizeY ;
-							y2 = DrawY +  CharData->SizeX ;
-
-							// エッジがある場合はそれを先に描画する
-							if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+							if( PosIntFlag )
 							{
-								TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCacheSub ) ;
-								Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
+								// 描画元座標の算出
+								DrawX = ( float )( xi +           ( ManageData->BaseInfo.FontHeight - CharData->DrawY ) * ExRateX ) ;
+								DrawY = ( float )( yi + DrawPos +                                     CharData->DrawX   * ExRateY ) ;
+
+								x1 = DrawX ;
+								y1 = DrawY ;
+								x2 = DrawX + -CharData->SizeY * ( float )ExRateX ;
+								y2 = DrawY +  CharData->SizeX * ( float )ExRateY ;
+
+								Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
 								NS_DrawModiGraphF(
 									x1 + AdjustPos, y1 + AdjustPos,
 									x1 + AdjustPos, y2 + AdjustPos,
 									x2 + AdjustPos, y2 + AdjustPos,
 									x2 + AdjustPos, y1 + AdjustPos,
-									TempGraph, TRUE
+									CharData->GraphIndex,
+									TRUE/*anti ? FALSE : TRUE*/
 								) ;
-								NS_DeleteGraph( TempGraph ) ;
 							}
+							else
+							{
+								// 描画元座標の算出
+								DrawX = ( float )( xf +           ( ManageData->BaseInfo.FontHeight - CharData->DrawY ) * ExRateX ) ;
+								DrawY = ( float )( yf + DrawPos +                                     CharData->DrawX   * ExRateY ) ;
 
-							// 本体を描画
-							TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCache ) ;
-							Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
-							NS_DrawModiGraphF(
-								x1 + AdjustPos, y1 + AdjustPos,
-								x1 + AdjustPos, y2 + AdjustPos,
-								x2 + AdjustPos, y2 + AdjustPos,
-								x2 + AdjustPos, y1 + AdjustPos,
-								TempGraph,
-								TRUE
-							) ;
-							NS_DeleteGraph( TempGraph ) ;
+								x1 = DrawX ;
+								y1 = DrawY ;
+								x2 = DrawX + -CharData->SizeY * ( float )ExRateX ;
+								y2 = DrawY +  CharData->SizeX * ( float )ExRateY ;
+
+								Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
+								NS_DrawModiGraphF(
+									x1 + AdjustPos, y1 + AdjustPos,
+									x1 + AdjustPos, y2 + AdjustPos,
+									x2 + AdjustPos, y2 + AdjustPos,
+									x2 + AdjustPos, y1 + AdjustPos,
+									CharData->GraphIndex,
+									TRUE/*anti ? FALSE : TRUE*/
+								) ;
+							}
 						}
 					}
 					else
 					{
-						float DrawX, DrawY, x1, y1, x2, y2 ;
+						RECT MotoDrawRect, TempRect ;
+						int GraphSizeX, GraphSizeY ;
+						int TempGraph ;
 
-						// 拡大描画
+						// 元の描画可能矩形を保存しておく
+						MotoDrawRect = GSYS.DrawSetting.DrawArea ;
 
-						if( PosIntFlag )
+						// キャッシュテクスチャのサイズを取得する
+						NS_GetGraphSize( ManageData->TextureCache, &GraphSizeX, &GraphSizeY ) ;
+
+						// 拡大描画かどうかで処理を分岐
+						if( ExRateValidFlag == FALSE )
 						{
-							// 描画元座標の算出
-							DrawX = ( float )( xi + ( ManageData->BaseInfo.FontHeight - CharData->DrawY ) * ExRateX ) ;
-							DrawY = ( float )( yi + DrawPos + CharData->DrawX * ExRateY ) ;
+							// 等倍描画
 
-							x1 = DrawX ;
-							y1 = DrawY ;
-							x2 = ( float )( DrawX + -CharData->SizeY * ExRateX ) ;
-							y2 = ( float )( DrawY +  CharData->SizeX * ExRateY ) ;
-
-							// 指定矩形だけしか描画出来ないようにする
-							TempRect.left   = _FTOL( ( float )( DrawX - _DTOL( CharData->SizeY * ExRateX ) ) ) - 1 ;
-							TempRect.top    = _FTOL( DrawY ) ;
-							TempRect.right  = _FTOL( DrawX ) + 1 ;
-							TempRect.bottom = _FTOL( ( float )( DrawY + CharData->SizeX * ExRateY ) ) ;
-							RectClipping( &TempRect, &MotoDrawRect ) ;
-							NS_SetDrawArea( TempRect.left, TempRect.top, TempRect.right, TempRect.bottom ) ;
-
-							// エッジがある場合はそれを先に描画する
-							if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+							if( PosIntFlag )
 							{
-								TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCacheSub ) ;
-								Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
+								int DrawX, DrawY, x1, y1, x2, y2 ;
+
+								// 描画元座標の算出
+								DrawX = xi + ManageData->BaseInfo.FontHeight - CharData->DrawY ;
+								DrawY = yi + _DTOL( DrawPos )                + CharData->DrawX ;
+
+								x1 = DrawX + SrcY ;
+								y1 = DrawY - SrcX ;
+								x2 = DrawX + SrcY - GraphSizeY ;
+								y2 = DrawY - SrcX + GraphSizeX ;
+
+								// 指定矩形だけしか描画出来ないようにする
+								TempRect.left   = ( DrawX - CharData->SizeY ) - 1 ;
+								TempRect.top    = DrawY ;
+								TempRect.right  = DrawX + 1 ;
+								TempRect.bottom = DrawY + CharData->SizeX ;
+								RectClipping( &TempRect, &MotoDrawRect ) ;
+								NS_SetDrawArea( TempRect.left, TempRect.top, TempRect.right, TempRect.bottom ) ;
+
+								// エッジがある場合はそれを先に描画する
+								if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+								{
+									Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
+									NS_DrawModiGraphF(
+										x1 + AdjustPos, y1                       + AdjustPos,
+										x1 + AdjustPos, y2 - ( GraphSizeX >> 1 ) + AdjustPos,
+										x2 + AdjustPos, y2 - ( GraphSizeX >> 1 ) + AdjustPos,
+										x2 + AdjustPos, y1                       + AdjustPos,
+										ManageData->TextureCacheSub, TRUE
+									) ;
+								}
+
+								// 本体を描画
+								Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
 								NS_DrawModiGraphF(
 									x1 + AdjustPos, y1 + AdjustPos,
 									x1 + AdjustPos, y2 + AdjustPos,
 									x2 + AdjustPos, y2 + AdjustPos,
 									x2 + AdjustPos, y1 + AdjustPos,
-									TempGraph, TRUE
+									 ManageData->TextureCache,
+									 TRUE/*anti ? FALSE : TRUE*/
+								) ;
+
+								// 描画可能矩形を元に戻す
+								NS_SetDrawArea( MotoDrawRect.left,  MotoDrawRect.top,
+												MotoDrawRect.right, MotoDrawRect.bottom ) ;
+							}
+							else
+							{
+								float DrawX, DrawY, x1, y1, x2, y2 ;
+
+								// 描画元座標の算出
+								DrawX = xf +                    ManageData->BaseInfo.FontHeight - CharData->DrawY ;
+								DrawY = yf + ( float )DrawPos +                                   CharData->DrawX ;
+
+								x1 = DrawX ;
+								y1 = DrawY ;
+								x2 = DrawX + -CharData->SizeY ;
+								y2 = DrawY +  CharData->SizeX ;
+
+								// エッジがある場合はそれを先に描画する
+								if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+								{
+									TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCacheSub ) ;
+									Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
+									NS_DrawModiGraphF(
+										x1 + AdjustPos, y1 + AdjustPos,
+										x1 + AdjustPos, y2 + AdjustPos,
+										x2 + AdjustPos, y2 + AdjustPos,
+										x2 + AdjustPos, y1 + AdjustPos,
+										TempGraph, TRUE
+									) ;
+									NS_DeleteGraph( TempGraph ) ;
+								}
+
+								// 本体を描画
+								TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCache ) ;
+								Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
+								NS_DrawModiGraphF(
+									x1 + AdjustPos, y1 + AdjustPos,
+									x1 + AdjustPos, y2 + AdjustPos,
+									x2 + AdjustPos, y2 + AdjustPos,
+									x2 + AdjustPos, y1 + AdjustPos,
+									TempGraph,
+									TRUE
 								) ;
 								NS_DeleteGraph( TempGraph ) ;
 							}
-
-							// 本体を描画
-							TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCache ) ;
-							Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
-							NS_DrawModiGraphF(
-								x1 + AdjustPos, y1 + AdjustPos,
-								x1 + AdjustPos, y2 + AdjustPos,
-								x2 + AdjustPos, y2 + AdjustPos,
-								x2 + AdjustPos, y1 + AdjustPos,
-								TempGraph,
-								TRUE/*anti ? FALSE : TRUE*/
-							) ;
-							NS_DeleteGraph( TempGraph ) ;
-
-							// 描画可能矩形を元に戻す
-							NS_SetDrawArea( MotoDrawRect.left,  MotoDrawRect.top,
-											MotoDrawRect.right, MotoDrawRect.bottom ) ;
 						}
 						else
 						{
-							// 描画元座標の算出
-							DrawX = ( float )( xf +           ( ManageData->BaseInfo.FontHeight - CharData->DrawY ) * ExRateX ) ;
-							DrawY = ( float )( yf + DrawPos +                                     CharData->DrawX   * ExRateY ) ;
+							float DrawX, DrawY, x1, y1, x2, y2 ;
 
-							x1 = DrawX ;
-							y1 = DrawY ;
-							x2 = DrawX + -CharData->SizeY * ( float )ExRateX ;
-							y2 = DrawY +  CharData->SizeX * ( float )ExRateY ;
+							// 拡大描画
 
-							// エッジがある場合はそれを先に描画する
-							if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+							if( PosIntFlag )
 							{
-								TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCacheSub ) ;
-								Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
+								// 描画元座標の算出
+								DrawX = ( float )( xi + ( ManageData->BaseInfo.FontHeight - CharData->DrawY ) * ExRateX ) ;
+								DrawY = ( float )( yi + DrawPos + CharData->DrawX * ExRateY ) ;
+
+								x1 = DrawX ;
+								y1 = DrawY ;
+								x2 = ( float )( DrawX + -CharData->SizeY * ExRateX ) ;
+								y2 = ( float )( DrawY +  CharData->SizeX * ExRateY ) ;
+
+								// 指定矩形だけしか描画出来ないようにする
+								TempRect.left   = _FTOL( ( float )( DrawX - _DTOL( CharData->SizeY * ExRateX ) ) ) - 1 ;
+								TempRect.top    = _FTOL( DrawY ) ;
+								TempRect.right  = _FTOL( DrawX ) + 1 ;
+								TempRect.bottom = _FTOL( ( float )( DrawY + CharData->SizeX * ExRateY ) ) ;
+								RectClipping( &TempRect, &MotoDrawRect ) ;
+								NS_SetDrawArea( TempRect.left, TempRect.top, TempRect.right, TempRect.bottom ) ;
+
+								// エッジがある場合はそれを先に描画する
+								if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+								{
+									TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCacheSub ) ;
+									Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
+									NS_DrawModiGraphF(
+										x1 + AdjustPos, y1 + AdjustPos,
+										x1 + AdjustPos, y2 + AdjustPos,
+										x2 + AdjustPos, y2 + AdjustPos,
+										x2 + AdjustPos, y1 + AdjustPos,
+										TempGraph, TRUE
+									) ;
+									NS_DeleteGraph( TempGraph ) ;
+								}
+
+								// 本体を描画
+								TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCache ) ;
+								Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
 								NS_DrawModiGraphF(
 									x1 + AdjustPos, y1 + AdjustPos,
 									x1 + AdjustPos, y2 + AdjustPos,
 									x2 + AdjustPos, y2 + AdjustPos,
 									x2 + AdjustPos, y1 + AdjustPos,
-									TempGraph, TRUE
+									TempGraph,
+									TRUE/*anti ? FALSE : TRUE*/
+								) ;
+								NS_DeleteGraph( TempGraph ) ;
+
+								// 描画可能矩形を元に戻す
+								NS_SetDrawArea( MotoDrawRect.left,  MotoDrawRect.top,
+												MotoDrawRect.right, MotoDrawRect.bottom ) ;
+							}
+							else
+							{
+								// 描画元座標の算出
+								DrawX = ( float )( xf +           ( ManageData->BaseInfo.FontHeight - CharData->DrawY ) * ExRateX ) ;
+								DrawY = ( float )( yf + DrawPos +                                     CharData->DrawX   * ExRateY ) ;
+
+								x1 = DrawX ;
+								y1 = DrawY ;
+								x2 = DrawX + -CharData->SizeY * ( float )ExRateX ;
+								y2 = DrawY +  CharData->SizeX * ( float )ExRateY ;
+
+								// エッジがある場合はそれを先に描画する
+								if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+								{
+									TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCacheSub ) ;
+									Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
+									NS_DrawModiGraphF(
+										x1 + AdjustPos, y1 + AdjustPos,
+										x1 + AdjustPos, y2 + AdjustPos,
+										x2 + AdjustPos, y2 + AdjustPos,
+										x2 + AdjustPos, y1 + AdjustPos,
+										TempGraph, TRUE
+									) ;
+									NS_DeleteGraph( TempGraph ) ;
+								}
+
+								// 本体を描画
+								TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCache ) ;
+								Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
+								NS_DrawModiGraphF(
+									x1 + AdjustPos, y1 + AdjustPos,
+									x1 + AdjustPos, y2 + AdjustPos,
+									x2 + AdjustPos, y2 + AdjustPos,
+									x2 + AdjustPos, y1 + AdjustPos,
+									TempGraph,
+									TRUE/*anti ? FALSE : TRUE*/
 								) ;
 								NS_DeleteGraph( TempGraph ) ;
 							}
-
-							// 本体を描画
-							TempGraph = NS_DerivationGraph( SrcX, SrcY, CharData->SizeX, CharData->SizeY, ManageData->TextureCache ) ;
-							Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
-							NS_DrawModiGraphF(
-								x1 + AdjustPos, y1 + AdjustPos,
-								x1 + AdjustPos, y2 + AdjustPos,
-								x2 + AdjustPos, y2 + AdjustPos,
-								x2 + AdjustPos, y1 + AdjustPos,
-								TempGraph,
-								TRUE/*anti ? FALSE : TRUE*/
-							) ;
-							NS_DeleteGraph( TempGraph ) ;
 						}
 					}
 				}
@@ -5693,10 +7221,67 @@ extern int FontCacheStringDrawToHandleST(
 					{
 						// 等倍描画
 
-						// エッジがある場合はそれを先に描画する
-						if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+						// 画像置き換え文字かどうかで処理を分岐
+						if( CharData->GraphHandleFlag )
 						{
-							Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
+							Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
+							if( PosIntFlag )
+							{
+								NS_DrawGraph(
+									xi + _DTOL( DrawPos ) + CharData->DrawX,
+									yi                    + CharData->DrawY,
+									CharData->GraphIndex,
+									TRUE
+								) ;
+							}
+							else
+							{
+								NS_DrawGraphF(
+									xf + ( float )DrawPos + CharData->DrawX,
+									yf                    + CharData->DrawY,
+									CharData->GraphIndex,
+									TRUE
+								) ;
+							}
+						}
+						else
+						{
+							// エッジがある場合はそれを先に描画する
+							if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+							{
+								Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
+								if( PosIntFlag )
+								{
+									NS_DrawRectGraph(
+										xi + _DTOL( DrawPos ) + CharData->DrawX,
+										yi                    + CharData->DrawY,
+										SrcX,
+										SrcY,
+										CharData->SizeX,
+										CharData->SizeY,
+										ManageData->TextureCacheSub,
+										TRUE,
+										FALSE
+									) ;
+								}
+								else
+								{
+									NS_DrawRectGraphF(
+										xf + ( float )DrawPos + CharData->DrawX,
+										yf                    + CharData->DrawY,
+										SrcX,
+										SrcY,
+										CharData->SizeX,
+										CharData->SizeY,
+										ManageData->TextureCacheSub,
+										TRUE,
+										FALSE
+									) ;
+								}
+							}
+
+							// 本体を描画
+							Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
 							if( PosIntFlag )
 							{
 								NS_DrawRectGraph(
@@ -5706,7 +7291,7 @@ extern int FontCacheStringDrawToHandleST(
 									SrcY,
 									CharData->SizeX,
 									CharData->SizeY,
-									ManageData->TextureCacheSub,
+									ManageData->TextureCache,
 									TRUE,
 									FALSE
 								) ;
@@ -5720,42 +7305,11 @@ extern int FontCacheStringDrawToHandleST(
 									SrcY,
 									CharData->SizeX,
 									CharData->SizeY,
-									ManageData->TextureCacheSub,
+									ManageData->TextureCache,
 									TRUE,
 									FALSE
 								) ;
 							}
-						}
-
-						// 本体を描画
-						Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
-						if( PosIntFlag )
-						{
-							NS_DrawRectGraph(
-								xi + _DTOL( DrawPos ) + CharData->DrawX,
-								yi                    + CharData->DrawY,
-								SrcX,
-								SrcY,
-								CharData->SizeX,
-								CharData->SizeY,
-								ManageData->TextureCache,
-								TRUE,
-								FALSE
-							) ;
-						}
-						else
-						{
-							NS_DrawRectGraphF(
-								xf + ( float )DrawPos + CharData->DrawX,
-								yf                    + CharData->DrawY,
-								SrcX,
-								SrcY,
-								CharData->SizeX,
-								CharData->SizeY,
-								ManageData->TextureCache,
-								TRUE,
-								FALSE
-							) ;
 						}
 					}
 					else
@@ -5777,34 +7331,51 @@ extern int FontCacheStringDrawToHandleST(
 						x2 = ( float )( x1 +           CharData->SizeX * ExRateX ) ;
 						y2 = ( float )( y1 +           CharData->SizeY * ExRateY ) ;
 
-						// エッジがある場合はそれを先に描画する
-						if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+						// 画像置き換え文字かどうかで処理を分岐
+						if( CharData->GraphHandleFlag )
 						{
-							Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
-							NS_DrawRectExtendGraphF(
-								x1,								y1,
-								x2,								y2,
-								SrcX,							SrcY,
-								CharData->SizeX,				CharData->SizeY,
-								ManageData->TextureCacheSub,
-								TRUE ) ;
+							Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
+							NS_DrawExtendGraphF(
+								x1,							y1,
+								x2,							y2,
+								CharData->GraphIndex,
+								TRUE
+							) ;
 						}
+						else
+						{
+							// エッジがある場合はそれを先に描画する
+							if( ( ManageData->FontType & DX_FONTTYPE_EDGE ) != 0 )
+							{
+								Graphics_DrawSetting_SetDrawBrightToOneParam( FEdgeColor ) ;
+								NS_DrawRectExtendGraphF(
+									x1,								y1,
+									x2,								y2,
+									SrcX,							SrcY,
+									CharData->SizeX,				CharData->SizeY,
+									ManageData->TextureCacheSub,
+									TRUE ) ;
+							}
 
-						// 本体を描画
-						Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
-						NS_DrawRectExtendGraphF(
-							x1,							y1,
-							x2,							y2,
-							SrcX,						SrcY,
-							CharData->SizeX,			CharData->SizeY,
-							ManageData->TextureCache,
-							TRUE
-						) ;
+							// 本体を描画
+							Graphics_DrawSetting_SetDrawBrightToOneParam( FColor ) ;
+							NS_DrawRectExtendGraphF(
+								x1,							y1,
+								x2,							y2,
+								SrcX,						SrcY,
+								CharData->SizeX,			CharData->SizeY,
+								ManageData->TextureCache,
+								TRUE
+							) ;
+						}
 					}
 				}
 
 				// ブレンド画像の情報を元に戻す
-				NS_SetBlendGraph( BlendGraph, BorderParam, BorderRange ) ;
+				if( BlendGraph != -1 )
+				{
+					NS_SetBlendGraph( BlendGraph, BorderParam, BorderRange ) ;
+				}
 				
 				// 描画色を元に戻す
 				Graphics_DrawSetting_SetDrawBrightToOneParam( color ) ;
@@ -7679,7 +9250,7 @@ extern int FontCacheStringDrawToHandle_WCHAR_T(
 	}
 
 	// キャッシュに入っていない文字列をキャッシュに入れる
-	FontCacheStringAddToHandle( FontHandle, StrData, -1, DrawStrBuf, &drawnum ) ;
+	FontCacheStringAddToHandle( cmanage, StrData, -1, DrawStrBuf, &drawnum ) ;
 
 	// ピッチをセット
 	spitch = cmanage->CachePitch ;
@@ -8735,7 +10306,7 @@ extern int FontBaseImageBltToHandle_WCHAR_T( int x, int y, const wchar_t *StrDat
 	}
 
 	// キャッシュに入っていない文字列をキャッシュに入れる
-	FontCacheStringAddToHandle( FontHandle, StrData, -1, DrawStrBuf, &drawnum ) ;
+	FontCacheStringAddToHandle( cmanage, StrData, -1, DrawStrBuf, &drawnum ) ;
 
 	// 描画座標の補正
 	if( VerticalFlag )
@@ -8892,7 +10463,7 @@ extern int GetFontCharInfo_WCHAR_T( int FontHandle, const wchar_t *Char, int *Dr
 	}
 
 	// 文字コードを取得
-	CharCode = GetCharCode( ( const char * )Char, WCHAR_T_CODEPAGE, &CharBytes ) ;
+	CharCode = GetCharCode( ( const char * )Char, WCHAR_T_CHARCODEFORMAT, &CharBytes ) ;
 
 	// フォントデータを取得
 	CharData = GetFontCacheChar_Inline( ManageData, CharCode ) ;
@@ -8934,7 +10505,7 @@ extern int NS_GetDrawFormatStringWidth( const TCHAR *FormatString, ... )
 
 	// 文字列の幅を得る
 	return NS_GetDrawStringWidthToHandle(
-				String, CL_strlen( CodePage, ( const char * )String ), FontHandle ) ;
+				String, CL_strlen( CharCodeFormat, ( const char * )String ), FontHandle ) ;
 }
 
 // 書式付き文字列の描画幅を得る
@@ -8954,7 +10525,7 @@ extern int NS_GetDrawFormatStringWidthToHandle( int FontHandle, const TCHAR *For
 
 	// 文字列の幅を得る
 	return NS_GetDrawStringWidthToHandle(
-				String, CL_strlen( CodePage, ( const char * )String ), FontHandle ) ;
+				String, CL_strlen( CharCodeFormat, ( const char * )String ), FontHandle ) ;
 }
 
 // 書式付き文字列の描画幅を得る
@@ -8986,6 +10557,21 @@ extern int NS_GetDrawStringWidthToHandle( const TCHAR *String, int StrLen, int F
 // 文字列の幅を得る
 extern int GetDrawStringWidthToHandle_WCHAR_T( const wchar_t *String, int StrLen, int FontHandle, int VerticalFlag )
 {
+	int Length ;
+	FONTMANAGE *ManageData ;
+
+	ManageData = GetFontManageDataToHandle( FontHandle ) ;
+	if( ManageData == NULL )
+	{
+		return -1 ;
+	}
+
+	Length = _WCSLEN( String ) ;
+	if( StrLen > Length )
+	{
+		StrLen = Length ;
+	}
+
 	return FontCacheStringDrawToHandleST(
 				FALSE,
 				0,
@@ -9002,7 +10588,7 @@ extern int GetDrawStringWidthToHandle_WCHAR_T( const wchar_t *String, int StrLen
 				NULL,
 				NULL,
 				FALSE,
-				FontHandle,
+				ManageData,
 				0,
 				StrLen,
 				VerticalFlag,
@@ -9034,7 +10620,7 @@ extern int NS_GetDrawExtendFormatStringWidth( double ExRateX, const TCHAR *Forma
 
 	// 文字列の幅を得る
 	return NS_GetDrawExtendStringWidthToHandle(
-		ExRateX, String, CL_strlen( CodePage,  ( const char * )String ), DX_DEFAULT_FONT_HANDLE ) ;
+		ExRateX, String, CL_strlen( CharCodeFormat,  ( const char * )String ), DX_DEFAULT_FONT_HANDLE ) ;
 }
 
 // 書式付き文字列の描画幅を得る
@@ -9055,7 +10641,7 @@ extern int NS_GetDrawExtendFormatStringWidthToHandle( double ExRateX, int FontHa
 
 	// 文字列の幅を得る
 	return NS_GetDrawExtendStringWidthToHandle(
-				ExRateX, String, CL_strlen( CodePage, ( const char * )String ), FontHandle ) ;
+				ExRateX, String, CL_strlen( CharCodeFormat, ( const char * )String ), FontHandle ) ;
 }
 
 // 書式付き文字列の描画幅を得る
@@ -9090,6 +10676,21 @@ extern int NS_GetDrawExtendStringWidthToHandle( double ExRateX, const TCHAR *Str
 // 文字列の幅を得る
 extern int GetDrawExtendStringWidthToHandle_WCHAR_T( double ExRateX, const wchar_t *String, int StrLen, int FontHandle, int VerticalFlag )
 {
+	int Length ;
+	FONTMANAGE *ManageData ;
+
+	ManageData = GetFontManageDataToHandle( FontHandle ) ;
+	if( ManageData == NULL )
+	{
+		return -1 ;
+	}
+
+	Length = _WCSLEN( String ) ;
+	if( StrLen > Length )
+	{
+		StrLen = Length ;
+	}
+
 	return FontCacheStringDrawToHandleST(
 				FALSE,
 				0,
@@ -9106,7 +10707,7 @@ extern int GetDrawExtendStringWidthToHandle_WCHAR_T( double ExRateX, const wchar
 				NULL,
 				NULL,
 				FALSE,
-				FontHandle,
+				ManageData,
 				0,
 				StrLen,
 				VerticalFlag,
@@ -9123,7 +10724,7 @@ extern int NS_GetFontStateToHandle( TCHAR *FontName, int *Size, int *Thick, int 
 	wchar_t FontNameBuffer[ 128 ] ;
 	int Result ;
 
-	TCHAR_CODEPAGE_SETUP( -1 )
+	TCHAR_CHARCODEFORMAT_SETUP( -1 )
 
 	Result = GetFontStateToHandle_WCHAR_T( FontNameBuffer, Size, Thick, FontHandle, FontType , CharSet , EdgeSize , Italic ) ;
 	if( Result < 0 )
@@ -9131,7 +10732,7 @@ extern int NS_GetFontStateToHandle( TCHAR *FontName, int *Size, int *Thick, int 
 		return -1 ;
 	}
 
-	ConvString( ( const char * )FontNameBuffer, WCHAR_T_CODEPAGE, ( char * )FontName, CodePage ) ;	
+	ConvString( ( const char * )FontNameBuffer, WCHAR_T_CHARCODEFORMAT, ( char * )FontName, CharCodeFormat ) ;	
 
 	return Result ;
 #endif
@@ -9240,7 +10841,7 @@ extern int NS_MultiByteCharCheck( const char *Buf, int CharSet )
 		return -1 ;
 	}
 
-	GetCharCode( Buf, CodePageTable[ CharSet ], &CharBytes ) ;
+	GetCharCode( Buf, CharCodeFormatTable[ CharSet ], &CharBytes ) ;
 
 	return CharBytes > 1 ? TRUE : FALSE ;
 }
@@ -9387,7 +10988,7 @@ extern int DrawStringToHandle_WCHAR_T( int x, int y, const wchar_t *String, unsi
 	int Ret = -1 ;
 	FONTMANAGE *font ;
 
-	DEFAULT_FONT_HANDLE_SETUP
+//	DEFAULT_FONT_HANDLE_SETUP
 
 	if( String == NULL || String[0] == L'\0' ||
 		/* GSYS.NotDrawFlag || */ GSYS.DrawSetting.NotDrawFlagInSetDrawArea )
@@ -9395,19 +10996,19 @@ extern int DrawStringToHandle_WCHAR_T( int x, int y, const wchar_t *String, unsi
 		return 0 ;
 	}
 
-	if( NS_CheckFontHandleValid( FontHandle ) == 0 )
+	font = GetFontManageDataToHandle( FontHandle ) ;
+	if( font == NULL )
 	{
 		DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xa9\x30\xf3\x30\xc8\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x24\x50\x4c\x30\x70\x75\x38\x5e\x67\x30\x59\x30\x0a\x00\x00"/*@ L"フォントハンドル値が異常です\n" @*/ ) ;
 		return Ret ;
 	}
-	font = GetFontManageDataToHandle( FontHandle ) ;
 
 	CheckActiveState() ;
 
 	// 描画
 	DRAW_DEF(
-		DrawStringHardware( x, y, ( float )x, ( float )y, TRUE, String, Color, FontHandle, EdgeColor, VerticalFlag ),
-		DrawStringSoftware( x, y,                               String, Color, FontHandle, EdgeColor, VerticalFlag ),
+		DrawStringHardware( x, y, ( float )x, ( float )y, TRUE, String, Color, font, EdgeColor, VerticalFlag ),
+		DrawStringSoftware( x, y,                               String, Color, font, EdgeColor, VerticalFlag ),
 		SETDRAWRECTCODE,
 		Ret,
 		font->TextureCacheFlag
@@ -9461,7 +11062,7 @@ extern int DrawStringFToHandle_WCHAR_T( float x, float y, const wchar_t *String,
 	int Ret = -1 ;
 	FONTMANAGE *font ;
 
-	DEFAULT_FONT_HANDLE_SETUP
+//	DEFAULT_FONT_HANDLE_SETUP
 
 	if( String == NULL || String[0] == L'\0' ||
 		/* GSYS.NotDrawFlag || */ GSYS.DrawSetting.NotDrawFlagInSetDrawArea )
@@ -9469,19 +11070,19 @@ extern int DrawStringFToHandle_WCHAR_T( float x, float y, const wchar_t *String,
 		return 0 ;
 	}
 
-	if( NS_CheckFontHandleValid( FontHandle ) == 0 )
+	font = GetFontManageDataToHandle( FontHandle ) ;
+	if( font == NULL )
 	{
 		DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xa9\x30\xf3\x30\xc8\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x24\x50\x4c\x30\x70\x75\x38\x5e\x67\x30\x59\x30\x0a\x00\x00"/*@ L"フォントハンドル値が異常です\n" @*/ ) ;
 		return Ret ;
 	}
-	font = GetFontManageDataToHandle( FontHandle ) ;
 
 	CheckActiveState() ;
 
 	// 描画
 	DRAW_DEF(
-		DrawStringHardware( _FTOL( x ), _FTOL( y ), x, y, FALSE, String, Color, FontHandle, EdgeColor, VerticalFlag ),
-		DrawStringSoftware( _FTOL( x ), _FTOL( y ),              String, Color, FontHandle, EdgeColor, VerticalFlag ),
+		DrawStringHardware( _FTOL( x ), _FTOL( y ), x, y, FALSE, String, Color, font, EdgeColor, VerticalFlag ),
+		DrawStringSoftware( _FTOL( x ), _FTOL( y ),              String, Color, font, EdgeColor, VerticalFlag ),
 		SETDRAWRECTCODE,
 		Ret,
 		font->TextureCacheFlag
@@ -9748,7 +11349,7 @@ extern int DrawExtendStringToHandle_WCHAR_T( int x, int y, double ExRateX, doubl
 	int Ret = -1 ;
 	FONTMANAGE *font ;
 
-	DEFAULT_FONT_HANDLE_SETUP
+//	DEFAULT_FONT_HANDLE_SETUP
 
 	if( String == NULL || String[0] == L'\0' ||
 		/* GSYS.NotDrawFlag || */ GSYS.DrawSetting.NotDrawFlagInSetDrawArea )
@@ -9756,19 +11357,19 @@ extern int DrawExtendStringToHandle_WCHAR_T( int x, int y, double ExRateX, doubl
 		return 0 ;
 	}
 
-	if( NS_CheckFontHandleValid( FontHandle ) == 0 )
+	font = GetFontManageDataToHandle( FontHandle ) ;
+	if( font == NULL )
 	{
 		DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xa9\x30\xf3\x30\xc8\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x24\x50\x4c\x30\x70\x75\x38\x5e\x67\x30\x59\x30\x0a\x00\x00"/*@ L"フォントハンドル値が異常です\n" @*/ ) ;
 		return Ret ;
 	}
-	font = GetFontManageDataToHandle( FontHandle ) ;
 
 	CheckActiveState() ;
 
 	// 描画
 	DRAW_DEF(
-		DrawExtendStringHardware( x, y, ( float )x, ( float )y, TRUE, ExRateX, ExRateY, String, Color, FontHandle, EdgeColor, VerticalFlag ),
-		DrawExtendStringSoftware( x, y,                               ExRateX, ExRateY, String, Color, FontHandle, EdgeColor, VerticalFlag ),
+		DrawExtendStringHardware( x, y, ( float )x, ( float )y, TRUE, ExRateX, ExRateY, String, Color, font, EdgeColor, VerticalFlag ),
+		DrawExtendStringSoftware( x, y,                               ExRateX, ExRateY, String, Color, font, EdgeColor, VerticalFlag ),
 		SETDRAWRECTCODE,
 		Ret,
 		font->TextureCacheFlag
@@ -9817,7 +11418,7 @@ extern int DrawExtendStringFToHandle_WCHAR_T( float x, float y, double ExRateX, 
 	int Ret = -1 ;
 	FONTMANAGE *font ;
 
-	DEFAULT_FONT_HANDLE_SETUP
+//	DEFAULT_FONT_HANDLE_SETUP
 
 	if( String == NULL || String[0] == L'\0' ||
 		/* GSYS.NotDrawFlag || */ GSYS.DrawSetting.NotDrawFlagInSetDrawArea )
@@ -9825,19 +11426,19 @@ extern int DrawExtendStringFToHandle_WCHAR_T( float x, float y, double ExRateX, 
 		return 0 ;
 	}
 
-	if( NS_CheckFontHandleValid( FontHandle ) == 0 )
+	font = GetFontManageDataToHandle( FontHandle ) ;
+	if( font == NULL )
 	{
 		DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xa9\x30\xf3\x30\xc8\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x24\x50\x4c\x30\x70\x75\x38\x5e\x67\x30\x59\x30\x0a\x00\x00"/*@ L"フォントハンドル値が異常です\n" @*/ ) ;
 		return Ret ;
 	}
-	font = GetFontManageDataToHandle( FontHandle ) ;
 
 	CheckActiveState() ;
 
 	// 描画
 	DRAW_DEF(
-		DrawExtendStringHardware( _FTOL( x ), _FTOL( y ), x, y, FALSE, ExRateX, ExRateY, String, Color, FontHandle, EdgeColor, VerticalFlag ),
-		DrawExtendStringSoftware( _FTOL( x ), _FTOL( y ),              ExRateX, ExRateY, String, Color, FontHandle, EdgeColor, VerticalFlag ),
+		DrawExtendStringHardware( _FTOL( x ), _FTOL( y ), x, y, FALSE, ExRateX, ExRateY, String, Color, font, EdgeColor, VerticalFlag ),
+		DrawExtendStringSoftware( _FTOL( x ), _FTOL( y ),              ExRateX, ExRateY, String, Color, font, EdgeColor, VerticalFlag ),
 		SETDRAWRECTCODE,
 		Ret,
 		font->TextureCacheFlag
@@ -10080,7 +11681,7 @@ extern int DrawRotaStringToHandle_WCHAR_T( int x, int y, double ExRateX, double 
 	int Flag ;
 	FONTMANAGE *font ;
 
-	DEFAULT_FONT_HANDLE_SETUP
+//	DEFAULT_FONT_HANDLE_SETUP
 
 	if( String == NULL || String[0] == L'\0' ||
 		/* GSYS.NotDrawFlag || */ GSYS.DrawSetting.NotDrawFlagInSetDrawArea )
@@ -10088,12 +11689,12 @@ extern int DrawRotaStringToHandle_WCHAR_T( int x, int y, double ExRateX, double 
 		return 0 ;
 	}
 
-	if( NS_CheckFontHandleValid( FontHandle ) == 0 )
+	font = GetFontManageDataToHandle( FontHandle ) ;
+	if( font == NULL )
 	{
 		DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xa9\x30\xf3\x30\xc8\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x24\x50\x4c\x30\x70\x75\x38\x5e\x67\x30\x59\x30\x0a\x00\x00"/*@ L"フォントハンドル値が異常です\n" @*/ ) ;
 		return Ret ;
 	}
-	font = GetFontManageDataToHandle( FontHandle ) ;
 
 	Flag = font->TextureCacheFlag ;
 
@@ -10101,7 +11702,7 @@ extern int DrawRotaStringToHandle_WCHAR_T( int x, int y, double ExRateX, double 
 
 	// 描画
 	DRAW_DEF(
-		DrawRotaStringHardware( x, y, 0, 0, TRUE, ExRateX, ExRateY, RotCenterX, RotCenterY, RotAngle, String, Color, FontHandle, EdgeColor, VerticalFlag ),
+		DrawRotaStringHardware( x, y, 0, 0, TRUE, ExRateX, ExRateY, RotCenterX, RotCenterY, RotAngle, String, Color, font, EdgeColor, VerticalFlag ),
 		0,
 		SETDRAWRECTCODE,
 		Ret,
@@ -10141,7 +11742,7 @@ extern int DrawRotaStringFToHandle_WCHAR_T( float x, float y, double ExRateX, do
 	int Flag ;
 	FONTMANAGE *font ;
 
-	DEFAULT_FONT_HANDLE_SETUP
+//	DEFAULT_FONT_HANDLE_SETUP
 
 	if( String == NULL || String[0] == L'\0' ||
 		/* GSYS.NotDrawFlag || */ GSYS.DrawSetting.NotDrawFlagInSetDrawArea )
@@ -10149,12 +11750,12 @@ extern int DrawRotaStringFToHandle_WCHAR_T( float x, float y, double ExRateX, do
 		return 0 ;
 	}
 
-	if( NS_CheckFontHandleValid( FontHandle ) == 0 )
+	font = GetFontManageDataToHandle( FontHandle ) ;
+	if( font == NULL )
 	{
 		DXST_ERRORLOG_ADDUTF16LE( "\xd5\x30\xa9\x30\xf3\x30\xc8\x30\xcf\x30\xf3\x30\xc9\x30\xeb\x30\x24\x50\x4c\x30\x70\x75\x38\x5e\x67\x30\x59\x30\x0a\x00\x00"/*@ L"フォントハンドル値が異常です\n" @*/ ) ;
 		return Ret ;
 	}
-	font = GetFontManageDataToHandle( FontHandle ) ;
 
 	Flag = font->TextureCacheFlag ;
 
@@ -10162,7 +11763,7 @@ extern int DrawRotaStringFToHandle_WCHAR_T( float x, float y, double ExRateX, do
 
 	// 描画
 	DRAW_DEF(
-		DrawRotaStringHardware( 0, 0, x, y, FALSE, ExRateX, ExRateY, RotCenterX, RotCenterY, RotAngle, String, Color, FontHandle, EdgeColor, VerticalFlag ),
+		DrawRotaStringHardware( 0, 0, x, y, FALSE, ExRateX, ExRateY, RotCenterX, RotCenterY, RotAngle, String, Color, font, EdgeColor, VerticalFlag ),
 		0,
 		SETDRAWRECTCODE,
 		Ret,

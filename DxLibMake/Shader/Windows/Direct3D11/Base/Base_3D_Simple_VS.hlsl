@@ -1,48 +1,48 @@
-#include "../VertexShader.h"
+ï»¿#include "../VertexShader.h"
 
-// ’¸“_ƒVƒF[ƒ_[‚Ì“ü—Í
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®å…¥åŠ›
 struct VS_INPUT
 {
-	float3 Position        : POSITION0 ;		// À•W( ƒ[ƒJƒ‹‹óŠÔ )
+	float3 Position        : POSITION0 ;		// åº§æ¨™( ãƒ­ãƒ¼ã‚«ãƒ«ç©ºé–“ )
 
 #if USE_VERTEX3DSHADER
-	float4 SubPosition     : POSITION1 ;		// •â•À•W
+	float4 SubPosition     : POSITION1 ;		// è£œåŠ©åº§æ¨™
 #endif // USE_VERTEX3DSHADER
 
 #if USE_VERTEX3DSHADER || USE_VERTEX3D
-	float3 Normal          : NORMAL ;			// –@ü
+	float3 Normal          : NORMAL ;			// æ³•ç·š
 #endif // USE_VERTEX3DSHADER || USE_VERTEX3D
 
 #if USE_VERTEX3DSHADER
-	float3 Tangent         : TANGENT ;			// Úü
-	float3 Binormal        : BINORMAL ;			// ]–@ü
+	float3 Tangent         : TANGENT ;			// æ¥ç·š
+	float3 Binormal        : BINORMAL ;			// å¾“æ³•ç·š
 #endif // USE_VERTEX3DSHADER
 
-	float4 Diffuse         : COLOR0 ;			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[
+	float4 Diffuse         : COLOR0 ;			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
 
 #if USE_VERTEX3DSHADER || USE_VERTEX3D
-	float4 Specular        : COLOR1 ;			// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+	float4 Specular        : COLOR1 ;			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 #endif // USE_VERTEX3DSHADER || USE_VERTEX3D
 
 #if USE_TEXCOORD0 || USE_VERTEX3DSHADER || USE_VERTEX3D
-	float2 TexCoords0      : TEXCOORD0 ;		// ƒeƒNƒXƒ`ƒƒÀ•W‚O
+	float2 TexCoords0      : TEXCOORD0 ;		// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ï¼
 #endif // USE_TEXCOORD0 || USE_VERTEX3DSHADER || USE_VERTEX3D
 
 #if USE_VERTEX3DSHADER || USE_VERTEX3D
-	float2 TexCoords1      : TEXCOORD1 ;		// ƒeƒNƒXƒ`ƒƒÀ•W‚P
+	float2 TexCoords1      : TEXCOORD1 ;		// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ï¼‘
 #endif // USE_VERTEX3DSHADER || USE_VERTEX3D
 } ;
 
-// ’¸“_ƒVƒF[ƒ_[‚Ìo—Í
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®å‡ºåŠ›
 struct VS_OUTPUT
 {
-	float4 Position        : SV_POSITION ;		// À•W( ƒvƒƒWƒFƒNƒVƒ‡ƒ“‹óŠÔ )
-	float4 Diffuse         : COLOR0 ;			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[
-	float2 TexCoords0      : TEXCOORD0 ;		// ƒeƒNƒXƒ`ƒƒÀ•W‚O
-	float2 TexCoords1      : TEXCOORD1 ;		// ƒeƒNƒXƒ`ƒƒÀ•W‚P
+	float4 Position        : SV_POSITION ;		// åº§æ¨™( ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³ç©ºé–“ )
+	float4 Diffuse         : COLOR0 ;			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
+	float2 TexCoords0      : TEXCOORD0 ;		// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ï¼
+	float2 TexCoords1      : TEXCOORD1 ;		// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ï¼‘
 } ;
 
-// 3D—p
+// 3Dç”¨
 VS_OUTPUT VS3D_Normal( VS_INPUT VSInput )
 {
 	VS_OUTPUT VSOutput ;
@@ -52,12 +52,12 @@ VS_OUTPUT VS3D_Normal( VS_INPUT VSInput )
 	float4    lTextureCoordTemp ;
 
 
-	// ƒ[ƒJƒ‹À•W‚Ì€”õ
+	// ãƒ­ãƒ¼ã‚«ãƒ«åº§æ¨™ã®æº–å‚™
 	LocalPosition.xyz   = VSInput.Position ;
 	LocalPosition.w     = 1.0f ;
 
 
-	// À•W•ÏŠ·
+	// åº§æ¨™å¤‰æ›
 	WorldPosition.x     = dot( LocalPosition, g_Base.LocalWorldMatrix[ 0 ] ) ;
 	WorldPosition.y     = dot( LocalPosition, g_Base.LocalWorldMatrix[ 1 ] ) ;
 	WorldPosition.z     = dot( LocalPosition, g_Base.LocalWorldMatrix[ 2 ] ) ;
@@ -74,7 +74,7 @@ VS_OUTPUT VS3D_Normal( VS_INPUT VSInput )
 	VSOutput.Position.w = dot( ViewPosition, g_Base.ProjectionMatrix[ 3 ] ) ;
 
 
-	// ƒpƒ‰ƒ[ƒ^ƒZƒbƒg
+	// ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚»ãƒƒãƒˆ
 	VSOutput.Diffuse    = VSInput.Diffuse ;
 
 	lTextureCoordTemp.zw = 1.0f ;

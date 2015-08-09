@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ログプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -274,7 +274,7 @@ extern int ErrorLogAddA( const char *ErrorStr )
 	int Result ;
 
 	CHAR_TO_WCHAR_T_STRING_BEGIN( ErrorStr )
-	CHAR_TO_WCHAR_T_STRING_SETUP( ErrorStr, return -1, DX_CODEPAGE_SHIFTJIS ) ;
+	CHAR_TO_WCHAR_T_STRING_SETUP( ErrorStr, return -1, DX_CHARCODEFORMAT_SHIFTJIS ) ;
 
 	Result = ErrorLogAdd_WCHAR_T( UseErrorStrBuffer ) ;
 
@@ -296,7 +296,7 @@ extern int ErrorLogAddUTF16LE( const char *ErrorStr )
 	int Result ;
 
 	CHAR_TO_WCHAR_T_STRING_BEGIN( ErrorStr )
-	CHAR_TO_WCHAR_T_STRING_SETUP( ErrorStr, return -1, DX_CODEPAGE_UTF16LE ) ;
+	CHAR_TO_WCHAR_T_STRING_SETUP( ErrorStr, return -1, DX_CHARCODEFORMAT_UTF16LE ) ;
 
 	Result = ErrorLogAdd_WCHAR_T( UseErrorStrBuffer ) ;
 
@@ -360,13 +360,13 @@ extern int ErrorLogFmtAddUTF16LE( const char *FormatString , ... )
 	va_start( VaList , FormatString ) ;
 
 	// 編集後の文字列を取得する
-	CL_vsprintf( DX_CODEPAGE_UTF16LE, TRUE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, String, FormatString, VaList ) ;
+	CL_vsprintf( DX_CHARCODEFORMAT_UTF16LE, TRUE, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT, String, FormatString, VaList ) ;
 	
 	// 可変長リストのポインタをリセットする
 	va_end( VaList ) ;
 
 	// 改行文字を追加する
-	CL_strcat( DX_CODEPAGE_UTF16LE, String, ( const char * )UTF16LE_EN_N ) ;
+	CL_strcat( DX_CHARCODEFORMAT_UTF16LE, String, ( const char * )UTF16LE_EN_N ) ;
 
 	// ログ出力する
 	return ErrorLogAddUTF16LE( String ) ;
@@ -571,7 +571,7 @@ extern int TerminateLog( void )
 	if( LogData.LogInitializeFlag == FALSE ) return 0 ;
 
 	// フォントハンドルを削除する
-	if( LogData.LogFontHandleLostFlag == FALSE )
+	if( LogData.LogFontHandleLostFlag == FALSE && LogData.LogFontHandle > 0 )
 	{
 		NS_DeleteFontToHandle( LogData.LogFontHandle ) ;
 	}
@@ -608,9 +608,14 @@ static int RefreshLogFont( void )
 	if( LogData.LogFontHandle >= 0 )
 	{
 		// フォントハンドルが削除された際に立つフラグのポインタをセットする
-		LogData.LogFontHandleLostFlag = FALSE ;
 		NS_SetFontLostFlag( LogData.LogFontHandle, &LogData.LogFontHandleLostFlag  ) ;
 	}
+	else
+	{
+		LogData.LogFontHandle = DX_DEFAULT_FONT_HANDLE ;
+	}
+
+	LogData.LogFontHandleLostFlag = FALSE ;
 
 	return 0 ;
 }
@@ -837,9 +842,12 @@ extern int NS_SetLogFontSize( int Size )
 
 	LogData.LogFontSize = Size;
 
-	DeleteFontToHandle( LogData.LogFontHandle );
-	LogData.LogFontHandle = -1;
-	LogData.LogFontHandleLostFlag = TRUE;
+	if( LogData.LogFontHandle >= 0 )
+	{
+		DeleteFontToHandle( LogData.LogFontHandle );
+		LogData.LogFontHandle = -1;
+		LogData.LogFontHandleLostFlag = TRUE;
+	}
 
 	RefreshLogFont();
 

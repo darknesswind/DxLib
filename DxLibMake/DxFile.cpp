@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ファイルアクセスプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -430,7 +430,7 @@ extern DWORD_PTR StreamOpenT( const TCHAR *Path, int UseCacheFlag, int BlockFlag
 	return StreamOpen( Path, UseCacheFlag, BlockFlag, UseASyncReadFlag ) ;
 #else
 	wchar_t PathBuffer[ FILEPATH_MAX ] ;
-	ConvString( ( const char * )Path, _TCODEPAGE, ( char * )PathBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )Path, _TCHARCODEFORMAT, ( char * )PathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	return StreamOpen( PathBuffer, UseCacheFlag, BlockFlag, UseASyncReadFlag ) ;
 #endif
 }
@@ -476,7 +476,7 @@ extern int StreamChDirT( const TCHAR *Path )
 	return StreamChDir( Path ) ;
 #else
 	wchar_t PathBuffer[ FILEPATH_MAX ] ;
-	ConvString( ( const char * )Path, _TCODEPAGE, ( char * )PathBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )Path, _TCHARCODEFORMAT, ( char * )PathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	return StreamChDir( PathBuffer ) ;
 #endif
 }
@@ -495,7 +495,7 @@ extern int StreamGetDirT( TCHAR *Buffer )
 	int Result ;
 
 	Result = StreamGetDir( PathBuffer ) ;
-	ConvString( ( const char * )PathBuffer, WCHAR_T_CODEPAGE, ( char * )Buffer, _TCODEPAGE ) ;
+	ConvString( ( const char * )PathBuffer, WCHAR_T_CHARCODEFORMAT, ( char * )Buffer, _TCHARCODEFORMAT ) ;
 	return Result ;
 #endif
 }
@@ -523,10 +523,10 @@ extern DWORD_PTR StreamFindFirstT( const TCHAR *FilePath, FILEINFO *Buffer )
 	FILEINFOW BufferW ;
 	DWORD_PTR Result ;
 
-	ConvString( ( const char * )FilePath, _TCODEPAGE, ( char * )PathBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )FilePath, _TCHARCODEFORMAT, ( char * )PathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 
 	Result = StreamFindFirst( PathBuffer, &BufferW ) ;
-	if( Buffer != NULL )
+	if( Result >= 0 && Buffer != NULL )
 	{
 		ConvFileIntoWToFileInfo( &BufferW, Buffer ) ;
 	}
@@ -546,7 +546,7 @@ extern int StreamFindNextT( DWORD_PTR FindHandle, FILEINFO *Buffer )
 	int Result ;
 
 	Result = StreamFindNext( FindHandle, &BufferW ) ;
-	if( Buffer != NULL )
+	if( Result >= 0 && Buffer != NULL )
 	{
 		ConvFileIntoWToFileInfo( &BufferW, Buffer ) ;
 	}
@@ -582,7 +582,7 @@ extern int ConvFileIntoToFileInfoW( FILEINFO  *Src, FILEINFOW *Dest )
 #ifdef UNICODE
 	*( ( FILEINFO * )Dest ) = *Src ;
 #else
-	ConvString( ( const char * )Src->Name, _TCODEPAGE, ( char * )Dest->Name, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )Src->Name, _TCHARCODEFORMAT, ( char * )Dest->Name, WCHAR_T_CHARCODEFORMAT ) ;
 	Dest->DirFlag       = Src->DirFlag ;
 	Dest->Size          = Src->Size ;
 	Dest->CreationTime  = Src->CreationTime ;
@@ -597,7 +597,7 @@ extern int ConvFileIntoWToFileInfo( FILEINFOW *Src, FILEINFO  *Dest )
 #ifdef UNICODE
 	*( ( FILEINFOW * )Dest ) = *Src ;
 #else
-	ConvString( ( const char * )Src->Name, WCHAR_T_CODEPAGE, ( char * )Dest->Name, _TCODEPAGE ) ;
+	ConvString( ( const char * )Src->Name, WCHAR_T_CHARCODEFORMAT, ( char * )Dest->Name, _TCHARCODEFORMAT ) ;
 	Dest->DirFlag       = Src->DirFlag ;
 	Dest->Size          = Src->Size ;
 	Dest->CreationTime  = Src->CreationTime ;
@@ -1234,13 +1234,13 @@ extern int NS_FileRead_gets( TCHAR *Buffer, int BufferSize, int FileHandle )
 
 	for( i = 0 ; i < ReadSize ; )
 	{
-		CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Buffer )[ i              ], _TCODEPAGE, &CharBytes1 ) ;
+		CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Buffer )[ i              ], _TCHARCODEFORMAT, &CharBytes1 ) ;
 		if( CharCode1 == '\0' )
 		{
 			break ;
 		}
 
-		CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )Buffer )[ i + CharBytes1 ], _TCODEPAGE, &CharBytes2 ) ;
+		CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )Buffer )[ i + CharBytes1 ], _TCHARCODEFORMAT, &CharBytes2 ) ;
 
 		if( CharCode1 == '\r' && CharCode2 == '\n' )
 		{
@@ -1251,7 +1251,7 @@ extern int NS_FileRead_gets( TCHAR *Buffer, int BufferSize, int FileHandle )
 		i += CharBytes1 ;
 	}
 
-	PutCharCode( '\0', _TCODEPAGE, ( char * )&( ( BYTE * )Buffer )[ i ] ) ;
+	PutCharCode( '\0', _TCHARCODEFORMAT, ( char * )&( ( BYTE * )Buffer )[ i ] ) ;
 
 	return ( int )i ;
 }
@@ -1564,7 +1564,7 @@ extern	int NS_FileRead_fullyLoad( const TCHAR *FilePath )
 #else
 	wchar_t PathBuffer[ FILEPATH_MAX ] ;
 
-	ConvString( ( const char * )FilePath, _TCODEPAGE, ( char * )PathBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )FilePath, _TCHARCODEFORMAT, ( char * )PathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	return FileRead_fullyLoad_UseGParam( PathBuffer, GetASyncLoadFlag() ) ;
 #endif
 }
@@ -1648,7 +1648,7 @@ static int FileRead_scanf_base_help_getchar( DWORD *CharCode, int UnitSize, int 
 	}
 	ReadSize += UnitSize ;
 
-	CharBytes = GetCharBytes( ( const char * )TempBuffer, CHAR_CODEPAGE ) ;
+	CharBytes = GetCharBytes( ( const char * )TempBuffer, CHAR_CHARCODEFORMAT ) ;
 	if( CharBytes > ReadSize )
 	{
 		Res = FREAD( &TempBuffer[ ReadSize ], CharBytes - ReadSize, 1, FileHandle ) ;
@@ -1660,7 +1660,7 @@ static int FileRead_scanf_base_help_getchar( DWORD *CharCode, int UnitSize, int 
 		ReadSize = CharBytes ;
 	}
 
-	*CharCode = GetCharCode( ( const char * )TempBuffer, _TCODEPAGE, &CharBytes ) ;
+	*CharCode = GetCharCode( ( const char * )TempBuffer, _TCHARCODEFORMAT, &CharBytes ) ;
 
 	if( CharBytesP != NULL )
 	{
@@ -1677,7 +1677,7 @@ static void FileRead_SkipSpace( DWORD_PTR FileHandle, int *Eof )
 	int UnitSize ;
 	int CharBytes ;
 
-	UnitSize = GetCodePageUnitSize( CHAR_CODEPAGE ) ;
+	UnitSize = GetCharCodeFormatUnitSize( CHAR_CHARCODEFORMAT ) ;
 
 	if( Eof )
 	{
@@ -1767,9 +1767,9 @@ extern int FileRead_scanf_baseCHAR( DWORD_PTR FileHandle, const char *Format, va
 		return EOF ;
 	}
 
-	UnitSize = GetCodePageUnitSize( CHAR_CODEPAGE ) ;
+	UnitSize = GetCharCodeFormatUnitSize( CHAR_CHARCODEFORMAT ) ;
 
-	FormatStringSize = StringToCharCodeString( Format, CHAR_CODEPAGE, NULL ) ;
+	FormatStringSize = StringToCharCodeString( Format, CHAR_CHARCODEFORMAT, NULL ) ;
 	if( FormatStringSize + sizeof( DWORD ) * 16 > sizeof( FormatStringBaseBuffer ) )
 	{
 		FormatStringTempBuffer = ( DWORD * )DXALLOC( FormatStringSize + sizeof( DWORD ) * 16 ) ;
@@ -1785,7 +1785,7 @@ extern int FileRead_scanf_baseCHAR( DWORD_PTR FileHandle, const char *Format, va
 		FCode = FormatStringBaseBuffer ;
 	}
 	_MEMSET( FCode, 0, FormatStringSize + sizeof( DWORD ) * 16 ) ;
-	StringToCharCodeString( Format, CHAR_CODEPAGE, FCode ) ;
+	StringToCharCodeString( Format, CHAR_CHARCODEFORMAT, FCode ) ;
 
 	ReadNum = 0;
 	Eof = FALSE;
@@ -1953,7 +1953,7 @@ extern int FileRead_scanf_baseCHAR( DWORD_PTR FileHandle, const char *Format, va
 
 					if( pStr )
 					{
-						pStr += PutCharCode( c, CHAR_CODEPAGE, ( char * )pStr ) ;
+						pStr += PutCharCode( c, CHAR_CHARCODEFORMAT, ( char * )pStr ) ;
 					}
 					i ++ ;
 					if( Width != 0 && Width == i ) 
@@ -1964,7 +1964,7 @@ extern int FileRead_scanf_baseCHAR( DWORD_PTR FileHandle, const char *Format, va
 
 				if( pStr )
 				{
-					pStr += PutCharCode( '\0', CHAR_CODEPAGE, ( char * )pStr ) ;
+					pStr += PutCharCode( '\0', CHAR_CHARCODEFORMAT, ( char * )pStr ) ;
 				}
 
 				if( Eof == FALSE && Width != i )
@@ -2378,11 +2378,11 @@ STR_8INT:
 					{
 						if( FCode[ -1 ] == 'c' )
 						{
-							PutCharBytes = PutCharCode( c, CHAR_CODEPAGE, ( char * )pStr ) ;
+							PutCharBytes = PutCharCode( c, CHAR_CHARCODEFORMAT, ( char * )pStr ) ;
 						}
 						else
 						{
-							PutCharBytes = PutCharCode( ConvCharCode( c, CHAR_CODEPAGE, WCHAR_T_CODEPAGE ), WCHAR_T_CODEPAGE, ( char * )pStr ) ;
+							PutCharBytes = PutCharCode( ConvCharCode( c, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT ), WCHAR_T_CHARCODEFORMAT, ( char * )pStr ) ;
 						}
 						pStr += PutCharBytes ;
 					}
@@ -2390,11 +2390,11 @@ STR_8INT:
 					{
 						if( FCode[ -1 ] == 'c' )
 						{
-							PutCharBytes = PutCharCode( c, CHAR_CODEPAGE, ( char * )TempBuffer ) ;
+							PutCharBytes = PutCharCode( c, CHAR_CHARCODEFORMAT, ( char * )TempBuffer ) ;
 						}
 						else
 						{
-							PutCharBytes = PutCharCode( ConvCharCode( c, CHAR_CODEPAGE, WCHAR_T_CODEPAGE ), WCHAR_T_CODEPAGE, ( char * )TempBuffer ) ;
+							PutCharBytes = PutCharCode( ConvCharCode( c, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT ), WCHAR_T_CHARCODEFORMAT, ( char * )TempBuffer ) ;
 						}
 					}
 				}
@@ -2435,11 +2435,11 @@ STR_8INT:
 					{
 						if( FCode[ -1 ] == 'c' )
 						{
-							PutCharBytes = PutCharCode( c, CHAR_CODEPAGE, ( char * )pStr ) ;
+							PutCharBytes = PutCharCode( c, CHAR_CHARCODEFORMAT, ( char * )pStr ) ;
 						}
 						else
 						{
-							PutCharBytes += PutCharCode( ConvCharCode( c, CHAR_CODEPAGE, WCHAR_T_CODEPAGE ), WCHAR_T_CODEPAGE, ( char * )pStr ) ;
+							PutCharBytes += PutCharCode( ConvCharCode( c, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT ), WCHAR_T_CHARCODEFORMAT, ( char * )pStr ) ;
 						}
 						pStr += PutCharBytes ;
 					}
@@ -2447,11 +2447,11 @@ STR_8INT:
 					{
 						if( FCode[ -1 ] == 'c' )
 						{
-							PutCharBytes = PutCharCode( c, CHAR_CODEPAGE, ( char * )TempBuffer ) ;
+							PutCharBytes = PutCharCode( c, CHAR_CHARCODEFORMAT, ( char * )TempBuffer ) ;
 						}
 						else
 						{
-							PutCharBytes += PutCharCode( ConvCharCode( c, CHAR_CODEPAGE, WCHAR_T_CODEPAGE ), WCHAR_T_CODEPAGE, ( char * )TempBuffer ) ;
+							PutCharBytes += PutCharCode( ConvCharCode( c, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT ), WCHAR_T_CHARCODEFORMAT, ( char * )TempBuffer ) ;
 						}
 					}
 
@@ -2466,11 +2466,11 @@ STR_8INT:
 				{
 					if( FCode[ -1 ] == 'c' )
 					{
-						pStr += PutCharCode( '\0', CHAR_CODEPAGE, ( char * )pStr ) ;
+						pStr += PutCharCode( '\0', CHAR_CHARCODEFORMAT, ( char * )pStr ) ;
 					}
 					else
 					{
-						pStr += PutCharCode( L'\0', WCHAR_T_CODEPAGE, ( char * )pStr ) ;
+						pStr += PutCharCode( L'\0', WCHAR_T_CHARCODEFORMAT, ( char * )pStr ) ;
 					}
 				}
 			}
@@ -2847,7 +2847,7 @@ extern int FileRead_scanf_baseUTF16LE( DWORD_PTR FileHandle, const WORD *FormatU
 					str[i] = FormatUTF16LE[i];
 				str[i] = L'\0';
 				FormatUTF16LE += i;
-				Width = CL_atoi( DX_CODEPAGE_UTF16LE, ( const char * )str ) ;
+				Width = CL_atoi( DX_CHARCODEFORMAT_UTF16LE, ( const char * )str ) ;
 				if( Width == 0 ) break;
 			}
 			if( *FormatUTF16LE == L'\0' ) break;
@@ -3343,7 +3343,7 @@ STR_8INT:
 				}
 				if( pStrA )
 				{
-					ConvString( ( const char * )tstr, DX_CODEPAGE_UTF16LE, pStrA, DX_CODEPAGE_SHIFTJIS ) ;
+					ConvString( ( const char * )tstr, DX_CHARCODEFORMAT_UTF16LE, pStrA, DX_CHARCODEFORMAT_SHIFTJIS ) ;
 				}
 			}
 			else if( *FormatUTF16LE == L's' || *FormatUTF16LE == L'S' )
@@ -3406,7 +3406,7 @@ STR_8INT:
 				}
 				if( pStrA )
 				{
-					ConvString( ( const char * )tstr, DX_CODEPAGE_UTF16LE, pStrA, DX_CODEPAGE_SHIFTJIS ) ;
+					ConvString( ( const char * )tstr, DX_CHARCODEFORMAT_UTF16LE, pStrA, DX_CHARCODEFORMAT_SHIFTJIS ) ;
 				}
 			}
 			else if( *FormatUTF16LE == L'f' || *FormatUTF16LE == L'F' || *FormatUTF16LE == L'g' || *FormatUTF16LE == L'G' )
@@ -4209,7 +4209,7 @@ STR_8INT:
 				}
 				if( pStrA )
 				{
-					ConvString( ( const char * )tstr, WCHAR_T_CODEPAGE, pStrA, DX_CODEPAGE_SHIFTJIS ) ;
+					ConvString( ( const char * )tstr, WCHAR_T_CHARCODEFORMAT, pStrA, DX_CHARCODEFORMAT_SHIFTJIS ) ;
 				}
 			}
 			else if( *Format == L's' || *Format == L'S' )
@@ -4272,7 +4272,7 @@ STR_8INT:
 				}
 				if( pStrA )
 				{
-					ConvString( ( const char * )tstr, WCHAR_T_CODEPAGE, pStrA, DX_CODEPAGE_SHIFTJIS ) ;
+					ConvString( ( const char * )tstr, WCHAR_T_CHARCODEFORMAT, pStrA, DX_CHARCODEFORMAT_SHIFTJIS ) ;
 				}
 			}
 			else if( *Format == L'f' || *Format == L'F' || *Format == L'g' || *Format == L'G' )
@@ -4676,7 +4676,7 @@ static DWORD_PTR StreamTCHAR_Open( const wchar_t *Path, int UseCacheFlag, int Bl
 	return StreamFunction.Open( Path, UseCacheFlag, BlockReadFlag, UseASyncReadFlag ) ;
 #else
 	TCHAR PathBuffer[ FILEPATH_MAX ] ;
-	ConvString( ( const char * )Path, WCHAR_T_CODEPAGE, ( char * )PathBuffer, _TCODEPAGE ) ;
+	ConvString( ( const char * )Path, WCHAR_T_CHARCODEFORMAT, ( char * )PathBuffer, _TCHARCODEFORMAT ) ;
 	return StreamFunction.Open( PathBuffer, UseCacheFlag, BlockReadFlag, UseASyncReadFlag ) ;
 #endif
 }
@@ -4717,7 +4717,7 @@ static int StreamTCHAR_ChDir( const wchar_t *Path )
 	return StreamFunction.ChDir( Path ) ;
 #else
 	TCHAR PathBuffer[ FILEPATH_MAX ] ;
-	ConvString( ( const char * )Path, WCHAR_T_CODEPAGE, ( char * )PathBuffer, _TCODEPAGE ) ;
+	ConvString( ( const char * )Path, WCHAR_T_CHARCODEFORMAT, ( char * )PathBuffer, _TCHARCODEFORMAT ) ;
 	return StreamFunction.ChDir( PathBuffer ) ;
 #endif
 }
@@ -4731,7 +4731,7 @@ static int StreamTCHAR_GetDir( wchar_t *Buffer )
 	int Result ;
 
 	Result = StreamFunction.GetDir( PathBuffer ) ;
-	ConvString( ( const char * )PathBuffer, _TCODEPAGE, ( char * )Buffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )PathBuffer, _TCHARCODEFORMAT, ( char * )Buffer, WCHAR_T_CHARCODEFORMAT ) ;
 	return Result ;
 #endif
 }
@@ -4745,7 +4745,7 @@ static DWORD_PTR StreamTCHAR_FindFirst( const wchar_t *FilePath, FILEINFOW *Buff
 	FILEINFO BufferT ;
 	DWORD_PTR Result ;
 
-	ConvString( ( const char * )FilePath, WCHAR_T_CODEPAGE, ( char * )PathBuffer, _TCODEPAGE ) ;
+	ConvString( ( const char * )FilePath, WCHAR_T_CHARCODEFORMAT, ( char * )PathBuffer, _TCHARCODEFORMAT ) ;
 
 	Result = StreamFunction.FindFirst( PathBuffer, &BufferT ) ;
 	if( Buffer != NULL )
@@ -4815,7 +4815,7 @@ static int StreamTCHAR_FindClose( DWORD_PTR FindHandle )
 //		wchar_t curW[ FILEPATH_MAX ];
 //
 //		FGETDIR( curW ) ;
-//		ConvString( ( const char * )curW, WCHAR_T_CODEPAGE, cur, _TCODEPAGE ) ;
+//		ConvString( ( const char * )curW, WCHAR_T_CHARCODEFORMAT, cur, _TCHARCODEFORMAT ) ;
 //
 //		CurrentDir = cur ;
 //	}
@@ -5065,9 +5065,9 @@ extern	int ConvertFullPathW_( const wchar_t *Src, wchar_t *Dest, const wchar_t *
 		_WCSCPY( Dest, CurrentDir ) ;
 		j = _WCSLEN( Dest ) ;
 
-		CharNum         = GetStringCharNum( ( const char * )CurrentDir, WCHAR_T_CODEPAGE ) ;
-		LastCharAddress = ( wchar_t * )GetStringCharAddress( ( const char * )CurrentDir, WCHAR_T_CODEPAGE, CharNum - 1 ) ;
-		LastCharCode    = GetCharCode( ( const char * )LastCharAddress, WCHAR_T_CODEPAGE, &LastCharBytes ) ;
+		CharNum         = GetStringCharNum( ( const char * )CurrentDir, WCHAR_T_CHARCODEFORMAT ) ;
+		LastCharAddress = ( wchar_t * )GetStringCharAddress( ( const char * )CurrentDir, WCHAR_T_CHARCODEFORMAT, CharNum - 1 ) ;
+		LastCharCode    = GetCharCode( ( const char * )LastCharAddress, WCHAR_T_CHARCODEFORMAT, &LastCharBytes ) ;
 		if( LastCharCode == L'\\' || LastCharCode == L'/' )
 		{
 			*LastCharAddress = L'\0' ;
@@ -5109,9 +5109,9 @@ extern	int ConvertFullPathW_( const wchar_t *Src, wchar_t *Dest, const wchar_t *
 			{
 				// 一つ浅いディレクトリへ
 				Dest[ j ] = L'\0' ;
-				CharNum         = GetStringCharNum(  ( const char * )Dest, WCHAR_T_CODEPAGE ) ;
-				LastCharAddress = ( wchar_t * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CODEPAGE, CharNum - 1 ) ;
-				LastCharCode    = GetCharCode( ( const char * )LastCharAddress, WCHAR_T_CODEPAGE, &LastCharBytes ) ;
+				CharNum         = GetStringCharNum(  ( const char * )Dest, WCHAR_T_CHARCODEFORMAT ) ;
+				LastCharAddress = ( wchar_t * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CHARCODEFORMAT, CharNum - 1 ) ;
+				LastCharCode    = GetCharCode( ( const char * )LastCharAddress, WCHAR_T_CHARCODEFORMAT, &LastCharBytes ) ;
 				j -= LastCharBytes / sizeof( wchar_t ) ;
 				for(;;)
 				{
@@ -5122,8 +5122,8 @@ extern	int ConvertFullPathW_( const wchar_t *Src, wchar_t *Dest, const wchar_t *
 
 					Dest[ j ] = L'\0' ;
 					CharNum -- ;
-					LastCharAddress = ( wchar_t * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CODEPAGE, CharNum - 1 ) ;
-					LastCharCode    = GetCharCode( ( const char * )LastCharAddress, WCHAR_T_CODEPAGE, &LastCharBytes ) ;
+					LastCharAddress = ( wchar_t * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CHARCODEFORMAT, CharNum - 1 ) ;
+					LastCharCode    = GetCharCode( ( const char * )LastCharAddress, WCHAR_T_CHARCODEFORMAT, &LastCharBytes ) ;
 					j -= LastCharBytes / sizeof( wchar_t ) ;
 				}
 				if( Dest[j] != L':' )
@@ -5183,15 +5183,15 @@ extern int ConvertFullPathT_( const TCHAR *Src, TCHAR *Dest, const TCHAR *Curren
 	wchar_t CurrentDirBuffer[ FILEPATH_MAX ] ;
 	int Result ;
 
-	ConvString( ( const char * )Src, _TCODEPAGE, ( char * )SrcBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )Src, _TCHARCODEFORMAT, ( char * )SrcBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	if( CurrentDir != NULL )
 	{
-		ConvString( ( const char * )CurrentDir, _TCODEPAGE, ( char * )DestBuffer, WCHAR_T_CODEPAGE ) ;
+		ConvString( ( const char * )CurrentDir, _TCHARCODEFORMAT, ( char * )DestBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	}
 
 	Result = ConvertFullPathW_( SrcBuffer, DestBuffer, CurrentDir != NULL ? CurrentDirBuffer : NULL ) ;
 
-	ConvString( ( const char * )DestBuffer, WCHAR_T_CODEPAGE, ( char * )Dest, _TCODEPAGE ) ;
+	ConvString( ( const char * )DestBuffer, WCHAR_T_CHARCODEFORMAT, ( char * )Dest, _TCHARCODEFORMAT ) ;
 
 	return Result ;
 #endif
@@ -5370,12 +5370,12 @@ extern int CreateRelativePathT_( const TCHAR *FilePath, const TCHAR *StartFolder
 	wchar_t DestBuffer[ FILEPATH_MAX ] ;
 	int Result ;
 
-	ConvString( ( const char * )FilePath,        _TCODEPAGE, ( char * )FilePathBuffer,        WCHAR_T_CODEPAGE ) ;
-	ConvString( ( const char * )StartFolderPath, _TCODEPAGE, ( char * )StartFolderPathBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )FilePath,        _TCHARCODEFORMAT, ( char * )FilePathBuffer,        WCHAR_T_CHARCODEFORMAT ) ;
+	ConvString( ( const char * )StartFolderPath, _TCHARCODEFORMAT, ( char * )StartFolderPathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 
 	Result = CreateRelativePathW_( FilePathBuffer, StartFolderPathBuffer, DestBuffer ) ;
 
-	ConvString( ( const char * )DestBuffer, WCHAR_T_CODEPAGE, ( char * )Dest, _TCODEPAGE ) ;
+	ConvString( ( const char * )DestBuffer, WCHAR_T_CHARCODEFORMAT, ( char * )Dest, _TCHARCODEFORMAT ) ;
 
 	return Result ;
 #endif
@@ -5451,7 +5451,7 @@ extern int AnalyseFilePathW_(
 //	Last = -1 ;
 //	while( Src[i] != '\0' )
 //	{
-//		if( CheckMultiByteChar( Src[i], _GET_CODEPAGE() ) == FALSE )
+//		if( CheckMultiByteChar( Src[i], _GET_CHARCODEFORMAT() ) == FALSE )
 //		{
 //			if( Src[i] == '\\' || Src[i] == '/' || Src[i] == '\0' || Src[i] == ':' ) Last = i ;
 //			i ++ ;
@@ -5549,18 +5549,18 @@ extern int AnalysisFileNameAndDirPathT_( const TCHAR *Src, TCHAR *FileName, TCHA
 	wchar_t DirPathBuffer[ FILEPATH_MAX ] ;
 	int Result ;
 
-	ConvString( ( const char * )Src, _TCODEPAGE, ( char * )SrcBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )Src, _TCHARCODEFORMAT, ( char * )SrcBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 
 	Result = AnalysisFileNameAndDirPathW_( SrcBuffer, FileNameBuffer, DirPathBuffer ) ;
 
 	if( FileName )
 	{
-		ConvString( ( const char * )FileNameBuffer, WCHAR_T_CODEPAGE, ( char * )FileName, _TCODEPAGE ) ;
+		ConvString( ( const char * )FileNameBuffer, WCHAR_T_CHARCODEFORMAT, ( char * )FileName, _TCHARCODEFORMAT ) ;
 	}
 
 	if( DirPath )
 	{
-		ConvString( ( const char * )DirPathBuffer, WCHAR_T_CODEPAGE, ( char * )DirPath, _TCODEPAGE ) ;
+		ConvString( ( const char * )DirPathBuffer, WCHAR_T_CHARCODEFORMAT, ( char * )DirPath, _TCHARCODEFORMAT ) ;
 	}
 
 	return Result ;
@@ -5977,7 +5977,7 @@ extern int NS_SetDXArchiveExtension( const TCHAR *Extension )
 #else
 	wchar_t ExtensionBuffer[ 256 ] ;
 
-	ConvString( ( const char * )Extension, _TCODEPAGE, ( char * )ExtensionBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )Extension, _TCHARCODEFORMAT, ( char * )ExtensionBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 
 	return DXA_DIR_SetArchiveExtension( ExtensionBuffer ) ;
 #endif
@@ -5994,7 +5994,7 @@ extern int NS_SetDXArchiveKeyString( const TCHAR *KeyString )
 #ifdef UNICODE
 	char TempBuffer[ 1024 ] ;
 
-	ConvString( ( const char * )KeyString, _TCODEPAGE, TempBuffer, DX_CODEPAGE_SHIFTJIS ) ; 
+	ConvString( ( const char * )KeyString, _TCHARCODEFORMAT, TempBuffer, DX_CHARCODEFORMAT_SHIFTJIS ) ; 
 	return DXA_DIR_SetKeyString( TempBuffer ) ;
 #else
 	return DXA_DIR_SetKeyString( KeyString ) ;
@@ -6241,6 +6241,88 @@ extern int ReadOnlyFileAccessFindClose( DWORD_PTR FindHandle )
 	return 0 ;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+// 書き込み専用ファイルアクセス関数
+extern	int			WriteOnlyFileAccessDelete( const wchar_t *Path )
+{
+	return WriteOnlyFileAccessDelete_PF( Path ) ;
+}
+
+extern	DWORD_PTR	WriteOnlyFileAccessOpen(  const wchar_t *Path )
+{
+	return WriteOnlyFileAccessOpen_PF( Path ) ;
+}
+
+extern	DWORD_PTR	WriteOnlyFileAccessOpenWCHAR( const char *Path )
+{
+	return WriteOnlyFileAccessOpen( ( const wchar_t * )Path ) ;
+}
+
+extern	int			WriteOnlyFileAccessClose( DWORD_PTR Handle )
+{
+	return WriteOnlyFileAccessClose_PF( Handle ) ;
+}
+
+extern	int			WriteOnlyFileAccessSeek(  DWORD_PTR Handle, LONGLONG SeekPoint, int SeekType )
+{
+	return WriteOnlyFileAccessSeek_PF( Handle, SeekPoint, SeekType ) ;
+}
+
+extern	int			WriteOnlyFileAccessWrite( DWORD_PTR Handle, void *Buffer, size_t WriteSize, size_t *GetWriteSize )
+{
+	return WriteOnlyFileAccessWrite_PF( Handle, Buffer, WriteSize, GetWriteSize ) ;
+}
+
+extern	int			WriteOnlyFileAccessPrintf( DWORD_PTR Handle, const char *FormatString, ... )
+{
+	va_list VaList ;
+	char String[ 2048 ] ;
+	int Length ;
+	int i ;
+	
+	va_start( VaList, FormatString ) ;
+	
+	CL_vsprintf( CHAR_CHARCODEFORMAT, FALSE, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT, ( char * )String, ( const char * )FormatString, VaList ) ;
+	
+	va_end( VaList ) ;
+
+	// \n を \r\n に置き換える
+	Length = CL_strlen( CHAR_CHARCODEFORMAT, String ) ;
+	for( i = 0 ; i < Length ; )
+	{
+		if( GetCharBytes( ( char * )( &String[ i ] ), CHAR_CHARCODEFORMAT ) > sizeof( char ) )
+		{
+			i += 2 ;
+		}
+		else
+		if( String[ i ] == '\n' )
+		{
+			_MEMMOVE( &String[ i + 1 ], &String[ i ], ( Length - i ) * sizeof( char ) ) ;
+			String[ i ] = '\r' ;
+			i += 2 ;
+			Length ++ ;
+		}
+		else
+		{
+			i ++ ;
+		}
+	}
+
+	WriteOnlyFileAccessWrite_PF( Handle, String, Length * sizeof( char ) ) ;
+
+	return 0 ;
+}
 
 
 

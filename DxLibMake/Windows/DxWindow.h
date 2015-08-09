@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ウインドウプログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -36,7 +36,7 @@ namespace DxLib
 #define MAX_DRAGFILE_NUM			(1000)				// ドラッグ&ドロップされたファイル名を保存する最高数
 #define MAX_THREADWAIT_NUM			(4096)				// 同時に待つことが出来るスレッドの最大数
 
-typedef HHOOK 						( *MSGFUNC )( HWND MainWindow, HHOOK *pKeyboardHookHandle ) ;		// メッセージフック設定関数
+typedef HHOOK 						( *MSGFUNC )( HWND MainWindow, HHOOK *pKeyboardHookHandle, int Enable ) ;		// メッセージフック設定関数
 
 #define WSA_WINSOCKMESSAGE 			(WM_USER + 261)
 

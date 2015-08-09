@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		標準Ｃライブラリ使用コード		DirectShow BaseClasses
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 //
 //       Copyright (c) 1992-2002 Microsoft Corporation.  All rights reserved.
 // 

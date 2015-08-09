@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		GraphFilter系プログラム
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -1811,7 +1811,7 @@ extern int GraphFilter_Down_Scale( GRAPHFILTER_INFO *Info, int DivNum )
 }
 
 // CmpType:比較タイプ( DX_CMP_LESS と DX_CMP_GREATER のみ指定できます )
-// CmpParam:比較値( 0.0f～255.0f )
+// CmpParam:比較値( 0.0f〜255.0f )
 // ClipFillFlag:クリップしたピクセルを特定の色で塗りつぶすか( TRUE:塗りつぶす  FALSE:塗りつぶさない )
 // ClipFillColor:クリップしたピクセルに塗る色( GetColorFで取得するもの )
 extern int GraphFilter_Bright_Clip( GRAPHFILTER_INFO *Info, int CmpType, float CmpParam, int ClipFillFlag, COLOR_F *ClipFillColor )
@@ -2493,7 +2493,7 @@ extern int GraphFilter_Level( GRAPHFILTER_INFO *Info, float Min, float Max, floa
 
 			Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam, 32, FALSE, FALSE ) ;
 
-			GraphFilterShaderHandle.GammaTex = Graphics_Image_MakeGraph_UseGParam( &GParam, 256, 1, FALSE, FALSE ) ;
+			GraphFilterShaderHandle.GammaTex = Graphics_Image_MakeGraph_UseGParam( &GParam, 256, 1, FALSE, FALSE, 0, FALSE ) ;
 			NS_SetDeleteHandleFlag( GraphFilterShaderHandle.GammaTex, &GraphFilterShaderHandle.GammaTex ) ;
 			GraphFilterShaderHandle.PrevGamma = -10000000.0f ;
 			Always = TRUE ;

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		サウンドデータ変換プログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -38,9 +38,8 @@ namespace DxLib
 
 // 処理タイプ
 #define SOUND_METHODTYPE_NORMAL				(0)		// 通常の処理(特別な処理は挟まない)
-#define SOUND_METHODTYPE_OGG				(2)		// ＯＧＧを使用
-#define SOUND_METHODTYPE_ACM				(1)		// ＡＣＭを使用
-#define SOUND_METHODTYPE_DSMP3				(3)		// ＤｉｒｅｃｔＳｈｏｗを使用したＭＰ３再生
+#define SOUND_METHODTYPE_OGG				(1)		// ＯＧＧを使用
+#define SOUND_METHODTYPE_DEFAULT_NUM		(2)		// 環境に依存しない処理タイプの数
 
 // チャンクＩＤセットマクロ
 #define RIFFCHUNKID( C1 , C2 , C3 , C4 )	( DWORD )( ((( DWORD )C4)<<24) | ((( DWORD )C3)<<16) | ((( DWORD )C2)<<8) | (C1) ) 
@@ -125,6 +124,11 @@ extern	int SoundConvertFast(             SOUNDCONV *SoundConv, WAVEFORMATEX *For
 extern	int InitializeSoundConvert_PF( void ) ;														// サウンドデータ変換処理の環境依存の初期化を行う
 extern	int TerminateSoundConvert_PF( void ) ;														// サウンドデータ変換処理の環境依存の終了処理を行う
 
+extern	int SetupSoundConvert_PF( SOUNDCONV *SoundConv, STREAMDATA *Stream, int DisableReadSoundFunctionMask ) ;	// (環境依存処理)変換処理のセットアップ( [戻] -1:エラー )
+extern	int SetSampleTimeSoundConvert_PF(    SOUNDCONV *SoundConv, int SampleTime ) ;					// (環境依存処理)変換処理の位置を変更する( サンプル単位 )
+extern	int ConvertProcessSoundConvert_PF(   SOUNDCONV *SoundConv ) ;									// (環境依存処理)変換後のバッファにデータを補充する
+extern	int TerminateSoundConvert_PF(        SOUNDCONV *SoundConv ) ;									// (環境依存処理)変換処理の後始末を行う
+extern	int GetSoundConvertDestSize_Fast_PF( SOUNDCONV *SoundConv ) ;									// (環境依存処理)変換後の大凡のデータサイズを得る
 
 #ifdef DX_USE_NAMESPACE
 

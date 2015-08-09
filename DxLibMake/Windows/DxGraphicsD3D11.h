@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		描画処理プログラム( Direct3D11 )ヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -233,6 +233,8 @@ struct GRAPHICS_HARDWARE_DIRECT3D11_SHADER_BASE
 	// マスク処理用のピクセルシェーダー
 	D_ID3D11PixelShader						*MaskEffect_PS ;
 	D_ID3D11PixelShader						*MaskEffect_ReverseEffect_PS ;
+	D_ID3D11PixelShader						*MaskEffect_UseGraphHandle_PS ;
+	D_ID3D11PixelShader						*MaskEffect_UseGraphHandle_ReverseEffect_PS ;
 
 	// 単純転送用関係
 	D_ID3D11SamplerState					*StretchRect_SamplerState[ 2 /* 0:Point  1:Linear */ ] ;
@@ -660,7 +662,7 @@ struct GRAPHICS_HARDDATA_DIRECT3D11_DRAWSETTING
 	int								BlendGraphType ;						// ブレンド画像タイプ
 	int								BlendGraphFadeRatio ;					// ブレンド画像のフェードパラメータ
 	int								BlendGraphBorderParam ;					// ブレンド画像の境界パラメータ(０(ブレンド画像の影響０)　←　(ブレンド画像の影響少ない)　←　１２８(ブレンド画像の影響１００％)　→　(ブレンド画像の影響を超えて非描画部分が増える)　→２５５(全く描画されない) )
-	int								BlendGraphBorderRange ;					// ブレンド画像の境界幅(０～２５５　狭い～広い　しかし４段階)
+	int								BlendGraphBorderRange ;					// ブレンド画像の境界幅(０〜２５５　狭い〜広い　しかし４段階)
 	float							BlendTextureWidth ;						// ブレンドテクスチャの幅
 	float							BlendTextureHeight ;					// ブレンドテクスチャの高さ
 	float							InvBlendTextureWidth ;					// ブレンドテクスチャの幅の逆数
@@ -770,6 +772,8 @@ struct GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_BASE
 	// マスク処理用のピクセルシェーダー
 	GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO MaskEffect_PS_Code ;
 	GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO MaskEffect_ReverseEffect_PS_Code ;
+	GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO MaskEffect_UseGraphHandle_PS_Code ;
+	GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO MaskEffect_UseGraphHandle_ReverseEffect_PS_Code ;
 
 	// 単純転送用シェーダー
 	GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO StretchRect_VS_Code ;
@@ -1248,8 +1252,8 @@ extern	int		Graphics_D3D11_DeviceState_SetTextureAddressTransformMatrix( int Use
 extern	int		Graphics_D3D11_DeviceState_SetFogEnable( int Flag ) ;												// フォグを有効にするかどうかを設定する( TRUE:有効  FALSE:無効 )
 extern	int		Graphics_D3D11_DeviceState_SetFogVertexMode( int Mode /* DX_FOGMODE_NONE 等 */ ) ;					// フォグモードを設定する
 extern	int		Graphics_D3D11_DeviceState_SetFogColor( unsigned int Color ) ;												// フォグカラーを変更する
-extern	int		Graphics_D3D11_DeviceState_SetFogStartEnd( float Start, float End ) ;								// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
-extern	int		Graphics_D3D11_DeviceState_SetFogDensity( float Density ) ;											// フォグの密度を設定する( 0.0f ～ 1.0f )
+extern	int		Graphics_D3D11_DeviceState_SetFogStartEnd( float Start, float End ) ;								// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
+extern	int		Graphics_D3D11_DeviceState_SetFogDensity( float Density ) ;											// フォグの密度を設定する( 0.0f 〜 1.0f )
 extern	int		Graphics_D3D11_DeviceState_SetLighting( int UseFlag ) ;												// ライティングの有無フラグをセットする
 extern	int		Graphics_D3D11_DeviceState_SetMaxAnisotropy( int MaxAnisotropy, int Sampler = -1 ) ;				// 最大異方性をセットする
 extern	int		Graphics_D3D11_DeviceState_SetViewport( D_D3D11_VIEWPORT *Viewport ) ;								// ビューポートをセットする
@@ -1482,8 +1486,8 @@ extern	int		Graphics_Hardware_D3D11_SetTextureAddressTransformMatrix_PF( int Use
 extern	int		Graphics_Hardware_D3D11_SetFogEnable_PF( int Flag ) ;														// フォグを有効にするかどうかを設定する( TRUE:有効  FALSE:無効 )
 extern	int		Graphics_Hardware_D3D11_SetFogMode_PF( int Mode /* DX_FOGMODE_NONE 等 */ ) ;									// フォグモードを設定する
 extern	int		Graphics_Hardware_D3D11_SetFogColor_PF( DWORD FogColor ) ;													// フォグカラーを変更する
-extern	int		Graphics_Hardware_D3D11_SetFogStartEnd_PF( float start, float end ) ;										// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
-extern	int		Graphics_Hardware_D3D11_SetFogDensity_PF( float density ) ;													// フォグの密度を設定する( 0.0f ～ 1.0f )
+extern	int		Graphics_Hardware_D3D11_SetFogStartEnd_PF( float start, float end ) ;										// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
+extern	int		Graphics_Hardware_D3D11_SetFogDensity_PF( float density ) ;													// フォグの密度を設定する( 0.0f 〜 1.0f )
 extern	int		Graphics_Hardware_D3D11_ApplyLigFogToHardware_PF( void ) ;													// 基本データに設定されているフォグ情報をハードウェアに反映する
 extern	int		Graphics_Hardware_D3D11_SetUseOldDrawModiGraphCodeFlag_PF( int Flag ) ;										// 以前の DrawModiGraph 関数のコードを使用するかどうかのフラグをセットする
 extern	int		Graphics_Hardware_D3D11_RefreshAlphaChDrawMode_PF( void ) ;													// 描画先に正しいα値を書き込むかどうかのフラグを更新する

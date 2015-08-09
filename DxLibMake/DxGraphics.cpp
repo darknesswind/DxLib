@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		描画プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // ----------------------------------------------------------------------------
 
@@ -1556,7 +1556,7 @@ extern	int NS_MakeGraph( int SizeX, int SizeY, int NotUse3DFlag )
 
 	Graphics_Image_InitSetupGraphHandleGParam( &GParam ) ;
 
-	return Graphics_Image_MakeGraph_UseGParam( &GParam, SizeX, SizeY, NotUse3DFlag, GetASyncLoadFlag() ) ;
+	return Graphics_Image_MakeGraph_UseGParam( &GParam, SizeX, SizeY, NotUse3DFlag, FALSE, 0, GetASyncLoadFlag() ) ;
 }
 
 // 描画可能な画面を作成
@@ -1572,7 +1572,7 @@ extern int NS_MakeScreen( int SizeX, int SizeY, int UseAlphaChannel )
 
 	GParam.DrawValidImageCreateFlag = TRUE ;
 	GParam.DrawValidAlphaImageCreateFlag = UseAlphaChannel ;
-	return Graphics_Image_MakeGraph_UseGParam( &GParam, SizeX, SizeY, FALSE, GetASyncLoadFlag() ) ;
+	return Graphics_Image_MakeGraph_UseGParam( &GParam, SizeX, SizeY, FALSE, FALSE, 0, GetASyncLoadFlag() ) ;
 }
 
 // 指定のグラフィックの指定部分だけを抜き出して新たなグラフィックハンドルを作成する
@@ -4332,7 +4332,7 @@ extern int NS_GetGraphFilePath( int GrHandle, TCHAR *FilePathBuffer )
 	}
 
 	// 画像ファイルパスをコピー
-	ConvString( ( const char * )Image->ReadBase->FileName, WCHAR_T_CODEPAGE, TempBuffer, _TCODEPAGE ) ;
+	ConvString( ( const char * )Image->ReadBase->FileName, WCHAR_T_CHARCODEFORMAT, TempBuffer, _TCHARCODEFORMAT ) ;
 	if( FilePathBuffer != NULL )
 	{
 		_TSTRCPY( FilePathBuffer, TempBuffer ) ;
@@ -5166,7 +5166,8 @@ extern int NS_Paint( int x, int y, unsigned int FillColor, ULONGLONG BoundaryCol
 			RGBCOLOR        DrawBright ;
 			RECT            DrawArea ;
 			const COLORDATA *MemImageColorData ;
-			const COLORDATA *HardwareMainColorData ;
+			int				Red, Green, Blue ;
+//			const COLORDATA *HardwareMainColorData ;
 
 			// 画面のイメージを取得
 			NS_CreateXRGB8ColorBaseImage( GSYS.DrawSetting.DrawSizeX, GSYS.DrawSetting.DrawSizeY, &ScreenImage ) ;
@@ -5185,15 +5186,19 @@ extern int NS_Paint( int x, int y, unsigned int FillColor, ULONGLONG BoundaryCol
 
 			// Paint 処理を行う
 			MemImageColorData     = GetMemImgColorData( 1, FALSE, FALSE ) ;
-			HardwareMainColorData = Graphics_Hardware_GetMainColorData_PF() ;
-			FillColor             = NS_GetColor4( MemImageColorData, HardwareMainColorData, FillColor ) ;
+//			HardwareMainColorData = Graphics_Hardware_GetMainColorData_PF() ;
+//			FillColor             = NS_GetColor4( MemImageColorData, HardwareMainColorData, FillColor ) ;
+			NS_GetColor2( FillColor, &Red, &Green, &Blue ) ; 
+			FillColor             = NS_GetColor3( MemImageColorData, Red, Green, Blue ) ;
 #if defined( DX_GCC_COMPILE ) || defined( __ANDROID )
 			if( BoundaryColor != 0xffffffffffffffffULL )
 #else // defined( DX_GCC_COMPILE ) || defined( __ANDROID )
 			if( BoundaryColor != 0xffffffffffffffff )
 #endif // defined( DX_GCC_COMPILE ) || defined( __ANDROID )
 			{
-				BoundaryColor = ( ULONGLONG )NS_GetColor4( MemImageColorData, HardwareMainColorData, ( unsigned int )BoundaryColor ) ;
+//				BoundaryColor = ( ULONGLONG )NS_GetColor4( MemImageColorData, HardwareMainColorData, ( unsigned int )BoundaryColor ) ;
+				NS_GetColor2( ( unsigned int )BoundaryColor, &Red, &Green, &Blue ) ; 
+				BoundaryColor = NS_GetColor3( MemImageColorData, Red, Green, Blue ) ;
 			}
 			PaintMemImg( &MemImg, x, y, FillColor, BoundaryColor ) ;
 
@@ -11338,7 +11343,7 @@ extern	int NS_GetFogColor( int *r, int *g, int *b )
 	return 0 ;
 }
 
-// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
+// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
 extern	int	NS_SetFogStartEnd( float start, float end )
 {
 	if( GSYS.DrawSetting.FogStart == start && GSYS.DrawSetting.FogEnd == end ) return 0 ;
@@ -11359,7 +11364,7 @@ extern	int	NS_SetFogStartEnd( float start, float end )
 	return 0 ;
 }
 
-// フォグが始まる距離と終了する距離を取得する( 0.0f ～ 1.0f )
+// フォグが始まる距離と終了する距離を取得する( 0.0f 〜 1.0f )
 extern	int NS_GetFogStartEnd( float *start, float *end )
 {
 	if( start != NULL )
@@ -11375,7 +11380,7 @@ extern	int NS_GetFogStartEnd( float *start, float *end )
 	return 0 ;
 }
 
-// フォグの密度を設定する( 0.0f ～ 1.0f )
+// フォグの密度を設定する( 0.0f 〜 1.0f )
 extern	int	NS_SetFogDensity( float density )
 {
 	if( GSYS.DrawSetting.FogDensity == density ) return 0;
@@ -11395,7 +11400,7 @@ extern	int	NS_SetFogDensity( float density )
 	return 0 ;
 }
 
-// フォグの密度を取得する( 0.0f ～ 1.0f )
+// フォグの密度を取得する( 0.0f 〜 1.0f )
 extern float NS_GetFogDensity( void )
 {
 	return GSYS.DrawSetting.FogDensity ;
@@ -12249,7 +12254,7 @@ extern int NS_GetDisplayModeNum( int DisplayIndex )
 	return GSYS.Screen.DisplayInfo[ DisplayIndex ].ModeNum ;
 }
 
-// 変更可能なディスプレイモードの情報を取得する( ModeIndex は 0 ～ GetDisplayModeNum の戻り値-1 )
+// 変更可能なディスプレイモードの情報を取得する( ModeIndex は 0 〜 GetDisplayModeNum の戻り値-1 )
 extern DISPLAYMODEDATA NS_GetDisplayMode( int ModeIndex, int DisplayIndex )
 {
 	static DISPLAYMODEDATA ErrorResult = { -1, -1, -1, -1 } ;
@@ -12557,8 +12562,8 @@ extern int NS_RenderVertex( void )
 
 #ifndef DX_NON_SAVEFUNCTION
 
-// Jpeg_Quality         = 0:低画質～100:高画質
-// Png_CompressionLevel = 0:無圧縮～  9:最高圧縮
+// Jpeg_Quality         = 0:低画質〜100:高画質
+// Png_CompressionLevel = 0:無圧縮〜  9:最高圧縮
 // 現在描画対象になっている画面を保存する
 extern int NS_SaveDrawScreen( int x1, int y1, int x2, int y2, const TCHAR *FileName, int SaveType, int Jpeg_Quality, int Jpeg_Sample2x1, int Png_CompressionLevel )
 {
@@ -12581,8 +12586,8 @@ extern int NS_SaveDrawScreen( int x1, int y1, int x2, int y2, const TCHAR *FileN
 #endif
 }
 
-// Jpeg_Quality         = 0:低画質～100:高画質
-// Png_CompressionLevel = 0:無圧縮～  9:最高圧縮
+// Jpeg_Quality         = 0:低画質〜100:高画質
+// Png_CompressionLevel = 0:無圧縮〜  9:最高圧縮
 // 現在描画対象になっている画面を保存する
 extern int SaveDrawScreen_WCHAR_T( int x1, int y1, int x2, int y2, const wchar_t *FileName, int SaveType, int Jpeg_Quality, int Jpeg_Sample2x1, int Png_CompressionLevel )
 {
@@ -12644,25 +12649,25 @@ extern int SaveDrawScreenToBMP_WCHAR_T( int x1, int y1, int x2, int y2, const wc
 	return SaveDrawScreen_WCHAR_T( x1, y1, x2, y2, FileName, DX_IMAGESAVETYPE_BMP );
 }
 
-// 現在描画対象になっている画面をＪＰＥＧ形式で保存する Quality = 画質、値が大きいほど低圧縮高画質,0～100 
+// 現在描画対象になっている画面をＪＰＥＧ形式で保存する Quality = 画質、値が大きいほど低圧縮高画質,0〜100 
 extern int NS_SaveDrawScreenToJPEG( int x1, int y1, int x2, int y2, const TCHAR *FileName, int Quality, int Sample2x1 )
 {
 	return NS_SaveDrawScreen( x1, y1, x2, y2, FileName, DX_IMAGESAVETYPE_JPEG, Quality, Sample2x1 );
 }
 
-// 現在描画対象になっている画面をＪＰＥＧ形式で保存する Quality = 画質、値が大きいほど低圧縮高画質,0～100 
+// 現在描画対象になっている画面をＪＰＥＧ形式で保存する Quality = 画質、値が大きいほど低圧縮高画質,0〜100 
 extern int SaveDrawScreenToJPEG_WCHAR_T( int x1, int y1, int x2, int y2, const wchar_t *FileName, int Quality, int Sample2x1 )
 {
 	return SaveDrawScreen_WCHAR_T( x1, y1, x2, y2, FileName, DX_IMAGESAVETYPE_JPEG, Quality, Sample2x1 );
 }
 
-// 現在描画対象になっている画面をＰＮＧ形式で保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0～9
+// 現在描画対象になっている画面をＰＮＧ形式で保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0〜9
 extern int NS_SaveDrawScreenToPNG( int x1, int y1, int x2, int y2, const TCHAR *FileName, int CompressionLevel )
 {
 	return NS_SaveDrawScreen( x1, y1, x2, y2, FileName, DX_IMAGESAVETYPE_PNG, 80, CompressionLevel );
 }
 
-// 現在描画対象になっている画面をＰＮＧ形式で保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0～9
+// 現在描画対象になっている画面をＰＮＧ形式で保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0〜9
 extern int SaveDrawScreenToPNG_WCHAR_T( int x1, int y1, int x2, int y2, const wchar_t *FileName, int CompressionLevel )
 {
 	return SaveDrawScreen_WCHAR_T( x1, y1, x2, y2, FileName, DX_IMAGESAVETYPE_PNG, 80, CompressionLevel );
@@ -14296,7 +14301,11 @@ extern int PlayMovie_WCHAR_T( const wchar_t *FileName, int ExRate, int PlayType 
 
 			if( ProcessMessage() != 0 
 #ifndef DX_NON_INPUT
-				|| ( PlayType == DX_MOVIEPLAYTYPE_BCANCEL && GetActiveFlag() && State && KeyOffFlag == FALSE )
+				|| ( PlayType == DX_MOVIEPLAYTYPE_BCANCEL &&
+#ifdef __WINDOWS__
+				GetActiveFlag() && 
+#endif // __WINDOWS__
+				State && KeyOffFlag == FALSE )
 #endif // DX_NON_INPUT
 				) break ;
 		}
@@ -14399,7 +14408,7 @@ extern 	int		NS_GetMovieStateToGraph( int GraphHandle )
 	return GetMovieState( Image->MovieHandle ) ;
 }
 
-// ムービーのボリュームをセットする(0～10000)
+// ムービーのボリュームをセットする(0〜10000)
 extern	int		NS_SetMovieVolumeToGraph( int Volume, int GraphHandle )	
 {
 	IMAGEDATA *Image ;
@@ -14412,7 +14421,7 @@ extern	int		NS_SetMovieVolumeToGraph( int Volume, int GraphHandle )
 	return SetMovieVolume( Volume, Image->MovieHandle ) ;
 }
 
-// ムービーのボリュームをセットする(0～255)
+// ムービーのボリュームをセットする(0〜255)
 extern	int		NS_ChangeMovieVolumeToGraph( int Volume, int GraphHandle )
 {
 	IMAGEDATA *Image ;
@@ -16229,6 +16238,20 @@ extern int NS_GetTexFormatIndex( const IMAGEFORMATDESC *Format )
 					return DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ABGR_I16 ;
 				}
 				else
+				if( Format->ColorBitDepth == 4 )
+				{
+					     if( Format->AlphaChFlag   ) Result = DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_PAL4 ;
+					else if( Format->AlphaTestFlag ) Result = DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_PAL4 ;
+					else                             Result = DX_GRAPHICSIMAGE_FORMAT_3D_PAL4 ;
+				}
+				else
+				if( Format->ColorBitDepth == 8 )
+				{
+					     if( Format->AlphaChFlag   ) Result = DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_PAL8 ;
+					else if( Format->AlphaTestFlag ) Result = DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_PAL8 ;
+					else                             Result = DX_GRAPHICSIMAGE_FORMAT_3D_PAL8 ;
+				}
+				else
 				{
 					int ColorBitDepthIndex = Format->ColorBitDepth == 16 ? 0 : 1 ;
 
@@ -17919,6 +17942,7 @@ extern int Graphics_Image_SetupFormatDesc(
 	int Height,
 	int AlphaValidFlag,
 	int UsePaletteFlag,
+	int PaletteBitDepth,
 	int BaseFormat,
 	int MipMapCount
 )
@@ -18008,7 +18032,9 @@ extern int Graphics_Image_SetupFormatDesc(
 
 		// アルファチャンネルありの場合はアルファテストは無し
 		if( Format->AlphaChFlag )
+		{
 			Format->AlphaTestFlag = FALSE ;
+		}
 
 		// ブレンド画像の場合はフォーマットは固定される
 		if( Format->BlendGraphFlag == TRUE )
@@ -18026,6 +18052,12 @@ extern int Graphics_Image_SetupFormatDesc(
 			Format->ChannelBitDepth = ( unsigned char )GParam->CreateImageChannelBitDepth ;
 			Format->FloatTypeFlag   = ( unsigned char )GParam->DrawValidFloatTypeGraphCreateFlag ;
 		}
+		else
+		// ブレンド画像でも描画可能画像でもない場合のみパレット画像を使用できる
+		if( UsePaletteFlag )
+		{
+			Format->ColorBitDepth = ( unsigned char )( PaletteBitDepth == 4 ? 4 : 8 ) ;
+		}
 	}
 	else
 	{
@@ -18039,7 +18071,7 @@ extern int Graphics_Image_SetupFormatDesc(
 		Format->CubeMapTextureFlag    = FALSE ;
 		Format->UsePaletteFlag        = ( unsigned char )UsePaletteFlag ;
 		Format->UseManagedTextureFlag = FALSE ;		// DirectX の管理も無し
-		Format->AlphaTestFlag         = FALSE ;				// アルファテストは無し
+		Format->AlphaTestFlag         = FALSE ;		// アルファテストは無し
 		Format->DrawValidFlag         = ( unsigned char )( Format->BlendGraphFlag ? FALSE : TRUE ) ;	// 普通の画像の場合はブレンド画像ではなければ描画可能　 
 		Format->MipMapCount           = 0 ;
 	}
@@ -18101,6 +18133,7 @@ extern int Graphics_Image_SetupHandle_UseGParam(
 	int /*TextureFlag*/,
 	int AlphaValidFlag,
 	int UsePaletteFlag,
+	int PaletteBitDepth,
 	int BaseFormat,
 	int MipMapCount,
 	int ASyncThread
@@ -18138,7 +18171,7 @@ extern int Graphics_Image_SetupHandle_UseGParam(
 	IsTex = GSYS.Setting.ValidHardware ;
 
 	// フォーマット情報をセットする
-	Graphics_Image_SetupFormatDesc( &Format, GParam, Width, Height, AlphaValidFlag, UsePaletteFlag, BaseFormat, MipMapCount ) ;
+	Graphics_Image_SetupFormatDesc( &Format, GParam, Width, Height, AlphaValidFlag, UsePaletteFlag, PaletteBitDepth, BaseFormat, MipMapCount ) ;
 
 	// テクスチャの場合は何分割になるか調べる
 	if( IsTex )
@@ -18944,18 +18977,49 @@ extern int Graphics_Image_CreateDXGraph_UseGParam(
 	GParam->CubeMapTextureCreateFlag = RgbBaseImage->GraphDataCount == CUBEMAP_SURFACE_NUM ? TRUE : FALSE ;
 
 	// ハンドルの初期化
-	if( Graphics_Image_SetupHandle_UseGParam(
-			GParam,
-			GrHandle,
-			RgbBaseImage->Width, RgbBaseImage->Height, TextureFlag,
-			RgbBaseImage->ColorData.AlphaWidth != 0 || AlphaBaseImage != NULL,
-			RgbBaseImage->ColorData.PixelByte == 1 && 
-			RgbBaseImage->ColorData.AlphaWidth == 0 &&
-			AlphaBaseImage == NULL,
-			RgbBaseImage->ColorData.Format,
-			RgbBaseImage->MipMapCount == 0 ? -1 : RgbBaseImage->MipMapCount,
-			ASyncThread ) == -1 )
-		return -1 ;
+	{
+		int UsePaletteFlag ;
+		int PaletteColorBitDepth = 0 ;
+
+		// パレットテクスチャを使用するかどうかをセット
+		UsePaletteFlag = RgbBaseImage->ColorData.PixelByte  == 1 && 
+						 RgbBaseImage->ColorData.AlphaWidth == 0 &&
+						 AlphaBaseImage == NULL ;
+
+		// グラフィックスデバイスが4bitパレットテクスチャに対応している場合で、且つ8bitカラーの場合は
+		// 使用されている最大パレット番号が 4bit に収まるかどうかを調べ、収まる場合は 4bit パレットテクスチャにする
+		if( UsePaletteFlag )
+		{
+			if( GSYS.HardInfo.Support4bitPaletteTexture &&
+				RgbBaseImage->ColorData.ColorBitDepth == 8 )
+			{
+				if( RgbBaseImage->ColorData.MaxPaletteNo == 0 || RgbBaseImage->ColorData.MaxPaletteNo == 255 )
+				{
+					PaletteColorBitDepth = NS_GetBaseImageUseMaxPaletteNo( RgbBaseImage ) < 16 ? 4 : 8 ;
+				}
+				else
+				{
+					PaletteColorBitDepth = RgbBaseImage->ColorData.MaxPaletteNo < 16 ? 4 : 8 ;
+				}
+			}
+			else
+			{
+				PaletteColorBitDepth = 8 ;
+			}
+		}
+
+		if( Graphics_Image_SetupHandle_UseGParam(
+				GParam,
+				GrHandle,
+				RgbBaseImage->Width, RgbBaseImage->Height, TextureFlag,
+				RgbBaseImage->ColorData.AlphaWidth != 0 || AlphaBaseImage != NULL,
+				UsePaletteFlag,
+				PaletteColorBitDepth,
+				RgbBaseImage->ColorData.Format,
+				RgbBaseImage->MipMapCount == 0 ? -1 : RgbBaseImage->MipMapCount,
+				ASyncThread ) == -1 )
+			return -1 ;
+	}
 
 	// 終了
 	return 0 ;
@@ -19065,6 +19129,7 @@ extern int Graphics_Image_OpenMovie_UseGParam(
 			TextureFlag,
 			Movie->RightAlpha || GParam->CreateGraphGParam.InitHandleGParam.AlphaChannelImageCreateFlag,
 			FALSE,
+			0,
 			DX_BASEIMAGE_FORMAT_NORMAL,
 			-1,
 			ASyncThread
@@ -20529,6 +20594,8 @@ static int Graphics_Image_MakeGraph_Static(
 	int SizeX,
 	int SizeY,
 	int NotUse3DFlag,
+	int UsePaletteFlag,
+	int PaletteBitDepth,
 	int AlphaValidFlag,
 	int ASyncThread
 )
@@ -20541,7 +20608,8 @@ static int Graphics_Image_MakeGraph_Static(
 			SizeY,
 			!NotUse3DFlag,
 			AlphaValidFlag,
-			FALSE,
+			UsePaletteFlag,
+			PaletteBitDepth,
 			DX_BASEIMAGE_FORMAT_NORMAL,
 			-1,
 			ASyncThread
@@ -20562,6 +20630,8 @@ static void Graphics_Image_MakeGraph_ASync( ASYNCLOADDATA_COMMON *AParam )
 	int SizeX ;
 	int SizeY ;
 	int NotUse3DFlag ;
+	int UsePaletteFlag ;
+	int PaletteBitDepth ;
 	int AlphaValidFlag ;
 	int Addr ;
 	int Result ;
@@ -20572,9 +20642,11 @@ static void Graphics_Image_MakeGraph_ASync( ASYNCLOADDATA_COMMON *AParam )
 	SizeX = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
 	SizeY = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
 	NotUse3DFlag = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
+	UsePaletteFlag = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
+	PaletteBitDepth = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
 	AlphaValidFlag = GetASyncLoadParamInt( AParam->Data, &Addr ) ;
 
-	Result = Graphics_Image_MakeGraph_Static( GParam, GrHandle, SizeX, SizeY, NotUse3DFlag, AlphaValidFlag, TRUE ) ;
+	Result = Graphics_Image_MakeGraph_Static( GParam, GrHandle, SizeX, SizeY, NotUse3DFlag, UsePaletteFlag, PaletteBitDepth, AlphaValidFlag, TRUE ) ;
 
 	DecASyncLoadCount( GrHandle ) ;
 	if( Result < 0 )
@@ -20590,6 +20662,8 @@ extern int Graphics_Image_MakeGraph_UseGParam(
 	int SizeX,
 	int SizeY,
 	int NotUse3DFlag,
+	int UsePaletteFlag,
+	int PaletteBitDepth,
 	int ASyncLoadFlag,
 	int ASyncThread
 )
@@ -20618,6 +20692,8 @@ extern int Graphics_Image_MakeGraph_UseGParam(
 		AddASyncLoadParamInt( NULL, &Addr, SizeX ) ;
 		AddASyncLoadParamInt( NULL, &Addr, SizeY ) ;
 		AddASyncLoadParamInt( NULL, &Addr, NotUse3DFlag ) ;
+		AddASyncLoadParamInt( NULL, &Addr, UsePaletteFlag ) ;
+		AddASyncLoadParamInt( NULL, &Addr, PaletteBitDepth ) ;
 		AddASyncLoadParamInt( NULL, &Addr, GParam->AlphaChannelImageCreateFlag ) ;
 
 		// メモリの確保
@@ -20633,6 +20709,8 @@ extern int Graphics_Image_MakeGraph_UseGParam(
 		AddASyncLoadParamInt( AParam->Data, &Addr, SizeX ) ;
 		AddASyncLoadParamInt( AParam->Data, &Addr, SizeY ) ;
 		AddASyncLoadParamInt( AParam->Data, &Addr, NotUse3DFlag ) ;
+		AddASyncLoadParamInt( AParam->Data, &Addr, UsePaletteFlag ) ;
+		AddASyncLoadParamInt( AParam->Data, &Addr, PaletteBitDepth ) ;
 		AddASyncLoadParamInt( AParam->Data, &Addr, GParam->AlphaChannelImageCreateFlag ) ;
 
 		// データを追加
@@ -20649,7 +20727,7 @@ extern int Graphics_Image_MakeGraph_UseGParam(
 	else
 #endif // DX_NON_ASYNCLOAD
 	{
-		if( Graphics_Image_MakeGraph_Static( GParam, GrHandle, SizeX, SizeY, NotUse3DFlag, GParam->AlphaChannelImageCreateFlag, ASyncThread ) < 0 )
+		if( Graphics_Image_MakeGraph_Static( GParam, GrHandle, SizeX, SizeY, NotUse3DFlag, UsePaletteFlag, PaletteBitDepth, GParam->AlphaChannelImageCreateFlag, ASyncThread ) < 0 )
 		{
 			goto ERR ;
 		}
@@ -20707,7 +20785,7 @@ static int Graphics_Image_CreateGraph_Static(
 					wchar_t FullPath_WCHAR_T[ 1024 ] ;
 
 					ConvertFullPathW_( Param->FileName, FullPath_WCHAR_T ) ;
-					ConvString( ( const char * )FullPath_WCHAR_T, WCHAR_T_CODEPAGE, FullPath_UTF16LE, DX_CODEPAGE_UTF16LE ) ;
+					ConvString( ( const char * )FullPath_WCHAR_T, WCHAR_T_CHARCODEFORMAT, FullPath_UTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 
 					DXST_ERRORLOGFMT_ADDUTF16LE(( "\x3b\x75\xcf\x50\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x20\x00\x25\x00\x73\x00\x20\x00\x4c\x30\x42\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x00"/*@ L"画像ファイル %s がありません" @*/, FullPath_UTF16LE )) ;
 					return -1 ;
@@ -20725,7 +20803,7 @@ static int Graphics_Image_CreateGraph_Static(
 			return 0 ;
 #else	// DX_NON_MOVIE
 			{
-				ConvString( ( const char * )Param->FileName, WCHAR_T_CODEPAGE, FullPath_UTF16LE, DX_CODEPAGE_UTF16LE ) ;
+				ConvString( ( const char * )Param->FileName, WCHAR_T_CHARCODEFORMAT, FullPath_UTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x3b\x75\xcf\x50\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x20\x00\x25\x00\x73\x00\x20\x00\x6e\x30\xaa\x30\xfc\x30\xd7\x30\xf3\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"画像ファイル %s のオープンに失敗しました" @*/, FullPath_UTF16LE )) ;
 				return -1 ;
 			}
@@ -20966,7 +21044,7 @@ static int Graphics_Image_CreateDivGraph_Static(
 			char    FullPath_UTF16LE[ 2048 ] ;
 
 			ConvertFullPathW_( Param->FileName, FullPath_WCHAR_T ) ;
-			ConvString( ( const char * )FullPath_WCHAR_T, WCHAR_T_CODEPAGE, FullPath_UTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( ( const char * )FullPath_WCHAR_T, WCHAR_T_CHARCODEFORMAT, FullPath_UTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x3b\x75\xcf\x50\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x20\x00\x25\x00\x73\x00\x20\x00\x6e\x30\xed\x30\xfc\x30\xc9\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"画像ファイル %s のロードに失敗しました" @*/, FullPath_UTF16LE )) ;
 		}
@@ -21954,10 +22032,8 @@ extern void Graphics_Image_InitSetGraphBaseInfoGParam( SETGRAPHBASEINFO_GPARAM *
 extern void Graphics_Image_InitLoadGraphGParam( LOADGRAPH_GPARAM *GParam )
 {
 	InitLoadBaseImageGParam( &GParam->LoadBaseImageGParam, FALSE ) ;
-#ifndef DX_NON_DSHOW_MOVIE
 #ifndef DX_NON_MOVIE
 	Graphics_Image_InitOpenMovieGParam( &GParam->OpenMovieGParam ) ;
-#endif
 #endif
 	Graphics_Image_InitCreateGraphHandleAndBltGraphImageGParam( &GParam->CreateGraphGParam ) ;
 	Graphics_Image_InitSetGraphBaseInfoGParam( &GParam->SetGraphBaseInfoGParam ) ;

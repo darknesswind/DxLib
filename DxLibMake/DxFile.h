@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ファイルアクセスプログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -119,7 +119,7 @@ extern STREAMDATASHREDTYPE2W StreamFunctionW ;
 extern	int			InitializeFile( void ) ;														// ファイルアクセス処理の初期化
 extern	int			TerminateFile( void ) ;															// ファイルアクセス処理の後始末
 
-// ファイルアクセス関数
+// 読み込み専用ファイルアクセス関数
 extern	DWORD_PTR	ReadOnlyFileAccessOpen( const wchar_t *Path, int UseCacheFlag, int BlockReadFlag, int UseASyncReadFlag  ) ;
 extern	int			ReadOnlyFileAccessClose( DWORD_PTR Handle ) ;
 extern	LONGLONG	ReadOnlyFileAccessTell( DWORD_PTR Handle ) ;
@@ -132,6 +132,15 @@ extern	int			ReadOnlyFileAccessGetDir( wchar_t *Buffer ) ;
 extern	DWORD_PTR	ReadOnlyFileAccessFindFirst( const wchar_t *FilePath, FILEINFOW *Buffer ) ;				// 戻り値: -1=エラー  -1以外=FindHandle
 extern	int			ReadOnlyFileAccessFindNext( DWORD_PTR FindHandle, FILEINFOW *Buffer ) ;					// 戻り値: -1=エラー  0=成功
 extern	int			ReadOnlyFileAccessFindClose( DWORD_PTR FindHandle ) ;									// 戻り値: -1=エラー  0=成功
+
+// 書き込み専用ファイルアクセス関数
+extern	int			WriteOnlyFileAccessDelete( const wchar_t *Path ) ;
+extern	DWORD_PTR	WriteOnlyFileAccessOpen( const wchar_t *Path ) ;
+extern	DWORD_PTR	WriteOnlyFileAccessOpenWCHAR( const char *Path ) ; // Visual C++ 6.0 用に引数を char 型にしただけのもの
+extern	int			WriteOnlyFileAccessClose( DWORD_PTR Handle ) ;
+extern	int			WriteOnlyFileAccessSeek( DWORD_PTR Handle, LONGLONG SeekPoint, int SeekType ) ;
+extern	int			WriteOnlyFileAccessWrite( DWORD_PTR Handle, void *Buffer, size_t WriteSize, size_t *GetWriteSize = NULL ) ;
+extern	int			WriteOnlyFileAccessPrintf( DWORD_PTR Handle, const char *FormatString, ... ) ;
 
 // ストリームデータアクセス関数
 extern	DWORD_PTR	StreamOpen(  const wchar_t *Path, int UseCacheFlag, int BlockFlag, int UseASyncReadFlag ) ;
@@ -264,6 +273,12 @@ extern	int			ReadOnlyFileAccessFindFirst_PF(	FINDINFO *FindInfo, const wchar_t *
 extern	int			ReadOnlyFileAccessFindNext_PF(	FINDINFO *FindInfo, FILEINFOW *Buffer ) ;
 extern	int			ReadOnlyFileAccessFindClose_PF(	FINDINFO *FindInfo ) ;
 
+// 書き込み専用ファイルアクセス関数
+extern	int			WriteOnlyFileAccessDelete_PF( const wchar_t *Path ) ;
+extern	DWORD_PTR	WriteOnlyFileAccessOpen_PF(  const wchar_t *Path ) ;
+extern	int			WriteOnlyFileAccessClose_PF( DWORD_PTR Handle ) ;
+extern	int			WriteOnlyFileAccessSeek_PF(  DWORD_PTR Handle, LONGLONG SeekPoint, int SeekType ) ;
+extern	int			WriteOnlyFileAccessWrite_PF( DWORD_PTR Handle, void *Buffer, size_t WriteSize, size_t *GetWriteSize = NULL ) ;
 
 
 #ifdef DX_USE_NAMESPACE

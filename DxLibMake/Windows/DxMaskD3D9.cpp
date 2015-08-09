@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		マスク処理プログラム( Direct3D9 )
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -315,9 +315,10 @@ extern	int			Mask_D3D9_DrawBeginFunction_PF( RECT *Rect )
 // マスクを使用した描画の後に呼ぶ関数( ついでにサブバッファを使用した描画エリア機能を使用している場合の処理もいれてしまっているよ )
 extern	int			Mask_D3D9_DrawAfterFunction_PF( RECT *Rect )
 {
-	IMAGEDATA *Image ;
+	IMAGEDATA *MaskScreenImage = NULL ;
 	int UseZBufferFlag ;
-	VERTEX_2D Vert[ 4 ] ;
+//	VERTEX_2D Vert[ 4 ] ;
+	VERTEX_BLENDTEX_2D Vert[ 4 ] ;
 	GRAPHICS_HARDDATA_DIRECT3D9_BLENDINFO BlendInfo ;
 
 	// マスクを使用している場合としない場合で処理を分岐
@@ -326,8 +327,17 @@ extern	int			Mask_D3D9_DrawAfterFunction_PF( RECT *Rect )
 		return 0 ;
 	}
 
-	// 描画先の画像データアドレスを取得する
-	Image = Graphics_Image_GetData( GSYS.DrawSetting.TargetScreen[ 0 ] ) ;
+	// マスク用グラフィックハンドルが有効な場合はマスク用グラフィックハンドルの情報を取得する
+	if( MASKD.MaskScreenGraphHandle != 0 )
+	{
+		MaskScreenImage = Graphics_Image_GetData( MASKD.MaskScreenGraphHandle ) ;
+
+		// 既に無効になっていたら設定も 0 にする
+		if( MaskScreenImage == NULL )
+		{
+			MASKD.MaskScreenGraphHandle = 0 ;
+		}
+	}
 
 #if 1
 
@@ -351,60 +361,122 @@ extern	int			Mask_D3D9_DrawAfterFunction_PF( RECT *Rect )
 	GD3D9.Device.DrawSetting.CancelSettingEqualCheck = FALSE ;
 
 	// マスクアルファチャンネルとマスクカラーバッファを融合して描画
+
+	// マスクスクリーン用画像を使用している場合はアルファブレンド、使用していない場合はアルファテストを行う
 	_MEMSET( &BlendInfo, 0, sizeof( BlendInfo ) ) ;
-	BlendInfo.AlphaTestEnable          = TRUE ;
-	BlendInfo.AlphaRef                 = 0 ;
-//	BlendInfo.AlphaFunc                = MASKD.MaskReverseEffectFlag ? D_D3DCMP_GREATER : D_D3DCMP_LESS ;
-	BlendInfo.AlphaFunc                = MASKD.MaskReverseEffectFlag ? D_D3DCMP_NOTEQUAL : D_D3DCMP_EQUAL ;
-	BlendInfo.AlphaBlendEnable         = FALSE ;
-	BlendInfo.SeparateAlphaBlendEnable = FALSE ;
-	BlendInfo.FactorColor              = 0xffffffff ;
-	BlendInfo.SrcBlend                 = -1 ;
-	BlendInfo.DestBlend                = -1 ;
-	BlendInfo.BlendOp                  = -1 ;
-	BlendInfo.SrcBlendAlpha            = -1 ;
-	BlendInfo.DestBlendAlpha           = -1 ;
-	BlendInfo.BlendOpAlpha             = -1 ;
-	BlendInfo.UseTextureStageNum       = 3 ;
+	if( MaskScreenImage != NULL )
+	{
+		BlendInfo.AlphaTestEnable          = FALSE ;
+		BlendInfo.AlphaRef                 = 0 ;
+	//	BlendInfo.AlphaFunc                = MASKD.MaskReverseEffectFlag ? D_D3DCMP_GREATER : D_D3DCMP_LESS ;
+		BlendInfo.AlphaFunc                = MASKD.MaskReverseEffectFlag ? D_D3DCMP_NOTEQUAL : D_D3DCMP_EQUAL ;
+		BlendInfo.AlphaBlendEnable         = TRUE ;
+		BlendInfo.SeparateAlphaBlendEnable = FALSE ;
+		BlendInfo.FactorColor              = 0xffffffff ;
+		BlendInfo.SrcBlend                 = D_D3DBLEND_SRCALPHA ;
+		BlendInfo.DestBlend                = D_D3DBLEND_INVSRCALPHA ;
+		BlendInfo.BlendOp                  = D_D3DBLENDOP_ADD ;
+		BlendInfo.SrcBlendAlpha            = -1 ;
+		BlendInfo.DestBlendAlpha           = -1 ;
+		BlendInfo.BlendOpAlpha             = -1 ;
+		BlendInfo.UseTextureStageNum       = 3 ;
 
-	BlendInfo.TextureStageInfo[ 0 ].ResultTempARG     = -1 ;
-	BlendInfo.TextureStageInfo[ 0 ].Texture           = ( void * )MASKD3D9.MaskScreenTexture ;
-	BlendInfo.TextureStageInfo[ 0 ].TextureCoordIndex = 0 ;
-	BlendInfo.TextureStageInfo[ 0 ].AlphaARG1         = D_D3DTA_CURRENT ;
-	BlendInfo.TextureStageInfo[ 0 ].AlphaARG2         = -1 ;
-	BlendInfo.TextureStageInfo[ 0 ].AlphaOP           = D_D3DTOP_SELECTARG1 ;
-	BlendInfo.TextureStageInfo[ 0 ].ColorARG1         = D_D3DTA_TEXTURE ;
-	BlendInfo.TextureStageInfo[ 0 ].ColorARG2         = -1 ;
-	BlendInfo.TextureStageInfo[ 0 ].ColorOP           = D_D3DTOP_SELECTARG1 ;
+		BlendInfo.TextureStageInfo[ 0 ].ResultTempARG     = -1 ;
+		BlendInfo.TextureStageInfo[ 0 ].Texture           = ( void * )MASKD3D9.MaskScreenTexture ;
+		BlendInfo.TextureStageInfo[ 0 ].TextureCoordIndex = 0 ;
+		BlendInfo.TextureStageInfo[ 0 ].AlphaARG1         = D_D3DTA_CURRENT ;
+		BlendInfo.TextureStageInfo[ 0 ].AlphaARG2         = -1 ;
+		BlendInfo.TextureStageInfo[ 0 ].AlphaOP           = D_D3DTOP_SELECTARG1 ;
+		BlendInfo.TextureStageInfo[ 0 ].ColorARG1         = D_D3DTA_TEXTURE ;
+		BlendInfo.TextureStageInfo[ 0 ].ColorARG2         = -1 ;
+		BlendInfo.TextureStageInfo[ 0 ].ColorOP           = D_D3DTOP_SELECTARG1 ;
 
-	BlendInfo.TextureStageInfo[ 1 ].ResultTempARG     = -1 ;
-	BlendInfo.TextureStageInfo[ 1 ].Texture           = ( void * )MASKD3D9.MaskImageTexture ;
-	BlendInfo.TextureStageInfo[ 1 ].TextureCoordIndex = 0 ;
-	BlendInfo.TextureStageInfo[ 1 ].AlphaARG1         = D_D3DTA_TEXTURE ;
-	BlendInfo.TextureStageInfo[ 1 ].AlphaARG2         = -1 ;
-	BlendInfo.TextureStageInfo[ 1 ].AlphaOP           = D_D3DTOP_SELECTARG1 ;
-	BlendInfo.TextureStageInfo[ 1 ].ColorARG1         = D_D3DTA_CURRENT ;
-	BlendInfo.TextureStageInfo[ 1 ].ColorARG2         = -1 ;
-	BlendInfo.TextureStageInfo[ 1 ].ColorOP           = D_D3DTOP_SELECTARG1 ;
+		BlendInfo.TextureStageInfo[ 1 ].ResultTempARG     = -1 ;
+		BlendInfo.TextureStageInfo[ 1 ].Texture           = ( void * )( MaskScreenImage != NULL ? MaskScreenImage->Hard.Draw[ 0 ].Tex->PF->D3D9.Texture : MASKD3D9.MaskImageTexture ) ;
+		BlendInfo.TextureStageInfo[ 1 ].TextureCoordIndex = 1 ;
+		if( MASKD.MaskReverseEffectFlag )
+		{
+			BlendInfo.TextureStageInfo[ 1 ].AlphaARG1         = D_D3DTA_TEXTURE ;
+			BlendInfo.TextureStageInfo[ 1 ].AlphaARG2         = -1 ;
+			BlendInfo.TextureStageInfo[ 1 ].AlphaOP           = D_D3DTOP_SELECTARG1 ;
+		}
+		else
+		{
+			BlendInfo.TextureStageInfo[ 1 ].AlphaARG1         = D_D3DTA_TFACTOR ;
+			BlendInfo.TextureStageInfo[ 1 ].AlphaARG2         = D_D3DTA_TEXTURE ;
+			BlendInfo.TextureStageInfo[ 1 ].AlphaOP           = D_D3DTOP_SUBTRACT ;
+		}
+		BlendInfo.TextureStageInfo[ 1 ].ColorARG1         = D_D3DTA_CURRENT ;
+		BlendInfo.TextureStageInfo[ 1 ].ColorARG2         = -1 ;
+		BlendInfo.TextureStageInfo[ 1 ].ColorOP           = D_D3DTOP_SELECTARG1 ;
 
-	BlendInfo.TextureStageInfo[ 2 ].ResultTempARG     = -1 ;
-	BlendInfo.TextureStageInfo[ 2 ].Texture           = NULL ;
-	BlendInfo.TextureStageInfo[ 2 ].TextureCoordIndex = 0 ;
-	BlendInfo.TextureStageInfo[ 2 ].ColorARG1         = D_D3DTA_TEXTURE ;
-	BlendInfo.TextureStageInfo[ 2 ].ColorARG2         = D_D3DTA_DIFFUSE ;
-	BlendInfo.TextureStageInfo[ 2 ].ColorOP           = D_D3DTOP_DISABLE ;
-	BlendInfo.TextureStageInfo[ 2 ].AlphaARG1         = D_D3DTA_TEXTURE ;
-	BlendInfo.TextureStageInfo[ 2 ].AlphaARG2         = D_D3DTA_DIFFUSE ;
-	BlendInfo.TextureStageInfo[ 2 ].AlphaOP           = D_D3DTOP_DISABLE ;
+		BlendInfo.TextureStageInfo[ 2 ].ResultTempARG     = -1 ;
+		BlendInfo.TextureStageInfo[ 2 ].Texture           = NULL ;
+		BlendInfo.TextureStageInfo[ 2 ].TextureCoordIndex = 0 ;
+		BlendInfo.TextureStageInfo[ 2 ].ColorARG1         = D_D3DTA_TEXTURE ;
+		BlendInfo.TextureStageInfo[ 2 ].ColorARG2         = D_D3DTA_DIFFUSE ;
+		BlendInfo.TextureStageInfo[ 2 ].ColorOP           = D_D3DTOP_DISABLE ;
+		BlendInfo.TextureStageInfo[ 2 ].AlphaARG1         = D_D3DTA_TEXTURE ;
+		BlendInfo.TextureStageInfo[ 2 ].AlphaARG2         = D_D3DTA_DIFFUSE ;
+		BlendInfo.TextureStageInfo[ 2 ].AlphaOP           = D_D3DTOP_DISABLE ;
+	}
+	else
+	{
+		BlendInfo.AlphaTestEnable          = TRUE ;
+		BlendInfo.AlphaRef                 = 0 ;
+	//	BlendInfo.AlphaFunc                = MASKD.MaskReverseEffectFlag ? D_D3DCMP_GREATER : D_D3DCMP_LESS ;
+		BlendInfo.AlphaFunc                = MASKD.MaskReverseEffectFlag ? D_D3DCMP_NOTEQUAL : D_D3DCMP_EQUAL ;
+		BlendInfo.AlphaBlendEnable         = FALSE ;
+		BlendInfo.SeparateAlphaBlendEnable = FALSE ;
+		BlendInfo.FactorColor              = 0xffffffff ;
+		BlendInfo.SrcBlend                 = -1 ;
+		BlendInfo.DestBlend                = -1 ;
+		BlendInfo.BlendOp                  = -1 ;
+		BlendInfo.SrcBlendAlpha            = -1 ;
+		BlendInfo.DestBlendAlpha           = -1 ;
+		BlendInfo.BlendOpAlpha             = -1 ;
+		BlendInfo.UseTextureStageNum       = 3 ;
+
+		BlendInfo.TextureStageInfo[ 0 ].ResultTempARG     = -1 ;
+		BlendInfo.TextureStageInfo[ 0 ].Texture           = ( void * )MASKD3D9.MaskScreenTexture ;
+		BlendInfo.TextureStageInfo[ 0 ].TextureCoordIndex = 0 ;
+		BlendInfo.TextureStageInfo[ 0 ].AlphaARG1         = D_D3DTA_CURRENT ;
+		BlendInfo.TextureStageInfo[ 0 ].AlphaARG2         = -1 ;
+		BlendInfo.TextureStageInfo[ 0 ].AlphaOP           = D_D3DTOP_SELECTARG1 ;
+		BlendInfo.TextureStageInfo[ 0 ].ColorARG1         = D_D3DTA_TEXTURE ;
+		BlendInfo.TextureStageInfo[ 0 ].ColorARG2         = -1 ;
+		BlendInfo.TextureStageInfo[ 0 ].ColorOP           = D_D3DTOP_SELECTARG1 ;
+
+		BlendInfo.TextureStageInfo[ 1 ].ResultTempARG     = -1 ;
+		BlendInfo.TextureStageInfo[ 1 ].Texture           = ( void * )( MaskScreenImage != NULL ? MaskScreenImage->Hard.Draw[ 0 ].Tex->PF->D3D9.Texture : MASKD3D9.MaskImageTexture ) ;
+		BlendInfo.TextureStageInfo[ 1 ].TextureCoordIndex = 1 ;
+		BlendInfo.TextureStageInfo[ 1 ].AlphaARG1         = D_D3DTA_TEXTURE ;
+		BlendInfo.TextureStageInfo[ 1 ].AlphaARG2         = -1 ;
+		BlendInfo.TextureStageInfo[ 1 ].AlphaOP           = D_D3DTOP_SELECTARG1 ;
+		BlendInfo.TextureStageInfo[ 1 ].ColorARG1         = D_D3DTA_CURRENT ;
+		BlendInfo.TextureStageInfo[ 1 ].ColorARG2         = -1 ;
+		BlendInfo.TextureStageInfo[ 1 ].ColorOP           = D_D3DTOP_SELECTARG1 ;
+
+		BlendInfo.TextureStageInfo[ 2 ].ResultTempARG     = -1 ;
+		BlendInfo.TextureStageInfo[ 2 ].Texture           = NULL ;
+		BlendInfo.TextureStageInfo[ 2 ].TextureCoordIndex = 0 ;
+		BlendInfo.TextureStageInfo[ 2 ].ColorARG1         = D_D3DTA_TEXTURE ;
+		BlendInfo.TextureStageInfo[ 2 ].ColorARG2         = D_D3DTA_DIFFUSE ;
+		BlendInfo.TextureStageInfo[ 2 ].ColorOP           = D_D3DTOP_DISABLE ;
+		BlendInfo.TextureStageInfo[ 2 ].AlphaARG1         = D_D3DTA_TEXTURE ;
+		BlendInfo.TextureStageInfo[ 2 ].AlphaARG2         = D_D3DTA_DIFFUSE ;
+		BlendInfo.TextureStageInfo[ 2 ].AlphaOP           = D_D3DTOP_DISABLE ;
+	}
 
 	// ブレンド情報の変更
-	Graphics_D3D9_DeviceState_SetUserBlendInfo( &BlendInfo, FALSE, FALSE ) ;
+	Graphics_D3D9_DeviceState_SetUserBlendInfo( &BlendInfo, FALSE, FALSE, FALSE ) ;
 
 	// シェーダーを使用する場合はここでピクセルシェーダーを設定する
-	if( GSYS.HardInfo.UseShader && GD3D9.NormalDraw_NotUsePixelShader == FALSE )
-	{
-		Graphics_D3D9_DeviceState_SetPixelShader( GD3D9.Device.Shader._2D.MaskEffectPixelShader ) ;
-	}
+//	if( GSYS.HardInfo.UseShader && GD3D9.NormalDraw_NotUsePixelShader == FALSE )
+//	{
+//		Graphics_D3D9_DeviceState_SetPixelShader( GD3D9.Device.Shader._2D.MaskEffectPixelShader ) ;
+//	}
+
 
 	// 描画準備
 	Graphics_D3D9_BeginScene() ;
@@ -416,15 +488,35 @@ extern	int			Mask_D3D9_DrawAfterFunction_PF( RECT *Rect )
 	Vert[ 3 ].pos.x = Vert[ 1 ].pos.x = ( float )Rect->right  - 0.5f ;
 	Vert[ 3 ].pos.y = Vert[ 2 ].pos.y = ( float )Rect->bottom - 0.5f ;
 
-	Vert[ 2 ].u = Vert[ 0 ].u = ( float )Rect->left   / ( float )MASKD3D9.MaskTextureSizeX ;
-	Vert[ 1 ].v = Vert[ 0 ].v = ( float )Rect->top    / ( float )MASKD3D9.MaskTextureSizeY ;
-	Vert[ 3 ].u = Vert[ 1 ].u = ( float )Rect->right  / ( float )MASKD3D9.MaskTextureSizeX ;
-	Vert[ 3 ].v = Vert[ 2 ].v = ( float )Rect->bottom / ( float )MASKD3D9.MaskTextureSizeY ;
+	Vert[ 2 ].u1 = Vert[ 0 ].u1 = ( float )Rect->left   / ( float )MASKD3D9.MaskTextureSizeX ;
+	Vert[ 1 ].v1 = Vert[ 0 ].v1 = ( float )Rect->top    / ( float )MASKD3D9.MaskTextureSizeY ;
+	Vert[ 3 ].u1 = Vert[ 1 ].u1 = ( float )Rect->right  / ( float )MASKD3D9.MaskTextureSizeX ;
+	Vert[ 3 ].v1 = Vert[ 2 ].v1 = ( float )Rect->bottom / ( float )MASKD3D9.MaskTextureSizeY ;
+
+	if( MaskScreenImage != NULL )
+	{
+		Vert[ 2 ].u2 = Vert[ 0 ].u2 = ( float )Rect->left   / ( float )MaskScreenImage->Hard.Draw[ 0 ].Tex->TexWidth ;
+		Vert[ 1 ].v2 = Vert[ 0 ].v2 = ( float )Rect->top    / ( float )MaskScreenImage->Hard.Draw[ 0 ].Tex->TexHeight ;
+		Vert[ 3 ].u2 = Vert[ 1 ].u2 = ( float )Rect->right  / ( float )MaskScreenImage->Hard.Draw[ 0 ].Tex->TexWidth ;
+		Vert[ 3 ].v2 = Vert[ 2 ].v2 = ( float )Rect->bottom / ( float )MaskScreenImage->Hard.Draw[ 0 ].Tex->TexHeight ;
+	}
+	else
+	{
+		Vert[ 2 ].u2 = Vert[ 0 ].u2 = Vert[ 0 ].u1 ;
+		Vert[ 1 ].v2 = Vert[ 0 ].v2 = Vert[ 0 ].v1 ;
+		Vert[ 3 ].u2 = Vert[ 1 ].u2 = Vert[ 1 ].u1 ;
+		Vert[ 3 ].v2 = Vert[ 2 ].v2 = Vert[ 2 ].v1 ;
+	}
 
 	Vert[ 0 ].color =
 	Vert[ 1 ].color =
 	Vert[ 2 ].color =
 	Vert[ 3 ].color = 0xffffffff ;
+
+	Vert[ 0 ].specular =
+	Vert[ 1 ].specular =
+	Vert[ 2 ].specular =
+	Vert[ 3 ].specular = 0 ;
 
 	Vert[ 0 ].pos.z = 
 	Vert[ 1 ].pos.z = 
@@ -437,16 +529,17 @@ extern	int			Mask_D3D9_DrawAfterFunction_PF( RECT *Rect )
 	Vert[ 3 ].rhw = 1.0f ;
 
 	// 描画
-	Graphics_D3D9_DeviceState_SetFVF( VERTEXFVF_2D ) ;
-	Direct3DDevice9_DrawPrimitiveUP( D_D3DPT_TRIANGLESTRIP, 2, Vert, sizeof( VERTEX_2D ) ) ;
+//	Graphics_D3D9_DeviceState_SetFVF( VERTEXFVF_2D ) ;
+	Graphics_D3D9_DeviceState_SetFVF( VERTEXFVF_BLENDTEX_2D ) ;
+	Direct3DDevice9_DrawPrimitiveUP( D_D3DPT_TRIANGLESTRIP, 2, Vert, sizeof( VERTEX_BLENDTEX_2D /* VERTEX_2D */ ) ) ;
 	Graphics_D3D9_EndScene() ;
 	Graphics_D3D9_BeginScene() ;
 
 	// シェーダーを使用する場合はここでピクセルシェーダーを無効にする
-	if( GSYS.HardInfo.UseShader && GD3D9.NormalDraw_NotUsePixelShader == FALSE )
-	{
-		Graphics_D3D9_DeviceState_ResetPixelShader() ;
-	}
+//	if( GSYS.HardInfo.UseShader && GD3D9.NormalDraw_NotUsePixelShader == FALSE )
+//	{
+//		Graphics_D3D9_DeviceState_ResetPixelShader() ;
+//	}
 
 	// Ｚバッファの設定を元に戻す
 	Graphics_D3D9_DeviceState_SetZEnable( UseZBufferFlag ) ;

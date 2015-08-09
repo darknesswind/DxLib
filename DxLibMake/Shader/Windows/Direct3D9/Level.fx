@@ -1,4 +1,4 @@
-﻿float4 Min_LenRev_AfterMin_AfterMax : register( c0 ) ;
+float4 Min_LenRev_AfterMin_AfterMax : register( c0 ) ;
 
 sampler SrcTexture   : register( s0 ) ;
 sampler GammaTexture : register( s1 ) ;

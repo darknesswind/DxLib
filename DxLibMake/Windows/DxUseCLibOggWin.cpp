@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		Windows用Ogg関係プログラム
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -123,6 +123,7 @@ extern	const void *TheoraDecode_GetYUVImage_PF( DECODE_THEORA *DT )
 }
 
 // デコードスレッド
+/*
 DWORD WINAPI TheoraDecode_Thread( LPVOID Data )
 {
 	DECODE_THEORA *DT = ( DECODE_THEORA * )Data ;
@@ -135,6 +136,13 @@ DWORD WINAPI TheoraDecode_Thread( LPVOID Data )
 	// 終了
 	return 0 ;
 }
+*/
+void TheoraDecode_Thread( THREAD_INFO *pThreadInfo, void *ASyncLoadThreadData )
+{
+	DECODE_THEORA *DT = ( DECODE_THEORA * )ASyncLoadThreadData ;
+
+	while( TheoraDecode_Thread_LoopProcess( DT ) != 2 ){}
+}
 
 // Ogg Theora の読み込み処理の準備を行う処理の環境依存処理を行う関数
 extern int TheoraDecode_InitializeStream_PF( DECODE_THEORA *DT )
@@ -143,11 +151,21 @@ extern int TheoraDecode_InitializeStream_PF( DECODE_THEORA *DT )
 	DT->ThreadStopRequest = 1 ;
 	DT->ThreadState = THEORAT_STATE_IDLE ;
 	DT->ThreadStandbyTime = NS_GetNowCount() ;
-	DT->DecodeThreadHandle = CreateThread( NULL, 0, TheoraDecode_Thread, DT, 0, ( LPDWORD )&DT->DecodeThreadID ) ;
-	if( DT->DecodeThreadHandle == NULL )
+//	DT->DecodeThreadHandle = CreateThread( NULL, 0, TheoraDecode_Thread, DT, 0, ( LPDWORD )&DT->DecodeThreadID ) ;
+//	if( DT->DecodeThreadHandle == NULL )
+//	{
+//		DXST_ERRORLOG_ADDA( "Theora \x83\x80\x81\x5b\x83\x72\x81\x5b\x83\x66\x83\x52\x81\x5b\x83\x68\x97\x70\x83\x58\x83\x8c\x83\x62\x83\x68\x82\xcc\x8d\xec\x90\xac\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\n"/*@ "Theora ムービーデコード用スレッドの作成に失敗しました\n" @*/ );
+//		return -1 ;
+//	}
+	if( Thread_Create( &DT->DecodeThreadInfo, TheoraDecode_Thread, DT ) == -1 )
 	{
 		DXST_ERRORLOG_ADDA( "Theora \x83\x80\x81\x5b\x83\x72\x81\x5b\x83\x66\x83\x52\x81\x5b\x83\x68\x97\x70\x83\x58\x83\x8c\x83\x62\x83\x68\x82\xcc\x8d\xec\x90\xac\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\n"/*@ "Theora ムービーデコード用スレッドの作成に失敗しました\n" @*/ );
 		return -1 ;
+	}
+//	Thread_SetPriority( &DT->DecodeThreadInfo, DX_THREAD_PRIORITY_NORMAL ) ;
+	while( Thread_Resume( &DT->DecodeThreadInfo ) != 1 )
+	{
+		Thread_Sleep( 0 ) ;
 	}
 
 	return 0 ;

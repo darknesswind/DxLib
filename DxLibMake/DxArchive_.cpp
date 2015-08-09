@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		アーカイブ制御プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -160,8 +160,8 @@ static DXARC_FILEHEAD_VER5 *DXA_GetFileHeaderV5( DXARC *DXA, const BYTE *FilePat
 	OldDir = DXA->CurrentDirectoryV5 ;
 
 	// ファイルパスに \ or / が含まれている場合、ディレクトリ変更を行う
-	if( CL_strchr( DXA->CodePage, ( const char * )FilePath, '\\' ) != NULL ||
-		CL_strchr( DXA->CodePage, ( const char * )FilePath, '/'  ) != NULL )
+	if( CL_strchr( DXA->CharCodeFormat, ( const char * )FilePath, '\\' ) != NULL ||
+		CL_strchr( DXA->CharCodeFormat, ( const char * )FilePath, '/'  ) != NULL )
 	{
 		// カレントディレクトリを目的のファイルがあるディレクトリに変更する
 		if( DXA_ChangeCurrentDirectoryBase( DXA, FilePath, false, &SearchData ) >= 0 )
@@ -247,8 +247,8 @@ static DXARC_FILEHEAD *DXA_GetFileHeader( DXARC *DXA, const BYTE *FilePath )
 	OldDir = DXA->CurrentDirectory ;
 
 	// ファイルパスに \ or / が含まれている場合、ディレクトリ変更を行う
-	if( CL_strchr( DXA->CodePage, ( const char * )FilePath, '\\' ) != NULL ||
-		CL_strchr( DXA->CodePage, ( const char * )FilePath, '/'  ) != NULL )
+	if( CL_strchr( DXA->CharCodeFormat, ( const char * )FilePath, '\\' ) != NULL ||
+		CL_strchr( DXA->CharCodeFormat, ( const char * )FilePath, '/'  ) != NULL )
 	{
 		// カレントディレクトリを目的のファイルがあるディレクトリに変更する
 		if( DXA_ChangeCurrentDirectoryBase( DXA, FilePath, false, &SearchData ) >= 0 )
@@ -334,7 +334,7 @@ static int DXA_ConvSearchData( DXARC *DXA, DXARC_SEARCHDATA *Dest, const BYTE *S
 	i          = 0 ;
 	for(;;)
 	{
-		CharCode = GetCharCode( ( const char * )&Src[ i ], DXA->CodePage, &CharBytes ) ;
+		CharCode = GetCharCode( ( const char * )&Src[ i ], DXA->CharCodeFormat, &CharBytes ) ;
 		if( CharCode == '\0' || CharCode == '\\' || CharCode == '/' )
 		{
 			break ;
@@ -344,7 +344,7 @@ static int DXA_ConvSearchData( DXARC *DXA, DXARC_SEARCHDATA *Dest, const BYTE *S
 		if( CharCode >= 'a' && CharCode <= 'z' )
 		{
 			CharCode = CharCode - 'a' + 'A' ;
-			PutCharCode( CharCode, DXA->CodePage, ( char * )&Dest->FileName[ i ] ) ;
+			PutCharCode( CharCode, DXA->CharCodeFormat, ( char * )&Dest->FileName[ i ] ) ;
 
 			switch( CharBytes )
 			{
@@ -436,7 +436,7 @@ void DXA_KeyCreate( const char *Source, unsigned char *Key )
 	}
 	else
 	{
-		Len = ( size_t )CL_strlen( DX_CODEPAGE_ASCII, Source ) ;
+		Len = ( size_t )CL_strlen( DX_CHARCODEFORMAT_ASCII, Source ) ;
 		if( Len > DXA_KEYSTR_LENGTH )
 		{
 			_MEMCPY( Key, Source, DXA_KEYSTR_LENGTH ) ;
@@ -718,8 +718,8 @@ static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFOW *FileInfo )
 	nameTable = DXA->Table.NameTable;
 	str       = FindData->SearchStr;
 
-	ConvString( ( const char * )Ascii_DotStr,       DX_CODEPAGE_ASCII, ( char * )DotStr,       DXA->CodePage ) ;
-	ConvString( ( const char * )Ascii_DoubleDotStr, DX_CODEPAGE_ASCII, ( char * )DoubleDotStr, DXA->CodePage ) ;
+	ConvString( ( const char * )Ascii_DotStr,       DX_CHARCODEFORMAT_ASCII, ( char * )DotStr,       DXA->CharCodeFormat ) ;
+	ConvString( ( const char * )Ascii_DoubleDotStr, DX_CHARCODEFORMAT_ASCII, ( char * )DoubleDotStr, DXA->CharCodeFormat ) ;
 
 	if( DXA->V5Flag )
 	{
@@ -784,11 +784,11 @@ static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFOW *FileInfo )
 				{
 				default :
 				case 0 :
-					CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )DotStr  ) ;
+					CL_strcpy( DXA->CharCodeFormat, ( char * )TempName, ( const char * )DotStr  ) ;
 					break ;
 
 				case 1 :
-					CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )DoubleDotStr ) ;
+					CL_strcpy( DXA->CharCodeFormat, ( char * )TempName, ( const char * )DoubleDotStr ) ;
 					break ;
 				}
 				FileInfo->DirFlag = 1 ;
@@ -799,7 +799,7 @@ static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFOW *FileInfo )
 			else
 			{
 				name = ( BYTE * )( nameTable + file->NameAddress ) ;
-				CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )( name + ( ( WORD * )name )[ 0 ] * 4 + 4 ) ) ;
+				CL_strcpy( DXA->CharCodeFormat, ( char * )TempName, ( const char * )( name + ( ( WORD * )name )[ 0 ] * 4 + 4 ) ) ;
 				FileInfo->DirFlag = ( file->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 ? TRUE : FALSE ;
 				FileInfo->Size    = ( LONGLONG )file->DataSize ;
 #ifdef __WINDOWS__
@@ -811,7 +811,7 @@ static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFOW *FileInfo )
 #endif // __WINDOWS__
 			}
 
-			ConvString( ( const char * )TempName, DXA->CodePage, ( char * )FileInfo->Name, WCHAR_T_CODEPAGE ) ;
+			ConvString( ( const char * )TempName, DXA->CharCodeFormat, ( char * )FileInfo->Name, WCHAR_T_CHARCODEFORMAT ) ;
 		}
 	}
 	else
@@ -876,11 +876,11 @@ static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFOW *FileInfo )
 				{
 				default :
 				case 0:
-					CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )DotStr       ) ;
+					CL_strcpy( DXA->CharCodeFormat, ( char * )TempName, ( const char * )DotStr       ) ;
 					break ;
 
 				case 1 :
-					CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )DoubleDotStr ) ;
+					CL_strcpy( DXA->CharCodeFormat, ( char * )TempName, ( const char * )DoubleDotStr ) ;
 					break ;
 				}
 				FileInfo->DirFlag = 1 ;
@@ -891,7 +891,7 @@ static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFOW *FileInfo )
 			else
 			{
 				name = ( BYTE * )( nameTable + file->NameAddress ) ;
-				CL_strcpy( DXA->CodePage, ( char * )TempName, ( const char * )( name + ( ( WORD * )name )[ 0 ] * 4 + 4 ) ) ;
+				CL_strcpy( DXA->CharCodeFormat, ( char * )TempName, ( const char * )( name + ( ( WORD * )name )[ 0 ] * 4 + 4 ) ) ;
 				FileInfo->DirFlag = ( file->Attributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 ? TRUE : FALSE ;
 				FileInfo->Size    = ( LONGLONG)file->DataSize ;
 #ifdef __WINDOWS__
@@ -903,7 +903,7 @@ static int DXA_FindProcess( DXA_FINDDATA *FindData, FILEINFOW *FileInfo )
 #endif // __WINDOWS__
 			}
 
-			ConvString( ( const char * )TempName, DXA->CodePage, ( char * )FileInfo->Name, WCHAR_T_CODEPAGE ) ;
+			ConvString( ( const char * )TempName, DXA->CharCodeFormat, ( char * )FileInfo->Name, WCHAR_T_CHARCODEFORMAT ) ;
 		}
 	}
 
@@ -1133,7 +1133,7 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 	{
 		DXA->V5Flag = FALSE ;
 
-		DXA->Head.CodePage = 0 ;
+		DXA->Head.CharCodeFormat = 0 ;
 
 		// ヘッダを解析する
 		{
@@ -1152,23 +1152,23 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 				goto ERR ;
 			}
 
-			// コードページをセット
-			switch( DXA->Head.CodePage )
+			// 文字コード形式をセット
+			switch( DXA->Head.CharCodeFormat )
 			{
-			case DX_CODEPAGE_UHC :
-			case DX_CODEPAGE_BIG5 :
-			case DX_CODEPAGE_GB2312 :
-			case DX_CODEPAGE_SHIFTJIS :
-			case DX_CODEPAGE_UTF16LE :
-			case DX_CODEPAGE_UTF16BE :
-			case DX_CODEPAGE_UTF8 :
-			case DX_CODEPAGE_UTF32LE :
-			case DX_CODEPAGE_UTF32BE :
-				DXA->CodePage = ( int )DXA->Head.CodePage ;
+			case DX_CHARCODEFORMAT_UHC :
+			case DX_CHARCODEFORMAT_BIG5 :
+			case DX_CHARCODEFORMAT_GB2312 :
+			case DX_CHARCODEFORMAT_SHIFTJIS :
+			case DX_CHARCODEFORMAT_UTF16LE :
+			case DX_CHARCODEFORMAT_UTF16BE :
+			case DX_CHARCODEFORMAT_UTF8 :
+			case DX_CHARCODEFORMAT_UTF32LE :
+			case DX_CHARCODEFORMAT_UTF32BE :
+				DXA->CharCodeFormat = ( int )DXA->Head.CharCodeFormat ;
 				break ;
 
 			default :
-				DXA->CodePage = DX_CHARSET_SHFTJIS ;
+				DXA->CharCodeFormat = DX_CHARSET_SHFTJIS ;
 				break ;
 			}
 
@@ -1228,22 +1228,22 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 			{
 				_MEMCPY( &DXA->HeadV5, ArchiveImage, DXARC_HEAD_VER4_SIZE ) ;
 				DXA_KeyConv( &DXA->HeadV5, DXARC_HEAD_VER4_SIZE, 0, DXA->Key ) ;
-				switch( DXA->HeadV5.CodePage )
+				switch( DXA->HeadV5.CharCodeFormat )
 				{
-				case DX_CODEPAGE_UHC :
-				case DX_CODEPAGE_BIG5 :
-				case DX_CODEPAGE_GB2312 :
-				case DX_CODEPAGE_SHIFTJIS :
-				case DX_CODEPAGE_UTF16LE :
-				case DX_CODEPAGE_UTF16BE :
-				case DX_CODEPAGE_UTF8 :
-				case DX_CODEPAGE_UTF32LE :
-				case DX_CODEPAGE_UTF32BE :
-					DXA->CodePage = ( int )DXA->HeadV5.CodePage ;
+				case DX_CHARCODEFORMAT_UHC :
+				case DX_CHARCODEFORMAT_BIG5 :
+				case DX_CHARCODEFORMAT_GB2312 :
+				case DX_CHARCODEFORMAT_SHIFTJIS :
+				case DX_CHARCODEFORMAT_UTF16LE :
+				case DX_CHARCODEFORMAT_UTF16BE :
+				case DX_CHARCODEFORMAT_UTF8 :
+				case DX_CHARCODEFORMAT_UTF32LE :
+				case DX_CHARCODEFORMAT_UTF32BE :
+					DXA->CharCodeFormat = ( int )DXA->HeadV5.CharCodeFormat ;
 					break ;
 
 				default :
-					DXA->CodePage = DX_CHARSET_SHFTJIS ;
+					DXA->CharCodeFormat = DX_CHARSET_SHFTJIS ;
 					break ;
 				}
 			}
@@ -1252,8 +1252,8 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 				_MEMCPY( &DXA->HeadV5, ArchiveImage, DXARC_HEAD_VER3_SIZE ) ;
 				DXA_KeyConv( &DXA->HeadV5, DXARC_HEAD_VER3_SIZE, 0, DXA->Key ) ;
 
-				DXA->HeadV5.CodePage = DX_CHARSET_SHFTJIS ;
-				DXA->CodePage        = DX_CHARSET_SHFTJIS ;
+				DXA->HeadV5.CharCodeFormat = DX_CHARSET_SHFTJIS ;
+				DXA->CharCodeFormat        = DX_CHARSET_SHFTJIS ;
 			}
 
 			// 情報テーブルのサイズ分のメモリを確保する
@@ -1309,37 +1309,37 @@ extern int DXA_OpenArchiveFromMem( DXARC *DXA, void *ArchiveImage, int ArchiveSi
 					goto ERR ;
 				}
 
-				// バージョンが 4以上だったらコードページを読み込む
+				// バージョンが 4以上だったら文字コード形式を読み込む
 				if( DXA->HeadV5.Version >= 0x0004 )
 				{
-					DXA->HeadV5.CodePage = *( ( DWORD * )datp ) ;
+					DXA->HeadV5.CharCodeFormat = *( ( DWORD * )datp ) ;
 					if( DXA->HeadV5.Version >= 0x0005 )
 					{
-						DXA_KeyConv( &DXA->HeadV5.CodePage, 4, DXARC_HEAD_VER3_SIZE, DXA->Key ) ;
+						DXA_KeyConv( &DXA->HeadV5.CharCodeFormat, 4, DXARC_HEAD_VER3_SIZE, DXA->Key ) ;
 					}
-					switch( DXA->HeadV5.CodePage )
+					switch( DXA->HeadV5.CharCodeFormat )
 					{
-					case DX_CODEPAGE_UHC :
-					case DX_CODEPAGE_BIG5 :
-					case DX_CODEPAGE_GB2312 :
-					case DX_CODEPAGE_SHIFTJIS :
-					case DX_CODEPAGE_UTF16LE :
-					case DX_CODEPAGE_UTF16BE :
-					case DX_CODEPAGE_UTF8 :
-					case DX_CODEPAGE_UTF32LE :
-					case DX_CODEPAGE_UTF32BE :
-						DXA->CodePage = ( int )DXA->HeadV5.CodePage ;
+					case DX_CHARCODEFORMAT_UHC :
+					case DX_CHARCODEFORMAT_BIG5 :
+					case DX_CHARCODEFORMAT_GB2312 :
+					case DX_CHARCODEFORMAT_SHIFTJIS :
+					case DX_CHARCODEFORMAT_UTF16LE :
+					case DX_CHARCODEFORMAT_UTF16BE :
+					case DX_CHARCODEFORMAT_UTF8 :
+					case DX_CHARCODEFORMAT_UTF32LE :
+					case DX_CHARCODEFORMAT_UTF32BE :
+						DXA->CharCodeFormat = ( int )DXA->HeadV5.CharCodeFormat ;
 						break ;
 
 					default :
-						DXA->CodePage = DX_CHARSET_SHFTJIS ;
+						DXA->CharCodeFormat = DX_CHARSET_SHFTJIS ;
 						break ;
 					}
 				}
 				else
 				{
-					DXA->HeadV5.CodePage = DX_CHARSET_SHFTJIS ;
-					DXA->CodePage        = DX_CHARSET_SHFTJIS ;
+					DXA->HeadV5.CharCodeFormat = DX_CHARSET_SHFTJIS ;
+					DXA->CharCodeFormat        = DX_CHARSET_SHFTJIS ;
 				}
 
 				// 情報テーブルのアドレスをセットする
@@ -1519,22 +1519,22 @@ extern int DXA_OpenArchiveFromFileUseMem( DXARC *DXA, const wchar_t *ArchivePath
 
 		// バージョンが４以上かどうかで読み込む残りのヘッダサイズを変更
 		DXA_KeyConvFileRead( ( BYTE * )&DXA->Head + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER6_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
-		switch( DXA->Head.CodePage )
+		switch( DXA->Head.CharCodeFormat )
 		{
-		case DX_CODEPAGE_UHC :
-		case DX_CODEPAGE_BIG5 :
-		case DX_CODEPAGE_GB2312 :
-		case DX_CODEPAGE_SHIFTJIS :
-		case DX_CODEPAGE_UTF16LE :
-		case DX_CODEPAGE_UTF16BE :
-		case DX_CODEPAGE_UTF8 :
-		case DX_CODEPAGE_UTF32LE :
-		case DX_CODEPAGE_UTF32BE :
-			DXA->CodePage = ( int )DXA->Head.CodePage ;
+		case DX_CHARCODEFORMAT_UHC :
+		case DX_CHARCODEFORMAT_BIG5 :
+		case DX_CHARCODEFORMAT_GB2312 :
+		case DX_CHARCODEFORMAT_SHIFTJIS :
+		case DX_CHARCODEFORMAT_UTF16LE :
+		case DX_CHARCODEFORMAT_UTF16BE :
+		case DX_CHARCODEFORMAT_UTF8 :
+		case DX_CHARCODEFORMAT_UTF32LE :
+		case DX_CHARCODEFORMAT_UTF32BE :
+			DXA->CharCodeFormat = ( int )DXA->Head.CharCodeFormat ;
 			break ;
 
 		default :
-			DXA->CodePage = DX_CHARSET_SHFTJIS ;
+			DXA->CharCodeFormat = DX_CHARSET_SHFTJIS ;
 			break ;
 		}
 		
@@ -1571,30 +1571,30 @@ extern int DXA_OpenArchiveFromFileUseMem( DXARC *DXA, const wchar_t *ArchivePath
 		if( DXA->HeadV5.Version >= 0x0004 )
 		{
 			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER4_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
-			switch( DXA->HeadV5.CodePage )
+			switch( DXA->HeadV5.CharCodeFormat )
 			{
-			case DX_CODEPAGE_UHC :
-			case DX_CODEPAGE_BIG5 :
-			case DX_CODEPAGE_GB2312 :
-			case DX_CODEPAGE_SHIFTJIS :
-			case DX_CODEPAGE_UTF16LE :
-			case DX_CODEPAGE_UTF16BE :
-			case DX_CODEPAGE_UTF8 :
-			case DX_CODEPAGE_UTF32LE :
-			case DX_CODEPAGE_UTF32BE :
-				DXA->CodePage = ( int )DXA->HeadV5.CodePage ;
+			case DX_CHARCODEFORMAT_UHC :
+			case DX_CHARCODEFORMAT_BIG5 :
+			case DX_CHARCODEFORMAT_GB2312 :
+			case DX_CHARCODEFORMAT_SHIFTJIS :
+			case DX_CHARCODEFORMAT_UTF16LE :
+			case DX_CHARCODEFORMAT_UTF16BE :
+			case DX_CHARCODEFORMAT_UTF8 :
+			case DX_CHARCODEFORMAT_UTF32LE :
+			case DX_CHARCODEFORMAT_UTF32BE :
+				DXA->CharCodeFormat = ( int )DXA->HeadV5.CharCodeFormat ;
 				break ;
 
 			default :
-				DXA->CodePage = DX_CHARSET_SHFTJIS ;
+				DXA->CharCodeFormat = DX_CHARSET_SHFTJIS ;
 				break ;
 			}
 		}
 		else
 		{
 			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER3_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->ASyncOpenFilePointer, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
-			DXA->HeadV5.CodePage = DX_CHARSET_SHFTJIS ;
-			DXA->CodePage        = DX_CHARSET_SHFTJIS ;
+			DXA->HeadV5.CharCodeFormat = DX_CHARSET_SHFTJIS ;
+			DXA->CharCodeFormat        = DX_CHARSET_SHFTJIS ;
 		}
 		
 		// 情報テーブルのサイズ分のメモリを確保する
@@ -1724,22 +1724,22 @@ extern int DXA_OpenArchiveFromFile( DXARC *DXA, const wchar_t *ArchivePath, cons
 
 		// バージョンが４以上かどうかで読み込む残りのヘッダサイズを変更
 		DXA_KeyConvFileRead( ( BYTE * )&DXA->Head + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER6_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
-		switch( DXA->Head.CodePage )
+		switch( DXA->Head.CharCodeFormat )
 		{
-		case DX_CODEPAGE_UHC :
-		case DX_CODEPAGE_BIG5 :
-		case DX_CODEPAGE_GB2312 :
-		case DX_CODEPAGE_SHIFTJIS :
-		case DX_CODEPAGE_UTF16LE :
-		case DX_CODEPAGE_UTF16BE :
-		case DX_CODEPAGE_UTF8 :
-		case DX_CODEPAGE_UTF32LE :
-		case DX_CODEPAGE_UTF32BE :
-			DXA->CodePage = ( int )DXA->Head.CodePage ;
+		case DX_CHARCODEFORMAT_UHC :
+		case DX_CHARCODEFORMAT_BIG5 :
+		case DX_CHARCODEFORMAT_GB2312 :
+		case DX_CHARCODEFORMAT_SHIFTJIS :
+		case DX_CHARCODEFORMAT_UTF16LE :
+		case DX_CHARCODEFORMAT_UTF16BE :
+		case DX_CHARCODEFORMAT_UTF8 :
+		case DX_CHARCODEFORMAT_UTF32LE :
+		case DX_CHARCODEFORMAT_UTF32BE :
+			DXA->CharCodeFormat = ( int )DXA->Head.CharCodeFormat ;
 			break ;
 
 		default :
-			DXA->CodePage = DX_CHARSET_SHFTJIS ;
+			DXA->CharCodeFormat = DX_CHARSET_SHFTJIS ;
 			break ;
 		}
 
@@ -1776,30 +1776,30 @@ extern int DXA_OpenArchiveFromFile( DXARC *DXA, const wchar_t *ArchivePath, cons
 		if( DXA->HeadV5.Version >= 0x0004 )
 		{
 			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER4_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
-			switch( DXA->HeadV5.CodePage )
+			switch( DXA->HeadV5.CharCodeFormat )
 			{
-			case DX_CODEPAGE_UHC :
-			case DX_CODEPAGE_BIG5 :
-			case DX_CODEPAGE_GB2312 :
-			case DX_CODEPAGE_SHIFTJIS :
-			case DX_CODEPAGE_UTF16LE :
-			case DX_CODEPAGE_UTF16BE :
-			case DX_CODEPAGE_UTF8 :
-			case DX_CODEPAGE_UTF32LE :
-			case DX_CODEPAGE_UTF32BE :
-				DXA->CodePage = ( int )DXA->HeadV5.CodePage ;
+			case DX_CHARCODEFORMAT_UHC :
+			case DX_CHARCODEFORMAT_BIG5 :
+			case DX_CHARCODEFORMAT_GB2312 :
+			case DX_CHARCODEFORMAT_SHIFTJIS :
+			case DX_CHARCODEFORMAT_UTF16LE :
+			case DX_CHARCODEFORMAT_UTF16BE :
+			case DX_CHARCODEFORMAT_UTF8 :
+			case DX_CHARCODEFORMAT_UTF32LE :
+			case DX_CHARCODEFORMAT_UTF32BE :
+				DXA->CharCodeFormat = ( int )DXA->HeadV5.CharCodeFormat ;
 				break ;
 
 			default :
-				DXA->CodePage = DX_CHARSET_SHFTJIS ;
+				DXA->CharCodeFormat = DX_CHARSET_SHFTJIS ;
 				break ;
 			}
 		}
 		else
 		{
 			DXA_KeyConvFileRead( ( BYTE * )&DXA->HeadV5 + DXARC_ID_AND_VERSION_SIZE, DXARC_HEAD_VER3_SIZE - DXARC_ID_AND_VERSION_SIZE, DXA->WinFilePointer__, DXA->Key, DXARC_ID_AND_VERSION_SIZE ) ;
-			DXA->HeadV5.CodePage = DX_CHARSET_SHFTJIS ;
-			DXA->CodePage        = DX_CHARSET_SHFTJIS ;
+			DXA->HeadV5.CharCodeFormat = DX_CHARSET_SHFTJIS ;
+			DXA->CharCodeFormat        = DX_CHARSET_SHFTJIS ;
 		}
 
 		// 情報テーブルのサイズ分のメモリを確保する
@@ -2075,15 +2075,15 @@ static int DXA_ChangeCurrentDirectoryFast( DXARC *DXA, DXARC_SEARCHDATA *SearchD
 }
 
 // アーカイブ内のディレクトリパスを変更する( 0:成功  -1:失敗 )
-extern int DXA_ChangeCurrentDir( DXARC *DXA, int CodePage, const char *DirPath )
+extern int DXA_ChangeCurrentDir( DXARC *DXA, int CharCodeFormat, const char *DirPath )
 {
 	BYTE TempBuffer[ 2048 ] ;
 	const BYTE *DirPathB ;
 
-	// コードページが異なる場合は変換する
-	if( CodePage != DXA->CodePage )
+	// 文字コード形式が異なる場合は変換する
+	if( CharCodeFormat != DXA->CharCodeFormat )
 	{
-		ConvString( DirPath, CodePage, ( char * )TempBuffer, DXA->CodePage ) ;
+		ConvString( DirPath, CharCodeFormat, ( char * )TempBuffer, DXA->CharCodeFormat ) ;
 		DirPathB = TempBuffer ;
 	}
 	else
@@ -2110,14 +2110,14 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const BYTE *DirectoryPath
 	}
 
 	// ここに留まるパスだったら無視
-	if( CL_strcmp_str2_ascii( DXA->CodePage, ( const char * )DirectoryPath, ( const char * )Ascii_DotStr ) == 0 )
+	if( CL_strcmp_str2_ascii( DXA->CharCodeFormat, ( const char * )DirectoryPath, ( const char * )Ascii_DotStr ) == 0 )
 	{
 		return 0 ;
 	}
 
 	// 『\ or /』だけの場合はルートディレクトリに戻る
-	if( CL_strcmp_str2_ascii( DXA->CodePage, ( const char * )DirectoryPath, ( const char * )Ascii_EnStr    ) == 0 ||
-		CL_strcmp_str2_ascii( DXA->CodePage, ( const char * )DirectoryPath, ( const char * )Ascii_SlashStr ) == 0 )
+	if( CL_strcmp_str2_ascii( DXA->CharCodeFormat, ( const char * )DirectoryPath, ( const char * )Ascii_EnStr    ) == 0 ||
+		CL_strcmp_str2_ascii( DXA->CharCodeFormat, ( const char * )DirectoryPath, ( const char * )Ascii_SlashStr ) == 0 )
 	{
 		if( DXA->V5Flag )
 		{
@@ -2131,7 +2131,7 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const BYTE *DirectoryPath
 	}
 
 	// 下に一つ下がるパスだったら処理を分岐
-	if( CL_strcmp_str2_ascii( DXA->CodePage, ( const char * )DirectoryPath, ( const char * )Ascii_DoubleDotStr ) == 0 )
+	if( CL_strcmp_str2_ascii( DXA->CharCodeFormat, ( const char * )DirectoryPath, ( const char * )Ascii_DoubleDotStr ) == 0 )
 	{
 		if( DXA->V5Flag )
 		{
@@ -2158,8 +2158,8 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const BYTE *DirectoryPath
 	OldDir = DXA->CurrentDirectory ;
 
 	// パス中に『\』があるかどうかで処理を分岐
-	if( CL_strchr( DXA->CodePage, ( const char * )DirectoryPath, '\\' ) == NULL &&
-		CL_strchr( DXA->CodePage, ( const char * )DirectoryPath, '/'  ) == NULL )
+	if( CL_strchr( DXA->CharCodeFormat, ( const char * )DirectoryPath, '\\' ) == NULL &&
+		CL_strchr( DXA->CharCodeFormat, ( const char * )DirectoryPath, '/'  ) == NULL )
 	{
 		// ファイル名を検索専用の形式に変換する
 		DXA_ConvSearchData( DXA, &SearchData, DirectoryPath, NULL ) ;
@@ -2187,12 +2187,12 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const BYTE *DirectoryPath
 			i += StrLength ;
 
 			// もし初っ端が \ or / だった場合はルートディレクトリに落とす
-			CharCode = GetCharCode( ( const char * )&DirectoryPath[ i ], DXA->CodePage, &CharBytes ) ;
+			CharCode = GetCharCode( ( const char * )&DirectoryPath[ i ], DXA->CharCodeFormat, &CharBytes ) ;
 			if( StrLength == 0 && ( CharCode == '\\' || CharCode == '/' ) )
 			{
 				BYTE EnStr[ 16 ] ;
 
-				ConvString( ( const char * )Ascii_EnStr, DX_CODEPAGE_ASCII, ( char * )EnStr, DXA->CodePage ) ;
+				ConvString( ( const char * )Ascii_EnStr, DX_CHARCODEFORMAT_ASCII, ( char * )EnStr, DXA->CharCodeFormat ) ;
 				DXA_ChangeCurrentDirectoryBase( DXA, EnStr, false ) ;
 			}
 			else
@@ -2220,7 +2220,7 @@ static int DXA_ChangeCurrentDirectoryBase( DXARC *DXA, const BYTE *DirectoryPath
 			}
 			else
 			{
-				CharCode2 = GetCharCode( ( const char * )&DirectoryPath[ i + CharBytes ], DXA->CodePage, &CharBytes2 ) ;
+				CharCode2 = GetCharCode( ( const char * )&DirectoryPath[ i + CharBytes ], DXA->CharCodeFormat, &CharBytes2 ) ;
 				if( ( CharCode == '\\' && CharCode2 == '\0' ) ||
 					( CharCode == '/'  && CharCode2 == '\0' ) )
 				{
@@ -2356,11 +2356,11 @@ extern DWORD_PTR DXA_FindFirst( DXARC *DXA, const BYTE *FilePath, FILEINFOW *Buf
 	DXA_DIR_AnalysisFileNameAndDirPath( DXA, FilePath, Name, Dir );
 
 	// 全て大文字にする
-	CL_strupr( DXA->CodePage, ( char * )Dir  ) ;
-	CL_strupr( DXA->CodePage, ( char * )Name ) ;
+	CL_strupr( DXA->CharCodeFormat, ( char * )Dir  ) ;
+	CL_strupr( DXA->CharCodeFormat, ( char * )Name ) ;
 
 	// 検索対象のディレクトリを取得
-	if( GetCharCode( ( const char * )Dir, DXA->CodePage, &CharBytes ) == '\0' )
+	if( GetCharCode( ( const char * )Dir, DXA->CharCodeFormat, &CharBytes ) == '\0' )
 	{
 		find->Directory = DXA->CurrentDirectory ;
 	}
@@ -2382,7 +2382,7 @@ extern DWORD_PTR DXA_FindFirst( DXARC *DXA, const BYTE *FilePath, FILEINFOW *Buf
 	}
 
 	find->ObjectCount = 0;
-	CL_strcpy( DXA->CodePage, ( char * )find->SearchStr, ( const char * )Name ) ;
+	CL_strcpy( DXA->CharCodeFormat, ( char * )find->SearchStr, ( const char * )Name ) ;
 
 	// 適合する最初のファイルを検索する
 	if( DXA_FindProcess( find, Buffer ) == -1 )
@@ -2683,15 +2683,15 @@ extern void *DXA_GetFileImage( DXARC *DXA )
 }
 
 // アーカイブファイル中の指定のファイルのファイル内の位置とファイルの大きさを得る( -1:エラー )
-extern int DXA_GetFileInfo( DXARC *DXA, int CodePage, const char *FilePath, int *Position, int *Size )
+extern int DXA_GetFileInfo( DXARC *DXA, int CharCodeFormat, const char *FilePath, int *Position, int *Size )
 {
 	BYTE TempBuffer[ 2048 ] ;
 	const BYTE *FilePathB ;
 
-	// コードページが異なる場合は変換する
-	if( CodePage != DXA->CodePage )
+	// 文字コード形式が異なる場合は変換する
+	if( CharCodeFormat != DXA->CharCodeFormat )
 	{
-		ConvString( FilePath, CodePage, ( char * )TempBuffer, DXA->CodePage ) ;
+		ConvString( FilePath, CharCodeFormat, ( char * )TempBuffer, DXA->CharCodeFormat ) ;
 		FilePathB = TempBuffer ;
 	}
 	else
@@ -3349,11 +3349,11 @@ static int DXA_DIR_ConvertFullPath( const wchar_t *Src, wchar_t *Dest )
 	k = 0 ;
 
 	// １文字目と２文字目を取得
-	CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ 0 ], WCHAR_T_CODEPAGE, &CharBytes1 ) ;
+	CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ 0 ], WCHAR_T_CHARCODEFORMAT, &CharBytes1 ) ;
 	CharCode2 = 0 ;
 	if( CharCode1 != 0 )
 	{
-		CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ CharBytes1 ], WCHAR_T_CODEPAGE, &CharBytes2 ) ;
+		CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ CharBytes1 ], WCHAR_T_CHARCODEFORMAT, &CharBytes2 ) ;
 	}
 
 	// 最初に『\』又は『/』が２回連続で続いている場合はネットワークを介していると判断
@@ -3361,8 +3361,8 @@ static int DXA_DIR_ConvertFullPath( const wchar_t *Src, wchar_t *Dest )
 	if( ( CharCode1 == '\\' && CharCode2 == '\\' ) ||
 		( CharCode1 == '/'  && CharCode2 == '/'  ) )
 	{
-		j += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
-		     PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		j += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		     PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
 
 		i += CharBytes1 + CharBytes2 ;
 	}
@@ -3375,11 +3375,11 @@ static int DXA_DIR_ConvertFullPath( const wchar_t *Src, wchar_t *Dest )
 		int   CurCharBytes1 ;
 		int   CurCharBytes2 ;
 
-		CurCharCode1 = GetCharCode( ( char * )&( ( BYTE * )CurrentDir )[ 0             ], WCHAR_T_CODEPAGE, &CurCharBytes1 ) ;
-		CurCharCode2 = GetCharCode( ( char * )&( ( BYTE * )CurrentDir )[ CurCharBytes1 ], WCHAR_T_CODEPAGE, &CurCharBytes2 ) ;
-		j += PutCharCode( CurCharCode1, WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
-		j += PutCharCode( CurCharCode2, WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
-		     PutCharCode( '\0',         WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		CurCharCode1 = GetCharCode( ( char * )&( ( BYTE * )CurrentDir )[ 0             ], WCHAR_T_CHARCODEFORMAT, &CurCharBytes1 ) ;
+		CurCharCode2 = GetCharCode( ( char * )&( ( BYTE * )CurrentDir )[ CurCharBytes1 ], WCHAR_T_CHARCODEFORMAT, &CurCharBytes2 ) ;
+		j += PutCharCode( CurCharCode1, WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		j += PutCharCode( CurCharCode2, WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		     PutCharCode( '\0',         WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
 
 		i += CharBytes1 ;
 	}
@@ -3387,14 +3387,14 @@ static int DXA_DIR_ConvertFullPath( const wchar_t *Src, wchar_t *Dest )
 	// ドライブ名が書かれていたらそのドライブへ
 	if( CharCode2 == ':' )
 	{
-		j += PutCharCode( CHARUP( CharCode1 ), WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
-		j += PutCharCode(         CharCode2  , WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
-		     PutCharCode( '\0',                WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		j += PutCharCode( CHARUP( CharCode1 ), WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		j += PutCharCode(         CharCode2  , WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+		     PutCharCode( '\0',                WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
 
 		i += CharBytes1 + CharBytes2 ;
 
 		// : の後の \ マークは飛ばす
-		CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ i ], WCHAR_T_CODEPAGE, &CharBytes1 ) ;
+		CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ i ], WCHAR_T_CHARCODEFORMAT, &CharBytes1 ) ;
 		if( CharCode1 == '\\' )
 		{
 			i += CharBytes1 ;
@@ -3406,25 +3406,25 @@ static int DXA_DIR_ConvertFullPath( const wchar_t *Src, wchar_t *Dest )
 		_WCSCPY( Dest, CurrentDir ) ;
 		j += _WCSLEN( Dest ) * sizeof( wchar_t ) ;
 
-		CharNum         = GetStringCharNum(  ( const char * )CurrentDir, WCHAR_T_CODEPAGE ) ;
-		LastCharAddress = ( char * )GetStringCharAddress( ( const char * )CurrentDir, WCHAR_T_CODEPAGE, CharNum - 1 ) ;
-		LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CODEPAGE, &LastCharBytes ) ;
+		CharNum         = GetStringCharNum(  ( const char * )CurrentDir, WCHAR_T_CHARCODEFORMAT ) ;
+		LastCharAddress = ( char * )GetStringCharAddress( ( const char * )CurrentDir, WCHAR_T_CHARCODEFORMAT, CharNum - 1 ) ;
+		LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CHARCODEFORMAT, &LastCharBytes ) ;
 		if( LastCharCode == '\\' || LastCharCode == '/' )
 		{
-			PutCharCode( '\0', WCHAR_T_CODEPAGE, LastCharAddress ) ;
+			PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, LastCharAddress ) ;
 			j -= LastCharBytes ;
 		}
 	}
 
 	for(;;)
 	{
-		CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ i ], WCHAR_T_CODEPAGE, &CharBytes1 ) ;
+		CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )Src )[ i ], WCHAR_T_CHARCODEFORMAT, &CharBytes1 ) ;
 		switch( CharCode1 )
 		{
 		case '\0' :
 			if( k != 0 )
 			{
-				j += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+				j += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
 				_WCSCPY( ( wchar_t * )&( ( BYTE * )Dest )[ j ], iden ) ;
 				j += k ;
 				k  = 0 ;
@@ -3447,10 +3447,10 @@ static int DXA_DIR_ConvertFullPath( const wchar_t *Src, wchar_t *Dest )
 			if( _WCSCMP( iden, L".." ) == 0 )
 			{
 				// 一つ浅いディレクトリへ
-				PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
-				CharNum         = GetStringCharNum(  ( const char * )Dest, WCHAR_T_CODEPAGE ) ;
-				LastCharAddress = ( char * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CODEPAGE, CharNum - 1 ) ;
-				LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CODEPAGE, &LastCharBytes ) ;
+				PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+				CharNum         = GetStringCharNum(  ( const char * )Dest, WCHAR_T_CHARCODEFORMAT ) ;
+				LastCharAddress = ( char * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CHARCODEFORMAT, CharNum - 1 ) ;
+				LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CHARCODEFORMAT, &LastCharBytes ) ;
 				j -= LastCharBytes ;
 				for(;;)
 				{
@@ -3459,16 +3459,16 @@ static int DXA_DIR_ConvertFullPath( const wchar_t *Src, wchar_t *Dest )
 						break ;
 					}
 
-					PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+					PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
 					CharNum -- ;
-					LastCharAddress = ( char * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CODEPAGE, CharNum - 1 ) ;
-					LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CODEPAGE, &LastCharBytes ) ;
+					LastCharAddress = ( char * )GetStringCharAddress( ( const char * )Dest, WCHAR_T_CHARCODEFORMAT, CharNum - 1 ) ;
+					LastCharCode    = GetCharCode( LastCharAddress, WCHAR_T_CHARCODEFORMAT, &LastCharBytes ) ;
 					j -= LastCharBytes ;
 				}
 
 				if( LastCharCode != ':' )
 				{
-					PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+					PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
 				}
 				else
 				{
@@ -3477,7 +3477,7 @@ static int DXA_DIR_ConvertFullPath( const wchar_t *Src, wchar_t *Dest )
 			}
 			else
 			{
-				j += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+				j += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
 				_WCSCPY( ( wchar_t * )&( ( BYTE * )Dest )[ j ], iden ) ;
 				j += k ;
 			}
@@ -3487,8 +3487,8 @@ static int DXA_DIR_ConvertFullPath( const wchar_t *Src, wchar_t *Dest )
 			break ;
 		
 		default :
-			k += PutCharCode( CHARUP( CharCode1 ), WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )iden )[ k ] ) ;
-			     PutCharCode( '\0',                WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )iden )[ k ] ) ;
+			k += PutCharCode( CHARUP( CharCode1 ), WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )iden )[ k ] ) ;
+			     PutCharCode( '\0',                WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )iden )[ k ] ) ;
 
 			i += CharBytes1 ;
 			break ;
@@ -3516,7 +3516,7 @@ static int DXA_DIR_AnalysisFileNameAndDirPath( DXARC *DXA, const BYTE *Src, BYTE
 	Last = -1 ;
 	for(;;)
 	{
-		CharCode = GetCharCode( ( const char * )&Src[ i ], DXA->CodePage, &CharBytes ) ;
+		CharCode = GetCharCode( ( const char * )&Src[ i ], DXA->CharCodeFormat, &CharBytes ) ;
 		if( CharCode == '\0' )
 		{
 			break ;
@@ -3535,11 +3535,11 @@ static int DXA_DIR_AnalysisFileNameAndDirPath( DXARC *DXA, const BYTE *Src, BYTE
 	{
 		if( Last != -1 )
 		{
-			CL_strcpy( DXA->CodePage, ( char * )FileName, ( const char * )&Src[ Last + LastCharBytes ] ) ;
+			CL_strcpy( DXA->CharCodeFormat, ( char * )FileName, ( const char * )&Src[ Last + LastCharBytes ] ) ;
 		}
 		else
 		{
-			CL_strcpy( DXA->CodePage, ( char * )FileName, ( const char * )Src ) ;
+			CL_strcpy( DXA->CharCodeFormat, ( char * )FileName, ( const char * )Src ) ;
 		}
 	}
 	
@@ -3549,11 +3549,11 @@ static int DXA_DIR_AnalysisFileNameAndDirPath( DXARC *DXA, const BYTE *Src, BYTE
 		if( Last != -1 )
 		{
 			_MEMCPY( DirPath, Src, ( size_t )Last ) ;
-			PutCharCode( '\0', DXA->CodePage, ( char * )&DirPath[ Last ] ) ;
+			PutCharCode( '\0', DXA->CharCodeFormat, ( char * )&DirPath[ Last ] ) ;
 		}
 		else
 		{
-			PutCharCode( '\0', DXA->CodePage, ( char * )&DirPath[ 0    ] ) ;
+			PutCharCode( '\0', DXA->CharCodeFormat, ( char * )&DirPath[ 0    ] ) ;
 		}
 	}
 	
@@ -3574,8 +3574,8 @@ static int DXA_DIR_FileNameCmp( DXARC *DXA, const BYTE *Src, const BYTE *CmpStr 
 	c = CmpStr ;
 	for(;;)
 	{
-		SrcCharCode = GetCharCode( ( const char * )s, DXA->CodePage, &SrcCharBytes ) ;
-		CmpCharCode = GetCharCode( ( const char * )c, DXA->CodePage, &CmpCharBytes ) ;
+		SrcCharCode = GetCharCode( ( const char * )s, DXA->CharCodeFormat, &SrcCharBytes ) ;
+		CmpCharCode = GetCharCode( ( const char * )c, DXA->CharCodeFormat, &CmpCharBytes ) ;
 		if( SrcCharCode == '\0' || CmpCharCode == '\0' )
 		{
 			break ;
@@ -3592,7 +3592,7 @@ static int DXA_DIR_FileNameCmp( DXARC *DXA, const BYTE *Src, const BYTE *CmpStr 
 			while( CmpCharCode == '*' )
 			{
 				c += CmpCharBytes ;
-				CmpCharCode = GetCharCode( ( const char * )c, DXA->CodePage, &CmpCharBytes ) ;
+				CmpCharCode = GetCharCode( ( const char * )c, DXA->CharCodeFormat, &CmpCharBytes ) ;
 			}
 			if( CmpCharCode == '\0' )
 			{
@@ -3602,7 +3602,7 @@ static int DXA_DIR_FileNameCmp( DXARC *DXA, const BYTE *Src, const BYTE *CmpStr 
 			while( SrcCharCode != '\0' && SrcCharCode != CmpCharCode )
 			{
 				s += SrcCharBytes ;
-				SrcCharCode = GetCharCode( ( const char * )s, DXA->CodePage, &SrcCharBytes ) ;
+				SrcCharCode = GetCharCode( ( const char * )s, DXA->CharCodeFormat, &SrcCharBytes ) ;
 			}
 			if( SrcCharCode == '\0' )
 			{
@@ -3657,7 +3657,7 @@ static int DXA_DIR_OpenTest( const wchar_t *FilePath, int *ArchiveIndex, BYTE *A
 	if( DXARCD.BackUseDirectoryPathLength != 0 && _MEMCMP( fullpath, DXARCD.BackUseDirectory, DXARCD.BackUseDirectoryPathLength ) == 0 )
 	{
 		BackUseDirectoryPathCharValid = TRUE ;
-		BackUseDirectoryPathCharCode  = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ DXARCD.BackUseDirectoryPathLength ], WCHAR_T_CODEPAGE, &BackUseDirectoryPathCharBytes ) ;
+		BackUseDirectoryPathCharCode  = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ DXARCD.BackUseDirectoryPathLength ], WCHAR_T_CHARCODEFORMAT, &BackUseDirectoryPathCharBytes ) ;
 	}
 	if( BackUseDirectoryPathCharValid &&
 		( BackUseDirectoryPathCharCode == '\\' || BackUseDirectoryPathCharCode == '/' ) )
@@ -3690,18 +3690,18 @@ static int DXA_DIR_OpenTest( const wchar_t *FilePath, int *ArchiveIndex, BYTE *A
 			if( p - fullpath == 0 )
 			{
 				// fullpath の１文字目と２文字目を取得
-				CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ 0 ], WCHAR_T_CODEPAGE, &CharBytes1 ) ;
+				CharCode1 = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ 0 ], WCHAR_T_CHARCODEFORMAT, &CharBytes1 ) ;
 				CharCode2 = 0 ;
 				if( CharCode1 != 0 )
 				{
-					CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ CharBytes1 ], WCHAR_T_CODEPAGE, &CharBytes2 ) ;
+					CharCode2 = GetCharCode( ( const char * )&( ( BYTE * )fullpath )[ CharBytes1 ], WCHAR_T_CHARCODEFORMAT, &CharBytes2 ) ;
 				}
 
 				if( CharCode1 == '\\' && CharCode2 == '\\' )
 				{
-					len += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
-					len += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
-					       PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
+					len += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ] ) ;
+					len += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ] ) ;
+					       PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ] ) ;
 
 					p = ( wchar_t * )( ( BYTE * )p + CharBytes1 + CharBytes2 ) ;
 				}
@@ -3711,15 +3711,15 @@ static int DXA_DIR_OpenTest( const wchar_t *FilePath, int *ArchiveIndex, BYTE *A
 			i = 0 ;
 			for(;;)
 			{
-				CharCode1 = GetCharCode( ( const char * )p, WCHAR_T_CODEPAGE, &CharBytes1 ) ;
+				CharCode1 = GetCharCode( ( const char * )p, WCHAR_T_CHARCODEFORMAT, &CharBytes1 ) ;
 				p = ( wchar_t * )( ( BYTE * )p + CharBytes1 ) ;
 				if( CharCode1 == '\0' || CharCode1 == '/' || CharCode1 == '\\' )
 				{
 					break ;
 				}
 
-				len += PutCharCode( CharCode1, WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
-				i   += PutCharCode( CharCode1, WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )dir  )[ i   ] ) ;
+				len += PutCharCode( CharCode1, WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ] ) ;
+				i   += PutCharCode( CharCode1, WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )dir  )[ i   ] ) ;
 
 			}
 
@@ -3728,8 +3728,8 @@ static int DXA_DIR_OpenTest( const wchar_t *FilePath, int *ArchiveIndex, BYTE *A
 				return -1 ;
 			}
 
-			PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
-			PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )dir  )[ i   ] ) ;
+			PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ] ) ;
+			PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )dir  )[ i   ] ) ;
 
 			// フォルダ名をDXアーカイブファイル名にする
 			{
@@ -3738,13 +3738,13 @@ static int DXA_DIR_OpenTest( const wchar_t *FilePath, int *ArchiveIndex, BYTE *A
 				_MEMCPY( temp, path, ( size_t )len ) ;
 				TempLen = len ;
 
-				TempLen += PutCharCode( '.', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
+				TempLen += PutCharCode( '.', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
 				if( DXARCD.ArchiveExtensionLength == 0 )
 				{
-					TempLen += PutCharCode( 'D',  WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
-					TempLen += PutCharCode( 'X',  WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
-					TempLen += PutCharCode( 'A',  WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
-					TempLen += PutCharCode( '\0', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
+					TempLen += PutCharCode( 'D',  WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
+					TempLen += PutCharCode( 'X',  WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
+					TempLen += PutCharCode( 'A',  WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
+					TempLen += PutCharCode( '\0', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )temp )[ TempLen ] ) ;
 				}
 				else
 				{
@@ -3760,7 +3760,7 @@ static int DXA_DIR_OpenTest( const wchar_t *FilePath, int *ArchiveIndex, BYTE *A
 			}
 
 			// 開けなかったら次の階層へ
-			len += PutCharCode( '\\', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )path )[ len ] ) ;
+			len += PutCharCode( '\\', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )path )[ len ] ) ;
 		}
 
 		// 開けたら今回の情報を保存する
@@ -3781,10 +3781,10 @@ static int DXA_DIR_OpenTest( const wchar_t *FilePath, int *ArchiveIndex, BYTE *A
 
 	if( ArchiveFilePath )
 	{
-		int DestCodePage ;
+		int DestCharCodeFormat ;
 
-		DestCodePage = DXARCD.Archive[ arcindex ]->Archive.CodePage ;
-		ConvString( ( const char * )p, WCHAR_T_CODEPAGE, ( char * )ArchiveFilePath, DestCodePage ) ;
+		DestCharCodeFormat = DXARCD.Archive[ arcindex ]->Archive.CharCodeFormat ;
+		ConvString( ( const char * )p, WCHAR_T_CHARCODEFORMAT, ( char * )ArchiveFilePath, DestCharCodeFormat ) ;
 	}
 
 	// 終了
@@ -4518,7 +4518,7 @@ extern int NS_DXArchivePreLoad( const TCHAR *FilePath , int ASyncThread )
 #else // UNICODE
 	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
 
-	ConvString( ( const char * )FilePath, _TCODEPAGE, ( char * )FilePathBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )FilePath, _TCHARCODEFORMAT, ( char * )FilePathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath ) ;
 #endif // UNICODE
 
@@ -4537,7 +4537,7 @@ extern int NS_DXArchiveCheckIdle( const TCHAR *FilePath )
 #else // UNICODE
 	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
 
-	ConvString( ( const char * )FilePath, _TCODEPAGE, ( char * )FilePathBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )FilePath, _TCHARCODEFORMAT, ( char * )FilePathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath ) ;
 #endif // UNICODE
 
@@ -4564,7 +4564,7 @@ extern int NS_DXArchiveRelease( const TCHAR *FilePath )
 #else // UNICODE
 	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
 
-	ConvString( ( const char * )FilePath, _TCODEPAGE, ( char * )FilePathBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )FilePath, _TCHARCODEFORMAT, ( char * )FilePathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath ) ;
 #endif // UNICODE
 
@@ -4596,7 +4596,7 @@ extern int NS_DXArchiveCheckFile( const TCHAR *FilePath, const TCHAR *TargetFile
 #else // UNICODE
 	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
 
-	ConvString( ( const char * )FilePath, _TCODEPAGE, ( char * )FilePathBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )FilePath, _TCHARCODEFORMAT, ( char * )FilePathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath ) ;
 #endif // UNICODE
 
@@ -4609,7 +4609,7 @@ extern int NS_DXArchiveCheckFile( const TCHAR *FilePath, const TCHAR *TargetFile
 
 	// アーカイブの中に指定のファイルがあるかどうかを調べる
 	Archive = DXARCD.Archive[ index ] ;
-	ret = DXA_GetFileInfo( &Archive->Archive, _TCODEPAGE, ( const char * )TargetFilePath, NULL, NULL ) ;
+	ret = DXA_GetFileInfo( &Archive->Archive, _TCHARCODEFORMAT, ( const char * )TargetFilePath, NULL, NULL ) ;
 
 	DXA_DIR_CloseArchive( index ) ;
 
@@ -4628,7 +4628,7 @@ extern int NS_DXArchiveSetMemImage(		void *ArchiveImage, int ArchiveImageSize, c
 #else // UNICODE
 	wchar_t FilePathBuffer[ FILEPATH_MAX ] ;
 
-	ConvString( ( const char * )EmulateFilePath, _TCODEPAGE, ( char * )FilePathBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )EmulateFilePath, _TCHARCODEFORMAT, ( char * )FilePathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	DXA_DIR_ConvertFullPath( FilePathBuffer, fullpath ) ;
 #endif // UNICODE
 
@@ -4926,7 +4926,7 @@ NOENCODE:
 				// 出力する連続長は最低 MIN_COMPRESS あることが前提なので - MIN_COMPRESS したものを出力する
 				maxconbo -= MIN_COMPRESS ;
 
-				// 連続長０～４ビットと連続長、相対アドレスのビット長を出力
+				// 連続長０〜４ビットと連続長、相対アドレスのビット長を出力
 				*dp = (BYTE)( ( ( maxconbo & 0x1f ) << 3 ) | ( maxconbosize << 2 ) | maxaddresssize ) ;
 
 				// キーコードの連続はキーコードと値の等しい非圧縮コードと
@@ -4934,7 +4934,7 @@ NOENCODE:
 				if( *dp >= keycode ) dp[0] += 1 ;
 				dp ++ ;
 
-				// 連続長５～１２ビットを出力
+				// 連続長５〜１２ビットを出力
 				if( maxconbosize == 1 )
 					*dp++ = (BYTE)( ( maxconbo >> 5 ) & 0xff ) ;
 

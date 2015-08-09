@@ -2,7 +2,7 @@
 //
 //		ＤＸライブラリ　コンパイルコンフィグヘッダファイル
 //
-//				Ver 3.14d
+//				Ver 3.14f
 //
 // ----------------------------------------------------------------------------
 
@@ -55,7 +55,7 @@
 
 // ＴＩＦＦ画像の読みこみ機能がいらない方は次のコメントを外してください
 // ※DxUseCLib.lib も再コンパイルする必要があります
-#define DX_NON_TIFFREAD
+//#define DX_NON_TIFFREAD
 
 // GraphFilter や GraphBlend を使用しない方は次のコメントを外して下さい
 //#define DX_NON_FILTER
@@ -107,7 +107,7 @@
 
 // Bullet Physics をリンクしない場合は次のコメントを外してください
 // ※DxUseCLib.lib も再コンパイルする必要があります
-#define DX_NON_BULLET_PHYSICS
+//#define DX_NON_BULLET_PHYSICS
 
 // ＦＢＸファイルを読み込む機能を使用する方は次のコメントを外してください( 使用には FBX SDK のセットアップが必要です )
 //#define DX_LOAD_FBX_MODEL
@@ -182,22 +182,14 @@
 #endif
 
 #ifdef __PSVITA
-#define DX_NON_MOVIE
-//#define DX_NON_FILTER
 #define DX_NON_2DDRAW
 #define DX_NON_ACM
-#define DX_NON_MASK
 #define DX_NON_DSHOW_MP3
 #define DX_NON_DSHOW_MOVIE
 #define DX_NON_KEYEX
 #define DX_NON_INPUTSTRING
 #define DX_NON_NETWORK
-#define DX_NON_OGGVORBIS
-#define DX_NON_OGGTHEORA
-#define DX_NON_MODEL
-#define DX_NON_BULLET_PHYSICS
 #define DX_NON_STOPTASKSWITCH
-#define DX_NON_SAVEFUNCTION
 #define DX_NON_DIRECT3D11
 #define DX_NON_DIRECT3D9
 #endif

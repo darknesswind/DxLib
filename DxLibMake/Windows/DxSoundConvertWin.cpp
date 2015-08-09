@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		WindowsOS用サウンドデータ変換プログラム
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -11,12 +11,11 @@
 
 #include "../DxCompileConfig.h"
 
-#ifndef DX_NON_SOUND
-
 // インクルード----------------------------------------------------------------
 #include "DxSoundConvertWin.h"
 #include "../DxSoundConvert.h"
 #include "../DxSystem.h"
+#include "../DxUseCLib.h"
 
 #ifdef DX_USE_NAMESPACE
 
@@ -111,6 +110,124 @@ extern	int TerminateSoundConvert_PF( void )
 	// 正常終了
 	return 0 ;
 }
+
+
+
+// (環境依存処理)変換処理のセットアップ( [戻] -1:エラー )
+extern	int SetupSoundConvert_PF( SOUNDCONV *SoundConv, STREAMDATA *Stream, int DisableReadSoundFunctionMask )
+{
+#ifndef DX_NON_ACM
+	if( ( DisableReadSoundFunctionMask & DX_READSOUNDFUNCTION_ACM ) == 0 )
+	{
+		if( SetupSoundConvert_ACM( SoundConv ) == 0 ) return 0 ;
+		Stream->ReadShred.Seek( Stream->DataPoint, 0, SEEK_SET ) ;
+	}
+	if( ( DisableReadSoundFunctionMask & DX_READSOUNDFUNCTION_MP3 ) == 0 )
+	{
+		if( SetupSoundConvert_MP3( SoundConv ) == 0 ) return 0 ;
+	}
+#endif // DX_NON_ACM
+#ifndef DX_NON_MOVIE
+#ifndef DX_NON_DSHOW_MOVIE
+#ifndef DX_NON_DSHOW_MP3
+	if( ( DisableReadSoundFunctionMask & DX_READSOUNDFUNCTION_DSMP3 ) == 0 )
+	{
+		if( SetupSoundConvert_DSMP3( SoundConv ) == 0 ) return 0 ;
+	}
+#endif // DX_NON_DSHOW_MP3
+#endif // DX_NON_DSHOW_MOVIE
+#endif // DX_NON_MOVIE
+	return -1 ;
+}
+
+// (環境依存処理)変換処理の位置を変更する( サンプル単位 )
+extern	int SetSampleTimeSoundConvert_PF(    SOUNDCONV *SoundConv, int SampleTime )
+{
+	int res = -1 ;
+
+	switch( SoundConv->MethodType )
+	{
+#ifndef DX_NON_ACM
+	case SOUND_METHODTYPE_ACM : res = SetSampleTimeSoundConvert_ACM( SoundConv, SampleTime ) ; break ;
+#endif
+#ifndef DX_NON_MOVIE
+#ifndef DX_NON_DSHOW_MOVIE
+#ifndef DX_NON_DSHOW_MP3
+	case SOUND_METHODTYPE_DSMP3 : res = SetSampleTimeSoundConvert_DSMP3( SoundConv, SampleTime ) ; break ;
+#endif
+#endif
+#endif
+	}
+
+	return res ;
+}
+
+// (環境依存処理)変換後のバッファにデータを補充する
+extern	int ConvertProcessSoundConvert_PF(  SOUNDCONV *SoundConv )
+{
+	int res = -1 ;
+
+	switch( SoundConv->MethodType )
+	{
+#ifndef DX_NON_ACM
+	case SOUND_METHODTYPE_ACM : res = ConvertProcessSoundConvert_ACM( SoundConv ) ; break ;
+#endif
+#ifndef DX_NON_MOVIE
+#ifndef DX_NON_DSHOW_MOVIE
+#ifndef DX_NON_DSHOW_MP3
+	case SOUND_METHODTYPE_DSMP3 : res = ConvertProcessSoundConvert_DSMP3( SoundConv ) ; break ;
+#endif
+#endif
+#endif
+	}
+
+	return res ;
+}
+
+// (環境依存処理)変換処理の後始末を行う
+extern	int TerminateSoundConvert_PF(        SOUNDCONV *SoundConv )
+{
+	switch( SoundConv->MethodType )
+	{
+#ifndef DX_NON_ACM
+	case SOUND_METHODTYPE_ACM : TerminateSoundConvert_ACM( SoundConv ) ; break ;
+#endif
+#ifndef DX_NON_MOVIE
+#ifndef DX_NON_DSHOW_MOVIE
+#ifndef DX_NON_DSHOW_MP3
+	case SOUND_METHODTYPE_DSMP3 : TerminateSoundConvert_DSMP3( SoundConv ) ; break ;
+#endif
+#endif
+#endif
+	}
+
+	return 0 ;
+}
+
+// (環境依存処理)変換後の大凡のデータサイズを得る
+extern	int GetSoundConvertDestSize_Fast_PF( SOUNDCONV *SoundConv )
+{
+	switch( SoundConv->MethodType )
+	{
+#ifndef DX_NON_ACM
+	case SOUND_METHODTYPE_ACM : return GetSoundConvertDestSize_Fast_ACM( SoundConv ) ;
+#endif
+#ifndef DX_NON_MOVIE
+#ifndef DX_NON_DSHOW_MOVIE
+#ifndef DX_NON_DSHOW_MP3
+	case SOUND_METHODTYPE_DSMP3 : return GetSoundConvertDestSize_Fast_DSMP3( SoundConv ) ;
+#endif
+#endif
+#endif
+	}
+
+	return 0 ;
+}
+
+
+
+
+
 
 
 
@@ -1271,6 +1388,4 @@ extern int GetSoundConvertDestSize_Fast_DSMP3( SOUNDCONV *SoundConv )
 }
 
 #endif // DX_USE_NAMESPACE
-
-#endif // DX_NON_SOUND
 

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ＢａｓｅＩｍａｇｅプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // ----------------------------------------------------------------------------
 
@@ -189,8 +189,7 @@ extern int SaveBaseImageToBmp_WCHAR_T( const wchar_t *FilePath, const BASEIMAGE 
 	int Ret = -1 ;
 	int x, y, i ;
 	int WidthByte ;
-	HANDLE fp ;
-	DWORD WriteSize ;
+	DWORD_PTR fp ;
 
 	// ファイルヘッダに基本データをセット
 	_MEMSET( &BmpHead, 0, sizeof( BmpHead ) ) ;
@@ -256,24 +255,24 @@ extern int SaveBaseImageToBmp_WCHAR_T( const wchar_t *FilePath, const BASEIMAGE 
 
 		// ファイルに書き出し
 		{
-			DeleteFileW( FilePath ) ;
-			fp = CreateFileW( FilePath, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL ) ;
+			WriteOnlyFileAccessDelete( FilePath ) ;
+			fp = WriteOnlyFileAccessOpen( FilePath ) ;
 			if( fp == NULL ) 
 			{
 				DXST_ERRORLOG_ADDUTF16LE( "\x22\xff\x2d\xff\x30\xff\xbb\x30\xfc\x30\xd6\x30\x28\x75\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x6e\x30\xaa\x30\xfc\x30\xd7\x30\xf3\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ＢＭＰセーブ用ファイルのオープンに失敗しました\n" @*/ ) ; goto END ;
 			}
 
 			// ファイルヘッダの書き出し
-			WriteFile( fp, &BmpHead, sizeof( BmpHead ), &WriteSize, NULL ) ;
+			WriteOnlyFileAccessWrite( fp, &BmpHead, sizeof( BmpHead ) ) ;
 			
 			// インフォヘッダの書き出し
-			WriteFile( fp, BmpInfo, sizeof( BmpInfo->bmiHeader ) + sizeof( RGBQUAD ) * 256, &WriteSize, NULL ) ;
+			WriteOnlyFileAccessWrite( fp, BmpInfo, sizeof( BmpInfo->bmiHeader ) + sizeof( RGBQUAD ) * 256 ) ;
 
 			// イメージの書き出し
-			WriteFile( fp, DIBBuf, ( DWORD )( WidthByte * BaseImage->Height ), &WriteSize, NULL ) ;
+			WriteOnlyFileAccessWrite( fp, DIBBuf, ( DWORD )( WidthByte * BaseImage->Height ) ) ;
 
 			// 終了
-			CloseHandle( fp ) ;
+			WriteOnlyFileAccessClose( fp ) ;
 		}
 		break ;
 
@@ -432,24 +431,24 @@ extern int SaveBaseImageToBmp_WCHAR_T( const wchar_t *FilePath, const BASEIMAGE 
 
 		// ファイルに書き出し
 		{
-			DeleteFileW( FilePath ) ;
-			fp = CreateFileW( FilePath, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL ) ;
+			WriteOnlyFileAccessDelete( FilePath ) ;
+			fp = WriteOnlyFileAccessOpen( FilePath ) ;
 			if( fp == NULL ) 
 			{
 				DXST_ERRORLOG_ADDUTF16LE( "\x22\xff\x2d\xff\x30\xff\xbb\x30\xfc\x30\xd6\x30\x28\x75\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x6e\x30\xaa\x30\xfc\x30\xd7\x30\xf3\x30\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ＢＭＰセーブ用ファイルのオープンに失敗しました\n" @*/ ) ; goto END ;
 			}
 
 			// ファイルヘッダの書き出し
-			WriteFile( fp, &BmpHead, sizeof( BmpHead ), &WriteSize, NULL ) ;
+			WriteOnlyFileAccessWrite( fp, &BmpHead, sizeof( BmpHead ) ) ;
 			
 			// インフォヘッダの書き出し
-			WriteFile( fp, BmpInfo, sizeof( BmpInfo->bmiHeader ), &WriteSize, NULL ) ;
+			WriteOnlyFileAccessWrite( fp, BmpInfo, sizeof( BmpInfo->bmiHeader ) ) ;
 
 			// イメージの書き出し
-			WriteFile( fp, DIBBuf, ( DWORD )( WidthByte * BaseImage->Height ), &WriteSize, NULL ) ;
+			WriteOnlyFileAccessWrite( fp, DIBBuf, ( DWORD )( WidthByte * BaseImage->Height ) ) ;
 
 			// 終了
-			CloseHandle( fp ) ;
+			WriteOnlyFileAccessClose( fp ) ;
 		}
 		break ;
 	}
@@ -1010,7 +1009,7 @@ static int CreateAlphaMaskFilePath( const wchar_t *Path, wchar_t *Dest )
 	i = 0 ;
 	for(;;)
 	{
-		CharCode = GetCharCode( ( const char * )&( ( BYTE * )Path )[ i ], WCHAR_T_CODEPAGE, &CharBytes ) ;
+		CharCode = GetCharCode( ( const char * )&( ( BYTE * )Path )[ i ], WCHAR_T_CHARCODEFORMAT, &CharBytes ) ;
 		if( CharCode == '\0' )
 		{
 			break ;
@@ -1028,19 +1027,19 @@ static int CreateAlphaMaskFilePath( const wchar_t *Path, wchar_t *Dest )
 	i = 0 ;
 	for(;;)
 	{
-		CharCode = GetCharCode( ( const char * )&( ( BYTE * )Path )[ i ], WCHAR_T_CODEPAGE, &CharBytes ) ;
+		CharCode = GetCharCode( ( const char * )&( ( BYTE * )Path )[ i ], WCHAR_T_CHARCODEFORMAT, &CharBytes ) ;
 		if( CharCode == '\0' || i == LastPoint )
 		{
 			break ;
 		}
 
-		PutCharCode( CharCode, WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ i ] ) ;
+		PutCharCode( CharCode, WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ i ] ) ;
 		i += CharBytes ;
 	}
 
 	j = i ;
-	j += PutCharCode( '_', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
-	j += PutCharCode( 'a', WCHAR_T_CODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+	j += PutCharCode( '_', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+	j += PutCharCode( 'a', WCHAR_T_CHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
 	_WCSCPY( ( wchar_t * )&( ( BYTE * )Dest )[ j ], ( const wchar_t * )&( ( BYTE * )Path )[ i ] ) ;
 
 	return 0 ;
@@ -1058,7 +1057,7 @@ static int CreateAlphaMaskFilePathT( const TCHAR *Path, TCHAR *Dest )
 	i = 0 ;
 	for(;;)
 	{
-		CharCode = GetCharCode( ( const char * )&( ( BYTE * )Path )[ i ], _TCODEPAGE, &CharBytes ) ;
+		CharCode = GetCharCode( ( const char * )&( ( BYTE * )Path )[ i ], _TCHARCODEFORMAT, &CharBytes ) ;
 		if( CharCode == '\0' )
 		{
 			break ;
@@ -1076,19 +1075,19 @@ static int CreateAlphaMaskFilePathT( const TCHAR *Path, TCHAR *Dest )
 	i = 0 ;
 	for(;;)
 	{
-		CharCode = GetCharCode( ( const char * )&( ( BYTE * )Path )[ i ], _TCODEPAGE, &CharBytes ) ;
+		CharCode = GetCharCode( ( const char * )&( ( BYTE * )Path )[ i ], _TCHARCODEFORMAT, &CharBytes ) ;
 		if( CharCode == '\0' || i == LastPoint )
 		{
 			break ;
 		}
 
-		PutCharCode( CharCode, _TCODEPAGE, ( char * )&( ( BYTE * )Dest )[ i ] ) ;
+		PutCharCode( CharCode, _TCHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ i ] ) ;
 		i += CharBytes ;
 	}
 
 	j = i ;
-	j += PutCharCode( '_', _TCODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
-	j += PutCharCode( 'a', _TCODEPAGE, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+	j += PutCharCode( '_', _TCHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
+	j += PutCharCode( 'a', _TCHARCODEFORMAT, ( char * )&( ( BYTE * )Dest )[ j ] ) ;
 	_TSTRCPY( ( TCHAR * )&( ( BYTE * )Dest )[ j ], ( const TCHAR * )&( ( BYTE * )Path )[ i ] ) ;
 
 	return 0 ;
@@ -2539,6 +2538,126 @@ static int LoadBmpImage( STREAMDATA *Stream, BASEIMAGE *BaseImage, int GetFormat
 		}
 	}
 	else
+	if( BmpInfo2->bmiHeader.biCompression == BI_RGB && BmpInfo2->bmiHeader.biBitCount == 1 )
+	{
+		// ２色カラーの場合は２５６色カラーに変換する
+		int nt, qt, NokoriNum, MultiNum, Width, Height, DestPitch ;
+		int SrcAddPitch, DestAddPitch ;
+
+		Width     = BmpInfo2->bmiHeader.biWidth ;
+		Height    = _ABS( BmpInfo2->bmiHeader.biHeight ) ;
+		DestPitch = ( Width + 3 ) / 4 * 4 ;
+
+		if( GetFormatOnly == FALSE )
+		{
+			Buf = (BYTE *)DXALLOC( ( size_t )( DestPitch * Height ) ) ;
+			if( Buf == NULL ) goto ERR ;
+
+			MultiNum  = Width / 8 ;
+			NokoriNum = Width - MultiNum * 8 ;
+
+			// 上下反転が必要な場合はその処理もここでする
+			if( BmpInfo2->bmiHeader.biHeight > 0 )
+			{
+				// 上下反転する場合
+				Src         = (BYTE *)GData + Pitch * ( Height - 1 ) ;
+				SrcAddPitch = ( Pitch - Width / 8 ) - Pitch * 2 ;
+			}
+			else
+			{
+				// 上下反転しない場合
+				SrcAddPitch = Pitch - Width / 8 ;
+				Src         = (BYTE *)GData ;
+			}
+			DestAddPitch = DestPitch - Width ;
+			Dest         = Buf ;
+
+			do
+			{
+				if( MultiNum )
+				{
+					qt = MultiNum ;
+					do
+					{
+						Dest[ 0 ] = ( BYTE )( ( *Src >> 7 ) & 0x01 ) ;
+						Dest[ 1 ] = ( BYTE )( ( *Src >> 6 ) & 0x01 ) ;
+						Dest[ 2 ] = ( BYTE )( ( *Src >> 5 ) & 0x01 ) ;
+						Dest[ 3 ] = ( BYTE )( ( *Src >> 4 ) & 0x01 ) ;
+						Dest[ 4 ] = ( BYTE )( ( *Src >> 3 ) & 0x01 ) ;
+						Dest[ 5 ] = ( BYTE )( ( *Src >> 2 ) & 0x01 ) ;
+						Dest[ 6 ] = ( BYTE )( ( *Src >> 1 ) & 0x01 ) ;
+						Dest[ 7 ] = ( BYTE )( ( *Src      ) & 0x01 ) ;
+
+						Dest += 8 ;
+						Src  ++ ;
+					}while( --qt ) ;
+				}
+
+				if( NokoriNum )
+				{
+					nt = NokoriNum ;
+					for(;;)
+					{
+						*Dest = ( BYTE )( ( *Src >> 7 ) & 0x01 ) ;
+						Dest ++ ;
+						if( --nt == 0 ) break ;
+
+						*Dest = ( BYTE )( ( *Src >> 6 ) & 0x01 ) ;
+						Dest ++ ;
+						if( --nt == 0 ) break ;
+
+						*Dest = ( BYTE )( ( *Src >> 5 ) & 0x01 ) ;
+						Dest ++ ;
+						if( --nt == 0 ) break ;
+
+						*Dest = ( BYTE )( ( *Src >> 4 ) & 0x01 ) ;
+						Dest ++ ;
+						if( --nt == 0 ) break ;
+
+						*Dest = ( BYTE )( ( *Src >> 3 ) & 0x01 ) ;
+						Dest ++ ;
+						if( --nt == 0 ) break ;
+
+						*Dest = ( BYTE )( ( *Src >> 2 ) & 0x01 ) ;
+						Dest ++ ;
+						if( --nt == 0 ) break ;
+
+						*Dest = ( BYTE )( ( *Src >> 1 ) & 0x01 ) ;
+						Dest ++ ;
+						if( --nt == 0 ) break ;
+
+						*Dest = ( BYTE )(   *Src        & 0x01 ) ;
+						Dest ++ ;
+						Src  ++ ;
+						if( --nt == 0 ) break ;
+					}
+				}
+
+				Dest += DestAddPitch ;
+				Src  += SrcAddPitch ;
+			}while( --Height ) ;
+
+			DXFREE( GData ) ;
+			GData = Buf ;
+			Buf   = NULL ;
+		}
+
+		// BASEIMAGE のヘッダを構築
+		{
+			BaseImage->GraphData = GData ;
+			BaseImage->Width     = BmpInfo2->bmiHeader.biWidth ;
+			BaseImage->Height    = _ABS( BmpInfo2->bmiHeader.biHeight ) ;
+			BaseImage->Pitch     = DestPitch ;
+
+			// カラー情報のセット
+			NS_CreatePaletteColorData( &BaseImage->ColorData ) ;
+			BaseImage->ColorData.MaxPaletteNo = 15 ;
+			_MEMCPY( BaseImage->ColorData.Palette, BmpInfo2->bmiColors, 2 * sizeof( RGBQUAD ) ) ;
+			BaseImage->ColorData.Palette[ 0 ].Alpha = 0 ;
+			BaseImage->ColorData.Palette[ 1 ].Alpha = 0 ;
+		}
+	}
+	else
 	if( BmpInfo2->bmiHeader.biCompression == BI_RGB && BmpInfo2->bmiHeader.biBitCount == 4 )
 	{
 		// １６色カラーの場合は２５６色カラーに変換する
@@ -2633,6 +2752,7 @@ static int LoadBmpImage( STREAMDATA *Stream, BASEIMAGE *BaseImage, int GetFormat
 
 			// カラー情報のセット
 			NS_CreatePaletteColorData( &BaseImage->ColorData ) ;
+			BaseImage->ColorData.MaxPaletteNo = 15 ;
 			_MEMCPY( BaseImage->ColorData.Palette, BmpInfo2->bmiColors, 16 * sizeof( RGBQUAD ) ) ;
 			for( i = 0 ; i < 16 ; i ++ )
 				BaseImage->ColorData.Palette[i].Alpha = 0 ;
@@ -2991,7 +3111,7 @@ typedef struct _tagTGAHEADER
 	WORD Height ;			// 14:画像の高さ
 	BYTE ColorBitDepth ;	// 16:色深度( 16:16ビット  24:24ビット  32:32ビット )
 	BYTE Descriptor ;		// 17:その他の情報
-							//     bit 0～3 属性( 16bit画像なら 0 又は 1, 24bit画像なら 0, 32bit画像なら 8 )
+							//     bit 0〜3 属性( 16bit画像なら 0 又は 1, 24bit画像なら 0, 32bit画像なら 8 )
 							//     bit 4 格納方向( 0:左から右  1:右から左 )
 							//     bit 5 格納方向( 0:下から上  1:上から下 )
 							//     bit 6, 7  未使用
@@ -3019,23 +3139,23 @@ typedef struct _tagTGAEXTENSION
 	WORD 		Size ;				// フッタ( 495固定 )
 	BYTE 		Creator[41] ;		// 作者名( 未使用時は 0 で埋める )
 	BYTE 		Comment[4][81] ;	// 作者名や時刻、そのほかの情報
-	WORD		CreationDateMonth ;	// 作成日  月 1～12
-	WORD		CreationDateDay ;	// 作成日  日 1～31
+	WORD		CreationDateMonth ;	// 作成日  月 1〜12
+	WORD		CreationDateDay ;	// 作成日  日 1〜31
 	WORD		CreationDateYear ;	// 作成日  年 4桁( 2004等 )
-	WORD		CreationDateHour ;	// 作成日  時 0～23
-	WORD		CreationDateMinute ;// 作成日  分 0～59
-	WORD		CreationDateSecond ;// 作成日  秒 0～59
+	WORD		CreationDateHour ;	// 作成日  時 0〜23
+	WORD		CreationDateMinute ;// 作成日  分 0〜59
+	WORD		CreationDateSecond ;// 作成日  秒 0〜59
 	BYTE 		JobName[41] ;		// 仕事名( 未使用時は 0 で埋める )
-	WORD		CreationTimeHours ;	// 作成時刻  時 0～65535
-	WORD		CreationTimeMinute ;// 作成時刻  分 0～59
-	WORD		CreationTimeSecond ;// 作成時刻  秒 0～59
+	WORD		CreationTimeHours ;	// 作成時刻  時 0〜65535
+	WORD		CreationTimeMinute ;// 作成時刻  分 0〜59
+	WORD		CreationTimeSecond ;// 作成時刻  秒 0〜59
 	BYTE		SoftID[41] ;		// ソフトウエアのＩＤ( 未使用時は 0 で埋める )
 	WORD		VersionNumber ;		// バージョンナンバー( 1.01 だったら 101 )
 	BYTE		VersionRot ;		// ロット( アスキーコード )
 	DWORD		ColorKey ;			// カラーキー
 	WORD		AcpectX ;			// ドットのアスペクト比 X (0:無効)
 	WORD		AcpectY ;			// ドットのアスペクト比 Y (0:無効)
-	WORD		GammaN ;			// ガンマ値 0.0 ～ 10.0
+	WORD		GammaN ;			// ガンマ値 0.0 〜 10.0
 	WORD		GammaD ;			// ガンマ値 ( 0:ガンマ指定無し )
 	DWORD		ColorTableOffset ;	// カラーコレクションテーブルの位置 (0:省略)
 	DWORD		StampTableOffset ;	// スタンプテーブルの位置 (0:省略)
@@ -5273,6 +5393,12 @@ extern int NS_FillBaseImage( BASEIMAGE *BaseImage, int r, int g, int b, int a )
 	addpitch = BaseImage->Pitch - w * BaseImage->ColorData.PixelByte;
 	switch( BaseImage->ColorData.PixelByte )
 	{
+	case 1 :
+		for( i = 0; i < h; i ++, p += addpitch )
+			for( j = 0; j < w; j ++, p ++ )
+				*((BYTE *)p) = (BYTE)r;
+		break ;
+
 	case 2:
 		for( i = 0; i < h; i ++, p += addpitch )
 			for( j = 0; j < w; j ++, p += 2 )
@@ -5336,11 +5462,21 @@ extern int NS_FillRectBaseImage( BASEIMAGE *BaseImage, int x, int y, int w, int 
 		h = BaseImage->Height - y ;
 	}
 
-	Color    = NS_GetColor3( &BaseImage->ColorData, r, g, b, a ) ;
+	Color    = BaseImage->ColorData.PixelByte == 1 ? 0 : NS_GetColor3( &BaseImage->ColorData, r, g, b, a ) ;
 	p        = ( BYTE * )BaseImage->GraphData + x * BaseImage->ColorData.PixelByte + y * BaseImage->Pitch ;
 	addpitch = BaseImage->Pitch - w * BaseImage->ColorData.PixelByte ;
 	switch( BaseImage->ColorData.PixelByte )
 	{
+	case 1:
+		for( i = 0; i < h; i ++, p += addpitch )
+		{
+			for( j = 0; j < w; j ++, p ++ )
+			{
+				*p = ( BYTE )r ;
+			}
+		}
+		break;
+
 	case 2:
 		for( i = 0; i < h; i ++, p += addpitch )
 		{
@@ -5533,7 +5669,7 @@ extern int NS_GetPixelPalCodeBaseImage( const BASEIMAGE *BaseImage, int x, int y
 	return 0xffffffff;
 }
 
-// 基本イメージデータの指定の座標の色を変更する(各色要素は０～２５５)
+// 基本イメージデータの指定の座標の色を変更する(各色要素は０〜２５５)
 extern int NS_SetPixelBaseImage( BASEIMAGE *BaseImage, int x, int y, int  r, int  g, int  b, int  a )
 {
 	unsigned int Color;
@@ -5722,7 +5858,7 @@ extern int NS_SetPixelBaseImageF( BASEIMAGE *BaseImage, int x, int y, float  r, 
 	return 0;
 }
 
-// 基本イメージデータの指定の座標の色を取得する(各色要素は０～２５５)
+// 基本イメージデータの指定の座標の色を取得する(各色要素は０〜２５５)
 extern int NS_GetPixelBaseImage( const BASEIMAGE *BaseImage, int x, int y, int *r, int *g, int *b, int *a )
 {
 	unsigned int Color;
@@ -5931,7 +6067,7 @@ extern int NS_GetPixelBaseImageF( const BASEIMAGE *BaseImage, int x, int y, floa
 	return 0;
 }
 
-// 基本イメージデータの指定の座標に線を描画する(各色要素は０～２５５)
+// 基本イメージデータの指定の座標に線を描画する(各色要素は０〜２５５)
 extern int NS_DrawLineBaseImage( BASEIMAGE *BaseImage, int x1, int y1, int x2, int y2, int r, int g, int b, int a )
 {
 	unsigned int Color;
@@ -6233,6 +6369,244 @@ extern int NS_DrawLineBaseImage( BASEIMAGE *BaseImage, int x1, int y1, int x2, i
 
 	// 終了
 	return 0;
+}
+
+
+
+
+
+
+
+
+
+
+#define DRAWCIRCLEMEMIMG_FILL_SHRED_ND( DRAW, DESTADDNUM )	\
+	if( !( ( x2 < DrawArea.left ) | ( x1 > DrawArea.right  ) |\
+		   ( y1 < DrawArea.top  ) | ( y1 > DrawArea.bottom ) | LineDrawBuf[ y1 ] ) )\
+	{\
+		if( x1 < DrawArea.left  ) x1 = DrawArea.left  ;\
+		if( x2 > DrawArea.right ) x2 = DrawArea.right ;\
+\
+		LineDrawBuf[ y1 ] = 1 ;\
+\
+		C = x2 - x1 + 1 ;\
+		DrawBP = DestBP + DestPitch * y1 + x1 * (DESTADDNUM) ;\
+		do{\
+			DRAW\
+			DrawBP += (DESTADDNUM) ;\
+		}while( -- C ) ;\
+	}
+
+
+#define DRAWCIRCLEMEMIMG_FILL_ND( DRAW, DESTADDNUM )	\
+{\
+	x2 = Dx + x ; x1 = -Dx + x ; y1 = Dy + y ;\
+	DRAWCIRCLEMEMIMG_FILL_SHRED_ND( DRAW, DESTADDNUM )\
+\
+	x2 = Dy + x ; x1 = -Dy + x ; y1 = Dx + y ;\
+	DRAWCIRCLEMEMIMG_FILL_SHRED_ND( DRAW, DESTADDNUM )\
+\
+	x2 = Dy + x ; x1 = -Dy + x ; y1 = -Dx + y;\
+	DRAWCIRCLEMEMIMG_FILL_SHRED_ND( DRAW, DESTADDNUM )\
+\
+	if( F >= 0 )\
+	{\
+		x2 = Dy + x ; x1 = -Dy + x ; y1 = Dx + y ;\
+		DRAWCIRCLEMEMIMG_FILL_SHRED_ND( DRAW, DESTADDNUM )\
+\
+		x2 = Dy + x ; x1 = -Dy + x ; y1 = -Dx + y;\
+		DRAWCIRCLEMEMIMG_FILL_SHRED_ND( DRAW, DESTADDNUM )\
+\
+		Dx -- ;\
+		F -= 4 * Dx ;\
+	}\
+\
+	Dy ++ ;\
+	F += 4 * Dy + 2 ;\
+\
+	while( Dx >= Dy )\
+	{\
+		x2 = Dx + x ; x1 = -Dx + x ; y1 = Dy + y ;\
+		DRAWCIRCLEMEMIMG_FILL_SHRED_ND( DRAW, DESTADDNUM )\
+\
+		x2 = Dx + x ; x1 = -Dx + x ; y1 = -Dy + y;\
+		DRAWCIRCLEMEMIMG_FILL_SHRED_ND( DRAW, DESTADDNUM )\
+\
+		if( F >= 0 )\
+		{\
+			x2 = Dy + x ; x1 = -Dy + x ; y1 = Dx + y ;\
+			DRAWCIRCLEMEMIMG_FILL_SHRED_ND( DRAW, DESTADDNUM )\
+\
+			x2 = Dy + x ; x1 = -Dy + x ; y1 = -Dx + y;\
+			DRAWCIRCLEMEMIMG_FILL_SHRED_ND( DRAW, DESTADDNUM )\
+\
+			Dx -- ;\
+			F -= 4 * Dx ;\
+		}\
+\
+		Dy ++ ;\
+		F += 4 * Dy + 2 ;\
+	}\
+}
+
+
+
+#define DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )	\
+	if( ( ( (DWORD)( x1 - DrawArea.left ) <= (DWORD)( DrawArea.right  - DrawArea.left ) ) &&\
+		  ( (DWORD)( y1 - DrawArea.top  ) <= (DWORD)( DrawArea.bottom - DrawArea.top  ) ) ) )\
+	{\
+		DrawBP = DestBP + DestPitch * y1 + x1 * (DESTADDNUM) ;\
+		DRAW\
+	}
+
+#define DRAWCIRCLEMEMIMG_PSET_ND( DRAW, DESTADDNUM )	\
+{\
+	x1 = -Dx + x ; y1 = Dy + y ;\
+	DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+	x1 = Dx + x ;\
+	DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+	x1 = Dy + x ; y1 = Dx + y ;\
+	DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+	x1 = -Dy + x ; y1 = -Dx + y;\
+	DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+	if( F >= 0 )\
+	{\
+		Dx -- ;\
+		F -= 4 * Dx ;\
+	}\
+\
+	Dy ++ ;\
+	F += 4 * Dy + 2 ;\
+\
+	while( Dx >= Dy )\
+	{\
+		x1 = -Dx + x ; y1 = Dy + y ;\
+		DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+		x1 = Dx + x ;\
+		DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+		x1 = -Dx + x ; y1 = -Dy + y;\
+		DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+		x1 = Dx + x ;\
+		DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+\
+		x1 = -Dy + x ; y1 = Dx + y ;\
+		DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+		x1 = Dy + x ;\
+		DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+		x1 = -Dy + x ; y1 = -Dx + y;\
+		DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+		x1 = Dy + x ;\
+		DRAWCIRCLEMEMIMG_PSET_SHRED_ND( DRAW, DESTADDNUM )\
+\
+		if( F >= 0 )\
+		{\
+			Dx -- ;\
+			F -= 4 * Dx ;\
+		}\
+\
+		Dy ++ ;\
+		F += 4 * Dy + 2 ;\
+	}\
+}
+
+#define DRAWCIRCLEMEMIMG_DRAW_BYTE		*( ( BYTE  * )DrawBP ) = ( BYTE  )Color ;
+#define DRAWCIRCLEMEMIMG_DRAW_WORD		*( ( WORD  * )DrawBP ) = ( WORD  )Color ;
+#define DRAWCIRCLEMEMIMG_DRAW_3BYTE		*( ( WORD  * )DrawBP ) = ( WORD  )Color ; ( ( BYTE * )DrawBP )[ 2 ] = ( BYTE )( Color >> 16 ) ;
+#define DRAWCIRCLEMEMIMG_DRAW_DWORD		*( ( DWORD * )DrawBP ) = ( DWORD )Color ;
+
+
+// 基本イメージデータの指定の座標に円を描画する(各色要素は０〜２５５)
+extern int NS_DrawCircleBaseImage( BASEIMAGE *BaseImage, int x, int y, int radius, int r, int g, int b, int a, int FillFlag )
+{
+	unsigned int Color ;
+	BYTE *LineDrawBuf ;
+	RECT DrawArea ;
+	DWORD DestPitch ;
+	int Dx, Dy, F ;
+	int x1, x2, y1, C ;
+	BYTE  *DrawBP ;
+	BYTE  *DestBP ;
+
+	// 描画領域のセット
+	DrawArea.left   = 0 ;
+	DrawArea.top    = 0 ;
+	DrawArea.right  = BaseImage->Width  - 1 ;
+	DrawArea.bottom = BaseImage->Height - 1 ;
+
+	// 転送先のアドレスをセット
+	DestBP    = ( BYTE *)BaseImage->GraphData ;
+	DestPitch = BaseImage->Pitch ;
+
+	// 初期値セット
+	Dx = radius ;
+	Dy = 0 ;
+	F = -2 * radius + 3 ;
+
+	Color = NS_GetColor3( &BaseImage->ColorData, r, g, b, a ) ;
+
+	// 塗りつぶすかどうかで処理を分岐
+	if( FillFlag )
+	{
+		LineDrawBuf = (BYTE *)DXCALLOC( ( size_t )( DrawArea.bottom + 1 ) ) ;
+		if( LineDrawBuf == NULL )
+			return -1 ;
+
+		switch( BaseImage->ColorData.PixelByte )
+		{
+		case 1 :
+			DRAWCIRCLEMEMIMG_FILL_ND( DRAWCIRCLEMEMIMG_DRAW_BYTE, 1 )
+			break ;
+
+		case 2 :
+			DRAWCIRCLEMEMIMG_FILL_ND( DRAWCIRCLEMEMIMG_DRAW_WORD, 2 )
+			break ;
+
+		case 3 :
+			DRAWCIRCLEMEMIMG_FILL_ND( DRAWCIRCLEMEMIMG_DRAW_WORD, 3 )
+			break ;
+
+		case 4 :
+			DRAWCIRCLEMEMIMG_FILL_ND( DRAWCIRCLEMEMIMG_DRAW_DWORD, 4 )
+			break ;
+		}
+
+		DXFREE( LineDrawBuf ) ;
+	}
+	else
+	{
+		switch( BaseImage->ColorData.PixelByte )
+		{
+		case 1 :
+			DRAWCIRCLEMEMIMG_PSET_ND( DRAWCIRCLEMEMIMG_DRAW_BYTE, 1 )
+			break ;
+
+		case 2 :
+			DRAWCIRCLEMEMIMG_PSET_ND( DRAWCIRCLEMEMIMG_DRAW_WORD, 2 )
+			break ;
+
+		case 3 :
+			DRAWCIRCLEMEMIMG_PSET_ND( DRAWCIRCLEMEMIMG_DRAW_3BYTE, 3 )
+			break ;
+
+		case 4 :
+			DRAWCIRCLEMEMIMG_PSET_ND( DRAWCIRCLEMEMIMG_DRAW_DWORD, 4 )
+			break ;
+		}
+	}
+
+	// 終了
+	return 0 ;
 }
 
 // 基本イメージデータを転送する
@@ -6994,6 +7368,51 @@ extern int NS_CheckPixelAlphaBaseImage( const BASEIMAGE *BaseImage )
 
 	// 終了
 	return Result ;
+}
+
+// 基本イメージデータで使用されているパレット番号の最大値を取得する( パレット画像では無い場合は -1 が返る )
+extern int NS_GetBaseImageUseMaxPaletteNo( const BASEIMAGE *BaseImage )
+{
+	int i, j ;
+	int Width ;
+	int Height ;
+	DWORD Pitch ;
+	BYTE *p, *lp ;
+	BYTE MaxPaletteNo ;
+
+	// フォーマットが標準フォーマットではなかったらエラー
+	if( BaseImage->ColorData.Format != DX_BASEIMAGE_FORMAT_NORMAL )
+		return -1 ;
+
+	// パレットカラーで無い場合もエラー
+	if( BaseImage->ColorData.PixelByte != 1 )
+		return -1 ;
+
+	Width = BaseImage->Width ;
+	Height = BaseImage->Height ;
+	Pitch = ( DWORD )BaseImage->Pitch ;
+	lp = ( BYTE * )BaseImage->GraphData ;
+	MaxPaletteNo = 0 ;
+	for( i = 0 ; i < Height ; i ++, lp += Pitch )
+	{
+		p = lp ;
+		for( j = 0 ; j < Width ; j ++, p ++ )
+		{
+			// 最大値があったらそこで終了
+			if( *p == 255 )
+			{
+				return 255 ;
+			}
+			
+			if( MaxPaletteNo < *p )
+			{
+				MaxPaletteNo = *p ;
+			}
+		}
+	}
+
+	// 終了
+	return ( int )MaxPaletteNo ;
 }
 
 // ２分の１スケーリングしながらグラフィックデータ間転送を行う、そのため奇数倍数の転送矩形は指定できない
@@ -7821,8 +8240,63 @@ extern int NS_GraphColorMatchBltVer2( void *DestGraphData,       int DestPitch, 
 		goto NORMALMOVE ;
 	}
 
+	// 転送先が 4bit の場合
+	if( DestColorData->ColorBitDepth == 4 )
+	{
+		// 転送元は 8bit にしか対応しない
+		if( SrcColorData->ColorBitDepth != 8 )
+		{
+			return -1 ;
+		}
+
+		// x軸方向の転送位置が２の倍数ではない場合はエラー
+		if( DestPoint.x % 2 != 0 )
+		{
+			return -1 ;
+		}
+
+		BYTE *DestP ;
+		BYTE *SrcP ;
+		int SrcAddPitch ;
+		int DestAddPitch ;
+		int SingleBltNum ;
+		int DoubleBltNum ;
+	
+		DestP = (BYTE *)DestGraphData + DestPitch * DestPoint.y  + DestPoint.x / 2 ;
+		SrcP  = (BYTE *)SrcGraphData  + SrcPitch  * SrcRect->top + SrcRect->left ;
+		
+		DestAddPitch = DestPitch - BltWidth / 2 ;
+		SrcAddPitch  = SrcPitch  - BltWidth ;
+
+		DoubleBltNum = BltWidth / 2 ;
+		SingleBltNum = BltWidth - DoubleBltNum * 2 ;
+
+		int DoubleBltNumTemp ;
+		do
+		{
+			DoubleBltNumTemp = DoubleBltNum ;
+			do
+			{
+				*DestP = SrcP[ 0 ] | ( SrcP[ 1 ] << 4 ) ;
+				DestP ++ ;
+				SrcP  += 2 ;
+			}while( -- DoubleBltNumTemp != 0 ) ;
+
+			if( SingleBltNum != 0 )
+			{
+				*DestP = SrcP[ 0 ] ;
+				SrcP ++ ;
+			}
+
+			DestP += DestAddPitch ;
+			SrcP  += SrcAddPitch ;
+		}while( -- BltHeight != 0 ) ;
+
+		return 0 ;
+	}
+
 	// ８ビットカラー同士のカラーマッチ指定の場合はパレットが一致していない場合は低速転送処理を行う
-	if( Pal8ColorMatch && DestColorData->PixelByte == 1 && SrcColorData->PixelByte == 1 && ReverseFlag == FALSE )
+	if( Pal8ColorMatch && DestColorData->ColorBitDepth == 8 && SrcColorData->ColorBitDepth == 8 && ReverseFlag == FALSE )
 	{
 		if( _MEMCMP( DestColorData->Palette, SrcColorData->Palette, sizeof( SrcColorData->Palette ) ) != 0 )
 		{
@@ -10818,7 +11292,8 @@ extern	unsigned int	NS_GetColor( int Red, int Green, int Blue )
 	// 色情報を返す
 	if( GSYS.Setting.ValidHardware == TRUE )
 	{
-		ColorData = Graphics_Hardware_GetMainColorData_PF() ;
+//		ColorData = Graphics_Hardware_GetMainColorData_PF() ;
+		return 0xff000000 | ( ( ( unsigned int )Red ) << 16 ) | ( ( ( unsigned int )Green ) << 8 ) | ( ( unsigned int )Blue ) ;
 	}
 	else
 	{
@@ -10842,7 +11317,12 @@ extern	int		NS_GetColor2( unsigned int Color, int *Red, int *Green, int *Blue )
 	// 色情報を返す
 	if( GSYS.Setting.ValidHardware == TRUE )
 	{
-		ColorData = Graphics_Hardware_GetMainColorData_PF() ;
+//		ColorData = Graphics_Hardware_GetMainColorData_PF() ;
+		*Red   = ( int )( ( Color >> 16 ) & 0xff ) ;
+		*Green = ( int )( ( Color >>  8 ) & 0xff ) ;
+		*Blue  = ( int )( ( Color       ) & 0xff ) ;
+
+		return 0 ;
 	}
 	else
 	{
@@ -11047,6 +11527,7 @@ extern int NS_CreatePaletteColorData( COLORDATA * ColorDataBuf )
 	ColorDataBuf->FloatTypeFlag = FALSE ;
 	ColorDataBuf->ColorBitDepth = 8 ;
 	ColorDataBuf->PixelByte = 1 ;
+	ColorDataBuf->MaxPaletteNo = 255 ;
 
 	ColorDataBuf->NoneMask = 0xff000000 ;
 
@@ -11113,7 +11594,7 @@ extern	int NS_CreateXRGB8ColorData( COLORDATA * ColorDataBuf )
 	ColorDataBuf->FloatTypeFlag = FALSE ;
 	ColorDataBuf->ColorBitDepth = 32 ;
 	ColorDataBuf->PixelByte = 4 ;
-
+	ColorDataBuf->MaxPaletteNo = 0 ;
 
 	ColorDataBuf->NoneLoc = 24 ;
 	ColorDataBuf->NoneMask = 0xff000000 ;
@@ -11148,6 +11629,7 @@ extern	int NS_CreateARGB8ColorData( COLORDATA * ColorDataBuf )
 	ColorDataBuf->FloatTypeFlag = FALSE ;
 	ColorDataBuf->ColorBitDepth = 32 ;
 	ColorDataBuf->PixelByte = 4 ;
+	ColorDataBuf->MaxPaletteNo = 0 ;
 
 	ColorDataBuf->NoneMask = 0x00000000 ;
 
@@ -11180,6 +11662,7 @@ extern	int NS_CreateARGB4ColorData( COLORDATA * ColorDataBuf )
 	ColorDataBuf->FloatTypeFlag = FALSE ;
 	ColorDataBuf->ColorBitDepth = 16 ;
 	ColorDataBuf->PixelByte = 2 ;
+	ColorDataBuf->MaxPaletteNo = 0 ;
 
 	ColorDataBuf->NoneMask = 0x00000000 ;
 
@@ -11213,6 +11696,7 @@ extern	int	NS_CreateFullColorData( COLORDATA * ColorDataBuf )
 	ColorDataBuf->FloatTypeFlag = FALSE ;
 	ColorDataBuf->ColorBitDepth = 24 ;
 	ColorDataBuf->PixelByte = 3 ;
+	ColorDataBuf->MaxPaletteNo = 0 ;
 
 	ColorDataBuf->NoneMask = 0x00000000 ;
 
@@ -11247,6 +11731,7 @@ extern int NS_CreateGrayColorData( COLORDATA * ColorDataBuf )
 	ColorDataBuf->FloatTypeFlag = FALSE ;
 	ColorDataBuf->ColorBitDepth = 8 ;
 	ColorDataBuf->PixelByte = 1 ;
+	ColorDataBuf->MaxPaletteNo = 255 ;
 
 	ColorDataBuf->NoneMask = 0xff000000 ;
 
@@ -11289,6 +11774,7 @@ extern int NS_CreatePal8ColorData( COLORDATA * ColorDataBuf )
 	ColorDataBuf->FloatTypeFlag = FALSE ;
 	ColorDataBuf->ColorBitDepth = 8 ;
 	ColorDataBuf->PixelByte = 1 ;
+	ColorDataBuf->MaxPaletteNo = 255 ;
 
 	ColorDataBuf->NoneMask = 0xff000000 ;
 

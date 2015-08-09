@@ -2,12 +2,14 @@
 // 
 // 		ＤＸライブラリ		サウンドデータ変換プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
 // ＤＸライブラリ作成時用定義
 #define __DX_MAKE
+
+#include "DxCompileConfig.h"
 
 // インクルード ------------------------------------------------------------------
 #include "DxSoundConvert.h"
@@ -110,13 +112,6 @@ extern	int SetupSoundConvert( SOUNDCONV *SoundConv, STREAMDATA *Stream, int Disa
 		if( SetupSoundConvert_WAVE( SoundConv ) == 0 ) goto R1 ;
 		Stream->ReadShred.Seek( Stream->DataPoint, 0, SEEK_SET ) ;
 	}
-#ifndef DX_NON_ACM
-	if( ( DisableReadSoundFunctionMask & DX_READSOUNDFUNCTION_ACM ) == 0 )
-	{
-		if( SetupSoundConvert_ACM( SoundConv ) == 0 ) goto R1 ;
-		Stream->ReadShred.Seek( Stream->DataPoint, 0, SEEK_SET ) ;
-	}
-#endif // DX_NON_ACM
 #ifndef DX_NON_OGGVORBIS
 	if( ( DisableReadSoundFunctionMask & DX_READSOUNDFUNCTION_OGG ) == 0 )
 	{
@@ -124,22 +119,10 @@ extern	int SetupSoundConvert( SOUNDCONV *SoundConv, STREAMDATA *Stream, int Disa
 		Stream->ReadShred.Seek( Stream->DataPoint, 0, SEEK_SET ) ;
 	}
 #endif // DX_NON_OGGVORBIS
-#ifndef DX_NON_ACM
-	if( ( DisableReadSoundFunctionMask & DX_READSOUNDFUNCTION_MP3 ) == 0 )
+	if( SetupSoundConvert_PF( SoundConv, Stream, DisableReadSoundFunctionMask ) == 0 )
 	{
-		if( SetupSoundConvert_MP3( SoundConv ) == 0 ) goto R1 ;
+		goto R1 ;
 	}
-#endif // DX_NON_ACM
-#ifndef DX_NON_MOVIE
-#ifndef DX_NON_DSHOW_MOVIE
-#ifndef DX_NON_DSHOW_MP3
-	if( ( DisableReadSoundFunctionMask & DX_READSOUNDFUNCTION_DSMP3 ) == 0 )
-	{
-		if( SetupSoundConvert_DSMP3( SoundConv ) == 0 ) goto R1 ;
-	}
-#endif // DX_NON_DSHOW_MP3
-#endif // DX_NON_DSHOW_MOVIE
-#endif // DX_NON_MOVIE
 	return -1 ;
 	
 R1 :
@@ -200,19 +183,10 @@ extern int SetSampleTimeSoundConvert( SOUNDCONV *SoundConv, int SampleTime )
 	switch( SoundConv->MethodType )
 	{
 	case SOUND_METHODTYPE_NORMAL : res = SetSampleTimeSoundConvert_WAVE( SoundConv, SampleTime ) ; break ;
-#ifndef DX_NON_ACM
-	case SOUND_METHODTYPE_ACM : res = SetSampleTimeSoundConvert_ACM( SoundConv, SampleTime ) ; break ;
-#endif
 #ifndef DX_NON_OGGVORBIS
 	case SOUND_METHODTYPE_OGG : res = SetSampleTimeSoundConvert_OGG( SoundConv, SampleTime ) ; break ;
 #endif
-#ifndef DX_NON_MOVIE
-#ifndef DX_NON_DSHOW_MOVIE
-#ifndef DX_NON_DSHOW_MP3
-	case SOUND_METHODTYPE_DSMP3 : res = SetSampleTimeSoundConvert_DSMP3( SoundConv, SampleTime ) ; break ;
-#endif
-#endif
-#endif
+	default: res = SetSampleTimeSoundConvert_PF( SoundConv, SampleTime ) ; break ;
 	}
 	SoundConv->EndFlag = FALSE ;
 	return res ;
@@ -245,19 +219,10 @@ extern	int RunSoundConvert( SOUNDCONV *SoundConv, void *DestBuffer, int DestSize
 			switch( SoundConv->MethodType )
 			{
 			case SOUND_METHODTYPE_NORMAL : res = ConvertProcessSoundConvert_WAVE( SoundConv ) ; break ;
-#ifndef DX_NON_ACM
-			case SOUND_METHODTYPE_ACM : res = ConvertProcessSoundConvert_ACM( SoundConv ) ; break ;
-#endif
 #ifndef DX_NON_OGGVORBIS
 			case SOUND_METHODTYPE_OGG : res = ConvertProcessSoundConvert_OGG( SoundConv ) ; break ;
 #endif
-#ifndef DX_NON_MOVIE
-#ifndef DX_NON_DSHOW_MOVIE
-#ifndef DX_NON_DSHOW_MP3
-			case SOUND_METHODTYPE_DSMP3 : res = ConvertProcessSoundConvert_DSMP3( SoundConv ) ; break ;
-#endif
-#endif
-#endif
+			default : res = ConvertProcessSoundConvert_PF( SoundConv ) ; break ;
 			}
 			if( res == -1 ) break ;
 		}
@@ -323,19 +288,10 @@ extern	int TerminateSoundConvert( SOUNDCONV *SoundConv )
 	switch( SoundConv->MethodType )
 	{
 	case SOUND_METHODTYPE_NORMAL : TerminateSoundConvert_WAVE( SoundConv ) ; break ;
-#ifndef DX_NON_ACM
-	case SOUND_METHODTYPE_ACM : TerminateSoundConvert_ACM( SoundConv ) ; break ;
-#endif
 #ifndef DX_NON_OGGVORBIS
 	case SOUND_METHODTYPE_OGG : TerminateSoundConvert_OGG( SoundConv ) ; break ;
 #endif
-#ifndef DX_NON_MOVIE
-#ifndef DX_NON_DSHOW_MOVIE
-#ifndef DX_NON_DSHOW_MP3
-	case SOUND_METHODTYPE_DSMP3 : TerminateSoundConvert_DSMP3( SoundConv ) ; break ;
-#endif
-#endif
-#endif
+	default : TerminateSoundConvert_PF( SoundConv ) ; break ;
 	}
 
 	SoundConv->InitializeFlag = FALSE ;
@@ -363,19 +319,10 @@ extern	int GetSoundConvertDestSize_Fast( SOUNDCONV *SoundConv )
 	switch( SoundConv->MethodType )
 	{
 	case SOUND_METHODTYPE_NORMAL : return GetSoundConvertDestSize_Fast_WAVE( SoundConv ) ;
-#ifndef DX_NON_ACM
-	case SOUND_METHODTYPE_ACM : return GetSoundConvertDestSize_Fast_ACM( SoundConv ) ;
-#endif
 #ifndef DX_NON_OGGVORBIS
 	case SOUND_METHODTYPE_OGG : return GetSoundConvertDestSize_Fast_OGG( SoundConv ) ;
 #endif
-#ifndef DX_NON_MOVIE
-#ifndef DX_NON_DSHOW_MOVIE
-#ifndef DX_NON_DSHOW_MP3
-	case SOUND_METHODTYPE_DSMP3 : return GetSoundConvertDestSize_Fast_DSMP3( SoundConv ) ;
-#endif
-#endif
-#endif
+	default : return GetSoundConvertDestSize_Fast_PF( SoundConv ) ;
 	}
 	return 0 ;
 }

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ制御プログラム( Direct3D9 )
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -376,6 +376,7 @@ static void MV1_D3D9_SetupMeshDrawMaterial( MV1_MODEL_BASE * /*ModelBase*/, GRAP
 				}
 
 				Direct3DDevice9_SetTexture( 6, GD3D9.RGBtoVMaxRGBVolumeTexture ) ;
+				GD3D9.Device.State.BlendInfo.TextureStageInfo[ 6 ].Texture = GD3D9.RGBtoVMaxRGBVolumeTexture ;
 				Graphics_D3D9_DeviceState_SetSampleFilterMode( 6, D_D3DTSS_MINFILTER, D_D3DTEXF_LINEAR ) ;
 				Graphics_D3D9_DeviceState_SetSampleFilterMode( 6, D_D3DTSS_MAGFILTER, D_D3DTEXF_LINEAR ) ;
 				Graphics_D3D9_DeviceState_SetSampleFilterMode( 6, D_D3DTSS_MIPFILTER, D_D3DTEXF_LINEAR ) ;

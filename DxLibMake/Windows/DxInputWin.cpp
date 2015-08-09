@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		WindowsOS用入力情報プログラム
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -1600,7 +1600,7 @@ MOUSEDEVICEINITEND:
 	{
 		// DirectInput を使用しない場合
 		int i ;
-		JOYCAPS joycaps ;
+		JOYCAPSW joycaps ;
 		DXST_ERRORLOG_TABADD ;
 
 		// パッドの数を調べる
@@ -2725,12 +2725,12 @@ extern int NS_GetJoypadName( int InputType, TCHAR *InstanceNameBuffer, TCHAR *Pr
 
 	if( InstanceNameBuffer )
 	{
-		ConvString( ( const char * )TempInstanceNameBuffer, WCHAR_T_CODEPAGE, InstanceNameBuffer, _TCODEPAGE ) ;
+		ConvString( ( const char * )TempInstanceNameBuffer, WCHAR_T_CHARCODEFORMAT, InstanceNameBuffer, _TCHARCODEFORMAT ) ;
 	}
 
 	if( ProductNameBuffer )
 	{
-		ConvString( ( const char * )TempProductNameBuffer, WCHAR_T_CODEPAGE, ProductNameBuffer, _TCODEPAGE ) ;
+		ConvString( ( const char * )TempProductNameBuffer, WCHAR_T_CHARCODEFORMAT, ProductNameBuffer, _TCHARCODEFORMAT ) ;
 	}
 
 	return Result ;

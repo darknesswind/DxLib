@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		WindowsOS用サウンドプログラム
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -308,7 +308,7 @@ static	DWORD WINAPI StreamSoundThreadFunction( void * )
 		NS_ProcessStreamSoundMemAll() ;
 
 		// 再生が終了したらハンドルを削除する処理を行う
-		ProcessPlayFinishDeleteSoundMemAll() ;
+//		ProcessPlayFinishDeleteSoundMemAll() ;
 
 		// ３Ｄサウンドを再生しているサウンドハンドルに対する処理を行う
 		ProcessPlay3DSoundMemAll() ;

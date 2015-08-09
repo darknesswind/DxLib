@@ -1,4 +1,4 @@
-﻿float2 PixelOffset[16] : register( c0 ) ;
+float2 PixelOffset[16] : register( c0 ) ;
 sampler SrcTexture     : register( s0 ) ;
 
 struct VS_OUTPUT

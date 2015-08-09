@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		標準Ｃライブラリ使用コード　Ogg関係
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -3223,6 +3223,7 @@ SEARCH_END:
 	CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
 
 	// 通常参照用にシステムメモリに XRGB 形式のバッファを作成する
+//	DXST_ERRORLOGFMT_ADDA(( "Theora w:%d  h:%d", DT->TheoraInfo.width, DT->TheoraInfo.height ));
 	if( CreateXRGB8ColorBaseImage( ( int )DT->TheoraInfo.width, ( int )DT->TheoraInfo.height, ( BASEIMAGE * )&DT->BaseImage ) == -1 )
 	{
 		DXST_ERRORLOG_ADDA( "Theora \x83\x80\x81\x5b\x83\x72\x81\x5b\x83\x66\x83\x52\x81\x5b\x83\x68\x83\x74\x83\x8c\x81\x5b\x83\x80\x83\x58\x83\x67\x83\x62\x83\x4e\x97\x70\x89\xe6\x91\x9c\x83\x6f\x83\x62\x83\x74\x83\x40\x82\xcc\x8a\x6d\x95\xdb\x82\xc9\x8e\xb8\x94\x73\x82\xb5\x82\xdc\x82\xb5\x82\xbd\n"/*@ "Theora ムービーデコードフレームストック用画像バッファの確保に失敗しました\n" @*/ );
@@ -3290,7 +3291,8 @@ int	TheoraDecode_Terminate( DWORD_PTR Handle )
 
 //	DXST_ERRORLOGFMT_ADDW(( L"TheoraDecode_Terminate 00 0x%08x", DT )) ;
 
-	if( DT->DecodeThreadHandle )
+//	if( DT->DecodeThreadHandle )
+	if( Thread_IsValid( &DT->DecodeThreadInfo ) )
 	{
 		// クリティカルセクションのロックを取得
 		CRITICALSECTION_LOCK( &DT->CriticalSection ) ;
@@ -3319,8 +3321,9 @@ int	TheoraDecode_Terminate( DWORD_PTR Handle )
 		}
 
 		// スレッドのハンドルを閉じる
-		CloseHandle( DT->DecodeThreadHandle ) ;
-		DT->DecodeThreadHandle = NULL ;
+//		CloseHandle( DT->DecodeThreadHandle ) ;
+//		DT->DecodeThreadHandle = NULL ;
+		Thread_Delete( &DT->DecodeThreadInfo ) ;
 	}
 
 	if( DT->StockFrame )
@@ -3491,7 +3494,8 @@ int TheoraDecode_ReadHeader( DECODE_THEORA *DT )
 		{
 			if( TheoraDecode_ReadData( DT ) == 0 )
 			{
-				throw "End of file while searching for codec headers.";
+				return -1 ;
+//				throw "End of file while searching for codec headers.";
 			}
 		}
 	}
@@ -4340,24 +4344,24 @@ int TheoraDecode_SetupImage( DWORD_PTR Handle, int BaseImage, int YUVImage, int 
 					y3 = YUVTable[ Y ][ ys[ Stock->YStride ] ] ;
 					y4 = YUVTable[ Y ][ ys[ Stock->YStride + 1 ] ] ;
 
-					d[2]              = LimitTable[ ( y  + uvr ) / 16384 + 512 ] ;
-					d[1]              = LimitTable[ ( y  + uvg ) / 16384 + 512 ] ;
-					d[0]              = LimitTable[ ( y  + uvb ) / 16384 + 512 ] ;
+					d[2]              = LimitTable[ ( ( y  + uvr ) >> 14 ) + 512 ] ;
+					d[1]              = LimitTable[ ( ( y  + uvg ) >> 14 ) + 512 ] ;
+					d[0]              = LimitTable[ ( ( y  + uvb ) >> 14 ) + 512 ] ;
 					d[3]              = 255;
 
-					d[2 + 4]          = LimitTable[ ( y2 + uvr ) / 16384 + 512 ] ;
-					d[1 + 4]          = LimitTable[ ( y2 + uvg ) / 16384 + 512 ] ;
-					d[0 + 4]          = LimitTable[ ( y2 + uvb ) / 16384 + 512 ] ;
+					d[2 + 4]          = LimitTable[ ( ( y2 + uvr ) >> 14 ) + 512 ] ;
+					d[1 + 4]          = LimitTable[ ( ( y2 + uvg ) >> 14 ) + 512 ] ;
+					d[0 + 4]          = LimitTable[ ( ( y2 + uvb ) >> 14 ) + 512 ] ;
 					d[3 + 4]          = 255;
 
-					d[2 + dpitch]     = LimitTable[ ( y3 + uvr ) / 16384 + 512 ] ;
-					d[1 + dpitch]     = LimitTable[ ( y3 + uvg ) / 16384 + 512 ] ;
-					d[0 + dpitch]     = LimitTable[ ( y3 + uvb ) / 16384 + 512 ] ;
+					d[2 + dpitch]     = LimitTable[ ( ( y3 + uvr ) >> 14 ) + 512 ] ;
+					d[1 + dpitch]     = LimitTable[ ( ( y3 + uvg ) >> 14 ) + 512 ] ;
+					d[0 + dpitch]     = LimitTable[ ( ( y3 + uvb ) >> 14 ) + 512 ] ;
 					d[3 + dpitch]     = 255;
 
-					d[2 + dpitch + 4] = LimitTable[ ( y4 + uvr ) / 16384 + 512 ] ;
-					d[1 + dpitch + 4] = LimitTable[ ( y4 + uvg ) / 16384 + 512 ] ;
-					d[0 + dpitch + 4] = LimitTable[ ( y4 + uvb ) / 16384 + 512 ] ;
+					d[2 + dpitch + 4] = LimitTable[ ( ( y4 + uvr ) >> 14 ) + 512 ] ;
+					d[1 + dpitch + 4] = LimitTable[ ( ( y4 + uvg ) >> 14 ) + 512 ] ;
+					d[0 + dpitch + 4] = LimitTable[ ( ( y4 + uvb ) >> 14 ) + 512 ] ;
 					d[3 + dpitch + 4] = 255;
 				}
 			}

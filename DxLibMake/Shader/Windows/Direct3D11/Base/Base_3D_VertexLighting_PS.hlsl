@@ -1,73 +1,73 @@
-#include "../PixelShader.h"
+ï»¿#include "../PixelShader.h"
 
 
-// ƒsƒNƒZƒ‹ƒVƒF[ƒ_[‚Ì“ü—Í
+// ãƒ”ã‚¯ã‚»ãƒ«ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®å…¥åŠ›
 struct PS_INPUT
 {
-	float4 Diffuse         : COLOR0 ;		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[
-	float4 Specular        : COLOR1 ;		// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
-	float4 TexCoords0_1    : TEXCOORD0 ;	// ƒeƒNƒXƒ`ƒƒÀ•W‚ÆƒTƒuƒeƒNƒXƒ`ƒƒÀ•W( x:ƒeƒNƒXƒ`ƒƒÀ•Wx  y:ƒeƒNƒXƒ`ƒƒÀ•Wy  z:ƒTƒuƒeƒNƒXƒ`ƒƒÀ•Wx  w:ƒTƒuƒeƒNƒXƒ`ƒƒÀ•Wy )
+	float4 Diffuse         : COLOR0 ;		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
+	float4 Specular        : COLOR1 ;		// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
+	float4 TexCoords0_1    : TEXCOORD0 ;	// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ã¨ã‚µãƒ–ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™( x:ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™x  y:ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™y  z:ã‚µãƒ–ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™x  w:ã‚µãƒ–ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™y )
 
-	float3 V_to_Eye        : TEXCOORD1 ;	// ’¸“_À•W‚©‚çŽ‹ü‚Ö‚ÌƒxƒNƒgƒ‹( ƒrƒ…[‹óŠÔ )
-	float4 Normal_Fog      : TEXCOORD2 ;	// x.y.z:–@ü( ƒrƒ…[‹óŠÔ )  w:SM3.0—p‚ÌƒtƒHƒOƒpƒ‰ƒ[ƒ^
+	float3 V_to_Eye        : TEXCOORD1 ;	// é ‚ç‚¹åº§æ¨™ã‹ã‚‰è¦–ç·šã¸ã®ãƒ™ã‚¯ãƒˆãƒ«( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )
+	float4 Normal_Fog      : TEXCOORD2 ;	// x.y.z:æ³•ç·š( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )  w:SM3.0ç”¨ã®ãƒ•ã‚©ã‚°ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿
 
 #if LG0_USE
-	float4 Light0_Dir_Gen  : TEXCOORD3 ;	// xyz:ƒ‰ƒCƒg‚O‚Ì‹tƒxƒNƒgƒ‹( ƒrƒ…[‹óŠÔ ) w:ƒ‰ƒCƒg‚OŒ¸Šî•ñ
+	float4 Light0_Dir_Gen  : TEXCOORD3 ;	// xyz:ãƒ©ã‚¤ãƒˆï¼ã®é€†ãƒ™ã‚¯ãƒˆãƒ«( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ ) w:ãƒ©ã‚¤ãƒˆï¼æ¸›è¡°æƒ…å ±
 #endif
 #if LG1_USE
-	float4 Light1_Dir_Gen  : TEXCOORD4 ;	// xyz:ƒ‰ƒCƒg‚P‚Ì‹tƒxƒNƒgƒ‹( ƒrƒ…[‹óŠÔ ) w:ƒ‰ƒCƒg‚PŒ¸Šî•ñ
+	float4 Light1_Dir_Gen  : TEXCOORD4 ;	// xyz:ãƒ©ã‚¤ãƒˆï¼‘ã®é€†ãƒ™ã‚¯ãƒˆãƒ«( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ ) w:ãƒ©ã‚¤ãƒˆï¼‘æ¸›è¡°æƒ…å ±
 #endif
 #if LG2_USE
-	float4 Light2_Dir_Gen  : TEXCOORD5 ;	// xyz:ƒ‰ƒCƒg‚Q‚Ì‹tƒxƒNƒgƒ‹( ƒrƒ…[‹óŠÔ ) w:ƒ‰ƒCƒg‚QŒ¸Šî•ñ
+	float4 Light2_Dir_Gen  : TEXCOORD5 ;	// xyz:ãƒ©ã‚¤ãƒˆï¼’ã®é€†ãƒ™ã‚¯ãƒˆãƒ«( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ ) w:ãƒ©ã‚¤ãƒˆï¼’æ¸›è¡°æƒ…å ±
 #endif
 
 #if SHADOWMAP || SHADOWMAP_DRAW
-	float3 ShadowMap0Pos   : TEXCOORD6 ;	// ƒVƒƒƒhƒEƒ}ƒbƒv‚O‚Ìƒ‰ƒCƒgÀ•W( x, y, z )
+	float3 ShadowMap0Pos   : TEXCOORD6 ;	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ï¼ã®ãƒ©ã‚¤ãƒˆåº§æ¨™( x, y, z )
 #endif
 #if SHADOWMAP
-	float3 ShadowMap1Pos   : TEXCOORD7 ;	// ƒVƒƒƒhƒEƒ}ƒbƒv‚P‚Ìƒ‰ƒCƒgÀ•W( x, y, z )
-	float3 ShadowMap2Pos   : TEXCOORD8 ;	// ƒVƒƒƒhƒEƒ}ƒbƒv‚Q‚Ìƒ‰ƒCƒgÀ•W( x, y, z )
+	float3 ShadowMap1Pos   : TEXCOORD7 ;	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ï¼‘ã®ãƒ©ã‚¤ãƒˆåº§æ¨™( x, y, z )
+	float3 ShadowMap2Pos   : TEXCOORD8 ;	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ï¼’ã®ãƒ©ã‚¤ãƒˆåº§æ¨™( x, y, z )
 #endif
 } ;
 
-// ƒsƒNƒZƒ‹ƒVƒF[ƒ_[‚Ìo—Í
+// ãƒ”ã‚¯ã‚»ãƒ«ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®å‡ºåŠ›
 struct PS_OUTPUT
 {
-	float4 Color0           : SV_TARGET0 ;	// F
+	float4 Color0           : SV_TARGET0 ;	// è‰²
 } ;
 
 
 
 
 
-SamplerState g_DiffuseMapSampler            : register( s0 ) ;		// ƒfƒBƒtƒ…[ƒYƒ}ƒbƒvƒeƒNƒXƒ`ƒƒ
-Texture2D    g_DiffuseMapTexture            : register( t0 ) ;		// ƒfƒBƒtƒ…[ƒYƒ}ƒbƒvƒeƒNƒXƒ`ƒƒ
+SamplerState g_DiffuseMapSampler            : register( s0 ) ;		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒžãƒƒãƒ—ãƒ†ã‚¯ã‚¹ãƒãƒ£
+Texture2D    g_DiffuseMapTexture            : register( t0 ) ;		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒžãƒƒãƒ—ãƒ†ã‚¯ã‚¹ãƒãƒ£
 
 #if BUMPMAP
-SamplerState g_NormalMapSampler             : register( s1 ) ;		// –@üƒ}ƒbƒvƒeƒNƒXƒ`ƒƒ
-Texture2D    g_NormalMapTexture             : register( t1 ) ;		// –@üƒ}ƒbƒvƒeƒNƒXƒ`ƒƒ
+SamplerState g_NormalMapSampler             : register( s1 ) ;		// æ³•ç·šãƒžãƒƒãƒ—ãƒ†ã‚¯ã‚¹ãƒãƒ£
+Texture2D    g_NormalMapTexture             : register( t1 ) ;		// æ³•ç·šãƒžãƒƒãƒ—ãƒ†ã‚¯ã‚¹ãƒãƒ£
 #endif // BUMPMAP
 
 #if USE_SPETEX
-SamplerState g_SpecularMapSampler           : register( s2 ) ;		// ƒXƒyƒLƒ…ƒ‰ƒ}ƒbƒvƒeƒNƒXƒ`ƒƒ
-Texture2D    g_SpecularMapTexture           : register( t2 ) ;		// ƒXƒyƒLƒ…ƒ‰ƒ}ƒbƒvƒeƒNƒXƒ`ƒƒ
+SamplerState g_SpecularMapSampler           : register( s2 ) ;		// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—ãƒ†ã‚¯ã‚¹ãƒãƒ£
+Texture2D    g_SpecularMapTexture           : register( t2 ) ;		// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—ãƒ†ã‚¯ã‚¹ãƒãƒ£
 #endif // USE_SPETEX
 
 #if SHADOWMAP
-SamplerState g_ShadowMap0Sampler            : register( s8  ) ;		// ƒVƒƒƒhƒEƒ}ƒbƒv‚OƒeƒNƒXƒ`ƒƒ
-Texture2D    g_ShadowMap0Texture            : register( t8  ) ;		// ƒVƒƒƒhƒEƒ}ƒbƒv‚OƒeƒNƒXƒ`ƒƒ
+SamplerState g_ShadowMap0Sampler            : register( s8  ) ;		// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ï¼ãƒ†ã‚¯ã‚¹ãƒãƒ£
+Texture2D    g_ShadowMap0Texture            : register( t8  ) ;		// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ï¼ãƒ†ã‚¯ã‚¹ãƒãƒ£
 
-SamplerState g_ShadowMap1Sampler            : register( s9  ) ;		// ƒVƒƒƒhƒEƒ}ƒbƒv‚PƒeƒNƒXƒ`ƒƒ
-Texture2D    g_ShadowMap1Texture            : register( t9  ) ;		// ƒVƒƒƒhƒEƒ}ƒbƒv‚PƒeƒNƒXƒ`ƒƒ
+SamplerState g_ShadowMap1Sampler            : register( s9  ) ;		// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ï¼‘ãƒ†ã‚¯ã‚¹ãƒãƒ£
+Texture2D    g_ShadowMap1Texture            : register( t9  ) ;		// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ï¼‘ãƒ†ã‚¯ã‚¹ãƒãƒ£
 
-SamplerState g_ShadowMap2Sampler            : register( s10 ) ;		// ƒVƒƒƒhƒEƒ}ƒbƒv‚QƒeƒNƒXƒ`ƒƒ
-Texture2D    g_ShadowMap2Texture            : register( t10 ) ;		// ƒVƒƒƒhƒEƒ}ƒbƒv‚QƒeƒNƒXƒ`ƒƒ
+SamplerState g_ShadowMap2Sampler            : register( s10 ) ;		// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ï¼’ãƒ†ã‚¯ã‚¹ãƒãƒ£
+Texture2D    g_ShadowMap2Texture            : register( t10 ) ;		// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ï¼’ãƒ†ã‚¯ã‚¹ãƒãƒ£
 #endif
 
 
 
 
-// mainŠÖ”
+// mainé–¢æ•°
 PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 {
 	PS_OUTPUT	PSOutput ;
@@ -106,20 +106,20 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 	#endif // USE_SPETEX
 #endif // USE_SPE
 
-	// ƒ‰ƒCƒg‚ðŽg‚í‚È‚¢ê‡‚ÍƒJƒ‰[‚ð‚»‚Ì‚Ü‚Üo—Í *****************************************( ŠJŽn )
+	// ãƒ©ã‚¤ãƒˆã‚’ä½¿ã‚ãªã„å ´åˆã¯ã‚«ãƒ©ãƒ¼ã‚’ãã®ã¾ã¾å‡ºåŠ› *****************************************( é–‹å§‹ )
 	#ifndef LG_USE
 
-		// ƒVƒƒƒhƒEƒ}ƒbƒv‚Ö‚Ì•`‰æ *********************************************************( ŠJŽn )
+		// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ã¸ã®æç”» *********************************************************( é–‹å§‹ )
 		#if SHADOWMAP_DRAW
-			// o—Íƒ¿ = ƒeƒNƒXƒ`ƒƒƒ¿ * ƒfƒBƒtƒ…[ƒYƒ¿ * ‘åˆæƒ¿
+			// å‡ºåŠ›Î± = ãƒ†ã‚¯ã‚¹ãƒãƒ£Î± * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºÎ± * å¤§åŸŸÎ±
 			PSOutput.Color0.a = TextureDiffuseColor.a * ParamAlpha ;
 			
-			// ‚y’l‚ðF‚Æ‚µ‚Äo—Í
+			// ï¼ºå€¤ã‚’è‰²ã¨ã—ã¦å‡ºåŠ›
 			PSOutput.Color0.r = PSInput.ShadowMap0Pos.z;
 			PSOutput.Color0.g = 0.0f ;
 			PSOutput.Color0.b = 0.0f ;
 		
-		// ƒVƒƒƒhƒEƒ}ƒbƒv‚Ö‚Ì•`‰æ *********************************************************( I—¹ )
+		// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ã¸ã®æç”» *********************************************************( çµ‚äº† )
 		#else // SHADOWMAP_DRAW
 		
 			#ifdef USE_SPE
@@ -144,16 +144,16 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 			
 		#endif // SHADOWMAP_DRAW
 
-	// ƒ‰ƒCƒg‚ðŽg‚í‚È‚¢ê‡‚ÍƒJƒ‰[‚ð‚»‚Ì‚Ü‚Üo—Í *****************************************( I—¹ )
+	// ãƒ©ã‚¤ãƒˆã‚’ä½¿ã‚ãªã„å ´åˆã¯ã‚«ãƒ©ãƒ¼ã‚’ãã®ã¾ã¾å‡ºåŠ› *****************************************( çµ‚äº† )
 	#else // LG_USE
-	// ƒ‰ƒCƒg‚ðŽg‚¤ê‡ *******************************************************************( ŠJŽn )
+	// ãƒ©ã‚¤ãƒˆã‚’ä½¿ã†å ´åˆ *******************************************************************( é–‹å§‹ )
 
-		// ƒoƒ“ƒvƒ}ƒbƒv or ƒtƒHƒ“ƒVƒF[ƒfƒBƒ“ƒO‚Ìê‡ =========================================( ŠJŽn )
+		// ãƒãƒ³ãƒ—ãƒžãƒƒãƒ— or ãƒ•ã‚©ãƒ³ã‚·ã‚§ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°ã®å ´åˆ =========================================( é–‹å§‹ )
 		#if BUMPMAP || PHONG
 
 			#if BUMPMAP
 
-				// –@ü‚Ì 0`1 ‚Ì’l‚ð -1.0`1.0 ‚É•ÏŠ·‚·‚é
+				// æ³•ç·šã® 0ã€œ1 ã®å€¤ã‚’ -1.0ã€œ1.0 ã«å¤‰æ›ã™ã‚‹
 				Normal = ( g_NormalMapTexture.Sample( g_NormalMapSampler, PSInput.TexCoords0_1.xy ).rgb - 0.5f ) * 2.0f ;
 
 			#else // BUMPMAP
@@ -168,7 +168,7 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 			#endif
 
 			#if	SHADOWMAP
-				// ’¸“_‚ÌƒeƒNƒXƒ`ƒƒÀ•W’l‚ª”ÍˆÍ“à‚Ìê‡‚Ì‚Ýˆ—‚·‚é
+				// é ‚ç‚¹ã®ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™å€¤ãŒç¯„å›²å†…ã®å ´åˆã®ã¿å‡¦ç†ã™ã‚‹
 				if( PSInput.ShadowMap0Pos.x < -1.0f || PSInput.ShadowMap0Pos.x > 1.0f ||
 					PSInput.ShadowMap0Pos.y < -1.0f || PSInput.ShadowMap0Pos.y > 1.0f ||
 					PSInput.ShadowMap0Pos.z <  0.0f || PSInput.ShadowMap0Pos.z > 1.0f )
@@ -177,21 +177,21 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 				}
 				else
 				{
-					// [“xƒeƒNƒXƒ`ƒƒ‚ÌÀ•W‚ðŽZo
-					// PSInput.ShadowMap0Pos.xy ‚Í -1.0f ` 1.0f ‚Ì’l‚È‚Ì‚ÅA‚±‚ê‚ð 0.0f ` 1.0f ‚Ì’l‚É‚·‚é
+					// æ·±åº¦ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®åº§æ¨™ã‚’ç®—å‡º
+					// PSInput.ShadowMap0Pos.xy ã¯ -1.0f ã€œ 1.0f ã®å€¤ãªã®ã§ã€ã“ã‚Œã‚’ 0.0f ã€œ 1.0f ã®å€¤ã«ã™ã‚‹
 					DepthTexCoord.x = ( PSInput.ShadowMap0Pos.x + 1.0f ) / 2.0f;
 
-					// y‚ÍX‚Éã‰º”½“]
+					// yã¯æ›´ã«ä¸Šä¸‹åè»¢
 					DepthTexCoord.y = 1.0f - ( PSInput.ShadowMap0Pos.y + 1.0f ) / 2.0f;
 
-					// [“xƒoƒbƒtƒ@ƒeƒNƒXƒ`ƒƒ‚©‚ç[“x‚ðŽæ“¾
+					// æ·±åº¦ãƒãƒƒãƒ•ã‚¡ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‹ã‚‰æ·±åº¦ã‚’å–å¾—
 					TextureDepth = g_ShadowMap0Texture.Sample( g_ShadowMap0Sampler, DepthTexCoord );
 
-					// ƒeƒNƒXƒ`ƒƒ‚É‹L˜^‚³‚ê‚Ä‚¢‚é[“x( +•â³’l )‚æ‚è‚y’l‚ª‘å‚«‚©‚Á‚½‚ç‰œ‚É‚ ‚é‚Æ‚¢‚¤‚±‚Æ‚ÅŒ¸Š—¦‚ðÅ‘å‚É‚·‚é
+					// ãƒ†ã‚¯ã‚¹ãƒãƒ£ã«è¨˜éŒ²ã•ã‚Œã¦ã„ã‚‹æ·±åº¦( +è£œæ­£å€¤ )ã‚ˆã‚Šï¼ºå€¤ãŒå¤§ãã‹ã£ãŸã‚‰å¥¥ã«ã‚ã‚‹ã¨ã„ã†ã“ã¨ã§æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹
 					ShadowRate.x = smoothstep( PSInput.ShadowMap0Pos.z - g_ShadowMap.Data[ 0 ].GradationParam, PSInput.ShadowMap0Pos.z, TextureDepth.r + g_ShadowMap.Data[ 0 ].AdjustDepth ) ;
 				}
 
-				// ’¸“_‚ÌƒeƒNƒXƒ`ƒƒÀ•W’l‚ª”ÍˆÍ“à‚Ìê‡‚Ì‚Ýˆ—‚·‚é
+				// é ‚ç‚¹ã®ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™å€¤ãŒç¯„å›²å†…ã®å ´åˆã®ã¿å‡¦ç†ã™ã‚‹
 				if( PSInput.ShadowMap1Pos.x < -1.0f || PSInput.ShadowMap1Pos.x > 1.0f ||
 					PSInput.ShadowMap1Pos.y < -1.0f || PSInput.ShadowMap1Pos.y > 1.0f ||
 					PSInput.ShadowMap1Pos.z <  0.0f || PSInput.ShadowMap1Pos.z > 1.0f )
@@ -200,21 +200,21 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 				}
 				else
 				{
-					// [“xƒeƒNƒXƒ`ƒƒ‚ÌÀ•W‚ðŽZo
-					// PSInput.ShadowMap1Pos.xy ‚Í -1.0f ` 1.0f ‚Ì’l‚È‚Ì‚ÅA‚±‚ê‚ð 0.0f ` 1.0f ‚Ì’l‚É‚·‚é
+					// æ·±åº¦ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®åº§æ¨™ã‚’ç®—å‡º
+					// PSInput.ShadowMap1Pos.xy ã¯ -1.0f ã€œ 1.0f ã®å€¤ãªã®ã§ã€ã“ã‚Œã‚’ 0.0f ã€œ 1.0f ã®å€¤ã«ã™ã‚‹
 					DepthTexCoord.x = ( PSInput.ShadowMap1Pos.x + 1.0f ) / 2.0f;
 
-					// y‚ÍX‚Éã‰º”½“]
+					// yã¯æ›´ã«ä¸Šä¸‹åè»¢
 					DepthTexCoord.y = 1.0f - ( PSInput.ShadowMap1Pos.y + 1.0f ) / 2.0f;
 
-					// [“xƒoƒbƒtƒ@ƒeƒNƒXƒ`ƒƒ‚©‚ç[“x‚ðŽæ“¾
+					// æ·±åº¦ãƒãƒƒãƒ•ã‚¡ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‹ã‚‰æ·±åº¦ã‚’å–å¾—
 					TextureDepth = g_ShadowMap1Texture.Sample( g_ShadowMap1Sampler, DepthTexCoord );
 
-					// ƒeƒNƒXƒ`ƒƒ‚É‹L˜^‚³‚ê‚Ä‚¢‚é[“x( +•â³’l )‚æ‚è‚y’l‚ª‘å‚«‚©‚Á‚½‚ç‰œ‚É‚ ‚é‚Æ‚¢‚¤‚±‚Æ‚ÅŒ¸Š—¦‚ðÅ‘å‚É‚·‚é
+					// ãƒ†ã‚¯ã‚¹ãƒãƒ£ã«è¨˜éŒ²ã•ã‚Œã¦ã„ã‚‹æ·±åº¦( +è£œæ­£å€¤ )ã‚ˆã‚Šï¼ºå€¤ãŒå¤§ãã‹ã£ãŸã‚‰å¥¥ã«ã‚ã‚‹ã¨ã„ã†ã“ã¨ã§æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹
 					ShadowRate.y = smoothstep( PSInput.ShadowMap1Pos.z - g_ShadowMap.Data[ 1 ].GradationParam, PSInput.ShadowMap1Pos.z, TextureDepth.r + g_ShadowMap.Data[ 1 ].AdjustDepth ) ;
 				}
 
-				// ’¸“_‚ÌƒeƒNƒXƒ`ƒƒÀ•W’l‚ª”ÍˆÍ“à‚Ìê‡‚Ì‚Ýˆ—‚·‚é
+				// é ‚ç‚¹ã®ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™å€¤ãŒç¯„å›²å†…ã®å ´åˆã®ã¿å‡¦ç†ã™ã‚‹
 				if( PSInput.ShadowMap2Pos.x < -1.0f || PSInput.ShadowMap2Pos.x > 1.0f ||
 					PSInput.ShadowMap2Pos.y < -1.0f || PSInput.ShadowMap2Pos.y > 1.0f ||
 					PSInput.ShadowMap2Pos.z <  0.0f || PSInput.ShadowMap2Pos.z > 1.0f )
@@ -223,17 +223,17 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 				}
 				else
 				{
-					// [“xƒeƒNƒXƒ`ƒƒ‚ÌÀ•W‚ðŽZo
-					// PSInput.ShadowMap2Pos.x ‚Æ PSInput.ShadowMap2Pos.y ‚Í -1.0f ` 1.0f ‚Ì’l‚È‚Ì‚ÅA‚±‚ê‚ð 0.0f ` 1.0f ‚Ì’l‚É‚·‚é
+					// æ·±åº¦ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®åº§æ¨™ã‚’ç®—å‡º
+					// PSInput.ShadowMap2Pos.x ã¨ PSInput.ShadowMap2Pos.y ã¯ -1.0f ã€œ 1.0f ã®å€¤ãªã®ã§ã€ã“ã‚Œã‚’ 0.0f ã€œ 1.0f ã®å€¤ã«ã™ã‚‹
 					DepthTexCoord.x = ( PSInput.ShadowMap2Pos.x + 1.0f ) / 2.0f;
 
-					// y‚ÍX‚Éã‰º”½“]
+					// yã¯æ›´ã«ä¸Šä¸‹åè»¢
 					DepthTexCoord.y = 1.0f - ( PSInput.ShadowMap2Pos.y + 1.0f ) / 2.0f;
 
-					// [“xƒoƒbƒtƒ@ƒeƒNƒXƒ`ƒƒ‚©‚ç[“x‚ðŽæ“¾
+					// æ·±åº¦ãƒãƒƒãƒ•ã‚¡ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‹ã‚‰æ·±åº¦ã‚’å–å¾—
 					TextureDepth = g_ShadowMap2Texture.Sample( g_ShadowMap2Sampler, DepthTexCoord );
 
-					// ƒeƒNƒXƒ`ƒƒ‚É‹L˜^‚³‚ê‚Ä‚¢‚é[“x( +•â³’l )‚æ‚è‚y’l‚ª‘å‚«‚©‚Á‚½‚ç‰œ‚É‚ ‚é‚Æ‚¢‚¤‚±‚Æ‚ÅŒ¸Š—¦‚ðÅ‘å‚É‚·‚é
+					// ãƒ†ã‚¯ã‚¹ãƒãƒ£ã«è¨˜éŒ²ã•ã‚Œã¦ã„ã‚‹æ·±åº¦( +è£œæ­£å€¤ )ã‚ˆã‚Šï¼ºå€¤ãŒå¤§ãã‹ã£ãŸã‚‰å¥¥ã«ã‚ã‚‹ã¨ã„ã†ã“ã¨ã§æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹
 					ShadowRate.z = smoothstep( PSInput.ShadowMap2Pos.z - g_ShadowMap.Data[ 2 ].GradationParam, PSInput.ShadowMap2Pos.z, TextureDepth.r + g_ShadowMap.Data[ 2 ].AdjustDepth ) ;
 				}
 
@@ -243,7 +243,7 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 				ShadowRate.z = 1.0f ;
 			#endif // SHADOWMAP
 
-			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ÆƒXƒyƒLƒ…ƒ‰ƒJƒ‰[‚Ì’~Ï’l‚ð‰Šú‰»
+			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¨ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ã‚’åˆæœŸåŒ–
 			TotalDiffuse  = 0.0f ;
 			TotalSpecular = 0.0f ;
 
@@ -251,36 +251,36 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 
 
 			
-// ƒ‰ƒCƒg0‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
+// ãƒ©ã‚¤ãƒˆ0ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 #if LG0_USE
 
-	// ƒfƒBƒtƒ…[ƒYFŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè‰²è¨ˆç®—
 
-	// DiffuseAngleGen = ƒfƒBƒtƒ…[ƒYŠp“xŒ¸Š—¦ŒvŽZ
+	// DiffuseAngleGen = ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°çŽ‡è¨ˆç®—
 	DiffuseAngleGen = saturate( dot( Normal, PSInput.Light0_Dir_Gen.xyz ) ) ;
 	
-	// ‰e‚É‚æ‚éŒ¸Š—¦ŽZo
+	// å½±ã«ã‚ˆã‚‹æ¸›è¡°çŽ‡ç®—å‡º
 	ShadowGen = max( ShadowRate.x, g_ShadowMap.Data[ 0 ].Enable_Light0 ) *
 	            max( ShadowRate.y, g_ShadowMap.Data[ 1 ].Enable_Light0 ) *
 	            max( ShadowRate.z, g_ShadowMap.Data[ 2 ].Enable_Light0 ) ;
 
 	#if LG0_DIR
 
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì 
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã® 
 		TotalDiffuse += g_Common.Light[ 0 ].Diffuse * PSInput.Diffuse.xyz * DiffuseAngleGen * ShadowGen + g_Common.Light[ 0 ].Ambient.xyz ;
 
 	#else // LG0_DIR
 
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 		TotalDiffuse += ( g_Common.Light[ 0 ].Diffuse * PSInput.Diffuse.xyz * DiffuseAngleGen * ShadowGen + g_Common.Light[ 0 ].Ambient.xyz ) * PSInput.Light0_Dir_Gen.w ;
 
 	#endif // LG0_DIR
 
 
-	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ
+	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®—
 	#ifdef USE_SPE
 
-		// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		TempF3 = PSInput.V_to_Eye + PSInput.Light0_Dir_Gen.xyz ;
 		#ifdef    PHONG
 			TempF3 = normalize( TempF3 ) ;
@@ -293,12 +293,12 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 
 		#if LG0_DIR
 
-			// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 			TotalSpecular += Temp * g_Common.Light[ 0 ].Specular * ShadowGen ;
 
 		#else // LG0_DIR
 
-			// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦ * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 			TotalSpecular += Temp * PSInput.Light0_Dir_Gen.w * g_Common.Light[ 0 ].Specular * ShadowGen ;
 
 		#endif // LG0_DIR
@@ -306,7 +306,7 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 	#endif // USE_SPE
 
 #endif // LG0_USE
-// ƒ‰ƒCƒg0‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+// ãƒ©ã‚¤ãƒˆ0ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
 
@@ -317,36 +317,36 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 
 
 			
-// ƒ‰ƒCƒg1‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
+// ãƒ©ã‚¤ãƒˆ1ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 #if LG1_USE
 
-	// ƒfƒBƒtƒ…[ƒYFŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè‰²è¨ˆç®—
 
-	// DiffuseAngleGen = ƒfƒBƒtƒ…[ƒYŠp“xŒ¸Š—¦ŒvŽZ
+	// DiffuseAngleGen = ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°çŽ‡è¨ˆç®—
 	DiffuseAngleGen = saturate( dot( Normal, PSInput.Light1_Dir_Gen.xyz ) ) ;
 	
-	// ‰e‚É‚æ‚éŒ¸Š—¦ŽZo
+	// å½±ã«ã‚ˆã‚‹æ¸›è¡°çŽ‡ç®—å‡º
 	ShadowGen = max( ShadowRate.x, g_ShadowMap.Data[ 0 ].Enable_Light1 ) *
 	            max( ShadowRate.y, g_ShadowMap.Data[ 1 ].Enable_Light1 ) *
 	            max( ShadowRate.z, g_ShadowMap.Data[ 2 ].Enable_Light1 ) ;
 
 	#if LG1_DIR
 
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì 
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã® 
 		TotalDiffuse += g_Common.Light[ 1 ].Diffuse * PSInput.Diffuse.xyz * DiffuseAngleGen * ShadowGen + g_Common.Light[ 1 ].Ambient.xyz ;
 
 	#else // LG1_DIR
 
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 		TotalDiffuse += ( g_Common.Light[ 1 ].Diffuse * PSInput.Diffuse.xyz * DiffuseAngleGen * ShadowGen + g_Common.Light[ 1 ].Ambient.xyz ) * PSInput.Light1_Dir_Gen.w ;
 
 	#endif // LG1_DIR
 
 
-	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ
+	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®—
 	#ifdef USE_SPE
 
-		// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		TempF3 = PSInput.V_to_Eye + PSInput.Light1_Dir_Gen.xyz ;
 		#ifdef    PHONG
 			TempF3 = normalize( TempF3 ) ;
@@ -359,12 +359,12 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 
 		#if LG1_DIR
 
-			// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 			TotalSpecular += Temp * g_Common.Light[ 1 ].Specular * ShadowGen ;
 
 		#else // LG1_DIR
 
-			// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦ * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 			TotalSpecular += Temp * PSInput.Light1_Dir_Gen.w * g_Common.Light[ 1 ].Specular * ShadowGen ;
 
 		#endif // LG1_DIR
@@ -372,7 +372,7 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 	#endif // USE_SPE
 
 #endif // LG1_USE
-// ƒ‰ƒCƒg1‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+// ãƒ©ã‚¤ãƒˆ1ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
 
@@ -383,36 +383,36 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 
 
 			
-// ƒ‰ƒCƒg2‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
+// ãƒ©ã‚¤ãƒˆ2ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 #if LG2_USE
 
-	// ƒfƒBƒtƒ…[ƒYFŒvŽZ
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè‰²è¨ˆç®—
 
-	// DiffuseAngleGen = ƒfƒBƒtƒ…[ƒYŠp“xŒ¸Š—¦ŒvŽZ
+	// DiffuseAngleGen = ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°çŽ‡è¨ˆç®—
 	DiffuseAngleGen = saturate( dot( Normal, PSInput.Light2_Dir_Gen.xyz ) ) ;
 	
-	// ‰e‚É‚æ‚éŒ¸Š—¦ŽZo
+	// å½±ã«ã‚ˆã‚‹æ¸›è¡°çŽ‡ç®—å‡º
 	ShadowGen = max( ShadowRate.x, g_ShadowMap.Data[ 0 ].Enable_Light2 ) *
 	            max( ShadowRate.y, g_ShadowMap.Data[ 1 ].Enable_Light2 ) *
 	            max( ShadowRate.z, g_ShadowMap.Data[ 2 ].Enable_Light2 ) ;
 
 	#if LG2_DIR
 
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì 
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã® 
 		TotalDiffuse += g_Common.Light[ 2 ].Diffuse * PSInput.Diffuse.xyz * DiffuseAngleGen * ShadowGen + g_Common.Light[ 2 ].Ambient.xyz ;
 
 	#else // LG2_DIR
 
-		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l += ( ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸Š—¦ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì  ) * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦
+		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ += ( ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°çŽ‡ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®  ) * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡
 		TotalDiffuse += ( g_Common.Light[ 2 ].Diffuse * PSInput.Diffuse.xyz * DiffuseAngleGen * ShadowGen + g_Common.Light[ 2 ].Ambient.xyz ) * PSInput.Light2_Dir_Gen.w ;
 
 	#endif // LG2_DIR
 
 
-	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ
+	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®—
 	#ifdef USE_SPE
 
-		// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ
+		// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
 		TempF3 = PSInput.V_to_Eye + PSInput.Light2_Dir_Gen.xyz ;
 		#ifdef    PHONG
 			TempF3 = normalize( TempF3 ) ;
@@ -425,12 +425,12 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 
 		#if LG2_DIR
 
-			// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 			TotalSpecular += Temp * g_Common.Light[ 2 ].Specular * ShadowGen ;
 
 		#else // LG2_DIR
 
-			// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l += Temp * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒg‚ÌŠp“xŒ¸Š—¦ * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ += Temp * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°çŽ‡ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 			TotalSpecular += Temp * PSInput.Light2_Dir_Gen.w * g_Common.Light[ 2 ].Specular * ShadowGen ;
 
 		#endif // LG2_DIR
@@ -438,7 +438,7 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 	#endif // USE_SPE
 
 #endif // LG2_USE
-// ƒ‰ƒCƒg2‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+// ãƒ©ã‚¤ãƒˆ2ã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
 
@@ -457,43 +457,43 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 
 
 
-			// o—ÍƒJƒ‰[ŒvŽZ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
+			// å‡ºåŠ›ã‚«ãƒ©ãƒ¼è¨ˆç®— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 
-			// ƒ‰ƒCƒgƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l + ( ƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ÆƒOƒ[ƒoƒ‹ƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì‚Æƒ}ƒeƒŠƒAƒ‹ƒGƒ~ƒbƒVƒuƒJƒ‰[‚ð‰ÁŽZ‚µ‚½‚à‚Ì )
+			// ãƒ©ã‚¤ãƒˆãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ + ( ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ã‚°ãƒ­ãƒ¼ãƒãƒ«ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã‚¨ãƒŸãƒƒã‚·ãƒ–ã‚«ãƒ©ãƒ¼ã‚’åŠ ç®—ã—ãŸã‚‚ã® )
 			TotalDiffuse += g_Common.Material.Ambient_Emissive.rgb ;
 
 			#ifdef USE_SPE
 
 				#ifdef USE_SPETEX
-					// TextureSpecularColor = ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l * ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ * ƒXƒyƒLƒ…ƒ‰ƒeƒNƒXƒ`ƒƒƒJƒ‰[
+					// TextureSpecularColor = ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ * ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼ * ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼
 					TextureSpecularColor.xyz = g_SpecularMapTexture.Sample( g_SpecularMapSampler, PSInput.TexCoords0_1.xy ).xyz * TotalSpecular * PSInput.Specular.xyz ;
 				#else  // USE_SPETEX
-					// TextureSpecularColor = ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l * ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+					// TextureSpecularColor = ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ * ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 					TextureSpecularColor.xyz = TotalSpecular.xyz * PSInput.Specular.xyz ;
 				#endif // USE_SPETEX
 
-				// o—ÍƒJƒ‰[ = TotalDiffuse * ƒeƒNƒXƒ`ƒƒƒJƒ‰[ + TextureSpecularColor
+				// å‡ºåŠ›ã‚«ãƒ©ãƒ¼ = TotalDiffuse * ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼ + TextureSpecularColor
 				PSOutput.Color0.rgb = TextureDiffuseColor.rgb * TotalDiffuse + TextureSpecularColor.rgb ;
 
-				// o—Íƒ¿ = ƒeƒNƒXƒ`ƒƒƒ¿ * ƒfƒBƒtƒ…[ƒYƒ¿ * ‘åˆæƒ¿
+				// å‡ºåŠ›Î± = ãƒ†ã‚¯ã‚¹ãƒãƒ£Î± * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºÎ± * å¤§åŸŸÎ±
 				PSOutput.Color0.a = TextureDiffuseColor.a * ParamAlpha ;
 
 			#else  // USE_SPE
 
-				// o—ÍƒJƒ‰[ = TotalDiffuse * ƒeƒNƒXƒ`ƒƒƒJƒ‰[
+				// å‡ºåŠ›ã‚«ãƒ©ãƒ¼ = TotalDiffuse * ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚«ãƒ©ãƒ¼
 				PSOutput.Color0.rgb = TotalDiffuse * TextureDiffuseColor.rgb ;
 
-				// o—Íƒ¿ = ƒeƒNƒXƒ`ƒƒƒ¿ * ƒfƒBƒtƒ…[ƒYƒ¿ * ‘åˆæƒ¿
+				// å‡ºåŠ›Î± = ãƒ†ã‚¯ã‚¹ãƒãƒ£Î± * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºÎ± * å¤§åŸŸÎ±
 				PSOutput.Color0.a = TextureDiffuseColor.a * ParamAlpha ;
 
 			#endif // USE_SPE
 
-			// o—ÍƒJƒ‰[ŒvŽZ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+			// å‡ºåŠ›ã‚«ãƒ©ãƒ¼è¨ˆç®— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
-		// ƒoƒ“ƒvƒ}ƒbƒv or ƒtƒHƒ“ƒVƒF[ƒfƒBƒ“ƒO‚Ìê‡ =========================================( I—¹ )
+		// ãƒãƒ³ãƒ—ãƒžãƒƒãƒ— or ãƒ•ã‚©ãƒ³ã‚·ã‚§ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°ã®å ´åˆ =========================================( çµ‚äº† )
 		#else  // BUMPMAP || PHONG
-			// ƒoƒ“ƒvƒ}ƒbƒv or ƒtƒHƒ“ƒVƒF[ƒfƒBƒ“ƒO‚Å‚Í‚È‚¢ê‡ ===================================( ŠJŽn )
+			// ãƒãƒ³ãƒ—ãƒžãƒƒãƒ— or ãƒ•ã‚©ãƒ³ã‚·ã‚§ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°ã§ã¯ãªã„å ´åˆ ===================================( é–‹å§‹ )
 
 			#ifdef USE_SPE
 
@@ -516,10 +516,10 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 			PSOutput.Color0.a   = TextureDiffuseColor.a * ParamAlpha ;
 
 		#endif // BUMPMAP || PHONG
-		// ƒoƒ“ƒvƒ}ƒbƒv or ƒtƒHƒ“ƒVƒF[ƒfƒBƒ“ƒO‚Å‚Í‚È‚¢ê‡ ===================================( I—¹ )
+		// ãƒãƒ³ãƒ—ãƒžãƒƒãƒ— or ãƒ•ã‚©ãƒ³ã‚·ã‚§ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°ã§ã¯ãªã„å ´åˆ ===================================( çµ‚äº† )
 
 	#endif // LG_USE
-	// ƒ‰ƒCƒg‚ðŽg‚¤ê‡ *******************************************************************( I—¹ )
+	// ãƒ©ã‚¤ãƒˆã‚’ä½¿ã†å ´åˆ *******************************************************************( çµ‚äº† )
 
 #ifdef PRE_MUL_ALPHA
 	PSOutput.Color0.rgb *= PSInput.Diffuse.a ;
@@ -533,10 +533,10 @@ PS_OUTPUT PS3D_Normal( PS_INPUT PSInput )
 	PSOutput.Color0 = lerp( 1.0f, PSOutput.Color0, PSOutput.Color0.a ) ;
 #endif
 
-	// ƒAƒ‹ƒtƒ@ƒeƒXƒg
+	// ã‚¢ãƒ«ãƒ•ã‚¡ãƒ†ã‚¹ãƒˆ
 	AlphaTest( PSOutput.Color0.a ) ;
 
-	// ƒtƒHƒOŒø‰Ê
+	// ãƒ•ã‚©ã‚°åŠ¹æžœ
 	PSOutput.Color0.rgb = lerp( g_Common.Fog.Color.rgb, PSOutput.Color0.rgb, saturate( PSInput.Normal_Fog.w ) );
 
 	return PSOutput ;

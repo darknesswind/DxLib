@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		Windows専用関数プロトタイプ宣言用ヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -113,8 +113,8 @@ extern	int			GetDragFilePath(			TCHAR *FilePathBuffer ) ;														// メイ
 extern	int			GetDragFileNum(				void ) ;																		// メインウインドウへドラッグ＆ドロップされたファイルの数を取得する
 
 // ウインドウ描画領域設定系関数
-extern	HRGN		CreateRgnFromGraph(			int Width , int Height , const void *MaskData , int Pitch , int Byte ) ;		// 任意の画像イメージからRGNハンドルを作成する( Width:横ドット数  Height:縦ドット数  MaskData:ドット情報配列の先頭アドレス  Pitch:１ラインあたりのbyteサイズ  Byte:１ドット辺りのbyteサイズ( 対応しているのは 1～4 )、ドットの数値が0かそれ以外かで判別 )
-extern	HRGN		CreateRgnFromBaseImage(		BASEIMAGE *BaseImage, int TransColorR, int TransColorG, int TransColorB ) ;		// 任意の基本イメージデータと透過色からRGNハンドルを作成する( BaseImage:基本イメージデータのアドレス  TransColorR,TransColorG,TransColorB:透過色( それぞれ０～２５５ )
+extern	HRGN		CreateRgnFromGraph(			int Width , int Height , const void *MaskData , int Pitch , int Byte ) ;		// 任意の画像イメージからRGNハンドルを作成する( Width:横ドット数  Height:縦ドット数  MaskData:ドット情報配列の先頭アドレス  Pitch:１ラインあたりのbyteサイズ  Byte:１ドット辺りのbyteサイズ( 対応しているのは 1〜4 )、ドットの数値が0かそれ以外かで判別 )
+extern	HRGN		CreateRgnFromBaseImage(		BASEIMAGE *BaseImage, int TransColorR, int TransColorG, int TransColorB ) ;		// 任意の基本イメージデータと透過色からRGNハンドルを作成する( BaseImage:基本イメージデータのアドレス  TransColorR,TransColorG,TransColorB:透過色( それぞれ０〜２５５ )
 extern	int			SetWindowRgnGraph(			const TCHAR *FileName ) ;														// 任意の画像ファイルからＲＧＮをセットする
 extern	int			UpdateTransColorWindowRgn(	void ) ;																		// 描画先の画面の透過色の部分を透過させるＲＧＮをセットする( 使用される透過色は関数 SetTransColor で設定した色 )
 

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		標準Ｃライブラリ使用コード		DirectShow BaseClasses
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 //
 //       Copyright (c) 1992-2002 Microsoft Corporation.  All rights reserved.
 // 
@@ -23,7 +23,7 @@
 // ＤｉｒｅｃｔＳｈｏｗ -------------------------------------------------------
 
 #ifdef DX_USE_NAMESPACE
-using namespace DxLib;
+
 //namespace DxLib
 //{
 
@@ -1682,7 +1682,7 @@ public:
 
 	int											SetMediaTypeFlag ;
 	int											UseTempBaseImage ;
-	BASEIMAGE									*TempBaseImage ;
+	DxLib::BASEIMAGE							*TempBaseImage ;
 	int											ImageType ;			// 0:RGB24   1:RGB32   2:YV12   3:NV12   4:YUY2   5:UYVY   6:YVYU   7:NV11
 	void										*ImageBuffer ;
 	BOOL										NewImageSet ;

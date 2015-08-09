@@ -19,6 +19,7 @@
     <ClCompile Include="DxGraphics.cpp" />
     <ClCompile Include="DxGraphicsFilter.cpp" />
     <ClCompile Include="DxHandle.cpp" />
+    <ClCompile Include="DxHeap.cpp" />
     <ClCompile Include="DxInput.cpp" />
     <ClCompile Include="DxInputString.cpp" />
     <ClCompile Include="DxLog.cpp" />
@@ -41,58 +42,7 @@
     <ClCompile Include="DxSound.cpp" />
     <ClCompile Include="DxSoundConvert.cpp" />
     <ClCompile Include="DxSystem.cpp" />
-    <ClCompile Include="Windows\DxSoundConvertWin.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxSoundWin.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxSystemWin.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxThreadWin.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxWinAPI.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxWindow.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxBaseFuncWin.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxFileWin.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxFontWin.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxGraphicsAPIWin.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxGraphicsD3D9.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxGraphicsD3D11.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxGraphicsFilterD3D9.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxGraphicsFilterD3D11.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxGraphicsFilterWin.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxGraphicsWin.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxGuid.cpp">
-      <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\DxInputWin.cpp">
+    <ClCompile Include="Windows\DxKeyHookBinary.cpp">
       <Filter>Windows</Filter>
     </ClCompile>
     <ClCompile Include="Windows\DxLogWin.cpp">
@@ -152,10 +102,60 @@
     <ClCompile Include="Windows\DxShaderCodeBin_RgbaMix_D3D11.cpp">
       <Filter>Windows</Filter>
     </ClCompile>
-    <ClCompile Include="Windows\DxKeyHookBinary.cpp">
+    <ClCompile Include="Windows\DxSoundConvertWin.cpp">
       <Filter>Windows</Filter>
     </ClCompile>
-    <ClCompile Include="DxHeap.cpp" />
+    <ClCompile Include="Windows\DxSoundWin.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxSystemWin.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxThreadWin.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxWinAPI.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxWindow.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxBaseFuncWin.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxFileWin.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxFontWin.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxGraphicsAPIWin.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxGraphicsD3D9.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxGraphicsD3D11.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxGraphicsFilterD3D9.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxGraphicsFilterD3D11.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxGraphicsFilterWin.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxGraphicsWin.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxGuid.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\DxInputWin.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DxArchive_.h" />
@@ -168,9 +168,11 @@
     <ClInclude Include="DxDataTypeWin.h" />
     <ClInclude Include="DxFile.h" />
     <ClInclude Include="DxFont.h" />
+    <ClInclude Include="DxFunctionWin.h" />
     <ClInclude Include="DxGraphics.h" />
     <ClInclude Include="DxGraphicsFilter.h" />
     <ClInclude Include="DxHandle.h" />
+    <ClInclude Include="DxHeap.h" />
     <ClInclude Include="DxInput.h" />
     <ClInclude Include="DxInputString.h" />
     <ClInclude Include="DxLib.h" />
@@ -194,45 +196,6 @@
     <ClInclude Include="DxStatic.h" />
     <ClInclude Include="DxSystem.h" />
     <ClInclude Include="DxThread.h" />
-    <ClInclude Include="DxUseCLib.h" />
-    <ClInclude Include="DxUseCLibOgg.h" />
-    <ClInclude Include="DxUseCStrmBaseFilter.h" />
-    <ClInclude Include="Windows\DxBaseFuncWin.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxDirectX.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxFileWin.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxFontWin.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxGraphicsAPIWin.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxGraphicsD3D9.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxGraphicsD3D11.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxGraphicsFilterD3D9.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxGraphicsFilterD3D11.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxGraphicsFilterWin.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxGraphicsWin.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxGuid.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
     <ClInclude Include="Windows\DxInputWin.h">
       <Filter>Windows</Filter>
     </ClInclude>
@@ -296,24 +259,47 @@
     <ClInclude Include="Windows\DxThreadWin.h">
       <Filter>Windows</Filter>
     </ClInclude>
-    <ClInclude Include="Windows\DxUseCLibOggD3D9.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxUseCLibOggD3D11.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxUseCLibOggWin.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Windows\DxUseCStrmBaseFilter.h">
-      <Filter>Windows</Filter>
-    </ClInclude>
     <ClInclude Include="Windows\DxWinAPI.h">
       <Filter>Windows</Filter>
     </ClInclude>
     <ClInclude Include="Windows\DxWindow.h">
       <Filter>Windows</Filter>
     </ClInclude>
-    <ClInclude Include="DxHeap.h" />
+    <ClInclude Include="Windows\DxBaseFuncWin.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\DxDirectX.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\DxFileWin.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\DxFontWin.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\DxGraphicsAPIWin.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\DxGraphicsD3D9.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\DxGraphicsD3D11.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\DxGraphicsFilterD3D9.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\DxGraphicsFilterD3D11.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\DxGraphicsFilterWin.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\DxGraphicsWin.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\DxGuid.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

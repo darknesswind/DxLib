@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		描画プログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -780,8 +780,8 @@ struct GRAPHICSSYS_DRAWSETTINGDATA
 	int						BlendGraph ;							// ブレンドグラフィックハンドル
 //	int						BlendGraphType ;						// ブレンドグラフィックタイプ
 //	int						BlendGraphFadeRatio ;					// ブレンドグラフィックのフェードパラメータ
-	int						BlendGraphBorderParam ;					// ブレンドグラフィックハンドルのブレンド境界値(0～255)
-	int						BlendGraphBorderRange ;					// ブレンドグラフィックハンドルの境界部分の幅(0～255)
+	int						BlendGraphBorderParam ;					// ブレンドグラフィックハンドルのブレンド境界値(0〜255)
+	int						BlendGraphBorderRange ;					// ブレンドグラフィックハンドルの境界部分の幅(0〜255)
 	int						BlendGraphX, BlendGraphY ;				// ブレンドグラフィックの起点座標
 
 	int						AlphaTestMode ;							// アルファテストモード
@@ -995,6 +995,7 @@ struct GRAPHICSSYS_RESOURCE
 struct GRAPHICSSYS_HARDWAREINFO
 {
 	int						ValidSubBlend ;							// 減算ブレンドが可能かどうか( TRUE:可能  FALSE:不可能 )
+	int						Support4bitPaletteTexture ;				// 16色パレットテクスチャをサポートするかどうか( TRUE:サポートする  FALSE:サポートしない )
 	int						TextureSquareOnly ;						// 正方形テクスチャのみ作成可能かどうか( TRUE:正方形テクスチャのみ  FALSE:正方形テクスチャ以外も可能 )
 	int						RenderTargetNum ;						// 同時にレンダリングできるレンダーターゲットの数
 	int						TextureSizeNonPow2Conditional ;			// 条件付でテクスチャのサイズが２のｎ乗でなくても大丈夫かどうか
@@ -1095,11 +1096,11 @@ extern	int		Graphics_Screen_ScreenCopyBase( int DrawTargetFrontScreenMode_Copy )
 
 
 // 画像関係関数
-extern	int		Graphics_Image_SetupFormatDesc( IMAGEFORMATDESC *Format, SETUP_GRAPHHANDLE_GPARAM *GParam, int Width, int Height, int AlphaValidFlag, int UsePaletteFlag, int BaseFormat, int MipMapCount ) ; // グラフィックハンドルに画像データを転送するための関数
+extern	int		Graphics_Image_SetupFormatDesc( IMAGEFORMATDESC *Format, SETUP_GRAPHHANDLE_GPARAM *GParam, int Width, int Height, int AlphaValidFlag, int UsePaletteFlag, int PaletteBitDepth, int BaseFormat, int MipMapCount ) ; // グラフィックハンドルに画像データを転送するための関数
 extern	int		Graphics_Image_DeleteDeviceLostDelete( void ) ;						// デバイスロスト発生時に削除するフラグが立っているグラフィックを削除する
 extern	int		Graphics_Image_CheckMultiSampleDrawValid( int GrHandle ) ;			// ＭＳＡＡを使用する描画可能画像かどうかを調べる( TRUE:MSAA画像  FALSE:MSAA画像ではない )
 extern	int		Graphics_Image_AddHandle( int ASyncThread ) ;																			// 新しいグラフィックハンドルを確保する
-extern	int		Graphics_Image_SetupHandle_UseGParam( SETUP_GRAPHHANDLE_GPARAM *GParam, int GrHandle, int Width, int Height, int TextureFlag, int AlphaValidFlag, int UsePaletteFlag, int BaseFormat/* = DX_BASEIMAGE_FORMAT_NORMAL*/, int MipMapCount, int ASyncThread ) ;							// SetupGraphHandle のグローバル変数にアクセスしないバージョン
+extern	int		Graphics_Image_SetupHandle_UseGParam( SETUP_GRAPHHANDLE_GPARAM *GParam, int GrHandle, int Width, int Height, int TextureFlag, int AlphaValidFlag, int UsePaletteFlag, int PaletteBitDepth, int BaseFormat/* = DX_BASEIMAGE_FORMAT_NORMAL*/, int MipMapCount, int ASyncThread ) ;							// SetupGraphHandle のグローバル変数にアクセスしないバージョン
 extern	int		Graphics_Image_ListUpTexSize( int Size, short *SizeList, int NotDivFlag, int Pow2Flag, int MaxTextureSize ) ;			// 指定のテクスチャーサイズを上手く分割する
 extern	int		Graphics_Image_InitializeHandle( HANDLEINFO *HandleInfo ) ;																// グラフィックハンドルの初期化
 extern	int		Graphics_Image_TerminateHandle( HANDLEINFO *HandleInfo ) ;																// グラフィックハンドルの後始末
@@ -1204,7 +1205,7 @@ extern	int			Graphics_Image_GetDrawScreenGraphBase( int TargetScreen, int Target
 extern	IMAGEDATA *	Graphics_Image_GetData( int GrHandle, int ASyncThread = FALSE ) ;				// グラフィックのデータをインデックス値から取り出す
 extern	int			Graphics_Image_GetWhiteTexHandle( void ) ;										// 真っ白のテクスチャのハンドルを取得する
 
-extern	int		Graphics_Image_MakeGraph_UseGParam( SETUP_GRAPHHANDLE_GPARAM *GParam, int SizeX, int SizeY, int NotUse3DFlag, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																																											// 空のグラフィックハンドルを作成する関数
+extern	int		Graphics_Image_MakeGraph_UseGParam( SETUP_GRAPHHANDLE_GPARAM *GParam, int SizeX, int SizeY, int NotUse3DFlag, int UsePaletteFlag, int PaletteBitDepth, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																																											// 空のグラフィックハンドルを作成する関数
 extern	int		Graphics_Image_CreateGraph_UseGParam(                  LOADGRAPH_PARAM *Param, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																																																			// 画像データからグラフィックハンドルを作成する関数
 extern	int		Graphics_Image_CreateDivGraph_UseGParam(               LOADGRAPH_PARAM *Param, int ASyncLoadFlag = FALSE, int ASyncThread = FALSE ) ;																																																			// 画像データを分割してグラフィックハンドルを作成する関数
 extern	int		Graphics_Image_LoadBmpToGraph_UseGParam(               LOADGRAPH_GPARAM *GParam, int ReCreateFlag, int GrHandle, const wchar_t *GraphName, int TextureFlag, int ReverseFlag, int SurfaceMode = DX_MOVIESURFACE_NORMAL, int ASyncLoadFlag = FALSE ) ;																								// LoadBmpToGraph のグローバル変数にアクセスしないバージョン
@@ -1227,10 +1228,8 @@ extern	void	Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( SETUP
 extern	void	Graphics_Image_InitSetupGraphHandleGParam_Normal_DrawValid_NoneZBuffer( SETUP_GRAPHHANDLE_GPARAM *GParam, int BitDepth = 32, int AlphaChannel = TRUE ) ;
 extern	void	Graphics_Image_InitSetGraphBaseInfoGParam( SETGRAPHBASEINFO_GPARAM *GParam ) ;													// SETGRAPHBASEINFO_GPARAM のデータをセットする
 extern	void	Graphics_Image_InitLoadGraphGParam( LOADGRAPH_GPARAM *GParam ) ;																// LOADGRAPH_GPARAM のデータをセットする
-#ifndef DX_NON_DSHOW_MOVIE
 #ifndef DX_NON_MOVIE
 extern	void	Graphics_Image_InitOpenMovieGParam( OPENMOVIE_GPARAM *GParam ) ;																// OPENMOVIE_GPARAM のデータをセットする
-#endif
 #endif
 
 
@@ -1392,7 +1391,7 @@ extern	int		Graphics_Hardware_CheckValid_PF( void ) ;										// 描画用デ�
 
 // 環境依存描画設定関係
 extern	int		Graphics_Hardware_SetRenderTargetToShader_PF( int TargetIndex, int DrawScreen, int SurfaceIndex ) ;		// シェーダー描画での描画先を設定する
-extern	int		Graphics_Hardware_SetBackgroundColor_PF( int Red, int Green, int Blue ) ;								// メインウインドウの背景色を設定する( Red,Green,Blue:それぞれ ０～２５５ )
+extern	int		Graphics_Hardware_SetBackgroundColor_PF( int Red, int Green, int Blue ) ;								// メインウインドウの背景色を設定する( Red,Green,Blue:それぞれ ０〜２５５ )
 extern	int		Graphics_Hardware_SetDrawBrightToOneParam_PF( DWORD Bright ) ;											// SetDrawBright の引数が一つ版
 extern	int		Graphics_Hardware_SetDrawBlendMode_PF( int BlendMode, int BlendParam ) ;								// 描画ブレンドモードをセットする
 extern	int		Graphics_Hardware_SetDrawAlphaTest_PF( int TestMode, int TestParam ) ;									// 描画時のアルファテストの設定を行う( TestMode:DX_CMP_GREATER等( -1:デフォルト動作に戻す )  TestParam:描画アルファ値との比較に使用する値 )
@@ -1410,8 +1409,8 @@ extern	int		Graphics_Hardware_SetTextureAddressTransformMatrix_PF( int UseFlag, 
 extern	int		Graphics_Hardware_SetFogEnable_PF( int Flag ) ;															// フォグを有効にするかどうかを設定する( TRUE:有効  FALSE:無効 )
 extern	int		Graphics_Hardware_SetFogMode_PF( int Mode /* DX_FOGMODE_NONE 等 */ ) ;									// フォグモードを設定する
 extern	int		Graphics_Hardware_SetFogColor_PF( DWORD FogColor ) ;													// フォグカラーを変更する
-extern	int		Graphics_Hardware_SetFogStartEnd_PF( float start, float end ) ;											// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
-extern	int		Graphics_Hardware_SetFogDensity_PF( float density ) ;													// フォグの密度を設定する( 0.0f ～ 1.0f )
+extern	int		Graphics_Hardware_SetFogStartEnd_PF( float start, float end ) ;											// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
+extern	int		Graphics_Hardware_SetFogDensity_PF( float density ) ;													// フォグの密度を設定する( 0.0f 〜 1.0f )
 extern	int		Graphics_Hardware_DeviceDirect_SetWorldMatrix_PF( const MATRIX *Matrix ) ;								// ワールド変換用行列をセットする
 extern	int		Graphics_Hardware_DeviceDirect_SetViewMatrix_PF( const MATRIX *Matrix ) ;								// ビュー変換用行列をセットする
 extern	int		Graphics_Hardware_DeviceDirect_SetProjectionMatrix_PF( const MATRIX *Matrix ) ;							// 投影変換用行列をセットする

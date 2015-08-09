@@ -1,4 +1,4 @@
-#include "../PixelShader.h"
+ï»¿#include "../PixelShader.h"
 
 SamplerState g_SrcSampler       : register( s0 ) ;
 Texture2D    g_SrcTexture       : register( t0 ) ;
@@ -14,7 +14,7 @@ struct VS_OUTPUT
 	float2 TexCoords1  : TEXCOORD1 ;
 };
 
-// ƒeƒNƒXƒ`ƒƒ‚È‚µ
+// ãƒ†ã‚¯ã‚¹ãƒãƒ£ãªã—
 float4 ps_notex_normal( VS_OUTPUT In ) : SV_TARGET0
 {
 	float4 DestColor ;
@@ -43,7 +43,7 @@ float4 ps_notex_normal( VS_OUTPUT In ) : SV_TARGET0
 }
 
 
-// ƒuƒŒƒ“ƒhƒeƒNƒXƒ`ƒƒ–³‚µ
+// ãƒ–ãƒ¬ãƒ³ãƒ‰ãƒ†ã‚¯ã‚¹ãƒãƒ£ç„¡ã—
 float4 ps_normal( VS_OUTPUT In ) : SV_TARGET0
 {
 	float4 TexColor ;
@@ -80,7 +80,7 @@ float4 ps_normal( VS_OUTPUT In ) : SV_TARGET0
 	return DestColor ;
 }
 
-//ƒuƒŒƒ“ƒhƒeƒNƒXƒ`ƒƒ‚ ‚è DX_BLENDGRAPHTYPE_NORMAL
+//ãƒ–ãƒ¬ãƒ³ãƒ‰ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚ã‚Š DX_BLENDGRAPHTYPE_NORMAL
 float4 ps_blend_normal( VS_OUTPUT In ) : SV_TARGET0
 {
 	float4 TexColor ;
@@ -134,7 +134,7 @@ float4 ps_blend_normal( VS_OUTPUT In ) : SV_TARGET0
 	return DestColor ;
 }
 
-//ƒuƒŒƒ“ƒhƒeƒNƒXƒ`ƒƒ‚ ‚è DX_BLENDGRAPHTYPE_WIPE
+//ãƒ–ãƒ¬ãƒ³ãƒ‰ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚ã‚Š DX_BLENDGRAPHTYPE_WIPE
 float4 ps_blend_wipe( VS_OUTPUT In ) : SV_TARGET0
 {
 	float4 TexColor ;
@@ -190,7 +190,7 @@ float4 ps_blend_wipe( VS_OUTPUT In ) : SV_TARGET0
 	return DestColor ;
 }
 
-//ƒuƒŒƒ“ƒhƒeƒNƒXƒ`ƒƒ‚ ‚è DX_BLENDGRAPHTYPE_ALPHA
+//ãƒ–ãƒ¬ãƒ³ãƒ‰ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚ã‚Š DX_BLENDGRAPHTYPE_ALPHA
 float4 ps_blend_alpha( VS_OUTPUT In ) : SV_TARGET0
 {
 	float4 TexColor ;
@@ -253,7 +253,7 @@ float4 ps_blend_alpha( VS_OUTPUT In ) : SV_TARGET0
 
 
 
-//ƒ}ƒXƒNˆ——pƒVƒF[ƒ_[
+//ãƒžã‚¹ã‚¯å‡¦ç†ç”¨ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
 float4 MaskBlend_PS( STRETCHRECT_VS_OUTPUT In ) : SV_TARGET0
 {
 	float4 TexColor ;
@@ -262,9 +262,15 @@ float4 MaskBlend_PS( STRETCHRECT_VS_OUTPUT In ) : SV_TARGET0
 
 	BlendTexColor = g_BlendTexture.Sample( g_BlendSampler, In.TexCoords1 ) ;
 	TexColor      = g_SrcTexture.Sample(   g_SrcSampler,   In.TexCoords0 ) ;
-		
-	DestColor.rgb = TexColor.rgb ;
-	DestColor.a   = 1.0f - BlendTexColor.r ;
+	
+	if( BlendTexColor.r > 0.001f )
+	{
+		discard ;
+	}
+	
+	DestColor = TexColor ;
+//	DestColor.rgb = TexColor.rgb ;
+//	DestColor.a   = 1.0f - BlendTexColor.r ;
 
 	return DestColor ;
 }
@@ -278,13 +284,61 @@ float4 MaskBlend_ReverseEffect_PS( STRETCHRECT_VS_OUTPUT In ) : SV_TARGET0
 	BlendTexColor = g_BlendTexture.Sample( g_BlendSampler, In.TexCoords1 ) ;
 	TexColor      = g_SrcTexture.Sample(   g_SrcSampler,   In.TexCoords0 ) ;
 		
-	DestColor.rgb = TexColor.rgb ;
-	DestColor.a   = BlendTexColor.r ;
+	if( BlendTexColor.r < 0.999f )
+	{
+		discard ;
+	}
+	
+	DestColor = TexColor ;
+//	DestColor.rgb = TexColor.rgb ;
+//	DestColor.a   = BlendTexColor.r ;
 
 	return DestColor ;
 }
 
-// ’Pƒ“]‘——pƒsƒNƒZƒ‹ƒVƒF[ƒ_[
+float4 MaskBlend_UseGraphHandle_PS( STRETCHRECT_VS_OUTPUT In ) : SV_TARGET0
+{
+	float4 TexColor ;
+	float4 DestColor ;
+	float4 BlendTexColor ;
+
+	BlendTexColor = g_BlendTexture.Sample( g_BlendSampler, In.TexCoords1 ) ;
+	TexColor      = g_SrcTexture.Sample(   g_SrcSampler,   In.TexCoords0 ) ;
+
+//	if( BlendTexColor.a > 0.001f )
+//	{
+//		discard ;
+//	}
+
+//	DestColor = TexColor ;
+	DestColor.rgb = TexColor.rgb ;
+	DestColor.a   = 1.0f - BlendTexColor.a ;
+
+	return DestColor ;
+}
+
+float4 MaskBlend_UseGraphHandle_ReverseEffect_PS( STRETCHRECT_VS_OUTPUT In ) : SV_TARGET0
+{
+	float4 TexColor ;
+	float4 DestColor ;
+	float4 BlendTexColor ;
+
+	BlendTexColor = g_BlendTexture.Sample( g_BlendSampler, In.TexCoords1 ) ;
+	TexColor      = g_SrcTexture.Sample(   g_SrcSampler,   In.TexCoords0 ) ;
+
+//	if( BlendTexColor.a < 0.999f )
+//	{
+//		discard ;
+//	}
+		
+//	DestColor = TexColor ;
+	DestColor.rgb = TexColor.rgb ;
+	DestColor.a   = BlendTexColor.a ;
+
+	return DestColor ;
+}
+
+// å˜ç´”è»¢é€ç”¨ãƒ”ã‚¯ã‚»ãƒ«ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
 float4 StretchRect_PS( STRETCHRECT_VS_OUTPUT In ) : SV_TARGET0
 {
 	return g_SrcTexture.Sample( g_SrcSampler,  In.TexCoords0 ) ;

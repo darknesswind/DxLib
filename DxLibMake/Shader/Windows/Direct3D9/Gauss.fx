@@ -1,4 +1,4 @@
-﻿float2 TextureSize     : register( c0  ) ;
+float2 TextureSize     : register( c0  ) ;
 float4 PixelWeight[4]  : register( c1  ) ;
 float2 PixelOffset[16] : register( c5  ) ;
 sampler SrcTexture     : register( s0  ) ;

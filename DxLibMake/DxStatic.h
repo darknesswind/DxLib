@@ -2,7 +2,7 @@
 //
 //		ＤＸライブラリ　内部使用関連用ヘッダファイル
 //
-//				Ver 3.14d
+//				Ver 3.14f
 //
 // ----------------------------------------------------------------------------
 
@@ -605,6 +605,66 @@ extern	int			NS_DxSetAllocMemoryErrorCheckFlag(	int Flag ) ;																	// 
 
 
 
+// DxBaseFunc.cpp 関数プロトタイプ宣言
+
+// 文字コード関係
+extern	int			NS_ConvertStringCharCodeFormat( int SrcCharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */, const void *SrcString, int DestCharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */, void *DestStringBuffer ) ;		// 文字列の文字コード形式を別の文字コード形式に変換する
+extern	int			NS_SetUseCharCodeFormat( int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ ) ;																														// 文字列の引数の文字コード形式を設定する( 文字列描画系関数とその他一部関数を除く )( UNICODE版では無効 )
+
+// 文字列関係
+extern	void			NS_strcpyDx(     TCHAR *Dest, const TCHAR *Src ) ;									// strcpy と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			NS_strpcpyDx(    TCHAR *Dest, const TCHAR *Src, int Pos ) ;						// 位置指定付き strcpy、Pos はコピー開始位置　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			NS_strpcpy2Dx(   TCHAR *Dest, const TCHAR *Src, int Pos ) ;						// 位置指定付き strcpy、Pos はコピー開始位置( 全角文字も 1 扱い )　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			NS_strncpyDx(    TCHAR *Dest, const TCHAR *Src, int Num ) ;						// strncpy と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			NS_strncpy2Dx(   TCHAR *Dest, const TCHAR *Src, int Num ) ;						// strncpy の Num が文字数( 全角文字も 1 扱い )になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			NS_strrncpyDx(   TCHAR *Dest, const TCHAR *Src, int Num ) ;						// strncpy の文字列の終端からの文字数指定版( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			NS_strrncpy2Dx(  TCHAR *Dest, const TCHAR *Src, int Num ) ;						// strncpy の文字列の終端からの文字数( 全角文字も 1 扱い )指定版( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			NS_strpncpyDx(   TCHAR *Dest, const TCHAR *Src, int Pos, int Num ) ;				// strncpy のコピー開始位置指定版、Pos はコピー開始位置、Num は文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			NS_strpncpy2Dx(  TCHAR *Dest, const TCHAR *Src, int Pos, int Num ) ;				// strncpy のコピー開始位置指定版、Pos はコピー開始位置( 全角文字も 1 扱い )、Num は文字数( 全角文字も 1 扱い )( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			NS_strcatDx(     TCHAR *Dest, const TCHAR *Src ) ;									// strcat と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strlenDx(     const TCHAR *Str ) ;												// strlen と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strlen2Dx(    const TCHAR *Str ) ;												// strlen の戻り値が文字数( 全角文字も 1 扱い )になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strcmpDx(     const TCHAR *Str1, const TCHAR *Str2 ) ;							// strcmp と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_stricmpDx(    const TCHAR *Str1, const TCHAR *Str2 ) ;							// stricmp と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strncmpDx(    const TCHAR *Str1, const TCHAR *Str2, int Num ) ;					// strncmp と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strncmp2Dx(   const TCHAR *Str1, const TCHAR *Str2, int Num ) ;					// strncmp の Num が文字数( 全角文字も 1 扱い )になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strpncmpDx(   const TCHAR *Str1, const TCHAR *Str2, int Pos, int Num ) ;		// strncmp の比較開始位置指定版、Pos が比較開始位置、Num が文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strpncmp2Dx(  const TCHAR *Str1, const TCHAR *Str2, int Pos, int Num ) ;		// strncmp の比較開始位置指定版、Pos が比較開始位置( 全角文字も 1 扱い )、Num が文字数( 全角文字も 1 扱い )( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	DWORD			NS_strgetchrDx(  const TCHAR *Str, int Pos, int *CharNums = NULL ) ;				// 文字列の指定の位置の文字コードを取得する、Pos は取得する位置、CharNums は文字数を代入する変数のアドレス、戻り値は文字コード( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	DWORD			NS_strgetchr2Dx( const TCHAR *Str, int Pos, int *CharNums = NULL ) ;				// 文字列の指定の位置の文字コードを取得する、Pos は取得する位置( 全角文字も 1 扱い )、CharNums は文字数を代入する変数のアドレス、戻り値は文字コード( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strputchrDx(  TCHAR *Str, int Pos, DWORD CharCode ) ;							// 文字列の指定の位置に文字コードを書き込む、Pos は書き込む位置、CharCode は文字コード、戻り値は書き込んだ文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strputchr2Dx( TCHAR *Str, int Pos, DWORD CharCode ) ;							// 文字列の指定の位置に文字コードを書き込む、Pos は書き込む位置( 全角文字も 1 扱い )、CharCode は文字コード、戻り値は書き込んだ文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	NS_strposDx(     const TCHAR *Str, int Pos ) ;										// 文字列の指定の位置のアドレスを取得する、Pos は取得する位置　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	NS_strpos2Dx(    const TCHAR *Str, int Pos ) ;										// 文字列の指定の位置のアドレスを取得する、Pos は取得する位置( 全角文字も 1 扱い )　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	NS_strstrDx(     const TCHAR *Str1, const TCHAR *Str2 ) ;							// strstr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strstr2Dx(    const TCHAR *Str1, const TCHAR *Str2 ) ;							// strstr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	NS_strrstrDx(    const TCHAR *Str1, const TCHAR *Str2 ) ;							// strrstr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strrstr2Dx(   const TCHAR *Str1, const TCHAR *Str2 ) ;							// strrstr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	NS_strchrDx(     const TCHAR *Str, DWORD CharCode ) ;								// strchr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strchr2Dx(    const TCHAR *Str, DWORD CharCode ) ;								// strchr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	NS_strrchrDx(    const TCHAR *Str, DWORD CharCode ) ;								// strrchr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_strrchr2Dx(   const TCHAR *Str, DWORD CharCode ) ;								// strrchr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	TCHAR *			NS_struprDx(     TCHAR *Str ) ;													// strupr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_vsprintfDx(   TCHAR *Buffer, const TCHAR *FormatString, va_list Arg ) ;			// vsprintf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_sprintfDx(    TCHAR *Buffer, const TCHAR *FormatString, ... ) ;					// sprintf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	TCHAR *			NS_itoaDx(       int Value, TCHAR *Buffer, int Radix ) ;							// itoa と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_atoiDx(       const TCHAR *Str ) ;												// atoi と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	double			NS_atofDx(       const TCHAR *Str ) ;												// atof と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_vsscanfDx(    const TCHAR *String, const TCHAR *FormatString, va_list Arg ) ;	// vsscanf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				NS_sscanfDx(     const TCHAR *String, const TCHAR *FormatString, ... ) ;			// sscanf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+
+
+
+
+
+
+
+
+
+
+
+
+
 // DxInputString.cpp関数プロトタイプ宣言
 
 #ifndef DX_NON_INPUTSTRING
@@ -774,7 +834,7 @@ extern	int			NS_GetJoypadDirectInputState(				int InputType, DINPUT_JOYSTATE *DI
 extern	int			NS_CheckJoypadXInput(						int InputType ) ;														// 指定の入力デバイスが XInput に対応しているかどうかを取得する( 戻り値  TRUE:XInput対応の入力デバイス  FALSE:XInput非対応の入力デバイス   -1:エラー )( DX_INPUT_KEY や DX_INPUT_KEY_PAD1 など、キーボードが絡むタイプを InputType に渡すとエラーとなり -1 を返す )
 extern	int			NS_GetJoypadXInputState(					int InputType, XINPUT_STATE *XInputState ) ;							// XInput から得られる入力デバイス( Xbox360コントローラ等 )の生のデータを取得する( XInput非対応のパッドの場合はエラーとなり -1 を返す、DX_INPUT_KEY や DX_INPUT_KEY_PAD1 など、キーボードが絡むタイプを InputType に渡すとエラーとなり -1 を返す )
 extern	int			NS_SetJoypadInputToKeyInput(				int InputType, int PadInput, int KeyInput1, int KeyInput2 = -1 , int KeyInput3 = -1 , int KeyInput4 = -1  ) ; // ジョイパッドの入力に対応したキーボードの入力を設定する( InputType:設定を変更するパッドの識別子( DX_INPUT_PAD1等 )　　PadInput:設定を変更するパッドボタンの識別子( PAD_INPUT_1 等 )　　KeyInput1:PadInput を押下したことにするキーコード( KEY_INPUT_A など )その１　　KeyInput2:その２、-1で設定なし　　KeyInput3:その３、-1で設定なし　　KeyInput4:その４、-1で設定なし )
-extern	int			NS_SetJoypadDeadZone(						int InputType, double Zone ) ;											// ジョイパッドの無効ゾーンの設定を行う( InputType:設定を変更するパッドの識別子( DX_INPUT_PAD1等 )   Zone:新しい無効ゾーン( 0.0 ～ 1.0 )、デフォルト値は 0.35 )
+extern	int			NS_SetJoypadDeadZone(						int InputType, double Zone ) ;											// ジョイパッドの無効ゾーンの設定を行う( InputType:設定を変更するパッドの識別子( DX_INPUT_PAD1等 )   Zone:新しい無効ゾーン( 0.0 〜 1.0 )、デフォルト値は 0.35 )
 extern	int			NS_StartJoypadVibration(					int InputType, int Power, int Time, int EffectIndex = -1 ) ;			// ジョイパッドの振動を開始する
 extern	int			NS_StopJoypadVibration(					int InputType, int EffectIndex = -1 ) ;									// ジョイパッドの振動を停止する
 extern	int			NS_GetJoypadPOVState(						int InputType, int POVNumber ) ;										// ジョイパッドのＰＯＶ入力の状態を得る( 戻り値　指定のPOVデータの角度、単位は角度の１００倍( 90度なら 9000 ) 中心位置にある場合は -1 が返る )
@@ -828,7 +888,7 @@ extern	int			NS_DeleteShadowMap(				int SmHandle ) ;															// シャド�
 extern	int			NS_SetShadowMapLightDirection(		int SmHandle, VECTOR Direction ) ;											// シャドウマップが想定するライトの方向を設定する
 extern	int			NS_ShadowMap_DrawSetup(			int SmHandle ) ;										// シャドウマップへの描画の準備を行う
 extern	int			NS_ShadowMap_DrawEnd(				void ) ;															// シャドウマップへの描画を終了する
-extern	int			NS_SetUseShadowMap(				int SlotIndex, int SmHandle ) ;												// 描画で使用するシャドウマップを指定する、有効なスロットは０～２、SmHandle に -1 を渡すと指定のスロットのシャドウマップを解除
+extern	int			NS_SetUseShadowMap(				int SlotIndex, int SmHandle ) ;												// 描画で使用するシャドウマップを指定する、有効なスロットは０〜２、SmHandle に -1 を渡すと指定のスロットのシャドウマップを解除
 extern	int			NS_SetShadowMapDrawArea(			int SmHandle, VECTOR MinPosition, VECTOR MaxPosition ) ;					// シャドウマップに描画する際の範囲を設定する( この関数で描画範囲を設定しない場合は視錐台を拡大した範囲が描画範囲となる )
 extern	int			NS_ResetShadowMapDrawArea(			int SmHandle ) ;															// SetShadowMapDrawArea の設定を解除する
 extern	int			NS_SetShadowMapAdjustDepth(		int SmHandle, float Depth ) ;												// シャドウマップを使用した描画時の補正深度を設定する
@@ -1105,7 +1165,7 @@ extern	int			NS_GetDrawBlendMode(					int *BlendMode, int *BlendParam ) ;							
 extern	int			NS_SetDrawAlphaTest(					int TestMode, int TestParam ) ;									// 描画時のアルファテストの設定を行う( TestMode:DX_CMP_GREATER等( -1:デフォルト動作に戻す )  TestParam:描画アルファ値との比較に使用する値 )
 extern	int			NS_SetBlendGraph(						int BlendGraph, int BorderParam, int BorderRange ) ;			// ( SetBlendGraphParam の BlendType = DX_BLENDGRAPHTYPE_WIPE の処理を行う旧関数 )描画処理時に描画する画像とブレンドするαチャンネル付き画像をセットする( BlendGraph を -1 でブレンド機能を無効 )
 extern	int			NS_SetBlendGraphParam(					int BlendGraph, int BlendType, ... ) ;							// 描画処理時に描画する画像とブレンドする画像のブレンド設定を行う、BlendGraph を -1 にすれば設定を解除、その場合 BlendType とその後ろのパラメータは無視される
-//		int			NS_SetBlendGraphParam(					int BlendGraph, int BlendType = DX_BLENDGRAPHTYPE_NORMAL, int Ratio = ( 0( ブレンド率０％ )～255( ブレンド率１００％ ) ) ) ;
+//		int			NS_SetBlendGraphParam(					int BlendGraph, int BlendType = DX_BLENDGRAPHTYPE_NORMAL, int Ratio = ( 0( ブレンド率０％ )〜255( ブレンド率１００％ ) ) ) ;
 //		int			NS_SetBlendGraphParam(					int BlendGraph, int BlendType = DX_BLENDGRAPHTYPE_WIPE, int BorderParam, int BorderRange ) ;
 extern	int			NS_SetBlendGraphPosition(				int x, int y ) ;												// ブレンド画像の起点座標をセットする
 extern	int			NS_SetDrawBright(						int RedBright, int GreenBright, int BlueBright ) ;				// 描画輝度をセット
@@ -1185,10 +1245,10 @@ extern	int			NS_SetFogMode(							int Mode /* DX_FOGMODE_NONE 等 */ ) ;							/
 extern	int			NS_GetFogMode(							void ) ;														// フォグモードを取得する
 extern	int			NS_SetFogColor(						int  r, int  g, int  b ) ;										// フォグカラーを設定する
 extern	int			NS_GetFogColor(						int *r, int *g, int *b ) ;										// フォグカラーを取得する
-extern	int			NS_SetFogStartEnd(						float  start, float  end ) ;									// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
-extern	int			NS_GetFogStartEnd(						float *start, float *end ) ;									// フォグが始まる距離と終了する距離を取得する( 0.0f ～ 1.0f )
-extern	int			NS_SetFogDensity(						float density ) ;												// フォグの密度を設定する( 0.0f ～ 1.0f )
-extern	float		NS_GetFogDensity(						void ) ;														// フォグの密度を取得する( 0.0f ～ 1.0f )
+extern	int			NS_SetFogStartEnd(						float  start, float  end ) ;									// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
+extern	int			NS_GetFogStartEnd(						float *start, float *end ) ;									// フォグが始まる距離と終了する距離を取得する( 0.0f 〜 1.0f )
+extern	int			NS_SetFogDensity(						float density ) ;												// フォグの密度を設定する( 0.0f 〜 1.0f )
+extern	float		NS_GetFogDensity(						void ) ;														// フォグの密度を取得する( 0.0f 〜 1.0f )
 
 
 // 画面関係関数
@@ -1231,7 +1291,7 @@ extern	int				NS_GetVideoMemorySize(							int *AllSize, int *FreeSize ) ;						
 extern	int				NS_GetRefreshRate(								void ) ;																		// 現在の画面のリフレッシュレートを取得する
 extern	int				NS_GetDisplayNum(								void ) ;																		// ディスプレイの数を取得
 extern	int				NS_GetDisplayModeNum(							int DisplayIndex = 0 ) ;														// 変更可能なディスプレイモードの数を取得する
-extern	DISPLAYMODEDATA	NS_GetDisplayMode(								int ModeIndex, int DisplayIndex = 0 ) ;											// 変更可能なディスプレイモードの情報を取得する( ModeIndex は 0 ～ GetDisplayModeNum の戻り値-1 )
+extern	DISPLAYMODEDATA	NS_GetDisplayMode(								int ModeIndex, int DisplayIndex = 0 ) ;											// 変更可能なディスプレイモードの情報を取得する( ModeIndex は 0 〜 GetDisplayModeNum の戻り値-1 )
 extern	int				NS_GetDisplayMaxResolution(					int *SizeX, int *SizeY, int DisplayIndex = 0 ) ;								// ディスプレイの最大解像度を取得する
 extern	const COLORDATA* NS_GetDispColorData(							void ) ;																		// ディスプレーのカラーデータポインタを得る
 extern	int				NS_GetMultiDrawScreenNum(						void ) ;																		// 同時に描画を行うことができる画面の数を取得する
@@ -1283,12 +1343,12 @@ extern	int			NS_RenderVertex(								void ) ;										// 頂点バッファに�
 #ifndef DX_NON_SAVEFUNCTION
 
 // 描画先画面保存関数
-// Jpeg_Quality         = 0:低画質～100:高画質
-// Png_CompressionLevel = 0:無圧縮～  9:最高圧縮
+// Jpeg_Quality         = 0:低画質〜100:高画質
+// Png_CompressionLevel = 0:無圧縮〜  9:最高圧縮
 extern	int			NS_SaveDrawScreen(       int x1, int y1, int x2, int y2, const TCHAR *FileName, int SaveType = DX_IMAGESAVETYPE_BMP , int Jpeg_Quality = 80 , int Jpeg_Sample2x1 = TRUE , int Png_CompressionLevel = -1 ) ;		// 現在描画対象になっている画面を保存する
 extern	int			NS_SaveDrawScreenToBMP(  int x1, int y1, int x2, int y2, const TCHAR *FileName ) ;																																	// 現在描画対象になっている画面をＢＭＰ形式で保存する
-extern	int			NS_SaveDrawScreenToJPEG( int x1, int y1, int x2, int y2, const TCHAR *FileName, int Quality = 80 , int Sample2x1 = TRUE ) ;																						// 現在描画対象になっている画面をＪＰＥＧ形式で保存する Quality = 画質、値が大きいほど低圧縮高画質,0～100 
-extern	int			NS_SaveDrawScreenToPNG(  int x1, int y1, int x2, int y2, const TCHAR *FileName, int CompressionLevel = -1 ) ;																										// 現在描画対象になっている画面をＰＮＧ形式で保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0～9
+extern	int			NS_SaveDrawScreenToJPEG( int x1, int y1, int x2, int y2, const TCHAR *FileName, int Quality = 80 , int Sample2x1 = TRUE ) ;																						// 現在描画対象になっている画面をＪＰＥＧ形式で保存する Quality = 画質、値が大きいほど低圧縮高画質,0〜100 
+extern	int			NS_SaveDrawScreenToPNG(  int x1, int y1, int x2, int y2, const TCHAR *FileName, int CompressionLevel = -1 ) ;																										// 現在描画対象になっている画面をＰＮＧ形式で保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0〜9
 
 #endif // DX_NON_SAVEFUNCTION
 
@@ -1390,14 +1450,14 @@ extern	int			NS_GraphFilter(        int    GrHandle,                            
 extern	int			NS_GraphFilterBlt(     int SrcGrHandle, int DestGrHandle,                                                                   int FilterType /* DX_GRAPH_FILTER_GAUSS 等 */ , ... ) ;		// 画像のフィルター付き転送を行う
 extern	int			NS_GraphFilterRectBlt( int SrcGrHandle, int DestGrHandle, int SrcX1, int SrcY1, int SrcX2, int SrcY2, int DestX, int DestY, int FilterType /* DX_GRAPH_FILTER_GAUSS 等 */ , ... ) ;		// 画像のフィルター付き転送を行う( 矩形指定 )
 extern	int			NS_GraphFilterRectBlt2( int SrcGrHandle, int DestGrHandle, int SrcX1, int SrcY1, int SrcX2, int SrcY2, int DestX1, int DestY1, int DestX2, int DestY2, int FilterType /* DX_GRAPH_FILTER_GAUSS 等 */ , ... ) ;		// 画像のフィルター付き転送を行う( 矩形指定沢山 )
-//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_MONO, int Cb = 青色差( -255 ～ 255 ), int Cr = 赤色差( -255 ～ 255 ) ) ;
+//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_MONO, int Cb = 青色差( -255 〜 255 ), int Cr = 赤色差( -255 〜 255 ) ) ;
 //		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_GAUSS, int PixelWidth = 使用ピクセル幅( 8 , 16 , 32 の何れか ), int Param = ぼかしパラメータ( 100 で約1ピクセル分の幅 ) ) ;
 //		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_DOWN_SCALE, int DivNum = 元のサイズの何分の１か、という値( 2 , 4 , 8 の何れか ) ) ;
-//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_BRIGHT_CLIP, int CmpType = クリップタイプ( DX_CMP_LESS:CmpParam以下をクリップ  又は  DX_CMP_GREATER:CmpParam以上をクリップ ), int CmpParam = クリップパラメータ( 0 ～ 255 ), int ClipFillFlag = クリップしたピクセルを塗りつぶすかどうか( TRUE:塗りつぶす  FALSE:塗りつぶさない ), int ClipFillColor = クリップしたピクセルに塗る色値( GetColor で取得する )( ClipFillFlag が FALSE の場合は使用しない ), int ClipFillAlpha = クリップしたピクセルに塗るα値( 0 ～ 255 )( ClipFillFlag が FALSE の場合は使用しない ) ) ;
-//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_HSB, int HueType = Hue の意味( 0:相対値  1:絶対値 ), int Hue = 色相パラメータ( HueType が 0 の場合 = ピクセルの色相に対する相対値( -180 ～ 180 )   HueType が 1 の場合 = 色相の絶対値( 0 ～ 360 ) ), int Saturation = 彩度( -255 ～ ), int Bright = 輝度( -255 ～ 255 ) ) ;
+//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_BRIGHT_CLIP, int CmpType = クリップタイプ( DX_CMP_LESS:CmpParam以下をクリップ  又は  DX_CMP_GREATER:CmpParam以上をクリップ ), int CmpParam = クリップパラメータ( 0 〜 255 ), int ClipFillFlag = クリップしたピクセルを塗りつぶすかどうか( TRUE:塗りつぶす  FALSE:塗りつぶさない ), int ClipFillColor = クリップしたピクセルに塗る色値( GetColor で取得する )( ClipFillFlag が FALSE の場合は使用しない ), int ClipFillAlpha = クリップしたピクセルに塗るα値( 0 〜 255 )( ClipFillFlag が FALSE の場合は使用しない ) ) ;
+//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_HSB, int HueType = Hue の意味( 0:相対値  1:絶対値 ), int Hue = 色相パラメータ( HueType が 0 の場合 = ピクセルの色相に対する相対値( -180 〜 180 )   HueType が 1 の場合 = 色相の絶対値( 0 〜 360 ) ), int Saturation = 彩度( -255 〜 ), int Bright = 輝度( -255 〜 255 ) ) ;
 //		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_INVERT ) ;
-//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_LEVEL, int Min = 変換元の下限値( 0 ～ 255 ), int Max = 変換元の上限値( 0 ～ 255 ), int Gamma = ガンマ値( 100 でガンマ補正無し、0 とそれ以下の値は不可 ), int AfterMin = 変換後の最低値( 0 ～ 255 ), int AfterMax = 変換後の最大値( 0 ～ 255 ) ) ;
-//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_TWO_COLOR, int Threshold = 閾値( 0 ～ 255 ), int LowColor = 閾値より値が低かったピクセルの変換後の色値( GetColor で取得する ), int LowAlpha = 閾値より値が低かったピクセルの変換後のα値( 0 ～ 255 ), int HighColor = 閾値より値が高かったピクセルの変換後の色値( GetColor で取得する ), int HighAlpha = 閾値より値が高かったピクセルの変換後のα値( 0 ～ 255 ) ) ;
+//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_LEVEL, int Min = 変換元の下限値( 0 〜 255 ), int Max = 変換元の上限値( 0 〜 255 ), int Gamma = ガンマ値( 100 でガンマ補正無し、0 とそれ以下の値は不可 ), int AfterMin = 変換後の最低値( 0 〜 255 ), int AfterMax = 変換後の最大値( 0 〜 255 ) ) ;
+//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_TWO_COLOR, int Threshold = 閾値( 0 〜 255 ), int LowColor = 閾値より値が低かったピクセルの変換後の色値( GetColor で取得する ), int LowAlpha = 閾値より値が低かったピクセルの変換後のα値( 0 〜 255 ), int HighColor = 閾値より値が高かったピクセルの変換後の色値( GetColor で取得する ), int HighAlpha = 閾値より値が高かったピクセルの変換後のα値( 0 〜 255 ) ) ;
 //		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_GRADIENT_MAP, int MapGrHandle = グラデーションマップのグラフィックハンドル( 元画像の輝度からグラデーションマップ画像の x 座標を算出しますので縦幅は1dotでもＯＫ ), int Reverse = グラデーションマップ左右反転フラグ( TRUE : グラデーションマップを左右反転して使う  FALSE : 左右反転しない ) ) ;
 
 extern	int			NS_GraphBlend(        int    GrHandle, int BlendGrHandle,                                                                                                             int BlendRatio /* ブレンド効果の影響度( 0:０％  255:１００％ ) */ , int BlendType /* DX_GRAPH_BLEND_ADD 等 */ , ... ) ;	// 二つの画像をブレンドする
@@ -1433,8 +1493,8 @@ extern	int			NS_AddMovieFrameToGraph(			int GraphHandle, unsigned int FrameNum )
 extern	int			NS_SeekMovieToGraph(				int GraphHandle, int Time ) ;											// ムービーの再生位置を設定する(ミリ秒単位)
 extern	int			NS_SetPlaySpeedRateMovieToGraph(		int GraphHandle, double SpeedRate ) ;									// 動画ファイルの再生速度を設定する( 1.0 = 等倍速  2.0 = ２倍速 )、一部のファイルフォーマットのみで有効な機能です
 extern	int			NS_GetMovieStateToGraph(			int GraphHandle ) ;														// ムービーの再生状態を得る
-extern	int			NS_SetMovieVolumeToGraph(			int Volume, int GraphHandle ) ;											// ムービーのボリュームをセットする(0～10000)
-extern	int			NS_ChangeMovieVolumeToGraph(		int Volume, int GraphHandle ) ;											// ムービーのボリュームをセットする(0～255)
+extern	int			NS_SetMovieVolumeToGraph(			int Volume, int GraphHandle ) ;											// ムービーのボリュームをセットする(0〜10000)
+extern	int			NS_ChangeMovieVolumeToGraph(		int Volume, int GraphHandle ) ;											// ムービーのボリュームをセットする(0〜255)
 extern	const BASEIMAGE* NS_GetMovieBaseImageToGraph(		int GraphHandle, int *ImageUpdateFlag ) ;								// ムービーの基本イメージデータを取得する
 extern	int			NS_GetMovieTotalFrameToGraph(		int GraphHandle ) ;														// ムービーの総フレーム数を得る( Ogg Theora でのみ有効 )
 extern	int			NS_TellMovieToGraph(				int GraphHandle ) ;														// ムービーの再生位置を取得する(ミリ秒単位)
@@ -1600,6 +1660,7 @@ extern	int			NS_DrawFillMaskToDirectData(		int x1, int y1, int x2, int y2,  int 
 extern	int			NS_SetUseMaskScreenFlag(			int ValidFlag ) ;																				// マスク使用モードを変更
 extern	int			NS_GetUseMaskScreenFlag(			void ) ;																						// マスク使用モードの取得
 extern	int			NS_FillMaskScreen(					int Flag ) ;																					// マスクスクリーンを指定の色で塗りつぶす
+extern	int			NS_SetMaskScreenGraph(				int GraphHandle ) ;																				// マスクスクリーンとして使用するグラフィックのハンドルを設定する、-1を渡すと解除( 引数で渡すグラフィックハンドルは MakeScreen で作成した「アルファチャンネル付きの描画対象にできるグラフィックハンドル」である必要があります( アルファチャンネルがマスクに使用されます ) )
 
 extern	int			NS_InitMask(						void ) ;																						// マスクデータを初期化する
 extern	int			NS_MakeMask(						int Width, int Height ) ;																		// マスクデータの追加
@@ -1656,14 +1717,18 @@ extern	int			NS_CreateFontToHandle(                     const TCHAR *FontName, i
 extern	int			NS_LoadFontDataToHandle(					const TCHAR *FileName,                        int EdgeSize = -1 ) ;		// フォントデータファイルからフォントハンドルを作成する
 extern	int			NS_LoadFontDataFromMemToHandle(			const void *FontDataImage, int FontDataImageSize, int EdgeSize = -1 ) ;		// メモリ上のフォントデータファイルイメージからフォントハンドルを作成する
 extern	int			NS_SetFontSpaceToHandle(                   int Point, int FontHandle ) ;																	// 字間を変更する
+extern	int			NS_SetFontCharCodeFormatToHandle(			int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ , int FontHandle ) ;											// 指定のフォントハンドルを使用する関数の引数に渡す文字列の文字コード形式を設定する( UNICODE版では無効 )
 extern	int			NS_SetDefaultFontState(                    const TCHAR *FontName, int Size, int Thick, int FontType = -1 , int CharSet = -1 , int EdgeSize = -1 , int Italic = FALSE ) ;	// デフォルトフォントハンドルの設定を変更する
 extern	int			NS_DeleteFontToHandle(                     int FontHandle ) ;																				// フォントキャッシュの制御を終了する
 extern	int			NS_SetFontLostFlag(                        int FontHandle, int *LostFlag ) ;																// 解放時に TRUE にするフラグへのポインタを設定する
+extern	int			NS_AddFontImageToHandle(					int FontHandle, const TCHAR *Char, int GrHandle, int DrawX, int DrawY, int AddX ) ;				// 指定の文字の代わりに描画するグラフィックハンドルを登録する
+extern	int			NS_SubFontImageToHandle(					int FontHandle, const TCHAR *Char ) ;															// 指定の文字の代わりに描画するグラフィックハンドルの登録を解除する
 
 extern	int			NS_SetFontSize(                            int FontSize ) ;																				// 描画するフォントのサイズをセットする
 extern	int			NS_SetFontThickness(                       int ThickPal ) ;																				// フォントの太さをセット
 extern	int			NS_SetFontSpace(                           int Point ) ;																					// 字間を変更する
 extern	int			NS_GetFontSpace(                           void ) ;																						// デフォルトフォントハンドルの字間を取得する
+extern	int			NS_SetFontCharCodeFormat(					int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ ) ;										// デフォルトフォントハンドルを使用する関数の引数に渡す文字列の文字コード形式を設定する( UNICODE版では無効 )
 
 extern	int			NS_SetFontCacheToTextureFlag(              int Flag ) ;																					// フォントのキャッシュにテクスチャを使用するか、フラグをセットする
 extern	int			NS_SetFontChacheToTextureFlag(             int Flag ) ;																					// フォントのキャッシュにテクスチャを使用するか、フラグをセットする(誤字版)
@@ -1895,19 +1960,21 @@ extern	int			NS_GetPaletteBaseImage(           const BASEIMAGE *BaseImage, int P
 extern	int			NS_SetPaletteBaseImage(                 BASEIMAGE *BaseImage, int PaletteNo, int  r, int  g, int  b, int  a ) ;																						// 基本イメージデータのパレットをセットする
 extern	int			NS_SetPixelPalCodeBaseImage(            BASEIMAGE *BaseImage, int x, int y, int palNo ) ;																												// 基本イメージデータの指定の座標の色コードを変更する(パレット画像用)
 extern	int			NS_GetPixelPalCodeBaseImage(      const BASEIMAGE *BaseImage, int x, int y ) ;																															// 基本イメージデータの指定の座標の色コードを取得する(パレット画像用)
-extern	int			NS_SetPixelBaseImage(                   BASEIMAGE *BaseImage, int x, int y, int  r, int  g, int  b, int  a ) ;																							// 基本イメージデータの指定の座標の色を変更する(各色要素は０～２５５)
+extern	int			NS_SetPixelBaseImage(                   BASEIMAGE *BaseImage, int x, int y, int  r, int  g, int  b, int  a ) ;																							// 基本イメージデータの指定の座標の色を変更する(各色要素は０〜２５５)
 extern	int			NS_SetPixelBaseImageF(                  BASEIMAGE *BaseImage, int x, int y, float  r, float  g, float  b, float  a ) ;																					// 基本イメージデータの指定の座標の色を変更する(各色要素は浮動小数点数)
-extern	int			NS_GetPixelBaseImage(             const BASEIMAGE *BaseImage, int x, int y, int *r, int *g, int *b, int *a ) ;																							// 基本イメージデータの指定の座標の色を取得する(各色要素は０～２５５)
+extern	int			NS_GetPixelBaseImage(             const BASEIMAGE *BaseImage, int x, int y, int *r, int *g, int *b, int *a ) ;																							// 基本イメージデータの指定の座標の色を取得する(各色要素は０〜２５５)
 extern	int			NS_GetPixelBaseImageF(            const BASEIMAGE *BaseImage, int x, int y, float *r, float *g, float *b, float *a ) ;																					// 基本イメージデータの指定の座標の色を取得する(各色要素は浮動小数点数)
-extern	int			NS_DrawLineBaseImage(                   BASEIMAGE *BaseImage, int x1, int y1, int x2, int y2, int r, int g, int b, int a ) ;																			// 基本イメージデータの指定の座標に線を描画する(各色要素は０～２５５)
+extern	int			NS_DrawLineBaseImage(                   BASEIMAGE *BaseImage, int x1, int y1, int x2, int y2, int r, int g, int b, int a ) ;																			// 基本イメージデータの指定の座標に線を描画する(各色要素は０〜２５５)
+extern	int			NS_DrawCircleBaseImage(                 BASEIMAGE *BaseImage, int x, int y, int radius, int r, int g, int b, int a, int FillFlag = TRUE ) ;															// 基本イメージデータの指定の座標に円を描画する(各色要素は０〜２５５)
 extern	int			NS_BltBaseImage(                        int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage ) ;									// 基本イメージデータを別の基本イメージデータに転送する
 extern	int			NS_BltBaseImage(                                                                        int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage ) ;									// 基本イメージデータを別の基本イメージデータに転送する
 extern	int			NS_BltBaseImageWithTransColor(          int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage, int Tr, int Tg, int Tb, int Ta ) ;	// 基本イメージデータを別の基本イメージデータに透過色処理付きで転送する
-extern	int			NS_BltBaseImageWithAlphaBlend(          int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage, int Opacity = 255 ) ;					// 基本イメージデータを別の基本イメージデータにアルファ値のブレンドを考慮した上で転送する( Opacity は透明度 : 0( 完全透明 ) ～ 255( 完全不透明 ) )( 出力先が ARGB8 形式以外の場合はエラーになります )
+extern	int			NS_BltBaseImageWithAlphaBlend(          int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage, int Opacity = 255 ) ;					// 基本イメージデータを別の基本イメージデータにアルファ値のブレンドを考慮した上で転送する( Opacity は透明度 : 0( 完全透明 ) 〜 255( 完全不透明 ) )( 出力先が ARGB8 形式以外の場合はエラーになります )
 extern	int			NS_ReverseBaseImageH(                   BASEIMAGE *BaseImage ) ;																																		// 基本イメージデータを左右反転する
 extern	int			NS_ReverseBaseImageV(                   BASEIMAGE *BaseImage ) ;																																		// 基本イメージデータを上下反転する
 extern	int			NS_ReverseBaseImage(                    BASEIMAGE *BaseImage ) ;																																		// 基本イメージデータを上下左右反転する
 extern	int			NS_CheckPixelAlphaBaseImage(      const BASEIMAGE *BaseImage ) ;																																		// 基本イメージデータに含まれるピクセルのアルファ値をチェックする( 戻り値   -1:エラー  0:画像にアルファ成分が無い  1:画像にアルファ成分があり、すべて最大(255)値  2:画像にアルファ成分があり、存在するアルファ値は最小(0)と最大(255)もしくは最小(0)のみ　3:画像にアルファ成分があり、最小と最大以外の中間の値がある )  
+extern	int			NS_GetBaseImageUseMaxPaletteNo(   const BASEIMAGE *BaseImage ) ;																																		// 基本イメージデータで使用されているパレット番号の最大値を取得する( パレット画像では無い場合は -1 が返る )
 
 #ifndef DX_NON_SAVEFUNCTION
 
@@ -2002,26 +2069,27 @@ extern	int			NS_UpdateLayerdWindowForSoftImageRect(                   int SIHand
 extern	int			NS_UpdateLayerdWindowForPremultipliedAlphaSoftImage(     int SIHandle ) ;												// 乗算済みアルファのソフトウエアイメージハンドルを使用して UpdateLayerdWindow を行う
 extern	int			NS_UpdateLayerdWindowForPremultipliedAlphaSoftImageRect( int SIHandle, int x1, int y1, int x2, int y2 ) ;				// 乗算済みアルファのソフトウエアイメージハンドルの指定の範囲を使用して UpdateLayerdWindow を行う
 #endif // __WINDOWS__
-extern	int			NS_FillSoftImage(                   int SIHandle, int r, int g, int b, int a ) ;										// ソフトウエアで扱うイメージを指定色で塗りつぶす(各色要素は０～２５５)
+extern	int			NS_FillSoftImage(                   int SIHandle, int r, int g, int b, int a ) ;										// ソフトウエアで扱うイメージを指定色で塗りつぶす(各色要素は０〜２５５)
 extern	int			NS_ClearRectSoftImage(              int SIHandle, int x, int y, int w, int h ) ;										// ソフトウエアで扱うイメージの指定の領域を０クリアする
-extern	int			NS_GetPaletteSoftImage(             int SIHandle, int PaletteNo, int *r, int *g, int *b, int *a ) ;					// ソフトウエアで扱うイメージのパレットを取得する(各色要素は０～２５５)
-extern	int			NS_SetPaletteSoftImage(             int SIHandle, int PaletteNo, int  r, int  g, int  b, int  a ) ;					// ソフトウエアで扱うイメージのパレットをセットする(各色要素は０～２５５)
-extern	int			NS_DrawPixelPalCodeSoftImage(       int SIHandle, int x, int y, int palNo ) ;											// ソフトウエアで扱うイメージの指定座標にドットを描画する(パレット画像用、有効値は０～２５５)
-extern	int			NS_GetPixelPalCodeSoftImage(        int SIHandle, int x, int y ) ;														// ソフトウエアで扱うイメージの指定座標の色コードを取得する(パレット画像用、戻り値は０～２５５)
+extern	int			NS_GetPaletteSoftImage(             int SIHandle, int PaletteNo, int *r, int *g, int *b, int *a ) ;					// ソフトウエアで扱うイメージのパレットを取得する(各色要素は０〜２５５)
+extern	int			NS_SetPaletteSoftImage(             int SIHandle, int PaletteNo, int  r, int  g, int  b, int  a ) ;					// ソフトウエアで扱うイメージのパレットをセットする(各色要素は０〜２５５)
+extern	int			NS_DrawPixelPalCodeSoftImage(       int SIHandle, int x, int y, int palNo ) ;											// ソフトウエアで扱うイメージの指定座標にドットを描画する(パレット画像用、有効値は０〜２５５)
+extern	int			NS_GetPixelPalCodeSoftImage(        int SIHandle, int x, int y ) ;														// ソフトウエアで扱うイメージの指定座標の色コードを取得する(パレット画像用、戻り値は０〜２５５)
 extern	void		*NS_GetImageAddressSoftImage(       int SIHandle ) ;																	// ソフトウエアで扱うイメージの実イメージが格納されているメモリ領域の先頭アドレスを取得する
 extern	int			NS_GetPitchSoftImage(               int SIHandle ) ;																	// ソフトウエアイメージハンドルのメモリに格納されている画像のピッチ( 1ライン辺りのバイト数 )を取得する
-extern	int			NS_DrawPixelSoftImage(              int SIHandle, int x, int y, int  r, int  g, int  b, int  a ) ;						// ソフトウエアで扱うイメージの指定座標にドットを描画する(各色要素は０～２５５)
+extern	int			NS_DrawPixelSoftImage(              int SIHandle, int x, int y, int  r, int  g, int  b, int  a ) ;						// ソフトウエアで扱うイメージの指定座標にドットを描画する(各色要素は０〜２５５)
 extern	int			NS_DrawPixelSoftImageF(             int SIHandle, int x, int y, float  r, float  g, float  b, float  a ) ;				// ソフトウエアイメージハンドルの指定座標にドットを描画する(各色要素は浮動小数点数)
-extern	void		NS_DrawPixelSoftImage_Unsafe_XRGB8( int SIHandle, int x, int y, int  r, int  g, int  b ) ;								// ソフトウエアで扱うイメージの指定座標にドットを描画する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や ARGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
-extern	void		NS_DrawPixelSoftImage_Unsafe_ARGB8( int SIHandle, int x, int y, int  r, int  g, int  b, int  a ) ;						// ソフトウエアで扱うイメージの指定座標にドットを描画する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や XRGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
-extern	int			NS_GetPixelSoftImage(               int SIHandle, int x, int y, int *r, int *g, int *b, int *a ) ;						// ソフトウエアで扱うイメージの指定座標の色を取得する(各色要素は０～２５５)
+extern	void		NS_DrawPixelSoftImage_Unsafe_XRGB8( int SIHandle, int x, int y, int  r, int  g, int  b ) ;								// ソフトウエアで扱うイメージの指定座標にドットを描画する(各色要素は０〜２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や ARGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
+extern	void		NS_DrawPixelSoftImage_Unsafe_ARGB8( int SIHandle, int x, int y, int  r, int  g, int  b, int  a ) ;						// ソフトウエアで扱うイメージの指定座標にドットを描画する(各色要素は０〜２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や XRGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
+extern	int			NS_GetPixelSoftImage(               int SIHandle, int x, int y, int *r, int *g, int *b, int *a ) ;						// ソフトウエアで扱うイメージの指定座標の色を取得する(各色要素は０〜２５５)
 extern	int			NS_GetPixelSoftImageF(              int SIHandle, int x, int y, float *r, float *g, float *b, float *a ) ;				// ソフトウエアイメージハンドルの指定座標の色を取得する(各色要素は浮動小数点数)
-extern	void		NS_GetPixelSoftImage_Unsafe_XRGB8(  int SIHandle, int x, int y, int *r, int *g, int *b ) ;								// ソフトウエアで扱うイメージの指定座標の色を取得する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や XRGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
-extern	void		NS_GetPixelSoftImage_Unsafe_ARGB8(  int SIHandle, int x, int y, int *r, int *g, int *b, int *a ) ;						// ソフトウエアで扱うイメージの指定座標の色を取得する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や ARGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
-extern	int			NS_DrawLineSoftImage(               int SIHandle, int x1, int y1, int x2, int y2, int r, int g, int b, int a ) ;		// ソフトウエアで扱うイメージの指定座標に線を描画する(各色要素は０～２５５)
+extern	void		NS_GetPixelSoftImage_Unsafe_XRGB8(  int SIHandle, int x, int y, int *r, int *g, int *b ) ;								// ソフトウエアで扱うイメージの指定座標の色を取得する(各色要素は０〜２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や XRGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
+extern	void		NS_GetPixelSoftImage_Unsafe_ARGB8(  int SIHandle, int x, int y, int *r, int *g, int *b, int *a ) ;						// ソフトウエアで扱うイメージの指定座標の色を取得する(各色要素は０〜２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や ARGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
+extern	int			NS_DrawLineSoftImage(               int SIHandle, int x1, int y1, int x2, int y2, int r, int g, int b, int a ) ;		// ソフトウエアで扱うイメージの指定座標に線を描画する(各色要素は０〜２５５)
+extern	int			NS_DrawCircleSoftImage(             int SIHandle, int x, int y, int radius, int r, int g, int b, int a, int FillFlag = TRUE ) ;	// ソフトウエアイメージハンドルの指定座標に円を描画する(各色要素は０〜２５５)
 extern	int			NS_BltSoftImage(                    int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int SrcSIHandle, int DestX, int DestY, int DestSIHandle ) ;									// ソフトウエアで扱うイメージを別のイメージ上に転送する
 extern	int			NS_BltSoftImageWithTransColor(      int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int SrcSIHandle, int DestX, int DestY, int DestSIHandle, int Tr, int Tg, int Tb, int Ta ) ;	// ソフトウエアで扱うイメージを透過色処理付きで転送する
-extern	int			NS_BltSoftImageWithAlphaBlend(      int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int SrcSIHandle, int DestX, int DestY, int DestSIHandle, int Opacity = 255 ) ;					// ソフトウエアで扱うイメージをアルファ値のブレンドを考慮した上で転送する( Opacity は透明度 : 0( 完全透明 ) ～ 255( 完全不透明 ) )( 出力先が ARGB8 形式以外の場合はエラーになります )
+extern	int			NS_BltSoftImageWithAlphaBlend(      int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int SrcSIHandle, int DestX, int DestY, int DestSIHandle, int Opacity = 255 ) ;					// ソフトウエアで扱うイメージをアルファ値のブレンドを考慮した上で転送する( Opacity は透明度 : 0( 完全透明 ) 〜 255( 完全不透明 ) )( 出力先が ARGB8 形式以外の場合はエラーになります )
 extern	int			NS_ReverseSoftImageH(               int SIHandle ) ;																	// ソフトウエアで扱うイメージの左右を反転する
 extern	int			NS_ReverseSoftImageV(               int SIHandle ) ;																	// ソフトウエアで扱うイメージの上下を反転する
 extern	int			NS_ReverseSoftImage(                int SIHandle ) ;																	// ソフトウエアで扱うイメージの上下左右を反転する
@@ -2037,10 +2105,10 @@ extern	int			NS_DrawSoftImage(                   int x, int y, int SIHandle ) ;	
 
 extern	int			NS_SaveSoftImageToBmp(              const TCHAR *FilePath, int SIHandle ) ;											// ソフトウエアで扱うイメージをＢＭＰ画像ファイルとして保存する
 #ifndef DX_NON_PNGREAD
-extern	int			NS_SaveSoftImageToPng(              const TCHAR *FilePath, int SIHandle, int CompressionLevel ) ;						// ソフトウエアで扱うイメージをＰＮＧ画像ファイルとして保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0～9
+extern	int			NS_SaveSoftImageToPng(              const TCHAR *FilePath, int SIHandle, int CompressionLevel ) ;						// ソフトウエアで扱うイメージをＰＮＧ画像ファイルとして保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0〜9
 #endif
 #ifndef DX_NON_JPEGREAD
-extern	int			NS_SaveSoftImageToJpeg(             const TCHAR *FilePath, int SIHandle, int Quality, int Sample2x1 ) ;				// ソフトウエアで扱うイメージをＪＰＥＧ画像ファイルとして保存する Quality = 画質、値が大きいほど低圧縮高画質,0～100 
+extern	int			NS_SaveSoftImageToJpeg(             const TCHAR *FilePath, int SIHandle, int Quality, int Sample2x1 ) ;				// ソフトウエアで扱うイメージをＪＰＥＧ画像ファイルとして保存する Quality = 画質、値が大きいほど低圧縮高画質,0〜100 
 #endif
 
 #endif // DX_NON_SAVEFUNCTION
@@ -2105,25 +2173,25 @@ extern	int			NS_DeleteSoundMem(                      int SoundHandle, int LogOut
 extern	int			NS_PlaySoundMem(                        int SoundHandle, int PlayType, int TopPositionFlag = TRUE ) ;								// サウンドハンドルを再生する
 extern	int			NS_StopSoundMem(                                                                        int SoundHandle ) ;						// サウンドハンドルの再生を停止する
 extern	int			NS_CheckSoundMem(                                                                       int SoundHandle ) ;						// サウンドハンドルが再生中かどうかを取得する
-extern	int			NS_SetPanSoundMem(                      int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルのパンを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			NS_ChangePanSoundMem(                   int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルのパンを設定する( -255 ～ 255 )
+extern	int			NS_SetPanSoundMem(                      int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルのパンを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			NS_ChangePanSoundMem(                   int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルのパンを設定する( -255 〜 255 )
 extern	int			NS_GetPanSoundMem(                                                                      int SoundHandle ) ;						// サウンドハンドルのパンを取得する
-extern	int			NS_SetVolumeSoundMem(                   int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルのボリュームを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			NS_ChangeVolumeSoundMem(                int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルのボリュームを設定する( 0 ～ 255 )
+extern	int			NS_SetVolumeSoundMem(                   int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルのボリュームを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			NS_ChangeVolumeSoundMem(                int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルのボリュームを設定する( 0 〜 255 )
 extern	int			NS_GetVolumeSoundMem(                                                                   int SoundHandle ) ;						// サウンドハンドルのボリュームを取得する
-extern	int			NS_SetChannelVolumeSoundMem(            int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの指定のチャンネルのボリュームを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			NS_ChangeChannelVolumeSoundMem(         int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの指定のチャンネルのボリュームを設定する( 0 ～ 255 )
+extern	int			NS_SetChannelVolumeSoundMem(            int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの指定のチャンネルのボリュームを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			NS_ChangeChannelVolumeSoundMem(         int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの指定のチャンネルのボリュームを設定する( 0 〜 255 )
 extern	int			NS_GetChannelVolumeSoundMem(            int Channel,                                    int SoundHandle ) ;						// サウンドハンドルの指定のチャンネルのボリュームを取得する
 extern	int			NS_SetFrequencySoundMem(                int FrequencyPal,                               int SoundHandle ) ;						// サウンドハンドルの再生周波数を設定する
 extern	int			NS_GetFrequencySoundMem(                                                                int SoundHandle ) ;						// サウンドハンドルの再生周波数を取得する
 extern	int			NS_ResetFrequencySoundMem(                                                              int SoundHandle ) ;						// サウンドハンドルの再生周波数を読み込み直後の状態に戻す
 
-extern	int			NS_SetNextPlayPanSoundMem(              int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するパンを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			NS_ChangeNextPlayPanSoundMem(           int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するパンを設定する( -255 ～ 255 )
-extern	int			NS_SetNextPlayVolumeSoundMem(           int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するボリュームを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			NS_ChangeNextPlayVolumeSoundMem(        int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するボリュームを設定する( 0 ～ 255 )
-extern	int			NS_SetNextPlayChannelVolumeSoundMem(    int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			NS_ChangeNextPlayChannelVolumeSoundMem( int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 0 ～ 255 )
+extern	int			NS_SetNextPlayPanSoundMem(              int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するパンを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			NS_ChangeNextPlayPanSoundMem(           int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するパンを設定する( -255 〜 255 )
+extern	int			NS_SetNextPlayVolumeSoundMem(           int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するボリュームを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			NS_ChangeNextPlayVolumeSoundMem(        int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するボリュームを設定する( 0 〜 255 )
+extern	int			NS_SetNextPlayChannelVolumeSoundMem(    int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			NS_ChangeNextPlayChannelVolumeSoundMem( int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 0 〜 255 )
 extern	int			NS_SetNextPlayFrequencySoundMem(        int FrequencyPal,                               int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用する再生周波数を設定する
 
 extern	int			NS_SetCurrentPositionSoundMem(          int SamplePosition,                             int SoundHandle ) ;						// サウンドハンドルの再生位置をサンプル単位で設定する(再生が止まっている時のみ有効)
@@ -2629,6 +2697,66 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_DxSetAllocSizeOutFlag				DxSetAllocSizeOutFlag
 #define NS_DxSetAllocMemoryErrorCheckFlag		DxSetAllocMemoryErrorCheckFlag
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+// DxBaseFunc.cpp 関数プロトタイプ宣言
+
+// 文字コード関係
+#define NS_ConvertStringCharCodeFormat			ConvertStringCharCodeFormat
+#define NS_SetUseCharCodeFormat					SetUseCharCodeFormat
+
+// 文字列関係
+#define NS_strcpyDx								strcpyDx
+#define NS_strpcpyDx							strpcpyDx
+#define NS_strpcpy2Dx							strpcpy2Dx
+#define NS_strncpyDx							strncpyDx
+#define NS_strncpy2Dx							strncpy2Dx
+#define NS_strrncpyDx							strrncpyDx
+#define NS_strrncpy2Dx							strrncpy2Dx
+#define NS_strpncpyDx							strpncpyDx
+#define NS_strpncpy2Dx							strpncpy2Dx
+#define NS_strcatDx								strcatDx
+#define NS_strlenDx								strlenDx
+#define NS_strlen2Dx							strlen2Dx
+#define NS_strcmpDx								strcmpDx
+#define NS_stricmpDx							stricmpDx
+#define NS_strncmpDx							strncmpDx
+#define NS_strncmp2Dx							strncmp2Dx
+#define NS_strpncmpDx							strpncmpDx
+#define NS_strpncmp2Dx							strpncmp2Dx
+#define NS_strgetchrDx							strgetchrDx
+#define NS_strgetchr2Dx							strgetchr2Dx
+#define NS_strputchrDx							strputchrDx
+#define NS_strputchr2Dx							strputchr2Dx
+#define NS_strposDx								strposDx
+#define NS_strpos2Dx							strpos2Dx
+#define NS_strstrDx								strstrDx
+#define NS_strstr2Dx							strstr2Dx
+#define NS_strrstrDx							strrstrDx
+#define NS_strrstr2Dx							strrstr2Dx
+#define NS_strchrDx								strchrDx
+#define NS_strchr2Dx							strchr2Dx
+#define NS_strrchrDx							strrchrDx
+#define NS_strrchr2Dx							strrchr2Dx
+#define NS_struprDx								struprDx
+#define NS_vsprintfDx							vsprintfDx
+#define NS_sprintfDx							sprintfDx
+#define NS_itoaDx								itoaDx
+#define NS_atoiDx								atoiDx
+#define NS_atofDx								atofDx
+#define NS_vsscanfDx							vsscanfDx
+#define NS_sscanfDx								sscanfDx
 
 
 
@@ -3294,8 +3422,8 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #ifndef DX_NON_SAVEFUNCTION
 
 // 画面画像保存関数
-// Jpeg_Quality         = 0:低画質～100:高画質
-// Png_CompressionLevel = 0:無圧縮～  9:最高圧縮
+// Jpeg_Quality         = 0:低画質〜100:高画質
+// Png_CompressionLevel = 0:無圧縮〜  9:最高圧縮
 #define NS_SaveDrawScreen						SaveDrawScreen
 #define NS_SaveDrawScreenToBMP					SaveDrawScreenToBMP
 #define NS_SaveDrawScreenToJPEG					SaveDrawScreenToJPEG
@@ -3593,6 +3721,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_SetUseMaskScreenFlag					SetUseMaskScreenFlag
 #define NS_GetUseMaskScreenFlag					GetUseMaskScreenFlag
 #define NS_FillMaskScreen						FillMaskScreen
+#define NS_SetMaskScreenGraph					SetMaskScreenGraph
 
 #define NS_InitMask								InitMask
 #define NS_MakeMask								MakeMask
@@ -3648,14 +3777,18 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_LoadFontDataToHandle						LoadFontDataToHandle
 #define NS_LoadFontDataFromMemToHandle				LoadFontDataFromMemToHandle
 #define NS_SetFontSpaceToHandle						SetFontSpaceToHandle
+#define NS_SetFontCharCodeFormatToHandle				SetFontCharCodeFormatToHandle
 #define NS_SetDefaultFontState						SetDefaultFontState
 #define NS_DeleteFontToHandle						DeleteFontToHandle
 #define NS_SetFontLostFlag							SetFontLostFlag
+#define NS_AddFontImageToHandle						AddFontImageToHandle
+#define NS_SubFontImageToHandle						SubFontImageToHandle
 
 #define NS_SetFontSize								SetFontSize
 #define NS_SetFontThickness							SetFontThickness
 #define NS_SetFontSpace								SetFontSpace
 #define NS_GetFontSpace								GetFontSpace
+#define NS_SetFontCharCodeFormat					SetFontCharCodeFormat
 
 #define NS_SetFontCacheToTextureFlag				SetFontCacheToTextureFlag
 #define NS_SetFontChacheToTextureFlag				SetFontChacheToTextureFlag
@@ -3878,6 +4011,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetPixelBaseImage					GetPixelBaseImage
 #define NS_GetPixelBaseImageF					GetPixelBaseImageF
 #define NS_DrawLineBaseImage					DrawLineBaseImage
+#define NS_DrawCircleBaseImage					DrawCircleBaseImage
 #define NS_BltBaseImage							BltBaseImage
 #define NS_BltBaseImage							BltBaseImage
 #define NS_BltBaseImageWithTransColor			BltBaseImageWithTransColor
@@ -3886,6 +4020,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_ReverseBaseImageV					ReverseBaseImageV
 #define NS_ReverseBaseImage						ReverseBaseImage
 #define NS_CheckPixelAlphaBaseImage				CheckPixelAlphaBaseImage
+#define NS_GetBaseImageUseMaxPaletteNo			GetBaseImageUseMaxPaletteNo
 
 #ifndef DX_NON_SAVEFUNCTION
 
@@ -3988,6 +4123,7 @@ extern	int			NS_DXArchiveReleaseMemImage(	void *ArchiveImage ) ;											// DX
 #define NS_GetPixelSoftImage_Unsafe_XRGB8		GetPixelSoftImage_Unsafe_XRGB8
 #define NS_GetPixelSoftImage_Unsafe_ARGB8		GetPixelSoftImage_Unsafe_ARGB8
 #define NS_DrawLineSoftImage					DrawLineSoftImage
+#define NS_DrawCircleSoftImage					DrawCircleSoftImage
 #define NS_BltSoftImage							BltSoftImage
 #define NS_BltSoftImageWithTransColor			BltSoftImageWithTransColor
 #define NS_BltSoftImageWithAlphaBlend			BltSoftImageWithAlphaBlend

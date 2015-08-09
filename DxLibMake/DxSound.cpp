@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ＤｉｒｅｃｔＳｏｕｎｄ制御プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -126,20 +126,6 @@ extern int InitializeSoundSystem( void )
 		SoundSysData._3DSoundOneMetre = 1.0f ;
 	}
 
-	// 環境依存処理
-	if( InitializeSoundSystem_PF_Timing0() < 0 )
-	{
-		return -1 ;
-	}
-
-	// 作成する音のデータタイプをセット
-	SoundSysData.CreateSoundDataType = DX_SOUNDDATATYPE_MEMNOPRESS ;
-
-#ifndef DX_NON_OGGVORBIS
-	// ＯｇｇＶｏｒｂｉｓのＰＣＭデコード時の、ビット深度を１６bitにセット
-	SoundSysData.OggVorbisBitDepth = 2 ;
-#endif // DX_NON_OGGVORBIS
-
 	// サウンドハンドル管理情報初期化
 	InitializeHandleManage( DX_HANDLETYPE_SOUND, sizeof( SOUND ), MAX_SOUND_NUM, InitializeSoundHandle, TerminateSoundHandle, L"Sound" ) ;
 
@@ -155,6 +141,20 @@ extern int InitializeSoundSystem( void )
 	InitializeHandleList( &SoundSysData.SoftSoundPlayerListFirst,		&SoundSysData.SoftSoundPlayerListLast ) ;
 	InitializeHandleList( &SoundSysData.PlayFinishDeleteSoundListFirst, &SoundSysData.PlayFinishDeleteSoundListLast ) ;
 	InitializeHandleList( &SoundSysData.Play3DSoundListFirst,			&SoundSysData.Play3DSoundListLast ) ;
+
+	// 環境依存処理
+	if( InitializeSoundSystem_PF_Timing0() < 0 )
+	{
+		return -1 ;
+	}
+
+	// 作成する音のデータタイプをセット
+	SoundSysData.CreateSoundDataType = DX_SOUNDDATATYPE_MEMNOPRESS ;
+
+#ifndef DX_NON_OGGVORBIS
+	// ＯｇｇＶｏｒｂｉｓのＰＣＭデコード時の、ビット深度を１６bitにセット
+	SoundSysData.OggVorbisBitDepth = 2 ;
+#endif // DX_NON_OGGVORBIS
 
 	// ３Ｄサウンド処理用のリスナー情報を初期化
 	SoundSysData.ListenerInfo.Position			= VGet( 0.0f, 0.0f, 0.0f ) ;
@@ -551,7 +551,7 @@ static int CreateSoundBuffer( WAVEFORMATEX *WaveFormat , DWORD BufferSize, int S
 				if( i == 0 && SrcSound == NULL )
 				{
 NORMAL_CREATEBUFFER :
-					hr = SoundBuffer_Initialize( &Sound->Buffer[ i ], BufferSize, WaveFormat, NULL, Sound->Is3DSound ) ;
+					hr = SoundBuffer_Initialize( &Sound->Buffer[ i ], BufferSize, WaveFormat, NULL, TRUE, FALSE, Sound->Is3DSound ) ;
 					if( hr != 0 )
 					{
 						i -- ;
@@ -610,6 +610,8 @@ NORMAL_CREATEBUFFER :
 				SOUNDSIZE( STS_BUFSEC * WaveFormat->nAvgBytesPerSec / STS_DIVNUM, WaveFormat->nBlockAlign ),
 				WaveFormat,
 				NULL,
+				TRUE,
+				TRUE,
 				Sound->Is3DSound ) != 0 )
 		{
 			DXST_ERRORLOG_ADDUTF16LE( "\xb9\x30\xc8\x30\xea\x30\xfc\x30\xe0\x30\xa8\x98\xb5\x30\xa6\x30\xf3\x30\xc9\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"ストリーム風サウンドバッファの作成に失敗しました\n" @*/ ) ;
@@ -4227,7 +4229,7 @@ extern int NS_SetPanSoundMem( int PanPal , int SoundHandle )
 	return 0 ;
 }
 
-// サウンドハンドルのパンを設定する( 0 ～ 255 )
+// サウンドハンドルのパンを設定する( 0 〜 255 )
 extern int NS_ChangePanSoundMem( int PanPal, int SoundHandle )
 {
 	int i ;
@@ -4448,7 +4450,7 @@ extern int NS_GetVolumeSoundMem( int SoundHandle )
 }
 
 
-// サウンドハンドルの指定のチャンネルのボリュームを設定する( 100分の1デシベル単位 0 ～ 10000 )
+// サウンドハンドルの指定のチャンネルのボリュームを設定する( 100分の1デシベル単位 0 〜 10000 )
 extern int NS_SetChannelVolumeSoundMem( int Channel, int VolumePal, int SoundHandle )
 {
 	SOUND * Sound ;
@@ -4478,7 +4480,7 @@ extern int NS_SetChannelVolumeSoundMem( int Channel, int VolumePal, int SoundHan
 	return 0 ;
 }
 
-// サウンドハンドルの指定のチャンネルのボリュームを設定する( 0 ～ 255 )
+// サウンドハンドルの指定のチャンネルのボリュームを設定する( 0 〜 255 )
 extern int NS_ChangeChannelVolumeSoundMem( int Channel, int VolumePal, int SoundHandle )
 {
 	SOUND * Sound ;
@@ -4675,7 +4677,7 @@ extern	int	NS_SetNextPlayPanSoundMem( int PanPal, int SoundHandle )
 	return 0 ;
 }
 
-// サウンドハンドルの次の再生にのみ使用するパンを設定する( -255 ～ 255 )
+// サウンドハンドルの次の再生にのみ使用するパンを設定する( -255 〜 255 )
 extern int NS_ChangeNextPlayPanSoundMem( int PanPal, int SoundHandle )
 {
 	SOUND * Sound ;
@@ -4827,7 +4829,7 @@ extern	int	NS_ChangeNextPlayVolumeSoundMem( int VolumePal, int SoundHandle )
 	return 0 ;
 }
 
-// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 100分の1デシベル単位 0 ～ 10000 )
+// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 100分の1デシベル単位 0 〜 10000 )
 extern int NS_SetNextPlayChannelVolumeSoundMem( int Channel, int VolumePal, int SoundHandle )
 {
 	SOUND * Sound ;
@@ -4852,7 +4854,7 @@ extern int NS_SetNextPlayChannelVolumeSoundMem( int Channel, int VolumePal, int 
 	return 0 ;
 }
 
-// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 0 ～ 255 )
+// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 0 〜 255 )
 extern int NS_ChangeNextPlayChannelVolumeSoundMem( int Channel, int VolumePal, int SoundHandle )
 {
 	SOUND * Sound ;
@@ -6329,7 +6331,7 @@ extern WAVEDATA *DuplicateWaveData( WAVEDATA *Data )
 
 
 //サウンドバッファ用
-extern int SoundBuffer_Initialize( SOUNDBUFFER *Buffer, DWORD Bytes, WAVEFORMATEX *Format, SOUNDBUFFER *Src, int Is3DSound )
+extern int SoundBuffer_Initialize( SOUNDBUFFER *Buffer, DWORD Bytes, WAVEFORMATEX *Format, SOUNDBUFFER *Src, int UseGetCurrentPosition, int IsStream, int Is3DSound )
 {
 	int i ;
 
@@ -6339,10 +6341,12 @@ extern int SoundBuffer_Initialize( SOUNDBUFFER *Buffer, DWORD Bytes, WAVEFORMATE
 		return -1 ;
 	}
 
-	Buffer->Wave			= NULL ;
-	Buffer->StopTimeState	= 0 ;
-	Buffer->StopTime		= 0 ;
-	Buffer->Is3DSound		= Is3DSound ;
+	Buffer->Wave					= NULL ;
+	Buffer->StopTimeState			= 0 ;
+	Buffer->StopTime				= 0 ;
+	Buffer->Is3DSound				= Is3DSound ;
+	Buffer->UseGetCurrentPosition	= UseGetCurrentPosition ;
+	Buffer->IsStream				= IsStream ;
 
 	if( SoundSysData.EnableSoundCaptureFlag )
 	{
@@ -6441,7 +6445,7 @@ ERR :
 
 extern int SoundBuffer_Duplicate( SOUNDBUFFER *Buffer, SOUNDBUFFER *Src, int Is3DSound )
 {
-	return SoundBuffer_Initialize( Buffer, 0, NULL, Src, Is3DSound ) ;
+	return SoundBuffer_Initialize( Buffer, 0, NULL, Src, Src->UseGetCurrentPosition, Src->IsStream, Is3DSound ) ;
 }
 
 
@@ -7562,7 +7566,7 @@ extern int NS_SetVolumeSoundFile( int VolumePal )
 }
 
 // サウンドキャプチャの開始
-extern	int StartSoundCapture( const char *SaveFilePath )
+extern	int StartSoundCapture( const wchar_t *SaveFilePath )
 {
 #ifdef DX_NON_SAVEFUNCTION
 
@@ -7570,7 +7574,6 @@ extern	int StartSoundCapture( const char *SaveFilePath )
 
 #else // DX_NON_SAVEFUNCTION
 
-	DWORD size ;
 	BYTE temp[NORMALWAVE_HEADERSIZE] ;
 	
 	// サウンドキャプチャが無効な場合は何もせず終了
@@ -7581,8 +7584,8 @@ extern	int StartSoundCapture( const char *SaveFilePath )
 	SoundSysData.SoundCaptureFlag = TRUE;
 	
 	// 保存用のファイルを開く
-	SoundSysData.SoundCaptureFileHandle = CreateFileA( SaveFilePath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL ) ;
-	if( SoundSysData.SoundCaptureFileHandle == INVALID_HANDLE_VALUE )
+	SoundSysData.SoundCaptureFileHandle = WriteOnlyFileAccessOpen( SaveFilePath ) ;
+	if( SoundSysData.SoundCaptureFileHandle == NULL )
 	{
 		DXST_ERRORLOG_ADDUTF16LE( "\xb5\x30\xa6\x30\xf3\x30\xc9\x30\xad\x30\xe3\x30\xd7\x30\xc1\x30\xe3\x30\xdd\x4f\x58\x5b\x28\x75\x6e\x30\xd5\x30\xa1\x30\xa4\x30\xeb\x30\x4c\x30\x8b\x95\x51\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x02\x30\x00"/*@ L"サウンドキャプチャ保存用のファイルが開けませんでした。" @*/ ) ;
 		return -1 ;
@@ -7590,7 +7593,7 @@ extern	int StartSoundCapture( const char *SaveFilePath )
 	
 	// ヘッダー分の空データを書き出す
 	_MEMSET( temp, 0, sizeof( temp ) ) ;
-	WriteFile( SoundSysData.SoundCaptureFileHandle, temp, NORMALWAVE_HEADERSIZE, &size, NULL ) ;
+	WriteOnlyFileAccessWrite( SoundSysData.SoundCaptureFileHandle, temp, NORMALWAVE_HEADERSIZE ) ;
 	
 	// サウンドキャプチャのフラグを立てる
 	SoundSysData.SoundCaptureFlag = TRUE ;
@@ -7607,7 +7610,6 @@ extern	int StartSoundCapture( const char *SaveFilePath )
 extern	int SoundCaptureProcess( int CaptureSample )
 {
 	int i, j, num, k ;
-	DWORD size ;
 	short *Temp = NULL ;
 	SOUND *sound ;
 
@@ -7652,7 +7654,7 @@ extern	int SoundCaptureProcess( int CaptureSample )
 	// キャプチャ用のデータを書き出す
 	if( SoundSysData.SoundCaptureFlag == TRUE )
 	{
-		WriteFile( SoundSysData.SoundCaptureFileHandle, Temp, ( DWORD )( CaptureSample * 4 ), &size, NULL ) ;
+		WriteOnlyFileAccessWrite( SoundSysData.SoundCaptureFileHandle, Temp, ( DWORD )( CaptureSample * 4 ) ) ;
 		SoundSysData.SoundCaptureSample += CaptureSample ;
 		
 		// メモリの解放
@@ -7676,7 +7678,6 @@ extern	int EndSoundCapture( void )
 
 	BYTE Header[NORMALWAVE_HEADERSIZE], *p ;
 	WAVEFORMATEX *format;
-	DWORD size ;
 
 	// サウンドキャプチャを実行していなかった場合は何もせず終了
 	if( SoundSysData.SoundCaptureFlag == FALSE ) return -1 ;
@@ -7703,9 +7704,9 @@ extern	int EndSoundCapture( void )
 	_MEMCPY( (char *)p, "data", 4 ) ;												p += 4 ;
 	*((DWORD *)p) = ( DWORD )( SoundSysData.SoundCaptureSample * format->nBlockAlign ) ;	p += 4 ;
 	
-	SetFilePointer( SoundSysData.SoundCaptureFileHandle, 0, NULL, FILE_BEGIN ) ;
-	WriteFile( SoundSysData.SoundCaptureFileHandle, Header, NORMALWAVE_HEADERSIZE, &size, NULL ) ;
-	CloseHandle( SoundSysData.SoundCaptureFileHandle ) ;
+	WriteOnlyFileAccessSeek( SoundSysData.SoundCaptureFileHandle, 0, SEEK_SET ) ;
+	WriteOnlyFileAccessWrite( SoundSysData.SoundCaptureFileHandle, Header, NORMALWAVE_HEADERSIZE ) ;
+	WriteOnlyFileAccessClose( SoundSysData.SoundCaptureFileHandle ) ;
 	SoundSysData.SoundCaptureFileHandle = NULL ;
 	
 	// キャプチャ終了
@@ -7778,7 +7779,7 @@ extern int SetupSoftSoundHandle(
 
 		// 再生用サウンドバッファの作成
 		BufferSize = SOUNDSIZE( SSND_PLAYER_STRM_BUFSEC * SSound->BufferFormat.nAvgBytesPerSec / SSND_PLAYER_SEC_DIVNUM, SSound->BufferFormat.nBlockAlign ) ;
-		if( SoundBuffer_Initialize( &SSound->Player.SoundBuffer, BufferSize, &SSound->BufferFormat, NULL, FALSE ) != 0 )
+		if( SoundBuffer_Initialize( &SSound->Player.SoundBuffer, BufferSize, &SSound->BufferFormat, NULL, TRUE, TRUE, FALSE ) != 0 )
 		{
 			DXST_ERRORLOG_ADDUTF16LE( "\xbd\x30\xd5\x30\xc8\x30\xb5\x30\xa6\x30\xf3\x30\xc9\x30\xd7\x30\xec\x30\xa4\x30\xe4\x30\xfc\x30\x28\x75\xb5\x30\xa6\x30\xf3\x30\xc9\x30\xd0\x30\xc3\x30\xd5\x30\xa1\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x00"/*@ L"ソフトサウンドプレイヤー用サウンドバッファの作成に失敗しました" @*/ ) ;
 			return -1 ;
@@ -8402,7 +8403,7 @@ extern int NS_SaveSoftSound( int SoftSoundHandle, const TCHAR *FileName )
 // ソフトウエアで扱う波形データを無圧縮Wav形式で保存する
 extern int SaveSoftSound_WCHAR_T( int SoftSoundHandle, const wchar_t *FileName )
 {
-	FILE *fp ;
+	DWORD_PTR fp ;
 	BYTE Header[NORMALWAVE_HEADERSIZE], *p ;
 	WAVEFORMATEX *format;
 	SOFTSOUND * SSound ;
@@ -8411,7 +8412,7 @@ extern int SaveSoftSound_WCHAR_T( int SoftSoundHandle, const wchar_t *FileName )
 	if( SSND_MASKHCHK( SoftSoundHandle, SSound ) ) return -1 ;
 	if( SSound->IsPlayer == 1 ) return -1 ;
 
-	fp = _wfopen( FileName, L"wb" ) ;
+	fp = WriteOnlyFileAccessOpen( FileName ) ;
 
 	// フォーマットをセット
 	format = (WAVEFORMATEX *)&Header[20]; 
@@ -8435,9 +8436,9 @@ extern int SaveSoftSound_WCHAR_T( int SoftSoundHandle, const wchar_t *FileName )
 	_MEMCPY( (char *)p, "data", 4 ) ;																	p += 4 ;
 	*((DWORD *)p) = ( DWORD )( SSound->Wave.BufferSampleNum * format->nBlockAlign ) ;					p += 4 ;
 	
-	fwrite( Header, NORMALWAVE_HEADERSIZE, 1, fp ) ;
-	fwrite( SSound->Wave.Buffer, ( size_t )( SSound->Wave.BufferSampleNum * format->nBlockAlign ), 1, fp ) ;
-	fclose( fp ) ;
+	WriteOnlyFileAccessWrite( fp, Header, NORMALWAVE_HEADERSIZE ) ;
+	WriteOnlyFileAccessWrite( fp, SSound->Wave.Buffer, ( size_t )( SSound->Wave.BufferSampleNum * format->nBlockAlign ) ) ;
+	WriteOnlyFileAccessClose( fp ) ;
 
 	// 終了
 	return 0 ;

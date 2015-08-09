@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ制御プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -576,7 +576,6 @@ static __inline void CreateScalingMatrix4X4CTF( MATRIX_4X4CT_F *Out, float sx, f
 	Out->m[ 0 ][ 0 ] = sx ;
 	Out->m[ 1 ][ 1 ] = sy ;
 	Out->m[ 2 ][ 2 ] = sz ;
-	Out->m[ 3 ][ 3 ] = 1.0f ;
 }
 
 static __inline void CreateScalingMatrix4X4CTD( MATRIX_4X4CT_D *Out, double sx, double sy, double sz )
@@ -586,7 +585,6 @@ static __inline void CreateScalingMatrix4X4CTD( MATRIX_4X4CT_D *Out, double sx, 
 	Out->m[ 0 ][ 0 ] = sx ;
 	Out->m[ 1 ][ 1 ] = sy ;
 	Out->m[ 2 ][ 2 ] = sz ;
-	Out->m[ 3 ][ 3 ] = 1.0 ;
 }
 
 static __inline void CreateScalingMatrix4X4CT( MATRIX_4X4CT *Out, double sx, double sy, double sz )
@@ -6972,6 +6970,7 @@ extern int MV1CreateCloneModelBase( int SrcMBHandle )
 		}
 		AnimSet->IsAddAnim = F1AnimSet->IsAddAnim ;
 		AnimSet->IsMatrixLinearBlend = F1AnimSet->IsMatrixLinearBlend ;
+		AnimSet->IsLoopAnim = F1AnimSet->IsLoopAnim ;
 	}
 
 	// アニメーションの情報をセット
@@ -8533,7 +8532,7 @@ static int _MV1ReMakeNormalFrameBase( MV1_FRAME_BASE *Frame, float SmoothingAngl
 					if( ShapeFrameVert[ Vert->PositionIndex ].TargetMeshVertex == -1 ) continue ;
 
 					// 情報の追加
-					NewShapeVertBuffer[ NewShapeVertexNum ].TargetMeshVertex = ( DWORD )k ;
+					NewShapeVertBuffer[ NewShapeVertexNum ].TargetMeshVertex = k ;
 					NewShapeVertBuffer[ NewShapeVertexNum ].Position         = ShapeFrameVert[ Vert->PositionIndex ].Position ;
 					NewShapeVertBuffer[ NewShapeVertexNum ].Normal           = VGet( 0.0f, 0.0f, 0.0f ) ;
 					NewShapeVertexNum ++ ;
@@ -8957,7 +8956,7 @@ static int _MV1PositionOptimizeFrameBase( MV1_FRAME_BASE *Frame )
 						for( l = 0 ; ( DWORD )l < ShapeMesh->VertexNum ; l ++, ShapeVertex ++ )
 						{
 							if( NewMVertIndex[ ShapeVertex->TargetMeshVertex ] == -1 ) continue ;
-							ShapeVertex->TargetMeshVertex = ( DWORD )NewMVertIndex[ ShapeVertex->TargetMeshVertex ] ;
+							ShapeVertex->TargetMeshVertex = NewMVertIndex[ ShapeVertex->TargetMeshVertex ] ;
 						}
 					}
 				}
@@ -9368,7 +9367,7 @@ static bool _MV1CreateWideCharNameBase( MV1_MODEL_BASE *MBase, const char *NameA
 {
 	wchar_t TempName[ 512 ] ;
 
-	ConvString( NameA, CHAR_CODEPAGE, ( char * )TempName, WCHAR_T_CODEPAGE ) ;
+	ConvString( NameA, CHAR_CHARCODEFORMAT, ( char * )TempName, WCHAR_T_CHARCODEFORMAT ) ;
 	*NameWP = ( wchar_t * )ADDMEMAREA( ( _WCSLEN( TempName ) + 1 ) * sizeof( wchar_t ), &MBase->AddFirstMem ) ;
 	if( *NameWP == NULL )
 	{
@@ -9385,7 +9384,7 @@ static bool _MV1CreateMultiByteNameBase( MV1_MODEL_BASE *MBase, const wchar_t *N
 {
 	char TempName[ 512 ] ;
 
-	ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, TempName, CHAR_CODEPAGE ) ;
+	ConvString( ( const char * )NameW, WCHAR_T_CHARCODEFORMAT, TempName, CHAR_CHARCODEFORMAT ) ;
 	*NameAP = ( char * )ADDMEMAREA( ( size_t )( _STRLEN( TempName ) + 1 ), &MBase->AddFirstMem ) ;
 	if( *NameAP == NULL )
 	{
@@ -9463,7 +9462,7 @@ static bool _MV1CreateWideCharName( const char *NameA, wchar_t **NameWP )
 {
 	wchar_t TempName[ 512 ] ;
 
-	ConvString( NameA, CHAR_CODEPAGE, ( char * )TempName, WCHAR_T_CODEPAGE ) ;
+	ConvString( NameA, CHAR_CHARCODEFORMAT, ( char * )TempName, WCHAR_T_CHARCODEFORMAT ) ;
 
 	*NameWP = ( wchar_t * )DXALLOC( ( _WCSLEN( TempName ) + 1 ) * sizeof( wchar_t ) ) ;
 	if( *NameWP == NULL )
@@ -9481,7 +9480,7 @@ static bool _MV1CreateMultiByteName( const wchar_t *NameW, char **NameAP )
 {
 	char TempName[ 512 ] ;
 
-	ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, TempName, CHAR_CODEPAGE ) ;
+	ConvString( ( const char * )NameW, WCHAR_T_CHARCODEFORMAT, TempName, CHAR_CHARCODEFORMAT ) ;
 
 	*NameAP = ( char * )DXALLOC( ( size_t )( _STRLEN( TempName ) + 1 ) ) ;
 	if( *NameAP == NULL )
@@ -9581,7 +9580,7 @@ extern int __MV1LoadTexture(
 			StrLengthW = _WCSLEN( RelativePathW ) ;
 
 #ifndef UNICODE
-			ConvString( ( const char * )RelativePathW, WCHAR_T_CODEPAGE, RelativePathA, CHAR_CODEPAGE ) ;
+			ConvString( ( const char * )RelativePathW, WCHAR_T_CHARCODEFORMAT, RelativePathA, CHAR_CHARCODEFORMAT ) ;
 			StrLengthA = _STRLEN( RelativePathA ) ;
 
 			*ColorFilePathAMem = ( char * )DXALLOC( ( size_t )( ( StrLengthA + 1 ) * sizeof( char ) ) ) ;
@@ -9606,7 +9605,7 @@ extern int __MV1LoadTexture(
 			StrLengthW = _WCSLEN( RelativePathW ) ;
 
 #ifndef UNICODE
-			ConvString( ( const char * )RelativePathW, WCHAR_T_CODEPAGE, RelativePathA, CHAR_CODEPAGE ) ;
+			ConvString( ( const char * )RelativePathW, WCHAR_T_CHARCODEFORMAT, RelativePathA, CHAR_CHARCODEFORMAT ) ;
 			StrLengthA = _STRLEN( RelativePathA ) ;
 
 			*AlphaFilePathAMem = ( char * )DXALLOC( ( size_t )( ( StrLengthA + 1 ) * sizeof( char ) ) ) ;
@@ -9636,7 +9635,7 @@ extern int __MV1LoadTexture(
 #ifdef UNICODE
 				Result = FileReadFunc->Read( ColorFilePath, &DataAddr, ColorImageSize, FileReadFunc->Data ) ;
 #else
-				ConvString( ( const char * )ColorFilePath, WCHAR_T_CODEPAGE, TempPath, CHAR_CODEPAGE ) ;
+				ConvString( ( const char * )ColorFilePath, WCHAR_T_CHARCODEFORMAT, TempPath, CHAR_CHARCODEFORMAT ) ;
 				Result = FileReadFunc->Read( TempPath, &DataAddr, ColorImageSize, FileReadFunc->Data ) ;
 #endif
 				if( Result != -1 )
@@ -9693,7 +9692,7 @@ extern int __MV1LoadTexture(
 #ifdef UNICODE
 				Result = FileReadFunc->Read( AlphaFilePath, &DataAddr, AlphaImageSize, FileReadFunc->Data ) ;
 #else
-				ConvString( ( const char * )AlphaFilePath, WCHAR_T_CODEPAGE, TempPath, CHAR_CODEPAGE ) ;
+				ConvString( ( const char * )AlphaFilePath, WCHAR_T_CHARCODEFORMAT, TempPath, CHAR_CHARCODEFORMAT ) ;
 				Result = FileReadFunc->Read( TempPath, &DataAddr, AlphaImageSize, FileReadFunc->Data ) ;
 #endif
 
@@ -9763,7 +9762,7 @@ extern int __MV1LoadTexture(
 #ifdef UNICODE
 				Result = FileReadFunc->Read( TempAlphaFilePath, &DataAddr, AlphaImageSize, FileReadFunc->Data ) ;
 #else
-				ConvString( ( const char * )TempAlphaFilePath, WCHAR_T_CODEPAGE, TempPath, CHAR_CODEPAGE ) ;
+				ConvString( ( const char * )TempAlphaFilePath, WCHAR_T_CHARCODEFORMAT, TempPath, CHAR_CHARCODEFORMAT ) ;
 				Result = FileReadFunc->Read( TempPath, &DataAddr, AlphaImageSize, FileReadFunc->Data ) ;
 #endif
 				if( Result != -1 )
@@ -10991,7 +10990,7 @@ extern int MV1GetMaterialSphereMapBlendTypeBase( int MBHandle, int MaterialIndex
 	return Material->SphereMapBlendType ;
 }
 
-// 指定のマテリアルのトゥーンレンダリングで使用する輪郭線の太さを設定する( 0.0f ～ 1.0f )
+// 指定のマテリアルのトゥーンレンダリングで使用する輪郭線の太さを設定する( 0.0f 〜 1.0f )
 extern int MV1SetMaterialOutLineWidthBase( int MBHandle, int MaterialIndex, float Width )
 {
 	MV1_MODEL *Model ;
@@ -11033,7 +11032,7 @@ extern int MV1SetMaterialOutLineWidthBase( int MBHandle, int MaterialIndex, floa
 	return 0 ;
 }
 
-// 指定のマテリアルのトゥーンレンダリングで使用する輪郭線の太さを取得する( 0.0f ～ 1.0f )
+// 指定のマテリアルのトゥーンレンダリングで使用する輪郭線の太さを取得する( 0.0f 〜 1.0f )
 extern float MV1GetMaterialOutLineWidthBase( int MBHandle, int MaterialIndex )
 {
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
@@ -11246,7 +11245,7 @@ extern int MV1GetMaterialDrawBlendParamBase( int MBHandle, int MaterialIndex )
 	return Material->DrawBlendParam ;
 }
 
-// 指定のマテリアルの描画時のアルファテストの設定を行う( Enable:αテストを行うかどうか( TRUE:行う  FALSE:行わない( デフォルト )  Mode:テストモード( DX_CMP_GREATER等 )  Param:描画アルファ値との比較に使用する値( 0～255 ) )
+// 指定のマテリアルの描画時のアルファテストの設定を行う( Enable:αテストを行うかどうか( TRUE:行う  FALSE:行わない( デフォルト )  Mode:テストモード( DX_CMP_GREATER等 )  Param:描画アルファ値との比較に使用する値( 0〜255 ) )
 extern int MV1SetMaterialDrawAlphaTestBase( int MBHandle, int MaterialIndex, int Enable, int Mode, int Param )
 {
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
@@ -11286,7 +11285,7 @@ extern int MV1GetMaterialDrawAlphaTestModeBase( int MBHandle, int MaterialIndex 
 	return Material->AlphaFunc ;
 }
 
-// 指定のマテリアルの描画時のアルファテストの描画アルファ地との比較に使用する値( 0～255 )を取得する
+// 指定のマテリアルの描画時のアルファテストの描画アルファ地との比較に使用する値( 0〜255 )を取得する
 extern int MV1GetMaterialDrawAlphaTestParamBase( int MBHandle, int MaterialIndex )
 {
 	MV1BASEMATERIALSTART( MBHandle, ModelBase, Material, MaterialIndex, -1 ) ;
@@ -13279,8 +13278,7 @@ extern int MV1LoadModelFromMem_UseGParam(
 {
 	int MHandle ;
 
-	if( WinData.ActiveFlag == FALSE )
-		DxActiveWait() ;
+	CheckActiveState() ;
 
 	MHandle = MV1AddModel( FALSE ) ;
 	if( MHandle < 0 )
@@ -13564,8 +13562,7 @@ extern int MV1LoadModel_UseGParam( MV1LOADMODEL_GPARAM *GParam, const wchar_t *F
 	// モデルファイルのあるディレクトリパスとファイル名を取得する
 	_MV1CreateFileNameAndCurrentDirectory( FileName, Name, Directory ) ;
 
-	if( WinData.ActiveFlag == FALSE )
-		DxActiveWait() ;
+	CheckActiveState() ;
 
 	MHandle = MV1AddModel( FALSE ) ;
 	if( MHandle < 0 )
@@ -13713,17 +13710,17 @@ __inline void MV1LoadModelToMV1_GetString(
 	if( FHeader->IsStringUTF8 )
 	{
 		*StringW = ( wchar_t * )( ( BYTE * )MBase->StringBufferW + MBase->StringSizeW ) ;
-		MBase->StringSizeW += ConvString( ( const char * )( FileStringBuffer + FileStringAddr ), DX_CODEPAGE_UTF8, ( char * )*StringW, WCHAR_T_CODEPAGE ) ;
+		MBase->StringSizeW += ConvString( ( const char * )( FileStringBuffer + FileStringAddr ), DX_CHARCODEFORMAT_UTF8, ( char * )*StringW, WCHAR_T_CHARCODEFORMAT ) ;
 
 #ifndef UNICODE
 		*StringA = ( char    * )( ( BYTE * )MBase->StringBufferA + MBase->StringSizeA ) ;
-		MBase->StringSizeA += ConvString( ( const char * )*StringW, WCHAR_T_CODEPAGE, *StringA, CHAR_CODEPAGE ) ;
+		MBase->StringSizeA += ConvString( ( const char * )*StringW, WCHAR_T_CHARCODEFORMAT, *StringA, CHAR_CHARCODEFORMAT ) ;
 #endif
 	}
 	else
 	{
 		*StringW   = ( wchar_t * )( ( BYTE * )MBase->StringBufferW + MBase->StringSizeW ) ;
-		MBase->StringSizeW += ConvString( ( const char * )( FileStringBuffer + FileStringAddr ), DX_CODEPAGE_SHIFTJIS, ( char * )*StringW, WCHAR_T_CODEPAGE ) ;
+		MBase->StringSizeW += ConvString( ( const char * )( FileStringBuffer + FileStringAddr ), DX_CHARCODEFORMAT_SHIFTJIS, ( char * )*StringW, WCHAR_T_CHARCODEFORMAT ) ;
 
 #ifndef UNICODE
 		*StringA   = MBase->StringBufferA + FileStringAddr ;
@@ -15535,6 +15532,7 @@ extern int MV1LoadModelToMV1( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 		}
 		if( F1AnimSet->Flag & 1 ) AnimSet->IsAddAnim = 1 ;
 		if( F1AnimSet->Flag & 2 ) AnimSet->IsMatrixLinearBlend = 1 ;
+		if( F1AnimSet->Flag & 4 ) AnimSet->IsLoopAnim = 1 ;
 	}
 
 	// アニメーションの情報をセット
@@ -16058,11 +16056,10 @@ extern int MV1SaveModelToMV1File_WCHAR_T(
 	MV1_PHYSICS_RIGIDBODY_F1	*F1PhysicsRigidBody ;
 	MV1_PHYSICS_JOINT_BASE		*PhysicsJoint ;
 	MV1_PHYSICS_JOINT_F1		*F1PhysicsJoint ;
-	HANDLE FileHandle ;
+	DWORD_PTR FileHandle ;
 	void *TempBuffer = NULL, *AnimBuffer = NULL, *VertexBuffer = NULL, *ChangeDrawMaterialTableBuffer = NULL ;
 	DWORD HeaderSize, i, j, k ;
 	int AttachIndex = 0 ;
-	DWORD WriteSize ;
 	MV1MODEL_FILEHEADER_F1 *FHeader ;
 	VECTOR PosMin, PosMax, PosWidth ;
 	BYTE *Dest, *Start ;
@@ -16419,7 +16416,7 @@ SAVELOOP :
 	for( i = 0 ; i < ( DWORD )ModelBase->FrameNum ; i ++, F1Frame ++, Frame ++ )
 	{
 		F1Frame->Name = ( DWORD )FHeader->StringSize ;
-		FHeader->StringSize += ConvString( ( const char * )Frame->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Frame->Name ), DX_CODEPAGE_UTF8 ) ;
+		FHeader->StringSize += ConvString( ( const char * )Frame->NameW, WCHAR_T_CHARCODEFORMAT, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Frame->Name ), DX_CHARCODEFORMAT_UTF8 ) ;
 		FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 		F1Frame->Index = Frame->Index ;
@@ -16553,7 +16550,7 @@ SAVELOOP :
 				}
 				else
 				{
-					// 頂点の行列インデックス値が０～２５４以内に収まっているかをセットする
+					// 頂点の行列インデックス値が０〜２５４以内に収まっているかをセットする
 					if( F1Frame->UseSkinBoneNum > 255 )
 						F1Frame->VertFlag |= MV1_FRAME_MATRIX_INDEX_TYPE_U16 << 4 ;
 
@@ -16799,7 +16796,7 @@ SAVELOOP :
 				F1Shape->Index = ( int )i ;
 
 				F1Shape->Name = ( DWORD )FHeader->StringSize ;
-				FHeader->StringSize += ConvString( ( const char * )Shape->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Shape->Name ), DX_CODEPAGE_UTF8 ) ;
+				FHeader->StringSize += ConvString( ( const char * )Shape->NameW, WCHAR_T_CHARCODEFORMAT, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Shape->Name ), DX_CHARCODEFORMAT_UTF8 ) ;
 				FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 				if( Shape->Container )
@@ -16869,7 +16866,7 @@ SAVELOOP :
 				F1PhysicsRigidBody->Index = ( int )i ;
 
 				F1PhysicsRigidBody->Name = ( DWORD )FHeader->StringSize ;
-				FHeader->StringSize += ConvString( ( const char * )PhysicsRigidBody->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1PhysicsRigidBody->Name ), DX_CODEPAGE_UTF8 ) ;
+				FHeader->StringSize += ConvString( ( const char * )PhysicsRigidBody->NameW, WCHAR_T_CHARCODEFORMAT, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1PhysicsRigidBody->Name ), DX_CHARCODEFORMAT_UTF8 ) ;
 				FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 				if( PhysicsRigidBody->TargetFrame )
@@ -16904,7 +16901,7 @@ SAVELOOP :
 				F1PhysicsJoint->Index = ( int )i ;
 
 				F1PhysicsJoint->Name = ( DWORD )FHeader->StringSize ;
-				FHeader->StringSize += ConvString( ( const char * )PhysicsJoint->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1PhysicsJoint->Name ), DX_CODEPAGE_UTF8 ) ;
+				FHeader->StringSize += ConvString( ( const char * )PhysicsJoint->NameW, WCHAR_T_CHARCODEFORMAT, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1PhysicsJoint->Name ), DX_CHARCODEFORMAT_UTF8 ) ;
 				FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 				if( PhysicsJoint->RigidBodyA )
@@ -16941,7 +16938,7 @@ SAVELOOP :
 			F1Material->Index = ( int )i ;
 
 			F1Material->Name = ( DWORD )FHeader->StringSize ;
-			FHeader->StringSize += ConvString( ( const char * )MaterialBase->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Material->Name ), DX_CODEPAGE_UTF8 ) ;
+			FHeader->StringSize += ConvString( ( const char * )MaterialBase->NameW, WCHAR_T_CHARCODEFORMAT, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Material->Name ), DX_CHARCODEFORMAT_UTF8 ) ;
 			FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 			F1Material->Diffuse = Material->Diffuse ;
@@ -17025,7 +17022,7 @@ SAVELOOP :
 			F1Light->Index = ( int )i ;
 
 			F1Light->Name = ( DWORD )FHeader->StringSize ;
-			FHeader->StringSize += ConvString( ( const char * )Light->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Light->Name ), DX_CODEPAGE_UTF8 ) ;
+			FHeader->StringSize += ConvString( ( const char * )Light->NameW, WCHAR_T_CHARCODEFORMAT, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Light->Name ), DX_CHARCODEFORMAT_UTF8 ) ;
 			FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 			F1Light->FrameIndex = Light->FrameIndex ;
@@ -17060,7 +17057,7 @@ SAVELOOP :
 			F1Texture->BumpImageNextPixelLength = Texture->BumpImageNextPixelLength ;
 
 			F1Texture->Name = ( DWORD )FHeader->StringSize ;
-			FHeader->StringSize += ConvString( ( const char * )TextureBase->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Texture->Name ), DX_CODEPAGE_UTF8 ) ;
+			FHeader->StringSize += ConvString( ( const char * )TextureBase->NameW, WCHAR_T_CHARCODEFORMAT, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Texture->Name ), DX_CHARCODEFORMAT_UTF8 ) ;
 			FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 			F1Texture->AddressModeU = Texture->AddressModeU ;
@@ -17086,7 +17083,7 @@ SAVELOOP :
 			else
 			{
 				F1Texture->ColorFilePath = ( DWORD )FHeader->StringSize ;
-				FHeader->StringSize += ConvString( ( const char * )Texture->ColorFilePathW_, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Texture->ColorFilePath ), DX_CODEPAGE_UTF8 ) ;
+				FHeader->StringSize += ConvString( ( const char * )Texture->ColorFilePathW_, WCHAR_T_CHARCODEFORMAT, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Texture->ColorFilePath ), DX_CHARCODEFORMAT_UTF8 ) ;
 				FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 			}
 
@@ -17097,7 +17094,7 @@ SAVELOOP :
 			else
 			{
 				F1Texture->AlphaFilePath = ( DWORD )FHeader->StringSize ;
-				FHeader->StringSize += ConvString( ( const char * )Texture->AlphaFilePathW_, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Texture->AlphaFilePath ), DX_CODEPAGE_UTF8 ) ;
+				FHeader->StringSize += ConvString( ( const char * )Texture->AlphaFilePathW_, WCHAR_T_CHARCODEFORMAT, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1Texture->AlphaFilePath ), DX_CHARCODEFORMAT_UTF8 ) ;
 				FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 			}
 
@@ -17196,7 +17193,7 @@ SAVELOOP :
 					F1Mesh->VertFlag |= MV1_MESH_VERT_INDEX_TYPE_U32 << 2 ;
 				}
 
-				// UV値が 0.0～1.0 の範囲内か調べる
+				// UV値が 0.0〜1.0 の範囲内か調べる
 				Vert = Mesh->Vertex ;
 				for( j = 0 ; j < ( DWORD )Mesh->VertexNum ; j ++, Vert = ( MV1_MESH_VERTEX * )( ( BYTE * )Vert + Mesh->VertUnitSize ) )
 				{
@@ -17556,7 +17553,7 @@ SAVELOOP :
 			// 回転キーの場合は処理を分岐
 			if( AnimKeySet->DataType >= MV1_ANIMKEY_DATATYPE_ROTATE && AnimKeySet->DataType <= MV1_ANIMKEY_DATATYPE_ROTATE_Z )
 			{
-				// キーデータが回転で -DX_PI～DX_PI の間に値が収まっているかと、0～2*DX_PI の間に収まっているかどうかを調べる
+				// キーデータが回転で -DX_PI〜DX_PI の間に値が収まっているかと、0〜2*DX_PI の間に収まっているかどうかを調べる
 				switch( AnimKeySet->Type )
 				{
 				case MV1_ANIMKEY_TYPE_VECTOR :
@@ -18054,7 +18051,7 @@ SAVELOOP :
 		for( i = 0 ; i < ( DWORD )AnimModelBase->AnimSetNum ; i ++, F1AnimSet ++, AnimSet ++ )
 		{
 			F1AnimSet->Name = ( DWORD )FHeader->StringSize ;
-			FHeader->StringSize += ConvString( ( const char * )AnimSet->NameW, WCHAR_T_CODEPAGE, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1AnimSet->Name ), DX_CODEPAGE_UTF8 ) ;
+			FHeader->StringSize += ConvString( ( const char * )AnimSet->NameW, WCHAR_T_CHARCODEFORMAT, ( char * )( ( BYTE * )FHeader + FHeader->StringBuffer + F1AnimSet->Name ), DX_CHARCODEFORMAT_UTF8 ) ;
 			FHeader->StringSize = ( FHeader->StringSize + 3 ) / 4 * 4 ;
 
 			F1AnimSet->Index = AnimSet->Index ;
@@ -18067,6 +18064,7 @@ SAVELOOP :
 
 			if( AnimSet->IsAddAnim )           F1AnimSet->Flag |= 1 ;
 			if( AnimSet->IsMatrixLinearBlend ) F1AnimSet->Flag |= 2 ;
+			if( AnimSet->IsLoopAnim )          F1AnimSet->Flag |= 4 ;
 
 			F1AnimSet->UserData[ 0 ] = AnimSet->UserData[ 0 ] ;
 			F1AnimSet->UserData[ 1 ] = AnimSet->UserData[ 1 ] ;
@@ -18231,11 +18229,11 @@ SAVELOOP :
 	}
 
 	// ファイルに書き出す
-	FileHandle = CreateFileW( FileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL ) ;
+	FileHandle = WriteOnlyFileAccessOpen( FileName ) ;
 	if( FileHandle )
 	{
-		WriteFile( FileHandle, PressData, PressDataSize + 4, &WriteSize, NULL ) ;
-		CloseHandle( FileHandle ) ;
+		WriteOnlyFileAccessWrite( FileHandle, PressData, PressDataSize + 4 ) ;
+		WriteOnlyFileAccessClose( FileHandle ) ;
 	}
 
 	// メモリの解放
@@ -18317,7 +18315,7 @@ static const char *MV1SaveModelToXFileConvSpace( const char *String )
 }
 
 // 指定数のタブを出力する
-static	void MV1SaveModelToXFileOutputTab( FILE *fp, int TabNum )
+static	void MV1SaveModelToXFileOutputTab( DWORD_PTR fp, int TabNum )
 {
 	int i ;
 	char Temp[ 512 ] ;
@@ -18327,7 +18325,7 @@ static	void MV1SaveModelToXFileOutputTab( FILE *fp, int TabNum )
 		Temp[ i ] = '\t' ;
 	}
 	Temp[ i ] = '\0' ;
-	fprintf( fp, Temp ) ;
+	WriteOnlyFileAccessPrintf( fp, Temp ) ;
 }
 
 #ifndef DX_NON_SAVEFUNCTION
@@ -18378,7 +18376,7 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 	int AnimIndex, AnimNum, Err = -1 ;
 	int *KeyTiming = NULL, time, KeyTimingNum ;
 	MATRIX_4X4CT_F *KeyMatrix, *Matrix ;
-	FILE *fp = NULL ;
+	DWORD_PTR fp = 0 ;
 	MV1_SKINBONE_BLEND *UseBoneMap = NULL ;
 	bool MeshSave, AnimSave ;
 	char String[ 1024 ] ;
@@ -18407,12 +18405,12 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 	}
 
 	// ファイルを開く
-	fp = _wfopen( FileName, L"wt" ) ;
+	fp = WriteOnlyFileAccessOpen( FileName ) ;
 	if( fp == NULL )
 		return -1 ;
 
 	// ヘッダの出力
-	fprintf( fp, "xof 0303txt 0032\n" ) ;
+	WriteOnlyFileAccessPrintf( fp, "xof 0303txt 0032\n" ) ;
 
 	if( MeshSave )
 	{
@@ -18423,27 +18421,27 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 		{
 			if( MaterialBase->NameW[ 0 ] == L'\0' )
 			{
-				fprintf( fp, "Material Material_%03d {\n", i ) ;
+				WriteOnlyFileAccessPrintf( fp, "Material Material_%03d {\n", i ) ;
 			}
 			else
 			{
-				ConvString( ( const char * )MaterialBase->NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
-				fprintf( fp, "Material %s {\n", MV1SaveModelToXFileConvSpace( String ) ) ;
+				ConvString( ( const char * )MaterialBase->NameW, WCHAR_T_CHARCODEFORMAT, String, DX_CHARCODEFORMAT_SHIFTJIS ) ;
+				WriteOnlyFileAccessPrintf( fp, "Material %s {\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 			}
-			fprintf( fp, "\t%f;%f;%f;%f;;\n", Material->Diffuse.r, Material->Diffuse.g, Material->Diffuse.b, Material->DrawBlendParam / 255.0f ) ;
-			fprintf( fp, "\t%f;\n", Material->Power ) ;
-			fprintf( fp, "\t%f;%f;%f;;\n", Material->Specular.r, Material->Specular.g, Material->Specular.b ) ;
-			fprintf( fp, "\t%f;%f;%f;;\n", Material->Emissive.r, Material->Emissive.g, Material->Emissive.b ) ;
+			WriteOnlyFileAccessPrintf( fp, "\t%f;%f;%f;%f;;\n", Material->Diffuse.r, Material->Diffuse.g, Material->Diffuse.b, Material->DrawBlendParam / 255.0f ) ;
+			WriteOnlyFileAccessPrintf( fp, "\t%f;\n", Material->Power ) ;
+			WriteOnlyFileAccessPrintf( fp, "\t%f;%f;%f;;\n", Material->Specular.r, Material->Specular.g, Material->Specular.b ) ;
+			WriteOnlyFileAccessPrintf( fp, "\t%f;%f;%f;;\n", Material->Emissive.r, Material->Emissive.g, Material->Emissive.b ) ;
 			if( Material->DiffuseLayerNum )
 			{
 				MV1_TEXTURE *Texture ;
 
 				Texture = &Model->Texture[ Material->DiffuseLayer[ 0 ].Texture ] ;
 
-				ConvString( ( const char * )Texture->ColorFilePathW_, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
-				fprintf( fp, "\tTextureFilename {\n\t\t\"%s\";\n\t}\n", String ) ;
+				ConvString( ( const char * )Texture->ColorFilePathW_, WCHAR_T_CHARCODEFORMAT, String, DX_CHARCODEFORMAT_SHIFTJIS ) ;
+				WriteOnlyFileAccessPrintf( fp, "\tTextureFilename {\n\t\t\"%s\";\n\t}\n", String ) ;
 			}
-			fprintf( fp, "}\n" ) ;
+			WriteOnlyFileAccessPrintf( fp, "}\n" ) ;
 		}
 
 		// スキニングメッシュ用のメモリ領域と座標インデックス作成用のメモリ領域を確保
@@ -18467,39 +18465,39 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 			case 0 :
 				MV1SaveModelToXFileOutputTab( fp, FrameStackNum - 1 ) ;
 
-				ConvString( ( const char * )Frame->NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
-				fprintf( fp, "Frame %s {\n", MV1SaveModelToXFileConvSpace( String ) ) ;
+				ConvString( ( const char * )Frame->NameW, WCHAR_T_CHARCODEFORMAT, String, DX_CHARCODEFORMAT_SHIFTJIS ) ;
+				WriteOnlyFileAccessPrintf( fp, "Frame %s {\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 
 				// 行列の出力
 				{
 					MV1SaveModelToXFileOutputTab( fp, FrameStackNum ) ;
-					fprintf( fp, "FrameTransformMatrix {\n" ) ;
+					WriteOnlyFileAccessPrintf( fp, "FrameTransformMatrix {\n" ) ;
 					MV1SaveModelToXFileOutputTab( fp, FrameStackNum ) ;
-					fprintf( fp, "\t%f,%f,%f,%f,\n",
+					WriteOnlyFileAccessPrintf( fp, "\t%f,%f,%f,%f,\n",
 						Frame->LocalTransformMatrix.m[0][0],
 						Frame->LocalTransformMatrix.m[1][0],
 						Frame->LocalTransformMatrix.m[2][0],
 						0.0f ) ;
 					MV1SaveModelToXFileOutputTab( fp, FrameStackNum ) ;
-					fprintf( fp, "\t%f,%f,%f,%f,\n",
+					WriteOnlyFileAccessPrintf( fp, "\t%f,%f,%f,%f,\n",
 						Frame->LocalTransformMatrix.m[0][1],
 						Frame->LocalTransformMatrix.m[1][1],
 						Frame->LocalTransformMatrix.m[2][1],
 						0.0f ) ;
 					MV1SaveModelToXFileOutputTab( fp, FrameStackNum ) ;
-					fprintf( fp, "\t%f,%f,%f,%f,\n",
+					WriteOnlyFileAccessPrintf( fp, "\t%f,%f,%f,%f,\n",
 						Frame->LocalTransformMatrix.m[0][2],
 						Frame->LocalTransformMatrix.m[1][2],
 						Frame->LocalTransformMatrix.m[2][2],
 						0.0f ) ;
 					MV1SaveModelToXFileOutputTab( fp, FrameStackNum ) ;
-					fprintf( fp, "\t%f,%f,%f,%f;;\n",
+					WriteOnlyFileAccessPrintf( fp, "\t%f,%f,%f,%f;;\n",
 						Frame->LocalTransformMatrix.m[0][3],
 						Frame->LocalTransformMatrix.m[1][3],
 						Frame->LocalTransformMatrix.m[2][3],
 						1.0f ) ;
 					MV1SaveModelToXFileOutputTab( fp, FrameStackNum ) ;
-					fprintf( fp, "}\n" ) ;
+					WriteOnlyFileAccessPrintf( fp, "}\n" ) ;
 				}
 
 				if( MeshSave )
@@ -18508,7 +18506,7 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 					if( Frame->MeshNum != 0 )
 					{
 						MV1SaveModelToXFileOutputTab( fp, FrameStackNum ) ;
-						fprintf( fp, "Mesh {\n" ) ;
+						WriteOnlyFileAccessPrintf( fp, "Mesh {\n" ) ;
 
 						VertexNum = 0 ;
 						Mesh = Frame->Mesh ;
@@ -18518,7 +18516,7 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 						}
 
 						MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-						fprintf( fp, "%d;\n", VertexNum ) ;
+						WriteOnlyFileAccessPrintf( fp, "%d;\n", VertexNum ) ;
 
 						Mesh = Frame->Mesh ;
 						for( j = 0 ; j < Frame->MeshNum ; j ++, Mesh ++ )
@@ -18529,13 +18527,13 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 								Pos = ( MV1_MESH_POSITION * )( ( BYTE * )Frame->Position + Frame->PosUnitSize * MVert->PositionIndex ) ;
 
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-								fprintf( fp, "%f;%f;%f;", Pos->Position.x, Pos->Position.y, Pos->Position.z ) ;
-								fprintf( fp, k == Mesh->VertexNum - 1 && j == Frame->MeshNum - 1 ? ";\n" : ",\n" ) ;
+								WriteOnlyFileAccessPrintf( fp, "%f;%f;%f;", Pos->Position.x, Pos->Position.y, Pos->Position.z ) ;
+								WriteOnlyFileAccessPrintf( fp, k == Mesh->VertexNum - 1 && j == Frame->MeshNum - 1 ? ";\n" : ",\n" ) ;
 							}
 						}
 
 						MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-						fprintf( fp, "%d;\n", Frame->TriangleNum ) ;
+						WriteOnlyFileAccessPrintf( fp, "%d;\n", Frame->TriangleNum ) ;
 
 						VertexStartIndex = 0 ;
 						Mesh = Frame->Mesh ;
@@ -18545,8 +18543,8 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 							for( k = 0 ; k < Mesh->FaceNum ; k ++, Face ++ )
 							{
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-								fprintf( fp, "3;%d,%d,%d;", Face->VertexIndex[ 0 ] + VertexStartIndex, Face->VertexIndex[ 1 ] + VertexStartIndex, Face->VertexIndex[ 2 ] + VertexStartIndex ) ;
-								fprintf( fp, j == Frame->MeshNum - 1 && k == Mesh->FaceNum - 1 ? ";\n" : ",\n" ) ;
+								WriteOnlyFileAccessPrintf( fp, "3;%d,%d,%d;", Face->VertexIndex[ 0 ] + VertexStartIndex, Face->VertexIndex[ 1 ] + VertexStartIndex, Face->VertexIndex[ 2 ] + VertexStartIndex ) ;
+								WriteOnlyFileAccessPrintf( fp, j == Frame->MeshNum - 1 && k == Mesh->FaceNum - 1 ? ";\n" : ",\n" ) ;
 							}
 							VertexStartIndex += Mesh->VertexNum ;
 						}
@@ -18554,10 +18552,10 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 						// 法線の出力
 						{
 							MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-							fprintf( fp, "MeshNormals {\n" ) ;
+							WriteOnlyFileAccessPrintf( fp, "MeshNormals {\n" ) ;
 
 							MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-							fprintf( fp, "%d;\n", VertexNum ) ;
+							WriteOnlyFileAccessPrintf( fp, "%d;\n", VertexNum ) ;
 
 							Mesh = Frame->Mesh ;
 							for( j = 0 ; j < Frame->MeshNum ; j ++, Mesh ++ )
@@ -18568,13 +18566,13 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 									Nrm = Frame->Normal + MVert->NormalIndex ;
 
 									MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-									fprintf( fp, "%f;%f;%f;", Nrm->Normal.x, Nrm->Normal.y, Nrm->Normal.z ) ;
-									fprintf( fp, k == Mesh->VertexNum - 1 && j == Frame->MeshNum - 1 ? ";\n" : ",\n" ) ;
+									WriteOnlyFileAccessPrintf( fp, "%f;%f;%f;", Nrm->Normal.x, Nrm->Normal.y, Nrm->Normal.z ) ;
+									WriteOnlyFileAccessPrintf( fp, k == Mesh->VertexNum - 1 && j == Frame->MeshNum - 1 ? ";\n" : ",\n" ) ;
 								}
 							}
 
 							MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-							fprintf( fp, "%d;\n", Frame->TriangleNum ) ;
+							WriteOnlyFileAccessPrintf( fp, "%d;\n", Frame->TriangleNum ) ;
 
 							VertexStartIndex = 0 ;
 							Mesh = Frame->Mesh ;
@@ -18584,23 +18582,23 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 								for( k = 0 ; k < Mesh->FaceNum ; k ++, Face ++ )
 								{
 									MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-									fprintf( fp, "3;%d,%d,%d;", Face->VertexIndex[ 0 ] + VertexStartIndex, Face->VertexIndex[ 1 ] + VertexStartIndex, Face->VertexIndex[ 2 ] + VertexStartIndex ) ;
-									fprintf( fp, j == Frame->MeshNum - 1 && k == Mesh->FaceNum - 1 ? ";\n" : ",\n" ) ;
+									WriteOnlyFileAccessPrintf( fp, "3;%d,%d,%d;", Face->VertexIndex[ 0 ] + VertexStartIndex, Face->VertexIndex[ 1 ] + VertexStartIndex, Face->VertexIndex[ 2 ] + VertexStartIndex ) ;
+									WriteOnlyFileAccessPrintf( fp, j == Frame->MeshNum - 1 && k == Mesh->FaceNum - 1 ? ";\n" : ",\n" ) ;
 								}
 								VertexStartIndex += Mesh->VertexNum ;
 							}
 
 							MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-							fprintf( fp, "}\n" ) ;
+							WriteOnlyFileAccessPrintf( fp, "}\n" ) ;
 						}
 
 						// テクスチャアドレスの出力
 						{
 							MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-							fprintf( fp, "MeshTextureCoords {\n" ) ;
+							WriteOnlyFileAccessPrintf( fp, "MeshTextureCoords {\n" ) ;
 
 							MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-							fprintf( fp, "%d;\n", VertexNum ) ;
+							WriteOnlyFileAccessPrintf( fp, "%d;\n", VertexNum ) ;
 
 							Mesh = Frame->Mesh ;
 							for( j = 0 ; j < Frame->MeshNum ; j ++, Mesh ++ )
@@ -18609,24 +18607,24 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 								for( k = 0 ; k < Mesh->VertexNum ; k ++, MVert = ( MV1_MESH_VERTEX * )( ( BYTE * )MVert + Mesh->VertUnitSize ) )
 								{
 									MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-									fprintf( fp, "%f;%f;", MVert->UVs[ 0 ][ 0 ], MVert->UVs[ 0 ][ 1 ] ) ;
-									fprintf( fp, k == Mesh->VertexNum - 1 && j == Frame->MeshNum - 1 ? ";\n" : ",\n" ) ;
+									WriteOnlyFileAccessPrintf( fp, "%f;%f;", MVert->UVs[ 0 ][ 0 ], MVert->UVs[ 0 ][ 1 ] ) ;
+									WriteOnlyFileAccessPrintf( fp, k == Mesh->VertexNum - 1 && j == Frame->MeshNum - 1 ? ";\n" : ",\n" ) ;
 								}
 							}
 
 							MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-							fprintf( fp, "}\n" ) ;
+							WriteOnlyFileAccessPrintf( fp, "}\n" ) ;
 						}
 
 						// MeshMaterialList の出力
 						{
 							MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-							fprintf( fp, "MeshMaterialList {\n" ) ;
+							WriteOnlyFileAccessPrintf( fp, "MeshMaterialList {\n" ) ;
 
 							MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-							fprintf( fp, "%d;\n", Frame->MeshNum ) ;
+							WriteOnlyFileAccessPrintf( fp, "%d;\n", Frame->MeshNum ) ;
 							MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-							fprintf( fp, "%d;\n", Frame->TriangleNum ) ;
+							WriteOnlyFileAccessPrintf( fp, "%d;\n", Frame->TriangleNum ) ;
 							Mesh = Frame->Mesh ;
 							for( j = 0 ; j < Frame->MeshNum ; j ++, Mesh ++ )
 							{
@@ -18634,8 +18632,8 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 								for( k = 0 ; k < Mesh->FaceNum ; k ++, Face ++ )
 								{
 									MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-									fprintf( fp, "%d", j ) ;
-									fprintf( fp, j == Frame->MeshNum - 1 && k == Mesh->FaceNum - 1 ? ";\n" : ",\n" ) ;
+									WriteOnlyFileAccessPrintf( fp, "%d", j ) ;
+									WriteOnlyFileAccessPrintf( fp, j == Frame->MeshNum - 1 && k == Mesh->FaceNum - 1 ? ";\n" : ",\n" ) ;
 								}
 							}
 
@@ -18645,17 +18643,17 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
 								if( Mesh->Material->NameW[ 0 ] == L'\0' )
 								{
-									fprintf( fp, "{Material_%03d}\n", Mesh->Material - ModelBase->Material ) ;
+									WriteOnlyFileAccessPrintf( fp, "{Material_%03d}\n", Mesh->Material - ModelBase->Material ) ;
 								}
 								else
 								{
-									ConvString( ( const char * )Mesh->Material->NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
-									fprintf( fp, "{%s}\n", MV1SaveModelToXFileConvSpace( String ) ) ;
+									ConvString( ( const char * )Mesh->Material->NameW, WCHAR_T_CHARCODEFORMAT, String, DX_CHARCODEFORMAT_SHIFTJIS ) ;
+									WriteOnlyFileAccessPrintf( fp, "{%s}\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 								}
 							}
 
 							MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-							fprintf( fp, "}\n" ) ;
+							WriteOnlyFileAccessPrintf( fp, "}\n" ) ;
 						}
 
 						// スキニングメッシュ情報の出力
@@ -18664,17 +18662,17 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 							// XSkinMeshHeader の出力
 							{
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-								fprintf( fp, "XSkinMeshHeader {\n" ) ;
+								WriteOnlyFileAccessPrintf( fp, "XSkinMeshHeader {\n" ) ;
 
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-								fprintf( fp, "%d;\n", Frame->MaxBoneBlendNum ) ;
+								WriteOnlyFileAccessPrintf( fp, "%d;\n", Frame->MaxBoneBlendNum ) ;
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-								fprintf( fp, "%d;\n", Frame->MaxBoneBlendNum * 3 ) ;
+								WriteOnlyFileAccessPrintf( fp, "%d;\n", Frame->MaxBoneBlendNum * 3 ) ;
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-								fprintf( fp, "%d;\n", Frame->UseSkinBoneNum ) ;
+								WriteOnlyFileAccessPrintf( fp, "%d;\n", Frame->UseSkinBoneNum ) ;
 
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-								fprintf( fp, "}\n" ) ;
+								WriteOnlyFileAccessPrintf( fp, "}\n" ) ;
 							}
 
 							// スキニングウエイト情報の出力
@@ -18683,12 +18681,12 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 								SkinB = Frame->UseSkinBone[ j ] ;
 
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-								fprintf( fp, "SkinWeights {\n" ) ;
+								WriteOnlyFileAccessPrintf( fp, "SkinWeights {\n" ) ;
 
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
 
-								ConvString( ( const char * )ModelBase->Frame[ SkinB->BoneFrame ].NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
-								fprintf( fp, "\"%s\";\n", MV1SaveModelToXFileConvSpace( String ) ) ;
+								ConvString( ( const char * )ModelBase->Frame[ SkinB->BoneFrame ].NameW, WCHAR_T_CHARCODEFORMAT, String, DX_CHARCODEFORMAT_SHIFTJIS ) ;
+								WriteOnlyFileAccessPrintf( fp, "\"%s\";\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 
 								UseNum = 0 ;
 								VertexStartIndex = 0 ;
@@ -18715,62 +18713,62 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 								}
 
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-								fprintf( fp, "%d;\n", UseNum ) ;
+								WriteOnlyFileAccessPrintf( fp, "%d;\n", UseNum ) ;
 
 								for( k = 0 ; k < UseNum ; k ++ )
 								{
 									MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-									fprintf( fp, "%d", UseBoneMap[ k ].Index ) ;
+									WriteOnlyFileAccessPrintf( fp, "%d", UseBoneMap[ k ].Index ) ;
 									if( k != UseNum - 1 )
 									{
-										fprintf( fp, ",\n" ) ;
+										WriteOnlyFileAccessPrintf( fp, ",\n" ) ;
 									}
 								}
-								fprintf( fp, ";\n" ) ;
+								WriteOnlyFileAccessPrintf( fp, ";\n" ) ;
 
 								for( k = 0 ; k < UseNum ; k ++ )
 								{
 									MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-									fprintf( fp, "%f", UseBoneMap[ k ].W ) ;
+									WriteOnlyFileAccessPrintf( fp, "%f", UseBoneMap[ k ].W ) ;
 									if( k != UseNum - 1 )
 									{
-										fprintf( fp, ",\n" ) ;
+										WriteOnlyFileAccessPrintf( fp, ",\n" ) ;
 									}
 								}
-								fprintf( fp, ";\n" ) ;
+								WriteOnlyFileAccessPrintf( fp, ";\n" ) ;
 
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-								fprintf( fp, "%f,%f,%f,%f,\n",
+								WriteOnlyFileAccessPrintf( fp, "%f,%f,%f,%f,\n",
 									SkinB->ModelLocalMatrix.m[ 0 ][ 0 ],
 									SkinB->ModelLocalMatrix.m[ 1 ][ 0 ],
 									SkinB->ModelLocalMatrix.m[ 2 ][ 0 ],
 									0.0f ) ;
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-								fprintf( fp, "%f,%f,%f,%f,\n",
+								WriteOnlyFileAccessPrintf( fp, "%f,%f,%f,%f,\n",
 									SkinB->ModelLocalMatrix.m[ 0 ][ 1 ],
 									SkinB->ModelLocalMatrix.m[ 1 ][ 1 ],
 									SkinB->ModelLocalMatrix.m[ 2 ][ 1 ],
 									0.0f ) ;
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-								fprintf( fp, "%f,%f,%f,%f,\n",
+								WriteOnlyFileAccessPrintf( fp, "%f,%f,%f,%f,\n",
 									SkinB->ModelLocalMatrix.m[ 0 ][ 2 ],
 									SkinB->ModelLocalMatrix.m[ 1 ][ 2 ],
 									SkinB->ModelLocalMatrix.m[ 2 ][ 2 ],
 									0.0f ) ;
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 2 ) ;
-								fprintf( fp, "%f,%f,%f,%f;;\n",
+								WriteOnlyFileAccessPrintf( fp, "%f,%f,%f,%f;;\n",
 									SkinB->ModelLocalMatrix.m[ 0 ][ 3 ],
 									SkinB->ModelLocalMatrix.m[ 1 ][ 3 ],
 									SkinB->ModelLocalMatrix.m[ 2 ][ 3 ],
 									1.0f ) ;
 
 								MV1SaveModelToXFileOutputTab( fp, FrameStackNum + 1 ) ;
-								fprintf( fp, "}\n" ) ;
+								WriteOnlyFileAccessPrintf( fp, "}\n" ) ;
 							}
 						}
 
 						MV1SaveModelToXFileOutputTab( fp, FrameStackNum ) ;
-						fprintf( fp, "}\n" ) ;
+						WriteOnlyFileAccessPrintf( fp, "}\n" ) ;
 					}
 				}
 
@@ -18785,7 +18783,7 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 
 			case 1 :
 				MV1SaveModelToXFileOutputTab( fp, FrameStackNum - 1 ) ;
-				fprintf( fp, "}\n" ) ;
+				WriteOnlyFileAccessPrintf( fp, "}\n" ) ;
 
 				FrameStackNum -- ;
 				if( Frame->Next )
@@ -18820,8 +18818,8 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 			{
 				AnimNum = AnimSet->AnimNum ;
 
-				ConvString( ( const char * )AnimSet->NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
-				fprintf( fp, "AnimationSet %s {\n", MV1SaveModelToXFileConvSpace( String ) ) ;
+				ConvString( ( const char * )AnimSet->NameW, WCHAR_T_CHARCODEFORMAT, String, DX_CHARCODEFORMAT_SHIFTJIS ) ;
+				WriteOnlyFileAccessPrintf( fp, "AnimationSet %s {\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 
 				// 全てのキータイミングを列挙
 				KeyTimingNum = 0 ;
@@ -18891,8 +18889,8 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 				{
 					if( AnimMHandle < 0 )
 					{
-						ConvString( ( const char * )Anim->TargetFrame->NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
-						fprintf( fp, "\tAnimation {\n\t\t{%s}\n", MV1SaveModelToXFileConvSpace( String ) ) ;
+						ConvString( ( const char * )Anim->TargetFrame->NameW, WCHAR_T_CHARCODEFORMAT, String, DX_CHARCODEFORMAT_SHIFTJIS ) ;
+						WriteOnlyFileAccessPrintf( fp, "\tAnimation {\n\t\t{%s}\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 					}
 					else
 					{
@@ -18911,27 +18909,27 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 							goto ERRORLABEL ;
 						}
 
-						ConvString( ( const char * )ModelBase->Frame[ k ].NameW, WCHAR_T_CODEPAGE, String, DX_CODEPAGE_SHIFTJIS ) ;
-						fprintf( fp, "\tAnimation {\n\t\t{%s}\n", MV1SaveModelToXFileConvSpace( String ) ) ;
+						ConvString( ( const char * )ModelBase->Frame[ k ].NameW, WCHAR_T_CHARCODEFORMAT, String, DX_CHARCODEFORMAT_SHIFTJIS ) ;
+						WriteOnlyFileAccessPrintf( fp, "\tAnimation {\n\t\t{%s}\n", MV1SaveModelToXFileConvSpace( String ) ) ;
 					}
 
-					fprintf( fp, "\t\tAnimationKey {\n\t\t\t4;\n\t\t\t%d;\n", KeyTimingNum ) ;
+					WriteOnlyFileAccessPrintf( fp, "\t\tAnimationKey {\n\t\t\t4;\n\t\t\t%d;\n", KeyTimingNum ) ;
 					Matrix = KeyMatrix + j ;
 					for( k = 0 ; k < KeyTimingNum ; k ++, Matrix += AnimNum )
 					{
-						fprintf( fp, "\t\t\t%d;16;\n\t\t\t%f,%f,%f,%f,\n\t\t\t%f,%f,%f,%f,\n\t\t\t%f,%f,%f,%f,\n\t\t\t%f,%f,%f,%f;;",
+						WriteOnlyFileAccessPrintf( fp, "\t\t\t%d;16;\n\t\t\t%f,%f,%f,%f,\n\t\t\t%f,%f,%f,%f,\n\t\t\t%f,%f,%f,%f,\n\t\t\t%f,%f,%f,%f;;",
 							KeyTiming[ k ],
 							Matrix->m[ 0 ][ 0 ], Matrix->m[ 1 ][ 0 ], Matrix->m[ 2 ][ 0 ], 0.0f,
 							Matrix->m[ 0 ][ 1 ], Matrix->m[ 1 ][ 1 ], Matrix->m[ 2 ][ 1 ], 0.0f,
 							Matrix->m[ 0 ][ 2 ], Matrix->m[ 1 ][ 2 ], Matrix->m[ 2 ][ 2 ], 0.0f,
 							Matrix->m[ 0 ][ 3 ], Matrix->m[ 1 ][ 3 ], Matrix->m[ 2 ][ 3 ], 1.0f ) ;
-						fprintf( fp, k == KeyTimingNum - 1 ? ";\n" : ",\n" ) ;
+						WriteOnlyFileAccessPrintf( fp, k == KeyTimingNum - 1 ? ";\n" : ",\n" ) ;
 					}
 
-					fprintf( fp, "\t\t}\n" ) ;
-					fprintf( fp, "\t}\n" ) ;
+					WriteOnlyFileAccessPrintf( fp, "\t\t}\n" ) ;
+					WriteOnlyFileAccessPrintf( fp, "\t}\n" ) ;
 				}
-				fprintf( fp, "}\n" ) ;
+				WriteOnlyFileAccessPrintf( fp, "}\n" ) ;
 
 				NS_MV1DetachAnim( MHandle, AnimIndex ) ;
 			}
@@ -18952,7 +18950,7 @@ extern int MV1SaveModelToXFile_WCHAR_T( int MHandle, const wchar_t *FileName, in
 	}
 
 	// ファイルを閉じる
-	fclose( fp ) ;
+	WriteOnlyFileAccessClose( fp ) ;
 
 	// 終了
 	return 0 ;
@@ -18972,7 +18970,7 @@ ERRORLABEL :
 
 	if( fp )
 	{
-		fclose( fp ) ;
+		WriteOnlyFileAccessClose( fp ) ;
 		fp = NULL ;
 	}
 
@@ -19872,7 +19870,7 @@ extern int NS_MV1GetSemiTransState( int MHandle )
 	return Model->SemiTransState ;
 }
 
-// モデルの不透明度を設定する( 不透明 1.0f ～ 透明 0.0f )
+// モデルの不透明度を設定する( 不透明 1.0f 〜 透明 0.0f )
 extern int NS_MV1SetOpacityRate( int MHandle, float Rate )
 {
 	MV1START( MHandle, Model, ModelBase, -1 ) ;
@@ -19899,7 +19897,7 @@ extern int NS_MV1SetOpacityRate( int MHandle, float Rate )
 	return 0 ;
 }
 
-// モデルの不透明度を取得する( 不透明 1.0f ～ 透明 0.0f )
+// モデルの不透明度を取得する( 不透明 1.0f 〜 透明 0.0f )
 extern	float		NS_MV1GetOpacityRate( int MHandle )
 {
 	MV1START( MHandle, Model, ModelBase, -1.0f ) ;
@@ -22528,6 +22526,30 @@ extern float NS_MV1GetAnimTotalTime( int MHandle, int AnimIndex )
 	return AnimSetBase->MaxTime ;
 }
 
+// 指定のアニメーションがループタイプかどうかを取得する( 戻り値  TRUE:ループタイプ  FALSE:通常タイプ )
+extern int NS_MV1GetAnimLoopFlag( int MHandle, int AnimIndex )
+{
+	MV1_MODEL *Model ;
+	MV1_MODEL_BASE *ModelBase ;
+	MV1_ANIMSET_BASE *AnimSetBase ;
+
+	// 初期化されていなかったらエラー
+	if( MV1Man.Initialize == false ) return -1 ;
+
+	// アドレス取得
+	if( MV1MDLCHK( MHandle, Model ) )
+		return -1 ;
+	ModelBase = Model->BaseData ;
+
+	// インデックスが不正だった場合は何もせずに終了
+	if( AnimIndex < 0 || AnimIndex >= ModelBase->AnimSetNum )
+		return -1 ;
+	AnimSetBase = &ModelBase->AnimSet[ AnimIndex ] ;
+
+	// アニメーションのループフラグを返す
+	return AnimSetBase->IsLoopAnim != FALSE ? TRUE : FALSE ;
+}
+
 // 指定のアニメーションがターゲットとするフレームの数を取得する
 extern int NS_MV1GetAnimTargetFrameNum( int MHandle, int AnimIndex )
 {
@@ -24022,7 +24044,7 @@ extern int NS_MV1GetMaterialSphereMapBlendType(	int MHandle, int MaterialIndex )
 	return Material->SphereMapBlendType ;
 }
 
-// 指定のマテリアルのトゥーンレンダリングで使用する輪郭線の太さを設定する( 0.0f ～ 1.0f )
+// 指定のマテリアルのトゥーンレンダリングで使用する輪郭線の太さを設定する( 0.0f 〜 1.0f )
 extern int NS_MV1SetMaterialOutLineWidth( int MHandle, int MaterialIndex, float Width )
 {
 	MV1_MESH *Mesh ;
@@ -24055,7 +24077,7 @@ extern int NS_MV1SetMaterialOutLineWidth( int MHandle, int MaterialIndex, float 
 	return 0 ;
 }
 
-// 指定のマテリアルのトゥーンレンダリングで使用する輪郭線の太さを取得する( 0.0f ～ 1.0f )
+// 指定のマテリアルのトゥーンレンダリングで使用する輪郭線の太さを取得する( 0.0f 〜 1.0f )
 extern float NS_MV1GetMaterialOutLineWidth( int MHandle, int MaterialIndex )
 {
 	MV1MATERIALSTART( MHandle, Model, ModelBase, Material, MaterialIndex, -1 ) ;
@@ -24232,7 +24254,7 @@ extern int NS_MV1GetMaterialDrawBlendParam( int MHandle, int MaterialIndex )
 	return Material->DrawBlendParam ;
 }
 
-// 指定のマテリアルの描画時のアルファテストの設定を行う( Enable:αテストを行うかどうか( TRUE:行う  FALSE:行わない( デフォルト )  Mode:テストモード( DX_CMP_GREATER等 )  Param:描画アルファ値との比較に使用する値( 0～255 ) )
+// 指定のマテリアルの描画時のアルファテストの設定を行う( Enable:αテストを行うかどうか( TRUE:行う  FALSE:行わない( デフォルト )  Mode:テストモード( DX_CMP_GREATER等 )  Param:描画アルファ値との比較に使用する値( 0〜255 ) )
 extern int NS_MV1SetMaterialDrawAlphaTest( int MHandle, int MaterialIndex,	int Enable, int Mode, int Param )
 {
 	MV1MATERIALSTART( MHandle, Model, ModelBase, Material, MaterialIndex, -1 ) ;
@@ -24272,7 +24294,7 @@ extern int NS_MV1GetMaterialDrawAlphaTestMode( int MHandle, int MaterialIndex )
 	return Material->AlphaFunc ;
 }
 
-// 指定のマテリアルの描画時のアルファテストの描画アルファ地との比較に使用する値( 0～255 )を取得する
+// 指定のマテリアルの描画時のアルファテストの描画アルファ地との比較に使用する値( 0〜255 )を取得する
 extern int NS_MV1GetMaterialDrawAlphaTestParam( int MHandle, int MaterialIndex )
 {
 	MV1MATERIALSTART( MHandle, Model, ModelBase, Material, MaterialIndex, -1 ) ;
@@ -24433,7 +24455,7 @@ extern int NS_MV1SetMaterialDrawBlendParamAll(	int MHandle,     int BlendParam )
 	return 0 ;
 }
 
-// 全てのマテリアルの描画時のアルファテストの設定を行う( Enable:αテストを行うかどうか( TRUE:行う  FALSE:行わない( デフォルト ) ) Mode:テストモード( DX_CMP_GREATER等 )  Param:描画アルファ値との比較に使用する値( 0～255 ) )
+// 全てのマテリアルの描画時のアルファテストの設定を行う( Enable:αテストを行うかどうか( TRUE:行う  FALSE:行わない( デフォルト ) ) Mode:テストモード( DX_CMP_GREATER等 )  Param:描画アルファ値との比較に使用する値( 0〜255 ) )
 extern int NS_MV1SetMaterialDrawAlphaTestAll(		int MHandle, int Enable, int Mode, int Param )
 {
 	int i ;
@@ -26424,7 +26446,7 @@ extern int NS_MV1GetFrameSemiTransState( int MHandle, int FrameIndex )
 }
 
 
-// 指定のフレームの不透明度を設定する( 不透明 1.0f ～ 透明 0.0f )
+// 指定のフレームの不透明度を設定する( 不透明 1.0f 〜 透明 0.0f )
 extern	int			NS_MV1SetFrameOpacityRate( int MHandle, int FrameIndex, float Rate )
 {
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, -1 ) ;
@@ -26443,7 +26465,7 @@ extern	int			NS_MV1SetFrameOpacityRate( int MHandle, int FrameIndex, float Rate 
 	return 0 ;
 }
 
-// 指定のフレームの不透明度を取得する( 不透明 1.0f ～ 透明 0.0f )
+// 指定のフレームの不透明度を取得する( 不透明 1.0f 〜 透明 0.0f )
 extern	float		NS_MV1GetFrameOpacityRate( int MHandle, int FrameIndex )
 {
 	MV1FRAMESTART( MHandle, Model, ModelBase, Frame, FrameIndex, -1.0f ) ;
@@ -26767,7 +26789,7 @@ extern	COLOR_F		NS_MV1GetMeshAmbColorScale( int MHandle, int MeshIndex )
 	return Mesh->DrawMaterial.AmbientScale ;
 }
 
-// 指定のメッシュの不透明度を設定する( 不透明 1.0f ～ 透明 0.0f )
+// 指定のメッシュの不透明度を設定する( 不透明 1.0f 〜 透明 0.0f )
 extern	int			NS_MV1SetMeshOpacityRate( int MHandle, int MeshIndex, float Rate )
 {
 	MV1MESHSTART( MHandle, Model, ModelBase, Mesh, MeshIndex, -1 ) ;
@@ -26787,7 +26809,7 @@ extern	int			NS_MV1SetMeshOpacityRate( int MHandle, int MeshIndex, float Rate )
 }
 
 
-// 指定のメッシュの不透明度を取得する( 不透明 1.0f ～ 透明 0.0f )
+// 指定のメッシュの不透明度を取得する( 不透明 1.0f 〜 透明 0.0f )
 extern	float		NS_MV1GetMeshOpacityRate( int MHandle, int MeshIndex )
 {
 	MV1MESHSTART( MHandle, Model, ModelBase, Mesh, MeshIndex, -1.0f ) ;
@@ -27188,7 +27210,7 @@ extern int NS_MV1GetShapeTargetMesh( int MHandle, int ShapeIndex, int Index )
 	return MV1GetShapeTargetMeshBase( MV1GetModelBaseHandle( MHandle ), ShapeIndex, Index ) ;
 }
 
-// 指定シェイプの有効率を設定する( Rate  0.0f:0% ～ 1.0f:100% )
+// 指定シェイプの有効率を設定する( Rate  0.0f:0% 〜 1.0f:100% )
 extern int NS_MV1SetShapeRate( int MHandle, int ShapeIndex, float Rate )
 {
 	MV1SHAPESTART( MHandle, Model, ModelBase, Shape, ShapeIndex, -1 ) ;
@@ -27210,7 +27232,7 @@ extern int NS_MV1SetShapeRate( int MHandle, int ShapeIndex, float Rate )
 	return 0 ;
 }
 
-// 指定シェイプの有効率を取得する( 戻り値  0.0f:0% ～ 1.0f:100% )
+// 指定シェイプの有効率を取得する( 戻り値  0.0f:0% 〜 1.0f:100% )
 extern float NS_MV1GetShapeRate( int MHandle, int ShapeIndex )
 {
 	MV1SHAPESTART( MHandle, Model, ModelBase, Shape, ShapeIndex, -1.0f ) ;
@@ -29661,8 +29683,22 @@ extern int NS_MV1RefreshReferenceMesh( int MHandle, int FrameIndex, int IsTransf
 	}
 
 	// ポリゴンの最大座標値、最小座標値の更新
-	if( PolyList->PolygonNum && Change )
-		_MV1SetupReferenceMeshMaxAndMinPosition( PolyList ) ;
+	if( PolyList->PolygonNum )
+	{
+		if( Change )
+		{
+			_MV1SetupReferenceMeshMaxAndMinPosition( PolyList ) ;
+		}
+	}
+	else
+	{
+		PolyList->MaxPosition.x = -10000000000000.0f ;
+		PolyList->MaxPosition.y = -10000000000000.0f ;
+		PolyList->MaxPosition.z = -10000000000000.0f ;
+		PolyList->MinPosition.x = -10000000000000.0f ;
+		PolyList->MinPosition.y = -10000000000000.0f ;
+		PolyList->MinPosition.z = -10000000000000.0f ;
+	}
 
 	// 終了
 	return 0 ;

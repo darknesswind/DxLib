@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		動画プログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -144,7 +144,7 @@ extern	int		AddMovieFrame( int MovieHandle, unsigned int FrameNum ) ;											
 extern	int		SeekMovie( int MovieHandle, int Time ) ;															// ムービーの再生位置を設定する(ミリ秒単位)
 extern	int		SetPlaySpeedRateMovie( int MovieHandle, double SpeedRate ) ;										// ムービーの再生速度を設定する( 1.0 = 等倍速  2.0 = ２倍速 )、一部のファイルフォーマットのみで有効な機能です
 extern 	int		GetMovieState( int MovieHandle ) ;																	// ムービーの再生状態を得る
-extern	int		SetMovieVolume( int Volume, int MovieHandle ) ;														// ムービーのボリュームをセットする(0～10000)
+extern	int		SetMovieVolume( int Volume, int MovieHandle ) ;														// ムービーのボリュームをセットする(0〜10000)
 extern	BASEIMAGE *GetMovieBaseImage( int MovieHandle, int *ImageUpdateFlag ) ;										// ムービーの基本イメージデータを取得する
 extern	int		GetMovieTotalFrame( int MovieHandle ) ;																// ムービーの総フレーム数を得る( Ogg Theora でのみ有効 )
 extern	int		TellMovie( int MovieHandle ) ;																		// ムービーの再生位置を取得する(ミリ秒単位)
@@ -169,6 +169,9 @@ extern	int		TerminateMovieHandle( HANDLEINFO *HandleInfo ) ;													// ム�
 
 // 環境依存関数
 
+extern	int		InitializeMovieManage_PF( void ) ;																	// ムービー関連の管理処理の初期化の環境依存処理
+extern	int		TerminateMovieManage_PF( void ) ;																	// ムービー関連の管理処理の後始末の環境依存処理
+
 extern	int		TerminateMovieHandle_PF( HANDLEINFO *HandleInfo ) ;													// ムービーハンドルの後始末を行う
 extern	int		OpenMovie_UseGParam_PF( MOVIEGRAPH * Movie, OPENMOVIE_GPARAM *GParam, const wchar_t *FileName, int *Width, int *Height, int SurfaceMode, int ASyncThread = FALSE ) ;	// OpenMovie のグローバル変数にアクセスしないバージョンの環境依存処理
 extern 	int		PlayMovie__PF( MOVIEGRAPH * Movie, int PlayType = DX_PLAYTYPE_BACK, int SysPlay = 0 ) ;				// ムービーの再生を開始する処理の環境依存処理
@@ -176,7 +179,7 @@ extern 	int		PauseMovie_PF( MOVIEGRAPH * Movie, int SysPause = 0 ) ;												
 extern	int		SeekMovie_PF( MOVIEGRAPH * Movie, int Time ) ;														// ムービーの再生位置を設定する(ミリ秒単位)処理の環境依存処理
 extern	int		SetPlaySpeedRateMovie_PF( MOVIEGRAPH * Movie, double SpeedRate ) ;									// ムービーの再生速度を設定する( 1.0 = 等倍速  2.0 = ２倍速 )処理の環境依存処理
 extern 	int		GetMovieState_PF( MOVIEGRAPH * Movie ) ;															// ムービーの再生状態を得る処理の環境依存処理
-extern	int		SetMovieVolume_PF( MOVIEGRAPH * Movie, int Volume ) ;												// ムービーのボリュームをセットする(0～10000)処理の環境依存処理
+extern	int		SetMovieVolume_PF( MOVIEGRAPH * Movie, int Volume ) ;												// ムービーのボリュームをセットする(0〜10000)処理の環境依存処理
 extern	BASEIMAGE *GetMovieBaseImage_PF( MOVIEGRAPH * Movie, int *ImageUpdateFlag ) ;								// ムービーの基本イメージデータを取得する処理の環境依存処理
 extern	int		TellMovie_PF( MOVIEGRAPH * Movie ) ;																// ムービーの再生位置を取得する(ミリ秒単位)処理の環境依存処理
 extern	int		TellMovieToFrame_PF( MOVIEGRAPH * Movie ) ;															// ムービーの再生位置を取得する(フレーム単位)処理の環境依存処理

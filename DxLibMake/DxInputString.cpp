@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		文字列入力プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -166,7 +166,7 @@ extern int NS_StockInputChar( TCHAR CharCode )
 	CharBuf.TempStockNum ++ ;
 
 	// 文字のバイト数を取得
-	CharBytes = GetCharBytes( CharBuf.TempStock, _TCODEPAGE ) ;
+	CharBytes = GetCharBytes( CharBuf.TempStock, _TCHARCODEFORMAT ) ;
 
 	// １バイト文字の場合は直ぐに wchar_t版関数に渡す
 	if( CharBytes == 1 )
@@ -182,7 +182,7 @@ extern int NS_StockInputChar( TCHAR CharCode )
 		int StrCharNum ;
 		int i ;
 
-		StrCharNum = ConvString( CharBuf.TempStock, _TCODEPAGE, ( char * )WCharString, WCHAR_T_CODEPAGE ) / sizeof( wchar_t ) - 1 ;
+		StrCharNum = ConvString( CharBuf.TempStock, _TCHARCODEFORMAT, ( char * )WCharString, WCHAR_T_CHARCODEFORMAT ) / sizeof( wchar_t ) - 1 ;
 		for( i = 0 ; i < StrCharNum ; i ++ )
 		{
 			StockInputChar_WCHAR_T( WCharString[ i ] ) ;
@@ -290,7 +290,7 @@ extern TCHAR NS_GetInputChar( int DeleteFlag )
 			}
 
 			// マルチバイト文字列に変換
-			CharBuf.TempGetStockNum = ConvString( ( const char * )WCharString, WCHAR_T_CODEPAGE, CharBuf.TempGetStock, _TCODEPAGE ) ;
+			CharBuf.TempGetStockNum = ConvString( ( const char * )WCharString, WCHAR_T_CHARCODEFORMAT, CharBuf.TempGetStock, _TCHARCODEFORMAT ) ;
 
 			// マルチバイト文字列に変換できたらループを抜ける
 		}while( CharBuf.TempGetStockNum > 0 ) ;
@@ -361,7 +361,7 @@ extern int NS_GetOneChar( TCHAR *CharBuffer , int DeleteFlag )
 	}
 
 	// 複数バイト文字かどうかで処理を分岐
-	CharBytes = GetCharBytes( CharBuffer, _TCODEPAGE ) ;
+	CharBytes = GetCharBytes( CharBuffer, _TCHARCODEFORMAT ) ;
 	if( CharBytes == 1 )
 	{
 		// バッファ削除指定がある場合は削除
@@ -1341,7 +1341,7 @@ extern int NS_GetStringPoint( const TCHAR *String , int Point )
 	p = 0 ;
 	for( i = 0 ; i < Point ; i ++ )
 	{
-		CharCode = GetCharCode( String + p, _TCODEPAGE, &CharBytes ) ;
+		CharCode = GetCharCode( String + p, _TCHARCODEFORMAT, &CharBytes ) ;
 		if( CharCode == 0 )
 		{
 			break ;
@@ -1394,7 +1394,7 @@ extern int NS_GetStringPoint2( const TCHAR *String , int Point )
 	i = 0 ;
 	while( i < Point )
 	{
-		CharCode = GetCharCode( String + i, _TCODEPAGE, &CharBytes ) ;
+		CharCode = GetCharCode( String + i, _TCHARCODEFORMAT, &CharBytes ) ;
 		if( CharCode == 0 )
 		{
 			break ;
@@ -1451,7 +1451,7 @@ extern int NS_GetStringLength( const TCHAR *String )
 	i = 0 ;
 	for(;;)
 	{
-		CharCode = GetCharCode( String + i, _TCODEPAGE, &CharBytes ) ;
+		CharCode = GetCharCode( String + i, _TCHARCODEFORMAT, &CharBytes ) ;
 		if( CharCode == 0 )
 		{
 			break ;
@@ -2024,7 +2024,7 @@ extern int NS_InputStringToCustom(
 	// キャンセルされていない場合のみ文字列を変換
 	if( Result == 1 )
 	{
-		ConvString( ( const char * )UseTempBuffer, WCHAR_T_CODEPAGE, StrBuffer, _TCODEPAGE ) ;
+		ConvString( ( const char * )UseTempBuffer, WCHAR_T_CHARCODEFORMAT, StrBuffer, _TCHARCODEFORMAT ) ;
 	}
 
 	if( AllocTempBuffer != NULL )
@@ -2258,7 +2258,7 @@ extern int NS_GetIMEInputModeStr( TCHAR *GetBuffer )
 
 	Result = GetIMEInputModeStr_WCHAR_T( TempBuffer ) ;
 
-	ConvString( ( const char * )TempBuffer, WCHAR_T_CODEPAGE, GetBuffer, _TCODEPAGE ) ;
+	ConvString( ( const char * )TempBuffer, WCHAR_T_CHARCODEFORMAT, GetBuffer, _TCHARCODEFORMAT ) ;
 
 	return Result ;
 #endif
@@ -2284,12 +2284,12 @@ extern int GetIMEInputModeStr_WCHAR_T( wchar_t *GetBuffer )
 	// 文字列の準備ができていない場合は準備を行う
 	if( StringSetup == FALSE )
 	{
-		ConvString( "\x68\x51\xd2\x89\xab\x30\xbf\x30\xab\x30\xca\x30\x00"/*@ L"全角カタカナ" @*/, DX_CODEPAGE_UTF16LE, ( char * )ZenkakuKanaString, WCHAR_T_CODEPAGE ) ;
-		ConvString( "\x4a\x53\xd2\x89\xab\x30\xbf\x30\xab\x30\xca\x30\x00"/*@ L"半角カタカナ" @*/, DX_CODEPAGE_UTF16LE, ( char * )HankakuKanaString, WCHAR_T_CODEPAGE ) ;
-		ConvString( "\x68\x51\xd2\x89\x72\x30\x89\x30\x4c\x30\x6a\x30\x00"/*@ L"全角ひらがな" @*/, DX_CODEPAGE_UTF16LE, ( char * )ZenkakuHiraString, WCHAR_T_CODEPAGE ) ;
-		ConvString( "\x68\x51\xd2\x89\xf1\x82\x70\x65\x00"/*@ L"全角英数" @*/, DX_CODEPAGE_UTF16LE, ( char * )ZenkakuEisuString, WCHAR_T_CODEPAGE ) ;
-		ConvString( "\x4a\x53\xd2\x89\xf1\x82\x70\x65\x00"/*@ L"半角英数" @*/, DX_CODEPAGE_UTF16LE, ( char * )HankakuEisuString, WCHAR_T_CODEPAGE ) ;
-		ConvString( "\x0d\x4e\x0e\x66\x6a\x30\x65\x51\x9b\x52\xe2\x30\xfc\x30\xc9\x30\x00"/*@ L"不明な入力モード" @*/, DX_CODEPAGE_UTF16LE, ( char * )FumeiString, WCHAR_T_CODEPAGE ) ;
+		ConvString( "\x68\x51\xd2\x89\xab\x30\xbf\x30\xab\x30\xca\x30\x00"/*@ L"全角カタカナ" @*/, DX_CHARCODEFORMAT_UTF16LE, ( char * )ZenkakuKanaString, WCHAR_T_CHARCODEFORMAT ) ;
+		ConvString( "\x4a\x53\xd2\x89\xab\x30\xbf\x30\xab\x30\xca\x30\x00"/*@ L"半角カタカナ" @*/, DX_CHARCODEFORMAT_UTF16LE, ( char * )HankakuKanaString, WCHAR_T_CHARCODEFORMAT ) ;
+		ConvString( "\x68\x51\xd2\x89\x72\x30\x89\x30\x4c\x30\x6a\x30\x00"/*@ L"全角ひらがな" @*/, DX_CHARCODEFORMAT_UTF16LE, ( char * )ZenkakuHiraString, WCHAR_T_CHARCODEFORMAT ) ;
+		ConvString( "\x68\x51\xd2\x89\xf1\x82\x70\x65\x00"/*@ L"全角英数" @*/, DX_CHARCODEFORMAT_UTF16LE, ( char * )ZenkakuEisuString, WCHAR_T_CHARCODEFORMAT ) ;
+		ConvString( "\x4a\x53\xd2\x89\xf1\x82\x70\x65\x00"/*@ L"半角英数" @*/, DX_CHARCODEFORMAT_UTF16LE, ( char * )HankakuEisuString, WCHAR_T_CHARCODEFORMAT ) ;
+		ConvString( "\x0d\x4e\x0e\x66\x6a\x30\x65\x51\x9b\x52\xe2\x30\xfc\x30\xc9\x30\x00"/*@ L"不明な入力モード" @*/, DX_CHARCODEFORMAT_UTF16LE, ( char * )FumeiString, WCHAR_T_CHARCODEFORMAT ) ;
 
 		StringSetup = TRUE ;
 	}
@@ -3073,11 +3073,11 @@ extern int NS_ProcessActKeyInput( void )
 #else // UNICODE
 		// マルチバイト文字列としての長さを取得する
 		{
-			ConvString( ( const char * )Input->Buffer, WCHAR_T_CODEPAGE, Input->TempBuffer, CHAR_CODEPAGE ) ;
-			StrLength = CL_strlen( CHAR_CODEPAGE, Input->TempBuffer ) ;
+			ConvString( ( const char * )Input->Buffer, WCHAR_T_CHARCODEFORMAT, Input->TempBuffer, CHAR_CHARCODEFORMAT ) ;
+			StrLength = CL_strlen( CHAR_CHARCODEFORMAT, Input->TempBuffer ) ;
 
-			ConvString( ( const char * )CharBuf.InputString, WCHAR_T_CODEPAGE, TempString2, CHAR_CODEPAGE ) ;
-			InputStrLength = CL_strlen( CHAR_CODEPAGE, TempString2 ) ;
+			ConvString( ( const char * )CharBuf.InputString, WCHAR_T_CHARCODEFORMAT, TempString2, CHAR_CHARCODEFORMAT ) ;
+			InputStrLength = CL_strlen( CHAR_CHARCODEFORMAT, TempString2 ) ;
 		}
 #endif // UNICODE
 		maxlen = 65536 ;
@@ -3111,10 +3111,10 @@ extern int NS_ProcessActKeyInput( void )
 				len = _WCSLEN( TempString ) ;
 #else // UNICODE
 				// マルチバイト文字列に変換
-				ConvString( ( const char * )TempString, WCHAR_T_CODEPAGE, TempString2, CHAR_CODEPAGE ) ;
+				ConvString( ( const char * )TempString, WCHAR_T_CHARCODEFORMAT, TempString2, CHAR_CHARCODEFORMAT ) ;
 
 				// 文字列の長さを取得
-				len = CL_strlen( CHAR_CODEPAGE, TempString2 ) ;
+				len = CL_strlen( CHAR_CHARCODEFORMAT, TempString2 ) ;
 #endif // UNICODE
 				if( len > maxlen )
 				{
@@ -3137,7 +3137,7 @@ extern int NS_ProcessActKeyInput( void )
 #else // UNICODE
 					for( i = 0; i < len ; )
 					{
-						if( GetCharBytes( &TempString2[ i ], CHAR_CODEPAGE ) == 2 )
+						if( GetCharBytes( &TempString2[ i ], CHAR_CHARCODEFORMAT ) == 2 )
 						{
 							if( i + 2 > maxlen ) break;
 							i += 2 ;
@@ -3151,7 +3151,7 @@ extern int NS_ProcessActKeyInput( void )
 					TempString2[ i ] = '\0' ;
 
 					// wchar_t文字列に変換
-					ConvString( TempString2, CHAR_CODEPAGE, ( char * )TempString, WCHAR_T_CODEPAGE ) ;
+					ConvString( TempString2, CHAR_CHARCODEFORMAT, ( char * )TempString, WCHAR_T_CHARCODEFORMAT ) ;
 #endif // UNICODE
 					// 設定を初期化
 					WinAPIData.ImmFunc.ImmNotifyIMEFunc( Imc , NI_COMPOSITIONSTR ,  CPS_CANCEL , 0  );
@@ -3473,17 +3473,17 @@ CUT:
 				CharLen2   = CharLen ;
 				StrLength2 = Input->StrLength ;
 
-				ConvString( ( const char * )C, WCHAR_T_CODEPAGE, TempCharBuf, CHAR_CODEPAGE ) ;
-				CharLen3   = CL_strlen( CHAR_CODEPAGE, TempCharBuf ) ;
+				ConvString( ( const char * )C, WCHAR_T_CHARCODEFORMAT, TempCharBuf, CHAR_CHARCODEFORMAT ) ;
+				CharLen3   = CL_strlen( CHAR_CHARCODEFORMAT, TempCharBuf ) ;
 
 #else // UNICODE
 
-				ConvString( ( const char * )C, WCHAR_T_CODEPAGE, TempString2, CHAR_CODEPAGE ) ;
-				CharLen2   = CL_strlen( CHAR_CODEPAGE, TempString2 ) ;
+				ConvString( ( const char * )C, WCHAR_T_CHARCODEFORMAT, TempString2, CHAR_CHARCODEFORMAT ) ;
+				CharLen2   = CL_strlen( CHAR_CHARCODEFORMAT, TempString2 ) ;
 				CharLen3   = CharLen2 ;
 
-				ConvString( ( const char * )Input->Buffer, WCHAR_T_CODEPAGE, Input->TempBuffer, CHAR_CODEPAGE ) ;
-				StrLength2 = CL_strlen( CHAR_CODEPAGE, Input->TempBuffer ) ;
+				ConvString( ( const char * )Input->Buffer, WCHAR_T_CHARCODEFORMAT, Input->TempBuffer, CHAR_CHARCODEFORMAT ) ;
+				StrLength2 = CL_strlen( CHAR_CHARCODEFORMAT, Input->TempBuffer ) ;
 #endif // UNICODE
 				// １バイト文字のみ時の処理
 				if( Input->SingleCharOnlyFlag )
@@ -3534,8 +3534,8 @@ CUT:
 								TempString[ i ] = Input->Buffer[ Pos - CLen + i ] ;
 							}
 							TempString[ CLen ] = L'\0' ;
-							ConvString( ( const char * )TempString, WCHAR_T_CODEPAGE, TempString2, CHAR_CODEPAGE ) ;
-							CLen2 = CL_strlen( CHAR_CODEPAGE, TempString2 ) ;
+							ConvString( ( const char * )TempString, WCHAR_T_CHARCODEFORMAT, TempString2, CHAR_CHARCODEFORMAT ) ;
+							CLen2 = CL_strlen( CHAR_CHARCODEFORMAT, TempString2 ) ;
 
 							StrLength2 -= CLen2 ;
 						}
@@ -3961,7 +3961,7 @@ extern int NS_GetKeyInputString( TCHAR *StrBuffer , int InputHandle )
 
 	if( KEYHCHK( InputHandle, Input ) ) return -1 ;
 
-	ConvString( ( const char * )Input->Buffer, WCHAR_T_CODEPAGE, StrBuffer, _TCODEPAGE ) ;
+	ConvString( ( const char * )Input->Buffer, WCHAR_T_CHARCODEFORMAT, StrBuffer, _TCHARCODEFORMAT ) ;
 
 	// 終了
 	return 0 ;
@@ -4105,7 +4105,7 @@ extern const IMEINPUTDATA *NS_GetIMEInputData( void )
 
 		// 文字列情報のセット
 		IMEInput->InputString = ( TCHAR * )( IMEInput + 1 ) ;
-		ConvString( ( const char * )CharBuf.InputString, WCHAR_T_CODEPAGE, ( char * )IMEInput->InputString, _TCODEPAGE ) ;
+		ConvString( ( const char * )CharBuf.InputString, WCHAR_T_CHARCODEFORMAT, ( char * )IMEInput->InputString, _TCHARCODEFORMAT ) ;
 		TLen = _TSTRLEN( IMEInput->InputString ) ;
 
 		// カーソル位置のセット
@@ -4181,7 +4181,7 @@ extern const IMEINPUTDATA *NS_GetIMEInputData( void )
 			for( i = 0 ; i < IMEInput->CandidateNum ; i ++ )
 			{
 				CandidateListWCharString = ( wchar_t * )( ( BYTE * )CharBuf.CandidateList + CharBuf.CandidateList->dwOffset[ i ] ) ;
-				StringBytes = ConvString( ( const char * )CandidateListWCharString, WCHAR_T_CODEPAGE, TCharBuffer, _TCODEPAGE ) ;
+				StringBytes = ConvString( ( const char * )CandidateListWCharString, WCHAR_T_CHARCODEFORMAT, TCharBuffer, _TCHARCODEFORMAT ) ;
 				CandidateList[ i ] = TCharBuffer ;
 				TCharBuffer += StringBytes / sizeof( char ) ;
 			}

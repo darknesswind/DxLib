@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		WindowsOS用動画プログラム
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -49,6 +49,18 @@ extern int DirectShowOpenMovieFile(
 #endif
 
 // プログラム------------------------------------------------------------------
+
+// ムービー関連の管理処理の初期化の環境依存処理
+extern int InitializeMovieManage_PF( void )
+{
+	return 0 ;
+}
+
+// ムービー関連の管理処理の後始末の環境依存処理
+extern int TerminateMovieManage_PF( void )
+{
+	return 0 ;
+}
 
 #ifndef DX_NON_DSHOW_MOVIE
 
@@ -422,7 +434,7 @@ extern int GetMovieState_PF( MOVIEGRAPH * Movie )
 	return Movie->PlayFlag ;
 }
 
-// ムービーのボリュームをセットする(0～10000)処理の環境依存処理
+// ムービーのボリュームをセットする(0〜10000)処理の環境依存処理
 extern int SetMovieVolume_PF( MOVIEGRAPH * Movie, int Volume )
 {
 #ifndef DX_NON_DSHOW_MOVIE

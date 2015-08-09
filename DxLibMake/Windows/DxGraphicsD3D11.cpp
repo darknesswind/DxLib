@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		描画処理プログラム( Direct3D11 )
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -1437,6 +1437,8 @@ extern int Graphics_D3D11_ShaderCode_Base_Initialize( void )
 			sizeof( SCBASE->BaseUseTex_PS_Code               ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) +
 			sizeof( SCBASE->MaskEffect_PS_Code               ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) +
 			sizeof( SCBASE->MaskEffect_ReverseEffect_PS_Code ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) +
+			sizeof( SCBASE->MaskEffect_UseGraphHandle_PS_Code               ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) +
+			sizeof( SCBASE->MaskEffect_UseGraphHandle_ReverseEffect_PS_Code ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) +
 			sizeof( SCBASE->StretchRect_VS_Code              ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) +
 			sizeof( SCBASE->StretchRect_PS_Code              ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
 	Graphics_D3D11_ShaderCodePackage_GetInfo( &SizeBuf, &ShaderAddr, ( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO * )SCBASE->BaseSimple_VS_Code,                sizeof( SCBASE->BaseSimple_VS_Code               ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
@@ -1444,6 +1446,8 @@ extern int Graphics_D3D11_ShaderCode_Base_Initialize( void )
 	Graphics_D3D11_ShaderCodePackage_GetInfo( &SizeBuf, &ShaderAddr, ( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO * )SCBASE->BaseUseTex_PS_Code,                sizeof( SCBASE->BaseUseTex_PS_Code               ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
 	Graphics_D3D11_ShaderCodePackage_GetInfo( &SizeBuf, &ShaderAddr, ( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO * )&SCBASE->MaskEffect_PS_Code,               sizeof( SCBASE->MaskEffect_PS_Code               ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
 	Graphics_D3D11_ShaderCodePackage_GetInfo( &SizeBuf, &ShaderAddr, ( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO * )&SCBASE->MaskEffect_ReverseEffect_PS_Code, sizeof( SCBASE->MaskEffect_ReverseEffect_PS_Code ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
+	Graphics_D3D11_ShaderCodePackage_GetInfo( &SizeBuf, &ShaderAddr, ( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO * )&SCBASE->MaskEffect_UseGraphHandle_PS_Code,               sizeof( SCBASE->MaskEffect_UseGraphHandle_PS_Code               ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
+	Graphics_D3D11_ShaderCodePackage_GetInfo( &SizeBuf, &ShaderAddr, ( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO * )&SCBASE->MaskEffect_UseGraphHandle_ReverseEffect_PS_Code, sizeof( SCBASE->MaskEffect_UseGraphHandle_ReverseEffect_PS_Code ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
 	Graphics_D3D11_ShaderCodePackage_GetInfo( &SizeBuf, &ShaderAddr, ( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO * )&SCBASE->StretchRect_VS_Code,              sizeof( SCBASE->StretchRect_VS_Code              ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
 	Graphics_D3D11_ShaderCodePackage_GetInfo( &SizeBuf, &ShaderAddr, ( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO * )&SCBASE->StretchRect_PS_Code,              sizeof( SCBASE->StretchRect_PS_Code              ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
 
@@ -2005,6 +2009,20 @@ extern int Graphics_D3D11_Shader_Initialize( void )
 			GSYS.HardInfo.UseShader = FALSE ;
 			goto ERR ;
 		}
+		Result = Graphics_D3D11_PixelShader_Create( ( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO * )&ShaderCode->Base.MaskEffect_UseGraphHandle_PS_Code, ( D_ID3D11PixelShader ** )&Shader->Base.MaskEffect_UseGraphHandle_PS, sizeof( ShaderCode->Base.MaskEffect_UseGraphHandle_PS_Code ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
+		if( Result < 0 )
+		{
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xde\x30\xb9\x30\xaf\x30\xe6\x51\x06\x74\x28\x75\x6e\x30\xd4\x30\xaf\x30\xbb\x30\xeb\x30\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"マスク処理用のピクセルシェーダーオブジェクト No.%d の作成に失敗しました\n" @*/, -( Result + 1 ) ) ) ;
+			GSYS.HardInfo.UseShader = FALSE ;
+			goto ERR ;
+		}
+		Result = Graphics_D3D11_PixelShader_Create( ( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO * )&ShaderCode->Base.MaskEffect_UseGraphHandle_ReverseEffect_PS_Code, ( D_ID3D11PixelShader ** )&Shader->Base.MaskEffect_UseGraphHandle_ReverseEffect_PS, sizeof( ShaderCode->Base.MaskEffect_UseGraphHandle_ReverseEffect_PS_Code ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
+		if( Result < 0 )
+		{
+			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xcd\x53\xe2\x8e\xb9\x52\x9c\x67\xde\x30\xb9\x30\xaf\x30\xe6\x51\x06\x74\x28\x75\x6e\x30\xd4\x30\xaf\x30\xbb\x30\xeb\x30\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\xaa\x30\xd6\x30\xb8\x30\xa7\x30\xaf\x30\xc8\x30\x20\x00\x4e\x00\x6f\x00\x2e\x00\x25\x00\x64\x00\x20\x00\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"反転効果マスク処理用のピクセルシェーダーオブジェクト No.%d の作成に失敗しました\n" @*/, -( Result + 1 ) ) ) ;
+			GSYS.HardInfo.UseShader = FALSE ;
+			goto ERR ;
+		}
 
 		// 単純転送用シェーダーの作成
 		Result = Graphics_D3D11_VertexShader_Create( ( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO * )&ShaderCode->Base.StretchRect_VS_Code, ( D_ID3D11VertexShader ** )&Shader->Base.StretchRect_VS, sizeof( ShaderCode->Base.StretchRect_VS_Code ) / sizeof( GRAPHICS_HARDWARE_DIRECT3D11_SHADERCODE_INFO ) ) ;
@@ -2054,6 +2072,8 @@ extern int Graphics_D3D11_Shader_Terminate( void )
 	Graphics_D3D11_PixelShaderArray_Release(  ( D_ID3D11PixelShader ** )Shader->Base.BaseUseTex_PS,                sizeof( Shader->Base.BaseUseTex_PS               ) / sizeof( D_ID3D11PixelShader  * ) ) ;
 	Graphics_D3D11_PixelShaderArray_Release(  ( D_ID3D11PixelShader ** )&Shader->Base.MaskEffect_PS,               sizeof( Shader->Base.MaskEffect_PS               ) / sizeof( D_ID3D11PixelShader  * ) ) ;
 	Graphics_D3D11_PixelShaderArray_Release(  ( D_ID3D11PixelShader ** )&Shader->Base.MaskEffect_ReverseEffect_PS, sizeof( Shader->Base.MaskEffect_ReverseEffect_PS ) / sizeof( D_ID3D11PixelShader  * ) ) ;
+	Graphics_D3D11_PixelShaderArray_Release(  ( D_ID3D11PixelShader ** )&Shader->Base.MaskEffect_UseGraphHandle_PS,               sizeof( Shader->Base.MaskEffect_UseGraphHandle_PS               ) / sizeof( D_ID3D11PixelShader  * ) ) ;
+	Graphics_D3D11_PixelShaderArray_Release(  ( D_ID3D11PixelShader ** )&Shader->Base.MaskEffect_UseGraphHandle_ReverseEffect_PS, sizeof( Shader->Base.MaskEffect_UseGraphHandle_ReverseEffect_PS ) / sizeof( D_ID3D11PixelShader  * ) ) ;
 	Graphics_D3D11_VertexShaderArray_Release( ( D_ID3D11VertexShader ** )&Shader->Base.StretchRect_VS,             sizeof( Shader->Base.StretchRect_VS              ) / sizeof( D_ID3D11VertexShader * ) ) ;
 	Graphics_D3D11_PixelShaderArray_Release(  ( D_ID3D11PixelShader ** )&Shader->Base.StretchRect_PS,              sizeof( Shader->Base.StretchRect_PS              ) / sizeof( D_ID3D11PixelShader  * ) ) ;
 
@@ -4205,6 +4225,14 @@ extern	int		Graphics_D3D11_Device_Create( void )
 		GD3D11.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_RGB32 ] = D_DXGI_FORMAT_R8G8B8A8_UNORM ;
 		String = "DXGI_FORMAT_R8G8B8A8_UNORM" ;
 		DXST_ERRORLOGFMT_ADDA(( "\x83\x4a\x83\x89\x81\x5b\x83\x74\x83\x48\x81\x5b\x83\x7d\x83\x62\x83\x67\x82\xcd %s \x82\xc5\x82\xb7"/*@ "カラーフォーマットは %s です" @*/, String )) ;
+
+		// パレットカラーフォーマットのセット
+		GD3D11.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_PAL4           ] = D_DXGI_FORMAT_R8G8B8A8_UNORM ;
+		GD3D11.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_PAL8           ] = D_DXGI_FORMAT_R8G8B8A8_UNORM ;
+		GD3D11.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_PAL4     ] = D_DXGI_FORMAT_R8G8B8A8_UNORM ;
+		GD3D11.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_PAL8     ] = D_DXGI_FORMAT_R8G8B8A8_UNORM ;
+		GD3D11.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_PAL4 ] = D_DXGI_FORMAT_R8G8B8A8_UNORM ;
+		GD3D11.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_PAL8 ] = D_DXGI_FORMAT_R8G8B8A8_UNORM ;
 
 		// DXT1フォーマットのチェック
 		if( D3D11Device_CheckFormatSupport( D_DXGI_FORMAT_BC1_UNORM, &FormatSupport ) == S_OK &&
@@ -7138,7 +7166,7 @@ static int Graphics_D3D11_DeviceState_UpdateConstantFogParam( void )
 	return 0 ;
 }
 
-// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
+// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
 extern int  Graphics_D3D11_DeviceState_SetFogStartEnd( float Start, float End )
 {
 	int UpdateFlag ;
@@ -7178,7 +7206,7 @@ extern int  Graphics_D3D11_DeviceState_SetFogStartEnd( float Start, float End )
 	return 0 ;
 }
 
-// フォグの密度を設定する( 0.0f ～ 1.0f )
+// フォグの密度を設定する( 0.0f 〜 1.0f )
 extern int  Graphics_D3D11_DeviceState_SetFogDensity( float Density )
 {
 	if( Graphics_Hardware_CheckValid_PF() == 0 )
@@ -11809,10 +11837,10 @@ extern	int		Graphics_D3D11_DrawExtendGraph( int x1, int y1, int x2, int y2, floa
 		if( OUT_DRAWAREA_CHECK( x1, y1, x2, y2 ) ) return 0 ;
 
 		// 描画矩形の保存
-		left	= GSYS.DrawSetting.DrawAreaF.left   - 0.5f /* + GSYS.WindowDrawRect.left */ ;
-		top		= GSYS.DrawSetting.DrawAreaF.top    - 0.5f /* + GSYS.WindowDrawRect.top  */ ;
-		right	= GSYS.DrawSetting.DrawAreaF.right  - 0.5f /* + GSYS.WindowDrawRect.left */ ;
-		bottom	= GSYS.DrawSetting.DrawAreaF.bottom - 0.5f /* + GSYS.WindowDrawRect.top  */ ;
+		left	= GSYS.DrawSetting.DrawAreaF.left   ;
+		top		= GSYS.DrawSetting.DrawAreaF.top    ;
+		right	= GSYS.DrawSetting.DrawAreaF.right  ;
+		bottom	= GSYS.DrawSetting.DrawAreaF.bottom ;
 
 		// 頂点タイプによって処理を分岐
 		switch( GD3D11.Device.DrawInfo.VertexType )
@@ -17039,7 +17067,7 @@ extern	int		Graphics_Hardware_D3D11_SetFogColor_PF( DWORD FogColor )
 	return 0 ;
 }
 
-// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
+// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
 extern	int		Graphics_Hardware_D3D11_SetFogStartEnd_PF( float start, float end )
 {
 	Graphics_D3D11_DeviceState_SetFogStartEnd( start, end ) ;
@@ -17048,7 +17076,7 @@ extern	int		Graphics_Hardware_D3D11_SetFogStartEnd_PF( float start, float end )
 	return 0 ;
 }
 
-// フォグの密度を設定する( 0.0f ～ 1.0f )
+// フォグの密度を設定する( 0.0f 〜 1.0f )
 extern	int		Graphics_Hardware_D3D11_SetFogDensity_PF( float density )
 {
 	Graphics_D3D11_DeviceState_SetFogDensity( density ) ;
@@ -18013,9 +18041,10 @@ extern	const COLORDATA *Graphics_Hardware_D3D11_GetDispColorData_PF( void )
 extern	DWORD Graphics_Hardware_D3D11_GetPixel_PF( int x, int y )
 {
 	RECT            SrcRect ;
-	const COLORDATA *DestColorData ;
+//	const COLORDATA *DestColorData ;
 	BASEIMAGE       BufferImage ;
 	DWORD           Ret = 0xffffffff ;
+	int				Red, Green, Blue, Alpha ;
 
 	// 描画待機している描画物を描画
 	DRAWSTOCKINFO
@@ -18030,12 +18059,25 @@ extern	DWORD Graphics_Hardware_D3D11_GetPixel_PF( int x, int y )
 		return Ret ;
 	}
 
-	DestColorData = Graphics_Hardware_GetMainColorData_PF() ;
 	switch( BufferImage.ColorData.ColorBitDepth )
 	{
-	case 16 : Ret = NS_GetColor4( DestColorData, &BufferImage.ColorData, *( ( WORD  * )BufferImage.GraphData ) ) & ~DestColorData->NoneMask ; break ;
-	case 32 : Ret = NS_GetColor4( DestColorData, &BufferImage.ColorData, *( ( DWORD * )BufferImage.GraphData ) ) & ~DestColorData->NoneMask ; break ;
+	case 16 :
+		NS_GetColor5( &BufferImage.ColorData, *( ( WORD   * )BufferImage.GraphData ), &Red, &Green, &Blue, &Alpha ) ;
+		break ;
+
+	case 32 :
+		NS_GetColor5( &BufferImage.ColorData, *( ( DWORD  * )BufferImage.GraphData ), &Red, &Green, &Blue, &Alpha ) ;
+		break ;
 	}
+
+	Ret = 0xff000000 | ( ( ( unsigned int )Red ) << 16 ) | ( ( ( unsigned int )Green ) << 8 ) | ( ( unsigned int )Blue ) ;
+
+//	DestColorData = Graphics_Hardware_GetMainColorData_PF() ;
+//	switch( BufferImage.ColorData.ColorBitDepth )
+//	{
+//	case 16 : Ret = NS_GetColor4( DestColorData, &BufferImage.ColorData, *( ( WORD  * )BufferImage.GraphData ) ) & ~DestColorData->NoneMask ; break ;
+//	case 32 : Ret = NS_GetColor4( DestColorData, &BufferImage.ColorData, *( ( DWORD * )BufferImage.GraphData ) ) & ~DestColorData->NoneMask ; break ;
+//	}
 
 	// 描画先バッファをアンロック
 	Graphics_Screen_UnlockDrawScreen() ;
@@ -19305,7 +19347,7 @@ extern	int		Graphics_Hardware_D3D11_GetMultiSampleQuality_PF( int Samples )
 	Graphics_Image_InitSetupGraphHandleGParam( &GParam ) ; 
 	GParam.DrawValidImageCreateFlag = TRUE ;
 	GParam.CubeMapTextureCreateFlag = FALSE ;
-	Graphics_Image_SetupFormatDesc( &Format, &GParam, 256, 256, GParam.AlphaChannelImageCreateFlag, FALSE, DX_BASEIMAGE_FORMAT_NORMAL, -1 ) ;
+	Graphics_Image_SetupFormatDesc( &Format, &GParam, 256, 256, GParam.AlphaChannelImageCreateFlag, FALSE, 0, DX_BASEIMAGE_FORMAT_NORMAL, -1 ) ;
 
 	// フォーマットインデックスを得る
 	FormatIndex = NS_GetTexFormatIndex( &Format ) ;

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		物理演算処理
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -22,7 +22,6 @@
 #include "btBulletDynamicsCommon.h"
 #include "DxModelLoader3.h"
 #include "DxModelLoader4.h"
-#include "Windows/DxGuid.h"
 
 //namespace DxLib
 //{

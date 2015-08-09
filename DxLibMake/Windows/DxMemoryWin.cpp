@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		Windows用メモリ関係プログラム
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -104,6 +104,12 @@ extern int  NormalMemory_AutoAlloc_DeleteHeapCallback_PF( int Param, void *Buffe
 	// メモリを解放
 	VirtualFree( PlatformHeap->AllocAddress, 0, MEM_RELEASE ) ;
 
+	return 0 ;
+}
+
+// 確保しているメモリを列挙する関数の環境依存処理
+extern int DxDumpAlloc_PF( void )
+{
 	return 0 ;
 }
 

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		標準関数の互換関数プログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -49,10 +49,10 @@ namespace DxLib
 	int      str##Length ;
 
 
-#define CHAR_TO_WCHAR_T_STRING_SETUP( str, err, codepage )												\
+#define CHAR_TO_WCHAR_T_STRING_SETUP( str, err, CHARCODEFORMAT )												\
 	if( str != NULL )																					\
 	{																									\
-		str##Length = CL_strlen( codepage, str ) ;														\
+		str##Length = CL_strlen( CHARCODEFORMAT, str ) ;														\
 		if( str##Length + 16 > CHAR_TO_WCHAR_TEMPSTRINGLENGTH )											\
 		{																								\
 			Alloc##str##Buffer = ( wchar_t * )DXALLOC( sizeof( wchar_t ) * ( str##Length + 16 ) ) ;		\
@@ -67,7 +67,7 @@ namespace DxLib
 			Use##str##Buffer = ( wchar_t * )str##Buffer ;												\
 		}																								\
 																										\
-		ConvString( ( const char * )str, codepage, ( char * )Use##str##Buffer, WCHAR_T_CODEPAGE ) ;		\
+		ConvString( ( const char * )str, CHARCODEFORMAT, ( char * )Use##str##Buffer, WCHAR_T_CHARCODEFORMAT ) ;		\
 	}
 
 
@@ -81,7 +81,7 @@ namespace DxLib
 
 
 #define SHIFT_JIS_TO_WCHAR_T_STRING_BEGIN( str )		CHAR_TO_WCHAR_T_STRING_BEGIN( str )
-#define SHIFT_JIS_TO_WCHAR_T_STRING_SETUP( str, err )	CHAR_TO_WCHAR_T_STRING_SETUP( str, err, DX_CODEPAGE_SHIFTJIS )
+#define SHIFT_JIS_TO_WCHAR_T_STRING_SETUP( str, err )	CHAR_TO_WCHAR_T_STRING_SETUP( str, err, DX_CHARCODEFORMAT_SHIFTJIS )
 #define SHIFT_JIS_TO_WCHAR_T_STRING_END( str )			CHAR_TO_WCHAR_T_STRING_END( str )
 
 
@@ -92,7 +92,7 @@ namespace DxLib
 
 
 #define TCHAR_TO_WCHAR_T_STRING_BEGIN( str )			CHAR_TO_WCHAR_T_STRING_BEGIN( str )
-#define TCHAR_TO_WCHAR_T_STRING_SETUP( str, err )		CHAR_TO_WCHAR_T_STRING_SETUP( str, err, _TCODEPAGE )
+#define TCHAR_TO_WCHAR_T_STRING_SETUP( str, err )		CHAR_TO_WCHAR_T_STRING_SETUP( str, err, _TCHARCODEFORMAT )
 #define TCHAR_TO_WCHAR_T_STRING_END( str )				CHAR_TO_WCHAR_T_STRING_END( str )
 
 
@@ -131,8 +131,8 @@ namespace DxLib
 struct BASEFUNCSYSTEM
 {
 	int					UseCharSet ;						// 使用する文字列セット
-	int					Use_char_CodePage ;					// char で使用する文字コードページ
-	int					Use_wchar_t_CodePage ;				// wchar_t 使用する文字コードページ
+	int					Use_char_CharCodeFormat ;				// char で使用する文字コード形式
+	int					Use_wchar_t_CharCodeFormat ;			// wchar_t 使用する文字コード形式
 } ;
 
 // テーブル-----------------------------------------------------------------------
@@ -163,8 +163,8 @@ extern BASEFUNCSYSTEM g_BaseFuncSystem ;
 	#define _ITOT									_ITOAW
 	#define _TCHDIR									_WCHDIR
 	#define _TGETCWD								_WGETCWD
-	#define _TCODEPAGE								WCHAR_T_CODEPAGE
-	#define _TCHARSIZE								GetCodePageUnitSize( WCHAR_T_CODEPAGE )
+	#define _TCHARCODEFORMAT								WCHAR_T_CHARCODEFORMAT
+	#define _TCHARSIZE								GetCharCodeFormatUnitSize( WCHAR_T_CHARCODEFORMAT )
 #else
 	#define _TISWCHAR								(FALSE)
 	#define _TSTRCAT								_STRCAT
@@ -184,21 +184,21 @@ extern BASEFUNCSYSTEM g_BaseFuncSystem ;
 	#define _ITOT									_ITOA
 	#define _TCHDIR									_CHDIR
 	#define _TGETCWD								_GETCWD
-	#define _TCODEPAGE								CHAR_CODEPAGE
-	#define _TCHARSIZE								GetCodePageUnitSize( CHAR_CODEPAGE )
+	#define _TCHARCODEFORMAT								CHAR_CHARCODEFORMAT
+	#define _TCHARSIZE								GetCharCodeFormatUnitSize( CHAR_CHARCODEFORMAT )
 #endif
 
-#define CHAR_CODEPAGE		( g_BaseFuncSystem.Use_char_CodePage    == 0 ? ( _SET_DEFAULT_CODEPAGE(), g_BaseFuncSystem.Use_char_CodePage    ) : g_BaseFuncSystem.Use_char_CodePage    )
-#define WCHAR_T_CODEPAGE	( g_BaseFuncSystem.Use_wchar_t_CodePage == 0 ? ( _SET_DEFAULT_CODEPAGE(), g_BaseFuncSystem.Use_wchar_t_CodePage ) : g_BaseFuncSystem.Use_wchar_t_CodePage )
+#define CHAR_CHARCODEFORMAT		( g_BaseFuncSystem.Use_char_CharCodeFormat    == 0 ? ( _SET_DEFAULT_CHARCODEFORMAT(), g_BaseFuncSystem.Use_char_CharCodeFormat    ) : g_BaseFuncSystem.Use_char_CharCodeFormat    )
+#define WCHAR_T_CHARCODEFORMAT	( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat == 0 ? ( _SET_DEFAULT_CHARCODEFORMAT(), g_BaseFuncSystem.Use_wchar_t_CharCodeFormat ) : g_BaseFuncSystem.Use_wchar_t_CharCodeFormat )
 
 extern	void			_SET_CHARSET( int CharSet ) ;
 extern	int				_GET_CHARSET( void ) ;
 
-extern	void			_SET_DEFAULT_CODEPAGE( void ) ;
-extern	void			_SET_CHAR_CODEPAGE( int CodePage ) ;
-extern	int				_GET_CHAR_CODEPAGE( void ) ;
-extern	void			_SET_WCHAR_T_CODEPAGE( int CodePage ) ;
-extern	int				_GET_WCHAR_T_CODEPAGE( void ) ;
+extern	void			_SET_DEFAULT_CHARCODEFORMAT( void ) ;
+extern	void			_SET_CHAR_CHARCODEFORMAT( int CharCodeFormat ) ;
+extern	int				_GET_CHAR_CHARCODEFORMAT( void ) ;
+extern	void			_SET_WCHAR_T_CHARCODEFORMAT( int CharCodeFormat ) ;
+extern	int				_GET_WCHAR_T_CHARCODEFORMAT( void ) ;
 
 
 // 自前標準関数系

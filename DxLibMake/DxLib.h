@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -12,8 +12,8 @@
 #include "DxCompileConfig.h"
 
 // ＤＸライブラリのバージョン
-#define DXLIB_VERSION 0x314d
-#define DXLIB_VERSION_STR L"3.14d"
+#define DXLIB_VERSION 0x314f
+#define DXLIB_VERSION_STR L"3.14f"
 
 // 設定 -----------------------------------------------------------------------
 
@@ -87,11 +87,6 @@
 #define DEFAULT_FONT_TYPE							( DX_FONTTYPE_NORMAL )	// フォントのデフォルトの形態
 #define DEFAULT_FONT_EDGESIZE						(1)					// フォントのデフォルトの太さ
 
-#define FONT_CACHE_MAXNUM							(2024)				// フォントキャッシュに格納できる最大文字数
-#define FONT_CACHE_EX_NUM							(1024)				// 0xffff を超えるコードの文字データアドレスを保持する数
-#define FONT_CACHE_MEMORYSIZE						(0x50000)			// フォントキャッシュの最大容量
-#define FONT_CACHE_MAX_YLENGTH						(0x4000)			// フォントキャッシュサーフェスの最大縦幅
-
 #define MAX_USERIMAGEREAD_FUNCNUM					(10)				// ユーザーが登録できるグラフィックロード関数の最大数
 
 // ＷＩＮＤＯＷＳのバージョンマクロ
@@ -140,11 +135,23 @@
 
 // 文字セット
 #define DX_CHARSET_DEFAULT							(0)				// デフォルト文字セット
-#define DX_CHARSET_SHFTJIS							(1)				// 日本語文字セット
-#define DX_CHARSET_HANGEUL							(2)				// 韓国語文字セット
+#define DX_CHARSET_SHFTJIS							(1)				// シフトJIS
+#define DX_CHARSET_HANGEUL							(2)				// ハングル文字セット
 #define DX_CHARSET_BIG5								(3)				// 繁体文字セット
 #define DX_CHARSET_GB2312							(4)				// 簡体文字セット
-#define DX_CHARSET_NUM								(5)				// 簡体文字セット
+#define DX_CHARSET_NUM								(5)				// 文字セットの数
+
+// 文字コード形式
+#define DX_CHARCODEFORMAT_SHIFTJIS					(932)			// シフトJISコード
+#define DX_CHARCODEFORMAT_GB2312					(936)			// 簡体字文字コード
+#define DX_CHARCODEFORMAT_UHC						(949)			// ハングル文字コード
+#define DX_CHARCODEFORMAT_BIG5						(950)			// 繁体文字コード
+#define DX_CHARCODEFORMAT_UTF16LE					(1200)			// UTF-16 リトルエンディアン
+#define DX_CHARCODEFORMAT_UTF16BE					(1201)			// UTF-16 ビッグエンディアン
+#define DX_CHARCODEFORMAT_ASCII						(1252)			// アスキー文字コード
+#define DX_CHARCODEFORMAT_UTF8						(65001)			// UTF-8
+#define DX_CHARCODEFORMAT_UTF32LE					(32766)			// UTF-32 リトルエンディアン
+#define DX_CHARCODEFORMAT_UTF32BE					(32767)			// UTF-32 ビッグエンディアン
 
 // ＭＩＤＩの再生モード定義
 #define DX_MIDIMODE_MCI								(0)				// ＭＣＩによる再生
@@ -273,12 +280,12 @@
 
 // MV1モデルの頂点タイプ
 #define DX_MV1_VERTEX_TYPE_1FRAME					(0)				// １フレームの影響を受ける頂点
-#define DX_MV1_VERTEX_TYPE_4FRAME					(1)				// １～４フレームの影響を受ける頂点
-#define DX_MV1_VERTEX_TYPE_8FRAME					(2)				// ５～８フレームの影響を受ける頂点
+#define DX_MV1_VERTEX_TYPE_4FRAME					(1)				// １〜４フレームの影響を受ける頂点
+#define DX_MV1_VERTEX_TYPE_8FRAME					(2)				// ５〜８フレームの影響を受ける頂点
 #define DX_MV1_VERTEX_TYPE_FREE_FRAME				(3)				// ９フレーム以上の影響を受ける頂点
 #define DX_MV1_VERTEX_TYPE_NMAP_1FRAME				(4)				// 法線マップ用の情報が含まれる１フレームの影響を受ける頂点
-#define DX_MV1_VERTEX_TYPE_NMAP_4FRAME				(5)				// 法線マップ用の情報が含まれる１～４フレームの影響を受ける頂点
-#define DX_MV1_VERTEX_TYPE_NMAP_8FRAME				(6)				// 法線マップ用の情報が含まれる５～８フレームの影響を受ける頂点
+#define DX_MV1_VERTEX_TYPE_NMAP_4FRAME				(5)				// 法線マップ用の情報が含まれる１〜４フレームの影響を受ける頂点
+#define DX_MV1_VERTEX_TYPE_NMAP_8FRAME				(6)				// 法線マップ用の情報が含まれる５〜８フレームの影響を受ける頂点
 #define DX_MV1_VERTEX_TYPE_NMAP_FREE_FRAME			(7)				// 法線マップ用の情報が含まれる９フレーム以上の影響を受ける頂点
 #define DX_MV1_VERTEX_TYPE_NUM						(8)				// 頂点タイプの数
 
@@ -366,11 +373,9 @@
 #define DX_SOUNDDATATYPE_FILE						(3)				// 圧縮されたデータの再生する部分だけファイルから逐次読み込み解凍され、サウンドメモリに格納される(鳴らし終わると解凍したデータは破棄されるので何度も解凍処理が行われる)
 
 // 読み込み処理のタイプ
-#define DX_READSOUNDFUNCTION_PCM					(0x0001)		// PCM の読み込み処理
-#define DX_READSOUNDFUNCTION_ACM					(0x0002)		// ACM を使用した読み込み処理
-#define DX_READSOUNDFUNCTION_OGG					(0x0004)		// Ogg Vorbis の読み込み処理
-#define DX_READSOUNDFUNCTION_MP3					(0x0008)		// ACM を使用した MP3 の読み込み処理
-#define DX_READSOUNDFUNCTION_DSMP3					(0x0010)		// DirectShow を使用した MP3 の読み込み処理
+#define DX_READSOUNDFUNCTION_PCM					(1 << 0)		// PCM の読み込み処理
+#define DX_READSOUNDFUNCTION_OGG					(1 << 1)		// Ogg Vorbis の読み込み処理
+#define DX_READSOUNDFUNCTION_DEFAULT_NUM			(2)				// 環境非依存の読み込み処理タイプの数
 
 // ３Ｄサウンドリバーブエフェクトのプリセット
 #define DX_REVERB_PRESET_DEFAULT					(0)				// デフォルト
@@ -507,39 +512,46 @@
 #define DX_LIGHTTYPE_DIRECTIONAL					(3)				// D_D3DLIGHT_DIRECTIONAL
 
 // グラフィックイメージフォーマットの定義
-#define DX_GRAPHICSIMAGE_FORMAT_3D_RGB16					(0)		// １６ビットカラー標準
-#define DX_GRAPHICSIMAGE_FORMAT_3D_RGB32					(1)		// ３２ビットカラー標準
-#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_RGB16				(2)		// αチャンネル付き１６ビットカラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_RGB32				(3)		// αチャンネル付き３２ビットカラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_RGB16			(4)		// αテスト付き１６ビットカラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_RGB32			(5)		// αテスト付き３２ビットカラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DXT1						(6)		// ＤＸＴ１
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DXT2						(7)		// ＤＸＴ２
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DXT3						(8)		// ＤＸＴ３
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DXT4						(9)		// ＤＸＴ４
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DXT5 					(10)	// ＤＸＴ５
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_RGB16			(11)	// 描画可能１６ビットカラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_RGB32			(12)	// 描画可能３２ビットカラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ALPHA_RGB32	(13)	// 描画可能α付き３２ビットカラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ABGR_I16		(14)	// 描画可能ARGB整数16ビット型カラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ABGR_F16		(15)	// 描画可能ARGB浮動小数点16ビット型カラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ABGR_F32		(16)	// 描画可能ARGB浮動小数点32ビット型カラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ONE_I8			(17)	// 描画可能１チャンネル整数8ビット型カラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ONE_I16		(18)	// 描画可能１チャンネル整数16ビット型カラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ONE_F16		(19)	// 描画可能１チャンネル浮動少数16ビット型カラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ONE_F32		(20)	// 描画可能１チャンネル浮動少数32ビット型カラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_TWO_I8			(21)	// 描画可能２チャンネル整数8ビット型カラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_TWO_I16		(22)	// 描画可能２チャンネル整数16ビット型カラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_TWO_F16		(23)	// 描画可能２チャンネル浮動少数16ビット型カラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_TWO_F32		(24)	// 描画可能２チャンネル浮動少数32ビット型カラー
-#define DX_GRAPHICSIMAGE_FORMAT_3D_NUM						(25)
-#define DX_GRAPHICSIMAGE_FORMAT_2D							(26)	// 標準( DirectDrawSurface の場合はこれのみ )
-#define DX_GRAPHICSIMAGE_FORMAT_R5G6B5						(27)	// R5G6B5( MEMIMG 用 )
-#define DX_GRAPHICSIMAGE_FORMAT_X8A8R5G6B5					(28)	// X8A8R5G6B5( MEMIMG 用 )
-#define DX_GRAPHICSIMAGE_FORMAT_X8R8G8B8					(29)	// X8R8G8B8( MEMIMG 用 )
-#define DX_GRAPHICSIMAGE_FORMAT_A8R8G8B8					(30)	// A8R8G8B8( MEMIMG 用 )
+#define DX_GRAPHICSIMAGE_FORMAT_3D_PAL4						(0)		// １６色パレットカラー標準
+#define DX_GRAPHICSIMAGE_FORMAT_3D_PAL8						(1)		// ２５６色パレットカラー標準
+#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_PAL4				(2)		// αチャンネルつき１６色パレットカラー標準
+#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_PAL8				(3)		// αチャンネルつき２５６色パレットカラー標準
+#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_PAL4			(4)		// αテストつき１６色パレットカラー標準
+#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_PAL8			(5)		// αテストつき２５６色パレットカラー標準
+#define DX_GRAPHICSIMAGE_FORMAT_3D_RGB16					(6)		// １６ビットカラー標準
+#define DX_GRAPHICSIMAGE_FORMAT_3D_RGB32					(7)		// ３２ビットカラー標準
+#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_RGB16				(8)		// αチャンネル付き１６ビットカラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_RGB32				(9)		// αチャンネル付き３２ビットカラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_RGB16			(10)	// αテスト付き１６ビットカラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_RGB32			(11)	// αテスト付き３２ビットカラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DXT1						(12)	// ＤＸＴ１
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DXT2						(13)	// ＤＸＴ２
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DXT3						(14)	// ＤＸＴ３
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DXT4						(15)	// ＤＸＴ４
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DXT5 					(16)	// ＤＸＴ５
+#define DX_GRAPHICSIMAGE_FORMAT_3D_YUV	 					(16)	// ＹＵＶフォーマット
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_RGB16			(17)	// 描画可能１６ビットカラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_RGB32			(18)	// 描画可能３２ビットカラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ALPHA_RGB32	(19)	// 描画可能α付き３２ビットカラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ABGR_I16		(20)	// 描画可能ARGB整数16ビット型カラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ABGR_F16		(21)	// 描画可能ARGB浮動小数点16ビット型カラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ABGR_F32		(22)	// 描画可能ARGB浮動小数点32ビット型カラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ONE_I8			(23)	// 描画可能１チャンネル整数8ビット型カラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ONE_I16		(24)	// 描画可能１チャンネル整数16ビット型カラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ONE_F16		(25)	// 描画可能１チャンネル浮動少数16ビット型カラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_ONE_F32		(26)	// 描画可能１チャンネル浮動少数32ビット型カラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_TWO_I8			(27)	// 描画可能２チャンネル整数8ビット型カラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_TWO_I16		(28)	// 描画可能２チャンネル整数16ビット型カラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_TWO_F16		(29)	// 描画可能２チャンネル浮動少数16ビット型カラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_DRAWVALID_TWO_F32		(30)	// 描画可能２チャンネル浮動少数32ビット型カラー
+#define DX_GRAPHICSIMAGE_FORMAT_3D_NUM						(31)
+#define DX_GRAPHICSIMAGE_FORMAT_2D							(32)	// 標準( DirectDrawSurface の場合はこれのみ )
+#define DX_GRAPHICSIMAGE_FORMAT_R5G6B5						(33)	// R5G6B5( MEMIMG 用 )
+#define DX_GRAPHICSIMAGE_FORMAT_X8A8R5G6B5					(34)	// X8A8R5G6B5( MEMIMG 用 )
+#define DX_GRAPHICSIMAGE_FORMAT_X8R8G8B8					(35)	// X8R8G8B8( MEMIMG 用 )
+#define DX_GRAPHICSIMAGE_FORMAT_A8R8G8B8					(36)	// A8R8G8B8( MEMIMG 用 )
 
-#define DX_GRAPHICSIMAGE_FORMAT_NUM							(31)	// グラフィックフォーマットの種類の数
+#define DX_GRAPHICSIMAGE_FORMAT_NUM							(37)	// グラフィックフォーマットの種類の数
 
 // 基本イメージのピクセルフォーマット
 #define DX_BASEIMAGE_FORMAT_NORMAL					(0)			// 普通の画像
@@ -548,6 +560,7 @@
 #define DX_BASEIMAGE_FORMAT_DXT3					(3)			// ＤＸＴ３
 #define DX_BASEIMAGE_FORMAT_DXT4					(4)			// ＤＸＴ４
 #define DX_BASEIMAGE_FORMAT_DXT5					(5)			// ＤＸＴ５
+#define DX_BASEIMAGE_FORMAT_YUV						(6)			// ＹＵＶ
 
 // ウインドウの奥行き位置設定タイプ
 #define DX_WIN_ZTYPE_NORMAL							(0)			// 通常設定
@@ -1217,8 +1230,8 @@ typedef struct tagSEGMENT_SEGMENT_RESULT
 {
 	float					SegA_SegB_MinDist_Square ;	// 線分Ａと線分Ｂが最も接近する座標間の距離の二乗
 
-	float					SegA_MinDist_Pos1_Pos2_t ;	// 線分Ａと線分Ｂに最も接近する座標の線分Ａの t ( 0.0f ～ 1.0f 、最近点座標 = ( SegAPos2 - SegAPos1 ) * t + SegAPos1 )
-	float					SegB_MinDist_Pos1_Pos2_t ;	// 線分Ｂが線分Ａに最も接近する座標の線分Ｂの t ( 0.0f ～ 1.0f 、最近点座標 = ( SegBPos2 - SegBPos1 ) * t + SegBPos1 )
+	float					SegA_MinDist_Pos1_Pos2_t ;	// 線分Ａと線分Ｂに最も接近する座標の線分Ａの t ( 0.0f 〜 1.0f 、最近点座標 = ( SegAPos2 - SegAPos1 ) * t + SegAPos1 )
+	float					SegB_MinDist_Pos1_Pos2_t ;	// 線分Ｂが線分Ａに最も接近する座標の線分Ｂの t ( 0.0f 〜 1.0f 、最近点座標 = ( SegBPos2 - SegBPos1 ) * t + SegBPos1 )
 
 	VECTOR					SegA_MinDist_Pos ;			// 線分Ａが線分Ｂに最も接近する線分Ａ上の座標
 	VECTOR					SegB_MinDist_Pos ;			// 線分Ｂが線分Ａに最も接近する線分Ｂ上の座標
@@ -1229,8 +1242,8 @@ typedef struct tagSEGMENT_SEGMENT_RESULT_D
 {
 	double					SegA_SegB_MinDist_Square ;	// 線分Ａと線分Ｂが最も接近する座標間の距離の二乗
 
-	double					SegA_MinDist_Pos1_Pos2_t ;	// 線分Ａと線分Ｂに最も接近する座標の線分Ａの t ( 0.0 ～ 1.0 、最近点座標 = ( SegAPos2 - SegAPos1 ) * t + SegAPos1 )
-	double					SegB_MinDist_Pos1_Pos2_t ;	// 線分Ｂが線分Ａに最も接近する座標の線分Ｂの t ( 0.0 ～ 1.0 、最近点座標 = ( SegBPos2 - SegBPos1 ) * t + SegBPos1 )
+	double					SegA_MinDist_Pos1_Pos2_t ;	// 線分Ａと線分Ｂに最も接近する座標の線分Ａの t ( 0.0 〜 1.0 、最近点座標 = ( SegAPos2 - SegAPos1 ) * t + SegAPos1 )
+	double					SegB_MinDist_Pos1_Pos2_t ;	// 線分Ｂが線分Ａに最も接近する座標の線分Ｂの t ( 0.0 〜 1.0 、最近点座標 = ( SegBPos2 - SegBPos1 ) * t + SegBPos1 )
 
 	VECTOR_D				SegA_MinDist_Pos ;			// 線分Ａが線分Ｂに最も接近する線分Ａ上の座標
 	VECTOR_D				SegB_MinDist_Pos ;			// 線分Ｂが線分Ａに最も接近する線分Ｂ上の座標
@@ -1240,7 +1253,7 @@ typedef struct tagSEGMENT_SEGMENT_RESULT_D
 typedef struct tagSEGMENT_POINT_RESULT
 {
 	float					Seg_Point_MinDist_Square ;	// 線分と点が最も接近する座標間の距離の二乗
-	float					Seg_MinDist_Pos1_Pos2_t ;	// 線分が点に最も接近する座標の線分の t ( 0.0f ～ 1.0f 、最近点座標 = ( SegPos2 - SegPos1 ) * t + SegPos1 )
+	float					Seg_MinDist_Pos1_Pos2_t ;	// 線分が点に最も接近する座標の線分の t ( 0.0f 〜 1.0f 、最近点座標 = ( SegPos2 - SegPos1 ) * t + SegPos1 )
 	VECTOR					Seg_MinDist_Pos ;			// 線分が点に最も接近する線分上の座標
 } SEGMENT_POINT_RESULT ;
 
@@ -1248,7 +1261,7 @@ typedef struct tagSEGMENT_POINT_RESULT
 typedef struct tagSEGMENT_POINT_RESULT_D
 {
 	double					Seg_Point_MinDist_Square ;	// 線分と点が最も接近する座標間の距離の二乗
-	double					Seg_MinDist_Pos1_Pos2_t ;	// 線分が点に最も接近する座標の線分の t ( 0.0 ～ 1.0 、最近点座標 = ( SegPos2 - SegPos1 ) * t + SegPos1 )
+	double					Seg_MinDist_Pos1_Pos2_t ;	// 線分が点に最も接近する座標の線分の t ( 0.0 〜 1.0 、最近点座標 = ( SegPos2 - SegPos1 ) * t + SegPos1 )
 	VECTOR_D				Seg_MinDist_Pos ;			// 線分が点に最も接近する線分上の座標
 } SEGMENT_POINT_RESULT_D ;
 
@@ -1257,7 +1270,7 @@ typedef struct tagSEGMENT_TRIANGLE_RESULT
 {
 	float					Seg_Tri_MinDist_Square ;	// 線分と三角形が最も接近する座標間の距離の二乗
 
-	float					Seg_MinDist_Pos1_Pos2_t ;	// 線分が三角形に最も接近する座標の線分の t ( 0.0f ～ 1.0f 、最近点座標 = ( SegPos2 - SegPos1 ) * t + SegPos1 )
+	float					Seg_MinDist_Pos1_Pos2_t ;	// 線分が三角形に最も接近する座標の線分の t ( 0.0f 〜 1.0f 、最近点座標 = ( SegPos2 - SegPos1 ) * t + SegPos1 )
 	VECTOR					Seg_MinDist_Pos ;			// 線分が三角形に最も接近する線分上の座標
 
 	float					Tri_MinDist_Pos1_w ;		// 三角形が線分に最も接近する座標の三角形座標１の重み( 最近点座標 = TriPos1 * TriPos1_w + TriPos2 * TriPos2_w + TriPos3 * TriPos3_w )
@@ -1271,7 +1284,7 @@ typedef struct tagSEGMENT_TRIANGLE_RESULT_D
 {
 	double					Seg_Tri_MinDist_Square ;	// 線分と三角形が最も接近する座標間の距離の二乗
 
-	double					Seg_MinDist_Pos1_Pos2_t ;	// 線分が三角形に最も接近する座標の線分の t ( 0.0 ～ 1.0 、最近点座標 = ( SegPos2 - SegPos1 ) * t + SegPos1 )
+	double					Seg_MinDist_Pos1_Pos2_t ;	// 線分が三角形に最も接近する座標の線分の t ( 0.0 〜 1.0 、最近点座標 = ( SegPos2 - SegPos1 ) * t + SegPos1 )
 	VECTOR_D				Seg_MinDist_Pos ;			// 線分が三角形に最も接近する線分上の座標
 
 	double					Tri_MinDist_Pos1_w ;		// 三角形が線分に最も接近する座標の三角形座標１の重み( 最近点座標 = TriPos1 * TriPos1_w + TriPos2 * TriPos2_w + TriPos3 * TriPos3_w )
@@ -1379,52 +1392,52 @@ typedef struct tagMV1_REF_POLYGONLIST
 // ( 注釈は MSDN の XAUDIO2FX_REVERB_PARAMETERS 構造体の解説をほぼ引用しています )
 typedef struct tagSOUND3D_REVERB_PARAM
 {
-	float					WetDryMix ;							// リバーブとなる出力の割合( 指定可能範囲 0.0f ～ 100.0f )
+	float					WetDryMix ;							// リバーブとなる出力の割合( 指定可能範囲 0.0f 〜 100.0f )
 
-	unsigned int			ReflectionsDelay ;					// ダイレクト パスに対する初期反射の遅延時間、単位はミリ秒( 指定可能範囲 0 ～ 300 )
-	BYTE					ReverbDelay ;						// 初期反射に対するリバーブの遅延時間、単位はミリ秒( 指定可能範囲 0 ～ 85 )
-	BYTE					RearDelay ;							// 左後方出力および右後方出力の遅延時間、単位はミリ秒( 指定可能範囲 0 ～ 5 )
+	unsigned int			ReflectionsDelay ;					// ダイレクト パスに対する初期反射の遅延時間、単位はミリ秒( 指定可能範囲 0 〜 300 )
+	BYTE					ReverbDelay ;						// 初期反射に対するリバーブの遅延時間、単位はミリ秒( 指定可能範囲 0 〜 85 )
+	BYTE					RearDelay ;							// 左後方出力および右後方出力の遅延時間、単位はミリ秒( 指定可能範囲 0 〜 5 )
 
-	BYTE					PositionLeft ;						// シミュレーション空間における視聴者に対する左入力の位置( 指定可能範囲 0 ～ 30 )
+	BYTE					PositionLeft ;						// シミュレーション空間における視聴者に対する左入力の位置( 指定可能範囲 0 〜 30 )
 																// PositionLeft を最小値に設定した場合、左入力は視聴者の近くに配置されます。
 																// この位置では、サウンド フィールドにおいて初期反射が優勢になり、残響減衰は弱まって、振幅が小さくなります。
 																// PositionLeft を最大値に設定した場合、左入力はシミュレーション室内で視聴者から最大限遠い位置に配置されます。
 																// PositionLeft は残響減衰時間 (部屋の残響効果) に影響せず、視聴者に対する音源の見かけの位置のみに影響します。
-	BYTE					PositionRight ;						// PositionLeft と同効果の右入力値( 指定可能範囲 0 ～ 30 )、右入力にのみ影響を与える
-	BYTE					PositionMatrixLeft ;				// 音源から視聴者までの距離によるインプレッションを増減させる値( 指定可能範囲 0 ～ 30 )
-	BYTE					PositionMatrixRight ;				// 音源から視聴者までの距離によるインプレッションを増減させま値( 指定可能範囲 0 ～ 30 )
-	BYTE					EarlyDiffusion ;					// 個々の壁の反射特性値( 指定可能範囲 0 ～ 15 )、( 堅く平らな表面をシミュレートするには小さな値を設定し、散乱性の表面をシミュレートするには大きな値を設定します。)
-	BYTE					LateDiffusion ;						// 個々の壁のリバーブ特性値( 指定可能範囲 0 ～ 15 )、( 堅く平らな表面をシミュレートするには小さな値を設定し、散乱性の表面をシミュレートするには大きな値を設定します。)
-	BYTE					LowEQGain ;							// 1 kHz における減衰時間を基準にして低周波数の減衰時間調整値( 指定可能範囲 0 ～ 12 )
+	BYTE					PositionRight ;						// PositionLeft と同効果の右入力値( 指定可能範囲 0 〜 30 )、右入力にのみ影響を与える
+	BYTE					PositionMatrixLeft ;				// 音源から視聴者までの距離によるインプレッションを増減させる値( 指定可能範囲 0 〜 30 )
+	BYTE					PositionMatrixRight ;				// 音源から視聴者までの距離によるインプレッションを増減させま値( 指定可能範囲 0 〜 30 )
+	BYTE					EarlyDiffusion ;					// 個々の壁の反射特性値( 指定可能範囲 0 〜 15 )、( 堅く平らな表面をシミュレートするには小さな値を設定し、散乱性の表面をシミュレートするには大きな値を設定します。)
+	BYTE					LateDiffusion ;						// 個々の壁のリバーブ特性値( 指定可能範囲 0 〜 15 )、( 堅く平らな表面をシミュレートするには小さな値を設定し、散乱性の表面をシミュレートするには大きな値を設定します。)
+	BYTE					LowEQGain ;							// 1 kHz における減衰時間を基準にして低周波数の減衰時間調整値( 指定可能範囲 0 〜 12 )
 																// 値とゲイン (dB) の関係
 																// 値          0  1  2  3  4  5  6  7  8  9 10 11 12
 																// ゲイン(dB) -8 -7 -6 -5 -4 -3 -2 -1  0 +1 +2 +3 +4
 																// LowEQGain の値が 8 の場合、低周波数の減衰時間と 1 kHz における減衰時間が等しくなることに注意してください
-	BYTE					LowEQCutoff ;						// LowEQGain パラメーターにより制御されるローパス フィルターの折点周波数の設定値( 指定可能範囲 0 ～ 9 )
+	BYTE					LowEQCutoff ;						// LowEQGain パラメーターにより制御されるローパス フィルターの折点周波数の設定値( 指定可能範囲 0 〜 9 )
 																// 値と周波数 (Hz) の関係
 																// 値          0   1   2   3   4   5   6   7   8   9
 																// 周波数(Hz) 50 100 150 200 250 300 350 400 450 500
-	BYTE					HighEQGain ;						// 1 kHz における減衰時間を基準にして高周波数の減衰時間調整値( 指定可能範囲 0 ～ 8 )
+	BYTE					HighEQGain ;						// 1 kHz における減衰時間を基準にして高周波数の減衰時間調整値( 指定可能範囲 0 〜 8 )
 																// 値とゲイン (dB) の関係
 																// 値          0  1  2  3  4  5  6  7 8
 																// ゲイン(dB) -8 -7 -6 -5 -4 -3 -2 -1 0
 																// 0 に設定すると、高周波数の音が 1 kHz の場合と同じ割合で減衰します。最大値に設定すると、高周波数の音が 1 kHz の場合よりもはるかに高い割合で減衰します。
-	BYTE					HighEQCutoff ;						// HighEQGain パラメーターにより制御されるハイパス フィルターの折点周波数設定値( 指定可能範囲 0 ～ 14 )
+	BYTE					HighEQCutoff ;						// HighEQGain パラメーターにより制御されるハイパス フィルターの折点周波数設定値( 指定可能範囲 0 〜 14 )
 																// 値と周波数 (kHz) の関係
 																// 値          0    1    2     3    4     5    6     7    8     9   10    11   12    13   14
 																// 周波数(kHz) 1  1.5    2   2.5    3   3.5    4   4.5    5   5.5    6   6.5    7   7.5    8
 
-	float					RoomFilterFreq ;					// 室内エフェクトのローパス フィルターの折点周波数、単位は Hz ( 指定可能範囲 20.0f ～ 20000.0f )
-	float					RoomFilterMain ;					// 初期反射と後期フィールド残響の両方に適用されるローパス フィルターのパス バンド強度レベル、単位は dB ( 指定可能範囲 -100.0f ～ 0.0f )
-	float					RoomFilterHF ;						// 折点周波数 (RoomFilterFreq) での初期反射と後期フィールド残響の両方に適用されるローパス フィルターのパス バンド強度レベル、単位は dB ( 指定可能範囲 -100.0f ～ 0.0f )
-	float					ReflectionsGain ;					// 初期反射の強度/レベルを調整値、単位は dB ( 指定可能範囲 -100.0f ～ 20.0f )
-	float					ReverbGain ;						// リバーブの強度/レベルを調整値、単位は dB ( 指定可能範囲 -100.0f ～ 20.0f )
-	float					DecayTime ;							// 1 kHz における残響減衰時間、単位は秒 ( 指定可能範囲 0.1f ～ 上限値特になし )、これは、フル スケールの入力信号が 60 dB 減衰するまでの時間です。
-	float					Density ;							// 後期フィールド残響のモード密度を制御値、単位はパーセント( 指定可能範囲 0.0f ～ 100.0f )
+	float					RoomFilterFreq ;					// 室内エフェクトのローパス フィルターの折点周波数、単位は Hz ( 指定可能範囲 20.0f 〜 20000.0f )
+	float					RoomFilterMain ;					// 初期反射と後期フィールド残響の両方に適用されるローパス フィルターのパス バンド強度レベル、単位は dB ( 指定可能範囲 -100.0f 〜 0.0f )
+	float					RoomFilterHF ;						// 折点周波数 (RoomFilterFreq) での初期反射と後期フィールド残響の両方に適用されるローパス フィルターのパス バンド強度レベル、単位は dB ( 指定可能範囲 -100.0f 〜 0.0f )
+	float					ReflectionsGain ;					// 初期反射の強度/レベルを調整値、単位は dB ( 指定可能範囲 -100.0f 〜 20.0f )
+	float					ReverbGain ;						// リバーブの強度/レベルを調整値、単位は dB ( 指定可能範囲 -100.0f 〜 20.0f )
+	float					DecayTime ;							// 1 kHz における残響減衰時間、単位は秒 ( 指定可能範囲 0.1f 〜 上限値特になし )、これは、フル スケールの入力信号が 60 dB 減衰するまでの時間です。
+	float					Density ;							// 後期フィールド残響のモード密度を制御値、単位はパーセント( 指定可能範囲 0.0f 〜 100.0f )
 																// 無色 (colorless) の空間では、Density を最大値 (100.0f ) に設定する必要があります。
 																// Density を小さくすると、サウンドはくぐもった音 (くし形フィルターが適用された音) になります。
 																// これはサイロをシミュレーションするときに有効なエフェクトです。
-	float					RoomSize ;							// 音響空間の見かけ上のサイズ、単位はフィート( 指定可能範囲 1.0f (30.48 cm) ～ 100.0f (30.48 m) )
+	float					RoomSize ;							// 音響空間の見かけ上のサイズ、単位はフィート( 指定可能範囲 1.0f (30.48 cm) 〜 100.0f (30.48 m) )
 } SOUND3D_REVERB_PARAM ;
 
 
@@ -1516,6 +1529,7 @@ typedef struct tagCOLORDATA
 	unsigned char			RedLoc	, GreenLoc  , BlueLoc  , AlphaLoc   ;	// 各色の配置されているビットアドレス
 	unsigned int			RedMask , GreenMask , BlueMask , AlphaMask  ;	// 各色のビットマスク
 	unsigned int			NoneMask ;										// 使われていないビットのマスク
+	int						MaxPaletteNo ;									// 使用しているパレット番号の最大値( 0 の場合は 255 とみなす )
 	COLORPALETTEDATA		Palette[ 256 ] ;								// パレット( ColorBitDepth が８以下の場合のみ有効 )
 } COLORDATA, *LPCOLORDATA ;
 
@@ -1574,12 +1588,12 @@ typedef struct tagIMAGEFORMATDESC
 // DirectInput のジョイパッド入力情報
 typedef struct tagDINPUT_JOYSTATE
 {
-	int						X ;								// スティックのＸ軸パラメータ( -1000～1000 )
-	int						Y ;								// スティックのＹ軸パラメータ( -1000～1000 )
-	int						Z ;								// スティックのＺ軸パラメータ( -1000～1000 )
-	int						Rx ;							// スティックのＸ軸回転パラメータ( -1000～1000 )
-	int						Ry ;							// スティックのＹ軸回転パラメータ( -1000～1000 )
-	int						Rz ;							// スティックのＺ軸回転パラメータ( -1000～1000 )
+	int						X ;								// スティックのＸ軸パラメータ( -1000〜1000 )
+	int						Y ;								// スティックのＹ軸パラメータ( -1000〜1000 )
+	int						Z ;								// スティックのＺ軸パラメータ( -1000〜1000 )
+	int						Rx ;							// スティックのＸ軸回転パラメータ( -1000〜1000 )
+	int						Ry ;							// スティックのＹ軸回転パラメータ( -1000〜1000 )
+	int						Rz ;							// スティックのＺ軸回転パラメータ( -1000〜1000 )
 	int						Slider[ 2 ] ;					// スライダー二つ
 	unsigned int			POV[ 4 ] ;						// ハットスイッチ４つ( 0xffffffff:入力なし 0:上 4500:右上 9000:右 13500:右下 18000:下 22500:左下 27000:左 31500:左上 )
 	unsigned char			Buttons[ 32 ] ;					// ボタン３２個( 押されたボタンは 128 になる )
@@ -1589,12 +1603,12 @@ typedef struct tagDINPUT_JOYSTATE
 typedef struct tagXINPUT_STATE
 {
 	unsigned char			Buttons[ 16 ] ;					// ボタン１６個( 添字には XINPUT_BUTTON_DPAD_UP 等を使用する、0:押されていない  1:押されている )
-	unsigned char			LeftTrigger ;					// 左トリガー( 0～255 )
-	unsigned char			RightTrigger ;					// 右トリガー( 0～255 )
-	short					ThumbLX ;						// 左スティックの横軸値( -32768 ～ 32767 )
-	short					ThumbLY ;						// 左スティックの縦軸値( -32768 ～ 32767 )
-	short					ThumbRX ;						// 右スティックの横軸値( -32768 ～ 32767 )
-	short					ThumbRY ;						// 右スティックの縦軸値( -32768 ～ 32767 )
+	unsigned char			LeftTrigger ;					// 左トリガー( 0〜255 )
+	unsigned char			RightTrigger ;					// 右トリガー( 0〜255 )
+	short					ThumbLX ;						// 左スティックの横軸値( -32768 〜 32767 )
+	short					ThumbLY ;						// 左スティックの縦軸値( -32768 〜 32767 )
+	short					ThumbRX ;						// 右スティックの横軸値( -32768 〜 32767 )
+	short					ThumbRY ;						// 右スティックの縦軸値( -32768 〜 32767 )
 } XINPUT_STATE ;
 
 
@@ -1806,6 +1820,69 @@ extern	void		DxDrawAlloc(					int x, int y, int Width, int Height ) ;											
 extern	int			DxErrorCheckAlloc(				void ) ;																		// 確保したメモリ情報が破壊されていないか調べる( -1:破壊あり  0:なし )
 extern	int			DxSetAllocSizeOutFlag(			int Flag ) ;																	// メモリが確保、解放が行われる度に確保しているメモリの容量を出力するかどうかのフラグをセットする
 extern	int			DxSetAllocMemoryErrorCheckFlag(	int Flag ) ;																	// メモリの確保、解放が行われる度に確保しているメモリ確保情報が破損していないか調べるかどうかのフラグをセットする
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// DxBaseFunc.cpp 関数プロトタイプ宣言
+
+// 文字コード関係
+extern	int				ConvertStringCharCodeFormat( int SrcCharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */, const void *SrcString, int DestCharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */, void *DestStringBuffer ) ;		// 文字列の文字コード形式を別の文字コード形式に変換する
+extern	int				SetUseCharCodeFormat( int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ ) ;																															// 文字列の引数の文字コード形式を設定する( 文字列描画系関数とその他一部関数を除く )( UNICODE版では無効 )
+
+// 文字列関係
+extern	void			strcpyDx(     TCHAR *Dest, const TCHAR *Src ) ;									// strcpy と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			strpcpyDx(    TCHAR *Dest, const TCHAR *Src, int Pos ) ;						// 位置指定付き strcpy、Pos はコピー開始位置　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			strpcpy2Dx(   TCHAR *Dest, const TCHAR *Src, int Pos ) ;						// 位置指定付き strcpy、Pos はコピー開始位置( 全角文字も 1 扱い )　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			strncpyDx(    TCHAR *Dest, const TCHAR *Src, int Num ) ;						// strncpy と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			strncpy2Dx(   TCHAR *Dest, const TCHAR *Src, int Num ) ;						// strncpy の Num が文字数( 全角文字も 1 扱い )になったもの、終端に必ずヌル文字が代入される( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			strrncpyDx(   TCHAR *Dest, const TCHAR *Src, int Num ) ;						// strncpy の文字列の終端からの文字数指定版( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			strrncpy2Dx(  TCHAR *Dest, const TCHAR *Src, int Num ) ;						// strncpy の文字列の終端からの文字数( 全角文字も 1 扱い )指定版、終端に必ずヌル文字が代入される( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			strpncpyDx(   TCHAR *Dest, const TCHAR *Src, int Pos, int Num ) ;				// strncpy のコピー開始位置指定版、Pos はコピー開始位置、Num は文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			strpncpy2Dx(  TCHAR *Dest, const TCHAR *Src, int Pos, int Num ) ;				// strncpy のコピー開始位置指定版、Pos はコピー開始位置( 全角文字も 1 扱い )、Num は文字数( 全角文字も 1 扱い )、終端に必ずヌル文字が代入される( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	void			strcatDx(     TCHAR *Dest, const TCHAR *Src ) ;									// strcat と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strlenDx(     const TCHAR *Str ) ;												// strlen と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strlen2Dx(    const TCHAR *Str ) ;												// strlen の戻り値が文字数( 全角文字も 1 扱い )になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strcmpDx(     const TCHAR *Str1, const TCHAR *Str2 ) ;							// strcmp と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				stricmpDx(    const TCHAR *Str1, const TCHAR *Str2 ) ;							// stricmp と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strncmpDx(    const TCHAR *Str1, const TCHAR *Str2, int Num ) ;					// strncmp と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strncmp2Dx(   const TCHAR *Str1, const TCHAR *Str2, int Num ) ;					// strncmp の Num が文字数( 全角文字も 1 扱い )になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strpncmpDx(   const TCHAR *Str1, const TCHAR *Str2, int Pos, int Num ) ;		// strncmp の比較開始位置指定版、Pos が Str1 の比較開始位置、Num が文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strpncmp2Dx(  const TCHAR *Str1, const TCHAR *Str2, int Pos, int Num ) ;		// strncmp の比較開始位置指定版、Pos が Str1 の比較開始位置( 全角文字も 1 扱い )、Num が文字数( 全角文字も 1 扱い )( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	DWORD			strgetchrDx(  const TCHAR *Str, int Pos, int *CharNums = NULL ) ;				// 文字列の指定の位置の文字コードを取得する、Pos は取得する位置、CharNums は文字数を代入する変数のアドレス、戻り値は文字コード( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	DWORD			strgetchr2Dx( const TCHAR *Str, int Pos, int *CharNums = NULL ) ;				// 文字列の指定の位置の文字コードを取得する、Pos は取得する位置( 全角文字も 1 扱い )、CharNums は文字数を代入する変数のアドレス、戻り値は文字コード( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strputchrDx(  TCHAR *Str, int Pos, DWORD CharCode ) ;							// 文字列の指定の位置に文字コードを書き込む、Pos は書き込む位置、CharCode は文字コード、戻り値は書き込んだ文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strputchr2Dx( TCHAR *Str, int Pos, DWORD CharCode ) ;							// 文字列の指定の位置に文字コードを書き込む、Pos は書き込む位置( 全角文字も 1 扱い )、CharCode は文字コード、戻り値は書き込んだ文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	strposDx(     const TCHAR *Str, int Pos ) ;										// 文字列の指定の位置のアドレスを取得する、Pos は取得する位置　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	strpos2Dx(    const TCHAR *Str, int Pos ) ;										// 文字列の指定の位置のアドレスを取得する、Pos は取得する位置( 全角文字も 1 扱い )　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	strstrDx(     const TCHAR *Str1, const TCHAR *Str2 ) ;							// strstr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strstr2Dx(    const TCHAR *Str1, const TCHAR *Str2 ) ;							// strstr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	strrstrDx(    const TCHAR *Str1, const TCHAR *Str2 ) ;							// strrstr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strrstr2Dx(   const TCHAR *Str1, const TCHAR *Str2 ) ;							// strrstr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	strchrDx(     const TCHAR *Str, DWORD CharCode ) ;								// strchr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strchr2Dx(    const TCHAR *Str, DWORD CharCode ) ;								// strchr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	const TCHAR *	strrchrDx(    const TCHAR *Str, DWORD CharCode ) ;								// strrchr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				strrchr2Dx(   const TCHAR *Str, DWORD CharCode ) ;								// strrchr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	TCHAR *			struprDx(     TCHAR *Str ) ;													// strupr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				vsprintfDx(   TCHAR *Buffer, const TCHAR *FormatString, va_list Arg ) ;			// vsprintf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				sprintfDx(    TCHAR *Buffer, const TCHAR *FormatString, ... ) ;					// sprintf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	TCHAR *			itoaDx(       int Value, TCHAR *Buffer, int Radix ) ;							// itoa と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				atoiDx(       const TCHAR *Str ) ;												// atoi と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	double			atofDx(       const TCHAR *Str ) ;												// atof と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				vsscanfDx(    const TCHAR *String, const TCHAR *FormatString, va_list Arg ) ;	// vsscanf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern	int				sscanfDx(     const TCHAR *String, const TCHAR *FormatString, ... ) ;			// sscanf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+
+
 
 
 
@@ -2067,7 +2144,7 @@ extern	int			GetJoypadDirectInputState(				int InputType, DINPUT_JOYSTATE *DInpu
 extern	int			CheckJoypadXInput(						int InputType ) ;														// 指定の入力デバイスが XInput に対応しているかどうかを取得する( 戻り値  TRUE:XInput対応の入力デバイス  FALSE:XInput非対応の入力デバイス   -1:エラー )( DX_INPUT_KEY や DX_INPUT_KEY_PAD1 など、キーボードが絡むタイプを InputType に渡すとエラーとなり -1 を返す )
 extern	int			GetJoypadXInputState(					int InputType, XINPUT_STATE *XInputState ) ;							// XInput から得られる入力デバイス( Xbox360コントローラ等 )の生のデータを取得する( XInput非対応のパッドの場合はエラーとなり -1 を返す、DX_INPUT_KEY や DX_INPUT_KEY_PAD1 など、キーボードが絡むタイプを InputType に渡すとエラーとなり -1 を返す )
 extern	int			SetJoypadInputToKeyInput(				int InputType, int PadInput, int KeyInput1, int KeyInput2 = -1 , int KeyInput3 = -1 , int KeyInput4 = -1  ) ; // ジョイパッドの入力に対応したキーボードの入力を設定する( InputType:設定を変更するパッドの識別子( DX_INPUT_PAD1等 )　　PadInput:設定を変更するパッドボタンの識別子( PAD_INPUT_1 等 )　　KeyInput1:PadInput を押下したことにするキーコード( KEY_INPUT_A など )その１　　KeyInput2:その２、-1で設定なし　　KeyInput3:その３、-1で設定なし　　KeyInput4:その４、-1で設定なし )
-extern	int			SetJoypadDeadZone(						int InputType, double Zone ) ;											// ジョイパッドの無効ゾーンの設定を行う( InputType:設定を変更するパッドの識別子( DX_INPUT_PAD1等 )   Zone:新しい無効ゾーン( 0.0 ～ 1.0 )、デフォルト値は 0.35 )
+extern	int			SetJoypadDeadZone(						int InputType, double Zone ) ;											// ジョイパッドの無効ゾーンの設定を行う( InputType:設定を変更するパッドの識別子( DX_INPUT_PAD1等 )   Zone:新しい無効ゾーン( 0.0 〜 1.0 )、デフォルト値は 0.35 )
 extern	int			StartJoypadVibration(					int InputType, int Power, int Time, int EffectIndex = -1 ) ;			// ジョイパッドの振動を開始する
 extern	int			StopJoypadVibration(					int InputType, int EffectIndex = -1 ) ;									// ジョイパッドの振動を停止する
 extern	int			GetJoypadPOVState(						int InputType, int POVNumber ) ;										// ジョイパッドのＰＯＶ入力の状態を得る( 戻り値　指定のPOVデータの角度、単位は角度の１００倍( 90度なら 9000 ) 中心位置にある場合は -1 が返る )
@@ -2105,7 +2182,7 @@ extern	int			DeleteShadowMap(				int SmHandle ) ;															// シャドウ�
 extern	int			SetShadowMapLightDirection(		int SmHandle, VECTOR Direction ) ;											// シャドウマップが想定するライトの方向を設定する
 extern	int			ShadowMap_DrawSetup(			int SmHandle ) ;															// シャドウマップへの描画の準備を行う
 extern	int			ShadowMap_DrawEnd(				void ) ;																	// シャドウマップへの描画を終了する
-extern	int			SetUseShadowMap(				int SmSlotIndex, int SmHandle ) ;											// 描画で使用するシャドウマップを指定する、有効なスロットは０～２、SmHandle に -1 を渡すと指定のスロットのシャドウマップを解除
+extern	int			SetUseShadowMap(				int SmSlotIndex, int SmHandle ) ;											// 描画で使用するシャドウマップを指定する、有効なスロットは０〜２、SmHandle に -1 を渡すと指定のスロットのシャドウマップを解除
 extern	int			SetShadowMapDrawArea(			int SmHandle, VECTOR MinPosition, VECTOR MaxPosition ) ;					// シャドウマップに描画する際の範囲を設定する( この関数で描画範囲を設定しない場合は視錐台を拡大した範囲が描画範囲となる )
 extern	int			ResetShadowMapDrawArea(			int SmHandle ) ;															// SetShadowMapDrawArea の設定を解除する
 extern	int			SetShadowMapAdjustDepth(		int SmHandle, float Depth ) ;												// シャドウマップを使用した描画時の補正深度を設定する
@@ -2206,7 +2283,7 @@ extern 	int			SetUseAlphaChannelGraphCreateFlag(			int Flag ) ;									// αチ
 extern 	int			GetUseAlphaChannelGraphCreateFlag(			void ) ;										// αチャンネル付きグラフィックハンドルを作成するかどうかを取得する( TRUE:αチャンネル付き   FALSE:αチャンネル無し )
 extern	int			SetUseNotManageTextureFlag(					int Flag ) ;									// Direct3D の管理テクスチャ機能を使用するグラフィックハンドルを作成するかどうかを設定する( TRUE:管理機能を使用する( デフォルト )  FALSE:管理機能を使用しない )、管理機能を使用するとグラフィックスデバイスのＶＲＡＭ容量以上の画像を扱うことができる代わりにシステムメモリの使用量が増えます
 extern	int			GetUseNotManageTextureFlag(					void ) ;										// Direct3D の管理テクスチャ機能を使用するグラフィックハンドルを作成するかどうかを取得する
-extern	int			SetTransColor(								int Red, int Green, int Blue ) ;				// 作成するグラフィックハンドルに適用する透過色を設定する( Red,Green,Blue:透過色を光の３原色で表したもの( 各色０～２５５ ) )
+extern	int			SetTransColor(								int Red, int Green, int Blue ) ;				// 作成するグラフィックハンドルに適用する透過色を設定する( Red,Green,Blue:透過色を光の３原色で表したもの( 各色０〜２５５ ) )
 extern	int			GetTransColor(								int *Red, int *Green, int *Blue ) ;				// 作成するグラフィックハンドルに適用する透過色を取得する
 extern	int			SetUseDivGraphFlag(							int Flag ) ;									// ２のｎ乗ではないサイズの画像を複数のテクスチャを使用してＶＲＡＭの無駄を省くかどうかを設定する( TRUE:複数のテクスチャを使用する   FALSE:なるべく一枚のテクスチャで済ます( デフォルト ) )、複数のテクスチャを使用する場合はＶＲＡＭ容量の節約ができる代わりに速度の低下やバイリニアフィルタリング描画時にテクスチャとテクスチャの境目が良く見るとわかる等の弊害があります
 extern	int			SetUseAlphaImageLoadFlag(					int Flag ) ;									// LoadGraph などの際にファイル名の末尾に _a が付いたアルファチャンネル用の画像ファイルを追加で読み込む処理を行うかどうかを設定する( TRUE:行う( デフォルト )  FALSE:行わない )
@@ -2371,11 +2448,11 @@ extern	int			SetDrawMode(						int DrawMode ) ;												// 描画モードを
 extern	int			GetDrawMode(						void ) ;														// 描画モードを取得する
 extern	int			SetDrawBlendMode(					int BlendMode, int BlendParam ) ;								// 描画ブレンドモードを設定する
 extern	int			GetDrawBlendMode(					int *BlendMode, int *BlendParam ) ;								// 描画ブレンドモードを取得する
-extern	int			SetDrawAlphaTest(					int TestMode, int TestParam ) ;									// 描画時のアルファテストの設定を行う( TestMode:テストモード( DX_CMP_GREATER等 -1でデフォルト動作に戻す )  TestParam:描画アルファ値との比較に使用する値( 0～255 ) )
+extern	int			SetDrawAlphaTest(					int TestMode, int TestParam ) ;									// 描画時のアルファテストの設定を行う( TestMode:テストモード( DX_CMP_GREATER等 -1でデフォルト動作に戻す )  TestParam:描画アルファ値との比較に使用する値( 0〜255 ) )
 extern	int			SetBlendGraph(						int BlendGraph, int BorderParam, int BorderRange ) ;			// ( SetBlendGraphParam の BlendType = DX_BLENDGRAPHTYPE_WIPE の処理を行う旧関数 )描画処理時に描画する画像とブレンドするαチャンネル付き画像をセットする( BlendGraph を -1 でブレンド機能を無効 )
 extern	int			SetBlendGraphParam(					int BlendGraph, int BlendType, ... ) ;							// 描画処理時に描画する画像とブレンドする画像のブレンド設定を行う、BlendGraph を -1 にすれば設定を解除、その場合 BlendType とその後ろのパラメータは無視される
-//		int			SetBlendGraphParam(					int BlendGraph, int BlendType = DX_BLENDGRAPHTYPE_NORMAL, int Ratio = ( 0( ブレンド率０％ )～255( ブレンド率１００％ ) ) ) ;
-//		int			SetBlendGraphParam(					int BlendGraph, int BlendType = DX_BLENDGRAPHTYPE_WIPE, int BorderParam = 境界位置(０～２５５), int BorderRange = 境界幅(指定できる値は１、６４、１２８、２５５の４つ) ) ;
+//		int			SetBlendGraphParam(					int BlendGraph, int BlendType = DX_BLENDGRAPHTYPE_NORMAL, int Ratio = ( 0( ブレンド率０％ )〜255( ブレンド率１００％ ) ) ) ;
+//		int			SetBlendGraphParam(					int BlendGraph, int BlendType = DX_BLENDGRAPHTYPE_WIPE, int BorderParam = 境界位置(０〜２５５), int BorderRange = 境界幅(指定できる値は１、６４、１２８、２５５の４つ) ) ;
 //		int			SetBlendGraphParam(					int BlendGraph, int BlendType = DX_BLENDGRAPHTYPE_ALPHA ) ;
 extern	int			SetBlendGraphPosition(				int x, int y ) ;												// ブレンド画像の起点座標をセットする
 extern	int			SetDrawBright(						int RedBright, int GreenBright, int BlueBright ) ;				// 描画輝度を設定する
@@ -2455,15 +2532,15 @@ extern	int			SetFogMode(							int Mode /* DX_FOGMODE_NONE 等 */ ) ;							// �
 extern	int			GetFogMode(							void ) ;														// フォグモードを取得する
 extern	int			SetFogColor(						int  r, int  g, int  b ) ;										// フォグカラーを設定する
 extern	int			GetFogColor(						int *r, int *g, int *b ) ;										// フォグカラーを取得する
-extern	int			SetFogStartEnd(						float  start, float  end ) ;									// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
-extern	int			GetFogStartEnd(						float *start, float *end ) ;									// フォグが始まる距離と終了する距離を取得する( 0.0f ～ 1.0f )
-extern	int			SetFogDensity(						float density ) ;												// フォグの密度を設定する( 0.0f ～ 1.0f )
-extern	float		GetFogDensity(						void ) ;														// フォグの密度を取得する( 0.0f ～ 1.0f )
+extern	int			SetFogStartEnd(						float  start, float  end ) ;									// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
+extern	int			GetFogStartEnd(						float *start, float *end ) ;									// フォグが始まる距離と終了する距離を取得する( 0.0f 〜 1.0f )
+extern	int			SetFogDensity(						float density ) ;												// フォグの密度を設定する( 0.0f 〜 1.0f )
+extern	float		GetFogDensity(						void ) ;														// フォグの密度を取得する( 0.0f 〜 1.0f )
 
 
 // 画面関係関数
 extern	unsigned int	GetPixel(									int x, int y ) ;																// 指定座標の色を取得する
-extern	int				SetBackgroundColor(							int Red, int Green, int Blue ) ;												// メインウインドウの背景色を設定する( Red,Green,Blue:それぞれ ０～２５５ )
+extern	int				SetBackgroundColor(							int Red, int Green, int Blue ) ;												// メインウインドウの背景色を設定する( Red,Green,Blue:それぞれ ０〜２５５ )
 extern	int				GetDrawScreenGraph(							                             int x1, int y1, int x2, int y2,                       int GrHandle, int UseClientFlag = TRUE ) ;	// 描画先の画面から指定領域の画像情報をグラフィックハンドルに転送する
 extern	int				BltDrawValidGraph(							int TargetDrawValidGrHandle, int x1, int y1, int x2, int y2, int DestX, int DestY, int DestGrHandle ) ;							// SetDrawScreen で描画対象にできるグラフィックハンドルから指定領域の画像情報を別のグラフィックハンドルに転送する
 extern	int				ScreenFlip(									void ) ;																		// 裏画面と表画面の内容を交換する
@@ -2496,7 +2573,7 @@ extern	int				GetVideoMemorySize(							int *AllSize, int *FreeSize ) ;									
 extern	int				GetRefreshRate(								void ) ;																		// 現在の画面のリフレッシュレートを取得する
 extern	int				GetDisplayNum(								void ) ;																		// ディスプレイの数を取得
 extern	int				GetDisplayModeNum(							int DisplayIndex = 0 ) ;														// 変更可能なディスプレイモードの数を取得する
-extern	DISPLAYMODEDATA	GetDisplayMode(								int ModeIndex, int DisplayIndex = 0 ) ;											// 変更可能なディスプレイモードの情報を取得する( ModeIndex は 0 ～ GetDisplayModeNum の戻り値-1 )
+extern	DISPLAYMODEDATA	GetDisplayMode(								int ModeIndex, int DisplayIndex = 0 ) ;											// 変更可能なディスプレイモードの情報を取得する( ModeIndex は 0 〜 GetDisplayModeNum の戻り値-1 )
 extern	int				GetDisplayMaxResolution(					int *SizeX, int *SizeY, int DisplayIndex = 0 ) ;								// ディスプレイの最大解像度を取得する
 extern	const COLORDATA* GetDispColorData(							void ) ;																		// ディスプレイのカラーデータアドレスを取得する
 extern	int				GetMultiDrawScreenNum(						void ) ;																		// 同時に描画を行うことができる画面の数を取得する
@@ -2526,12 +2603,12 @@ extern	int			RenderVertex(								void ) ;										// 頂点バッファに溜�
 #ifndef DX_NON_SAVEFUNCTION
 
 // 描画先画面保存関数
-// Jpeg_Quality         = 0:低画質～100:高画質
-// Png_CompressionLevel = 0:無圧縮～  9:最高圧縮
+// Jpeg_Quality         = 0:低画質〜100:高画質
+// Png_CompressionLevel = 0:無圧縮〜  9:最高圧縮
 extern	int			SaveDrawScreen(       int x1, int y1, int x2, int y2, const TCHAR *FileName, int SaveType = DX_IMAGESAVETYPE_BMP , int Jpeg_Quality = 80 , int Jpeg_Sample2x1 = TRUE , int Png_CompressionLevel = -1 ) ;		// 現在描画対象になっている画面をファイルで保存する
 extern	int			SaveDrawScreenToBMP(  int x1, int y1, int x2, int y2, const TCHAR *FileName ) ;																																	// 現在描画対象になっている画面をＢＭＰ形式で保存する
-extern	int			SaveDrawScreenToJPEG( int x1, int y1, int x2, int y2, const TCHAR *FileName, int Quality = 80 , int Sample2x1 = TRUE ) ;																						// 現在描画対象になっている画面をＪＰＥＧ形式で保存する Quality = 画質、値が大きいほど低圧縮高画質,0～100 
-extern	int			SaveDrawScreenToPNG(  int x1, int y1, int x2, int y2, const TCHAR *FileName, int CompressionLevel = -1 ) ;																										// 現在描画対象になっている画面をＰＮＧ形式で保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0～9
+extern	int			SaveDrawScreenToJPEG( int x1, int y1, int x2, int y2, const TCHAR *FileName, int Quality = 80 , int Sample2x1 = TRUE ) ;																						// 現在描画対象になっている画面をＪＰＥＧ形式で保存する Quality = 画質、値が大きいほど低圧縮高画質,0〜100 
+extern	int			SaveDrawScreenToPNG(  int x1, int y1, int x2, int y2, const TCHAR *FileName, int CompressionLevel = -1 ) ;																										// 現在描画対象になっている画面をＰＮＧ形式で保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0〜9
 
 #endif // DX_NON_SAVEFUNCTION
 
@@ -2632,14 +2709,14 @@ extern	int			SetShaderConstantBuffer(		int SConstBufHandle, int TargetShader /* 
 extern	int			GraphFilter(         int    GrHandle,                                                                                                               int FilterType /* DX_GRAPH_FILTER_GAUSS 等 */ , ... ) ;		// 画像にフィルター処理を行う
 extern	int			GraphFilterBlt(      int SrcGrHandle, int DestGrHandle,                                                                                             int FilterType /* DX_GRAPH_FILTER_GAUSS 等 */ , ... ) ;		// 画像のフィルター付き転送を行う
 extern	int			GraphFilterRectBlt(  int SrcGrHandle, int DestGrHandle, int SrcX1, int SrcY1, int SrcX2, int SrcY2, int DestX,  int DestY,                          int FilterType /* DX_GRAPH_FILTER_GAUSS 等 */ , ... ) ;		// 画像のフィルター付き転送を行う( 矩形指定 )
-//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_MONO, int Cb = 青色差( -255 ～ 255 ), int Cr = 赤色差( -255 ～ 255 ) ) ;
+//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_MONO, int Cb = 青色差( -255 〜 255 ), int Cr = 赤色差( -255 〜 255 ) ) ;
 //		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_GAUSS, int PixelWidth = 使用ピクセル幅( 8 , 16 , 32 の何れか ), int Param = ぼかしパラメータ( 100 で約1ピクセル分の幅 ) ) ;
 //		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_DOWN_SCALE, int DivNum = 元のサイズの何分の１か、という値( 2 , 4 , 8 の何れか ) ) ;
-//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_BRIGHT_CLIP, int CmpType = クリップタイプ( DX_CMP_LESS:CmpParam以下をクリップ  又は  DX_CMP_GREATER:CmpParam以上をクリップ ), int CmpParam = クリップパラメータ( 0 ～ 255 ), int ClipFillFlag = クリップしたピクセルを塗りつぶすかどうか( TRUE:塗りつぶす  FALSE:塗りつぶさない ), unsigned int ClipFillColor = クリップしたピクセルに塗る色値( GetColor で取得する )( ClipFillFlag が FALSE の場合は使用しない ), int ClipFillAlpha = クリップしたピクセルに塗るα値( 0 ～ 255 )( ClipFillFlag が FALSE の場合は使用しない ) ) ;
-//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_HSB, int HueType = Hue の意味( 0:相対値  1:絶対値 ), int Hue = 色相パラメータ( HueType が 0 の場合 = ピクセルの色相に対する相対値( -180 ～ 180 )   HueType が 1 の場合 = 色相の絶対値( 0 ～ 360 ) ), int Saturation = 彩度( -255 ～ ), int Bright = 輝度( -255 ～ 255 ) ) ;
+//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_BRIGHT_CLIP, int CmpType = クリップタイプ( DX_CMP_LESS:CmpParam以下をクリップ  又は  DX_CMP_GREATER:CmpParam以上をクリップ ), int CmpParam = クリップパラメータ( 0 〜 255 ), int ClipFillFlag = クリップしたピクセルを塗りつぶすかどうか( TRUE:塗りつぶす  FALSE:塗りつぶさない ), unsigned int ClipFillColor = クリップしたピクセルに塗る色値( GetColor で取得する )( ClipFillFlag が FALSE の場合は使用しない ), int ClipFillAlpha = クリップしたピクセルに塗るα値( 0 〜 255 )( ClipFillFlag が FALSE の場合は使用しない ) ) ;
+//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_HSB, int HueType = Hue の意味( 0:相対値  1:絶対値 ), int Hue = 色相パラメータ( HueType が 0 の場合 = ピクセルの色相に対する相対値( -180 〜 180 )   HueType が 1 の場合 = 色相の絶対値( 0 〜 360 ) ), int Saturation = 彩度( -255 〜 ), int Bright = 輝度( -255 〜 255 ) ) ;
 //		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_INVERT ) ;
-//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_LEVEL, int Min = 変換元の下限値( 0 ～ 255 ), int Max = 変換元の上限値( 0 ～ 255 ), int Gamma = ガンマ値( 100 でガンマ補正無し、0 とそれ以下の値は不可 ), int AfterMin = 変換後の最低値( 0 ～ 255 ), int AfterMax = 変換後の最大値( 0 ～ 255 ) ) ;
-//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_TWO_COLOR, int Threshold = 閾値( 0 ～ 255 ), unsigned int LowColor = 閾値より値が低かったピクセルの変換後の色値( GetColor で取得する ), int LowAlpha = 閾値より値が低かったピクセルの変換後のα値( 0 ～ 255 ), unsigned int HighColor = 閾値より値が高かったピクセルの変換後の色値( GetColor で取得する ), int HighAlpha = 閾値より値が高かったピクセルの変換後のα値( 0 ～ 255 ) ) ;
+//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_LEVEL, int Min = 変換元の下限値( 0 〜 255 ), int Max = 変換元の上限値( 0 〜 255 ), int Gamma = ガンマ値( 100 でガンマ補正無し、0 とそれ以下の値は不可 ), int AfterMin = 変換後の最低値( 0 〜 255 ), int AfterMax = 変換後の最大値( 0 〜 255 ) ) ;
+//		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_TWO_COLOR, int Threshold = 閾値( 0 〜 255 ), unsigned int LowColor = 閾値より値が低かったピクセルの変換後の色値( GetColor で取得する ), int LowAlpha = 閾値より値が低かったピクセルの変換後のα値( 0 〜 255 ), unsigned int HighColor = 閾値より値が高かったピクセルの変換後の色値( GetColor で取得する ), int HighAlpha = 閾値より値が高かったピクセルの変換後のα値( 0 〜 255 ) ) ;
 //		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_GRADIENT_MAP, int MapGrHandle = グラデーションマップのグラフィックハンドル( 元画像の輝度からグラデーションマップ画像の x 座標を算出しますので縦幅は1dotでもＯＫ ), int Reverse = グラデーションマップ左右反転フラグ( TRUE : グラデーションマップを左右反転して使う  FALSE : 左右反転しない ) ) ;
 //		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_PREMUL_ALPHA ) ;			// 通常のアルファチャンネル付き画像を乗算済みアルファ画像に変換するフィルタ
 //		int			GraphFilter( int GrHandle, int FilterType = DX_GRAPH_FILTER_INTERP_ALPHA ) ;			// 乗算済みα画像を通常のアルファチャンネル付き画像に変換するフィルタ
@@ -2677,8 +2754,8 @@ extern	int			AddMovieFrameToGraph(				int GraphHandle, unsigned int FrameNum ) ;
 extern	int			SeekMovieToGraph(					int GraphHandle, int Time ) ;											// 動画ファイルの再生位置を設定する(ミリ秒単位)
 extern	int			SetPlaySpeedRateMovieToGraph(		int GraphHandle, double SpeedRate ) ;									// 動画ファイルの再生速度を設定する( 1.0 = 等倍速  2.0 = ２倍速 )、一部のファイルフォーマットのみで有効な機能です
 extern 	int			GetMovieStateToGraph(				int GraphHandle ) ;														// 動画ファイルの再生状態を得る
-extern	int			SetMovieVolumeToGraph(				int Volume, int GraphHandle ) ;											// 動画ファイルの音量を設定する(0～10000)
-extern	int			ChangeMovieVolumeToGraph(			int Volume, int GraphHandle ) ;											// 動画ファイルの音量を設定する(0～255)
+extern	int			SetMovieVolumeToGraph(				int Volume, int GraphHandle ) ;											// 動画ファイルの音量を設定する(0〜10000)
+extern	int			ChangeMovieVolumeToGraph(			int Volume, int GraphHandle ) ;											// 動画ファイルの音量を設定する(0〜255)
 extern	const BASEIMAGE* GetMovieBaseImageToGraph(		int GraphHandle, int *ImageUpdateFlag = NULL ) ;						// 動画ファイルの基本イメージデータを取得する( ImageUpdateFlag に int 型変数のアドレスを渡すと、イメージが更新された場合は 1 が、更新されていない場合は 0 が格納されます )
 extern	int			GetMovieTotalFrameToGraph(			int GraphHandle ) ;														// 動画ファイルの総フレーム数を得る( Ogg Theora でのみ有効 )
 extern	int			TellMovieToGraph(					int GraphHandle ) ;														// 動画ファイルの再生位置を取得する(ミリ秒単位)
@@ -2839,6 +2916,7 @@ extern	int			DrawFillMaskToDirectData(		int x1, int y1, int x2, int y2,  int Wid
 extern	int			SetUseMaskScreenFlag(			int ValidFlag ) ;																				// マスクスクリーンを使用するかどうかを設定する( ValidFlag:使用するかどうか( TRUE:使用する  FALSE:使用しない( デフォルト ) )
 extern	int			GetUseMaskScreenFlag(			void ) ;																						// マスクスクリーンを使用するかどうかを取得する
 extern	int			FillMaskScreen(					int Flag ) ;																					// マスクスクリーンを指定の色で塗りつぶす
+extern	int			SetMaskScreenGraph(				int GraphHandle ) ;																				// マスクスクリーンとして使用するグラフィックのハンドルを設定する、-1を渡すと解除( 引数で渡すグラフィックハンドルは MakeScreen で作成した「アルファチャンネル付きの描画対象にできるグラフィックハンドル」である必要があります( アルファチャンネルがマスクに使用されます ) )
 
 extern	int			InitMask(						void ) ;																						// マスクハンドルをすべて削除する
 extern	int			MakeMask(						int Width, int Height ) ;																		// マスクハンドルを作成する
@@ -2896,8 +2974,11 @@ extern	int			CreateFontToHandle(                     const TCHAR *FontName, int 
 extern	int			LoadFontDataToHandle(					const TCHAR *FileName,                            int EdgeSize = 0 ) ;							// フォントデータファイルからフォントハンドルを作成する
 extern	int			LoadFontDataFromMemToHandle(			const void *FontDataImage, int FontDataImageSize, int EdgeSize = 0 ) ;							// メモリ上のフォントデータファイルイメージからフォントハンドルを作成する
 extern	int			SetFontSpaceToHandle(                   int Point, int FontHandle ) ;																	// フォントハンドルの字間を変更する
+extern	int			SetFontCharCodeFormatToHandle(			int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ , int FontHandle ) ;											// 指定のフォントハンドルを使用する関数の引数に渡す文字列の文字コード形式を設定する( UNICODE版では無効 )
 extern	int			DeleteFontToHandle(                     int FontHandle ) ;																				// フォントハンドルを削除する
 extern	int			SetFontLostFlag(                        int FontHandle, int *LostFlag ) ;																// フォントハンドルを削除した際に TRUE を代入する変数のアドレスを設定する
+extern	int			AddFontImageToHandle(					int FontHandle, const TCHAR *Char, int GrHandle, int DrawX, int DrawY, int AddX ) ;				// 指定の文字の代わりに描画するグラフィックハンドルを登録する
+extern	int			SubFontImageToHandle(					int FontHandle, const TCHAR *Char ) ;															// 指定の文字の代わりに描画するグラフィックハンドルの登録を解除する
 
 extern	int			ChangeFont(                             const TCHAR *FontName, int CharSet = -1 /* DX_CHARSET_SHFTJIS 等 */ ) ;							// デフォルトフォントハンドルで使用するフォントを変更
 extern	int			ChangeFontType(                         int FontType ) ;																				// デフォルトフォントハンドルのフォントタイプの変更
@@ -2906,6 +2987,7 @@ extern	int			GetFontSize(                            void ) ;																			
 extern	int			SetFontThickness(                       int ThickPal ) ;																				// デフォルトフォントハンドルの太さを設定する
 extern	int			SetFontSpace(                           int Point ) ;																					// デフォルトフォントハンドルの字間を変更する
 extern	int			GetFontSpace(                           void ) ;																						// デフォルトフォントハンドルの字間を取得する
+extern	int			SetFontCharCodeFormat(					int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ ) ;										// デフォルトフォントハンドルを使用する関数の引数に渡す文字列の文字コード形式を設定する( UNICODE版では無効 )
 extern	int			SetDefaultFontState(                    const TCHAR *FontName, int Size, int Thick, int FontType = -1 , int CharSet = -1 , int EdgeSize = -1 , int Italic = FALSE ) ;	// デフォルトフォントハンドルの設定を変更する
 extern	int			GetDefaultFontHandle(                   void ) ;																						// デフォルトフォントハンドルを取得する
 extern	int			GetFontMaxWidth(                        void ) ;																						// デフォルトフォントハンドルの文字の最大幅を取得する
@@ -3565,19 +3647,21 @@ extern	int			GetPaletteBaseImage(           const BASEIMAGE *BaseImage, int Pale
 extern	int			SetPaletteBaseImage(                 BASEIMAGE *BaseImage, int PaletteNo, int  r, int  g, int  b, int  a ) ;																						// 基本イメージデータのパレットをセットする
 extern	int			SetPixelPalCodeBaseImage(            BASEIMAGE *BaseImage, int x, int y, int palNo ) ;																												// 基本イメージデータの指定の座標の色コードを変更する(パレット画像用)
 extern	int			GetPixelPalCodeBaseImage(      const BASEIMAGE *BaseImage, int x, int y ) ;																															// 基本イメージデータの指定の座標の色コードを取得する(パレット画像用)
-extern	int			SetPixelBaseImage(                   BASEIMAGE *BaseImage, int x, int y, int    r, int    g, int    b, int    a ) ;																					// 基本イメージデータの指定の座標の色を変更する(各色要素は０～２５５)
+extern	int			SetPixelBaseImage(                   BASEIMAGE *BaseImage, int x, int y, int    r, int    g, int    b, int    a ) ;																					// 基本イメージデータの指定の座標の色を変更する(各色要素は０〜２５５)
 extern	int			SetPixelBaseImageF(                  BASEIMAGE *BaseImage, int x, int y, float  r, float  g, float  b, float  a ) ;																					// 基本イメージデータの指定の座標の色を変更する(各色要素は浮動小数点数)
-extern	int			GetPixelBaseImage(             const BASEIMAGE *BaseImage, int x, int y, int   *r, int   *g, int   *b, int   *a ) ;																					// 基本イメージデータの指定の座標の色を取得する(各色要素は０～２５５)
+extern	int			GetPixelBaseImage(             const BASEIMAGE *BaseImage, int x, int y, int   *r, int   *g, int   *b, int   *a ) ;																					// 基本イメージデータの指定の座標の色を取得する(各色要素は０〜２５５)
 extern	int			GetPixelBaseImageF(            const BASEIMAGE *BaseImage, int x, int y, float *r, float *g, float *b, float *a ) ;																					// 基本イメージデータの指定の座標の色を取得する(各色要素は浮動小数点数)
-extern	int			DrawLineBaseImage(                   BASEIMAGE *BaseImage, int x1, int y1, int x2, int y2, int r, int g, int b, int a ) ;																			// 基本イメージデータの指定の座標に線を描画する(各色要素は０～２５５)
+extern	int			DrawLineBaseImage(                   BASEIMAGE *BaseImage, int x1, int y1, int x2, int y2, int r, int g, int b, int a ) ;																			// 基本イメージデータの指定の座標に線を描画する(各色要素は０〜２５５)
+extern	int			DrawCircleBaseImage(                 BASEIMAGE *BaseImage, int x, int y, int radius, int r, int g, int b, int a, int FillFlag = TRUE ) ;															// 基本イメージデータの指定の座標に円を描画する(各色要素は０〜２５５)
 extern	int			BltBaseImage(                        int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage ) ;									// 基本イメージデータを別の基本イメージデータに転送する
 extern	int			BltBaseImage(                                                                        int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage ) ;									// 基本イメージデータを別の基本イメージデータに転送する
 extern	int			BltBaseImageWithTransColor(          int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage, int Tr, int Tg, int Tb, int Ta ) ;	// 基本イメージデータを別の基本イメージデータに透過色処理付きで転送する
-extern	int			BltBaseImageWithAlphaBlend(          int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage, int Opacity = 255 ) ;					// 基本イメージデータを別の基本イメージデータにアルファ値のブレンドを考慮した上で転送する( Opacity は透明度 : 0( 完全透明 ) ～ 255( 完全不透明 ) )( 出力先が ARGB8 形式以外の場合はエラーになります )
+extern	int			BltBaseImageWithAlphaBlend(          int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage, int Opacity = 255 ) ;					// 基本イメージデータを別の基本イメージデータにアルファ値のブレンドを考慮した上で転送する( Opacity は透明度 : 0( 完全透明 ) 〜 255( 完全不透明 ) )( 出力先が ARGB8 形式以外の場合はエラーになります )
 extern	int			ReverseBaseImageH(                   BASEIMAGE *BaseImage ) ;																																		// 基本イメージデータを左右反転する
 extern	int			ReverseBaseImageV(                   BASEIMAGE *BaseImage ) ;																																		// 基本イメージデータを上下反転する
 extern	int			ReverseBaseImage(                    BASEIMAGE *BaseImage ) ;																																		// 基本イメージデータを上下左右反転する
 extern	int			CheckPixelAlphaBaseImage(      const BASEIMAGE *BaseImage ) ;																																		// 基本イメージデータに含まれるピクセルのアルファ値をチェックする( 戻り値   -1:エラー  0:画像にアルファ成分が無い  1:画像にアルファ成分があり、すべて最大(255)値  2:画像にアルファ成分があり、存在するアルファ値は最小(0)と最大(255)もしくは最小(0)のみ　3:画像にアルファ成分があり、最小と最大以外の中間の値がある )  
+extern	int			GetBaseImageUseMaxPaletteNo(   const BASEIMAGE *BaseImage ) ;																																		// 基本イメージデータで使用されているパレット番号の最大値を取得する( パレット画像では無い場合は -1 が返る )
 
 #ifndef DX_NON_SAVEFUNCTION
 
@@ -3665,26 +3749,27 @@ extern	int			CheckPixelAlphaSoftImage(        int SIHandle ) ;																	/
 
 extern	int			GetDrawScreenSoftImage(          int x1, int y1, int x2, int y2, int SIHandle ) ;									// 描画対象の画面から指定領域をソフトウエアイメージハンドルに転送する
 extern	int			GetDrawScreenSoftImageDestPos(   int x1, int y1, int x2, int y2, int SIHandle, int DestX, int DestY ) ;				// 描画対象の画面から指定領域をソフトウエアイメージハンドルに転送する( 転送先座標指定版 )
-extern	int			FillSoftImage(                   int SIHandle, int r, int g, int b, int a ) ;										// ソフトウエアイメージハンドルを指定色で塗りつぶす(各色要素は０～２５５)
+extern	int			FillSoftImage(                   int SIHandle, int r, int g, int b, int a ) ;										// ソフトウエアイメージハンドルを指定色で塗りつぶす(各色要素は０〜２５５)
 extern	int			ClearRectSoftImage(              int SIHandle, int x, int y, int w, int h ) ;										// ソフトウエアイメージハンドルの指定の領域を０クリアする
-extern	int			GetPaletteSoftImage(             int SIHandle, int PaletteNo, int *r, int *g, int *b, int *a ) ;					// ソフトウエアイメージハンドルのパレットを取得する(各色要素は０～２５５)
-extern	int			SetPaletteSoftImage(             int SIHandle, int PaletteNo, int  r, int  g, int  b, int  a ) ;					// ソフトウエアイメージハンドルのパレットを設定する(各色要素は０～２５５)
-extern	int			DrawPixelPalCodeSoftImage(       int SIHandle, int x, int y, int palNo ) ;											// ソフトウエアイメージハンドルの指定座標にドットを描画する(パレット画像用、有効値は０～２５５)
-extern	int			GetPixelPalCodeSoftImage(        int SIHandle, int x, int y ) ;														// ソフトウエアイメージハンドルの指定座標の色コードを取得する(パレット画像用、戻り値は０～２５５)
+extern	int			GetPaletteSoftImage(             int SIHandle, int PaletteNo, int *r, int *g, int *b, int *a ) ;					// ソフトウエアイメージハンドルのパレットを取得する(各色要素は０〜２５５)
+extern	int			SetPaletteSoftImage(             int SIHandle, int PaletteNo, int  r, int  g, int  b, int  a ) ;					// ソフトウエアイメージハンドルのパレットを設定する(各色要素は０〜２５５)
+extern	int			DrawPixelPalCodeSoftImage(       int SIHandle, int x, int y, int palNo ) ;											// ソフトウエアイメージハンドルの指定座標にドットを描画する(パレット画像用、有効値は０〜２５５)
+extern	int			GetPixelPalCodeSoftImage(        int SIHandle, int x, int y ) ;														// ソフトウエアイメージハンドルの指定座標の色コードを取得する(パレット画像用、戻り値は０〜２５５)
 extern	void		*GetImageAddressSoftImage(       int SIHandle ) ;																	// ソフトウエアイメージハンドルの画像が格納されているメモリ領域の先頭アドレスを取得する
 extern	int			GetPitchSoftImage(               int SIHandle ) ;																	// ソフトウエアイメージハンドルのメモリに格納されている画像データの1ライン辺りのバイト数を取得する
-extern	int			DrawPixelSoftImage(              int SIHandle, int x, int y, int    r, int    g, int    b, int    a ) ;				// ソフトウエアイメージハンドルの指定座標にドットを描画する(各色要素は０～２５５)
+extern	int			DrawPixelSoftImage(              int SIHandle, int x, int y, int    r, int    g, int    b, int    a ) ;				// ソフトウエアイメージハンドルの指定座標にドットを描画する(各色要素は０〜２５５)
 extern	int			DrawPixelSoftImageF(             int SIHandle, int x, int y, float  r, float  g, float  b, float  a ) ;				// ソフトウエアイメージハンドルの指定座標にドットを描画する(各色要素は浮動小数点数)
-extern	void		DrawPixelSoftImage_Unsafe_XRGB8( int SIHandle, int x, int y, int    r, int    g, int    b ) ;						// ソフトウエアイメージハンドルの指定座標にドットを描画する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や ARGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
-extern	void		DrawPixelSoftImage_Unsafe_ARGB8( int SIHandle, int x, int y, int    r, int    g, int    b, int    a ) ;				// ソフトウエアイメージハンドルの指定座標にドットを描画する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や XRGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
-extern	int			GetPixelSoftImage(               int SIHandle, int x, int y, int   *r, int   *g, int   *b, int   *a ) ;				// ソフトウエアイメージハンドルの指定座標の色を取得する(各色要素は０～２５５)
+extern	void		DrawPixelSoftImage_Unsafe_XRGB8( int SIHandle, int x, int y, int    r, int    g, int    b ) ;						// ソフトウエアイメージハンドルの指定座標にドットを描画する(各色要素は０〜２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や ARGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
+extern	void		DrawPixelSoftImage_Unsafe_ARGB8( int SIHandle, int x, int y, int    r, int    g, int    b, int    a ) ;				// ソフトウエアイメージハンドルの指定座標にドットを描画する(各色要素は０〜２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や XRGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
+extern	int			GetPixelSoftImage(               int SIHandle, int x, int y, int   *r, int   *g, int   *b, int   *a ) ;				// ソフトウエアイメージハンドルの指定座標の色を取得する(各色要素は０〜２５５)
 extern	int			GetPixelSoftImageF(              int SIHandle, int x, int y, float *r, float *g, float *b, float *a ) ;				// ソフトウエアイメージハンドルの指定座標の色を取得する(各色要素は浮動小数点数)
-extern	void		GetPixelSoftImage_Unsafe_XRGB8(  int SIHandle, int x, int y, int   *r, int   *g, int   *b ) ;						// ソフトウエアイメージハンドルの指定座標の色を取得する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や XRGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
-extern	void		GetPixelSoftImage_Unsafe_ARGB8(  int SIHandle, int x, int y, int   *r, int   *g, int   *b, int   *a ) ;				// ソフトウエアイメージハンドルの指定座標の色を取得する(各色要素は０～２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や ARGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
-extern	int			DrawLineSoftImage(               int SIHandle, int x1, int y1, int x2, int y2, int r, int g, int b, int a ) ;		// ソフトウエアイメージハンドルの指定座標に線を描画する(各色要素は０～２５５)
+extern	void		GetPixelSoftImage_Unsafe_XRGB8(  int SIHandle, int x, int y, int   *r, int   *g, int   *b ) ;						// ソフトウエアイメージハンドルの指定座標の色を取得する(各色要素は０〜２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や XRGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
+extern	void		GetPixelSoftImage_Unsafe_ARGB8(  int SIHandle, int x, int y, int   *r, int   *g, int   *b, int   *a ) ;				// ソフトウエアイメージハンドルの指定座標の色を取得する(各色要素は０〜２５５)、エラーチェックをしない代わりに高速ですが、範囲外の座標や ARGB8 以外のフォーマットのソフトハンドルを渡すと不正なメモリアクセスで強制終了します
+extern	int			DrawLineSoftImage(               int SIHandle, int x1, int y1, int x2, int y2, int r, int g, int b, int a ) ;		// ソフトウエアイメージハンドルの指定座標に線を描画する(各色要素は０〜２５５)
+extern	int			DrawCircleSoftImage(             int SIHandle, int x, int y, int radius, int r, int g, int b, int a, int FillFlag = TRUE ) ;	// ソフトウエアイメージハンドルの指定座標に円を描画する(各色要素は０〜２５５)
 extern	int			BltSoftImage(                    int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int SrcSIHandle, int DestX, int DestY, int DestSIHandle ) ;									// ソフトウエアイメージハンドルを別のソフトウエアイメージハンドルに転送する
 extern	int			BltSoftImageWithTransColor(      int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int SrcSIHandle, int DestX, int DestY, int DestSIHandle, int Tr, int Tg, int Tb, int Ta ) ;	// ソフトウエアイメージハンドルを別のソフトウエアイメージハンドルに透過色処理付きで転送する
-extern	int			BltSoftImageWithAlphaBlend(      int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int SrcSIHandle, int DestX, int DestY, int DestSIHandle, int Opacity = 255 ) ;					// ソフトウエアイメージハンドルを別のソフトウエアイメージハンドルにアルファ値のブレンドを考慮した上で転送する( Opacity は透明度 : 0( 完全透明 ) ～ 255( 完全不透明 ) )( 出力先が ARGB8 形式以外の場合はエラーになります )
+extern	int			BltSoftImageWithAlphaBlend(      int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int SrcSIHandle, int DestX, int DestY, int DestSIHandle, int Opacity = 255 ) ;					// ソフトウエアイメージハンドルを別のソフトウエアイメージハンドルにアルファ値のブレンドを考慮した上で転送する( Opacity は透明度 : 0( 完全透明 ) 〜 255( 完全不透明 ) )( 出力先が ARGB8 形式以外の場合はエラーになります )
 extern	int			ReverseSoftImageH(               int SIHandle ) ;																	// ソフトウエアイメージハンドルを左右反転する
 extern	int			ReverseSoftImageV(               int SIHandle ) ;																	// ソフトウエアイメージハンドルを上下反転する
 extern	int			ReverseSoftImage(                int SIHandle ) ;																	// ソフトウエアイメージハンドルを上下左右反転する
@@ -3700,10 +3785,10 @@ extern	int			DrawSoftImage(                   int x, int y, int SIHandle ) ;				
 
 extern	int			SaveSoftImageToBmp(              const TCHAR *FilePath, int SIHandle ) ;											// ソフトウエアイメージハンドルをＢＭＰ画像ファイルとして保存する
 #ifndef DX_NON_PNGREAD
-extern	int			SaveSoftImageToPng(              const TCHAR *FilePath, int SIHandle, int CompressionLevel ) ;						// ソフトウエアイメージハンドルをＰＮＧ画像ファイルとして保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0～9
+extern	int			SaveSoftImageToPng(              const TCHAR *FilePath, int SIHandle, int CompressionLevel ) ;						// ソフトウエアイメージハンドルをＰＮＧ画像ファイルとして保存する CompressionLevel = 圧縮率、値が大きいほど高圧縮率高負荷、０は無圧縮,0〜9
 #endif // DX_NON_PNGREAD
 #ifndef DX_NON_JPEGREAD
-extern	int			SaveSoftImageToJpeg(             const TCHAR *FilePath, int SIHandle, int Quality, int Sample2x1 ) ;				// ソフトウエアイメージハンドルをＪＰＥＧ画像ファイルとして保存する Quality = 画質、値が大きいほど低圧縮高画質,0～100 
+extern	int			SaveSoftImageToJpeg(             const TCHAR *FilePath, int SIHandle, int Quality, int Sample2x1 ) ;				// ソフトウエアイメージハンドルをＪＰＥＧ画像ファイルとして保存する Quality = 画質、値が大きいほど低圧縮高画質,0〜100 
 #endif // DX_NON_JPEGREAD
 
 #endif // DX_NON_SAVEFUNCTION
@@ -3770,25 +3855,25 @@ extern	int			DeleteSoundMem(                      int SoundHandle, int LogOutFla
 extern	int			PlaySoundMem(                        int SoundHandle, int PlayType, int TopPositionFlag = TRUE ) ;								// サウンドハンドルを再生する
 extern	int			StopSoundMem(                                                                        int SoundHandle ) ;						// サウンドハンドルの再生を停止する
 extern	int			CheckSoundMem(                                                                       int SoundHandle ) ;						// サウンドハンドルが再生中かどうかを取得する
-extern	int			SetPanSoundMem(                      int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルのパンを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			ChangePanSoundMem(                   int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルのパンを設定する( -255 ～ 255 )
+extern	int			SetPanSoundMem(                      int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルのパンを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			ChangePanSoundMem(                   int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルのパンを設定する( -255 〜 255 )
 extern	int			GetPanSoundMem(                                                                      int SoundHandle ) ;						// サウンドハンドルのパンを取得する
-extern	int			SetVolumeSoundMem(                   int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルのボリュームを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			ChangeVolumeSoundMem(                int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルのボリュームを設定する( 0 ～ 255 )
+extern	int			SetVolumeSoundMem(                   int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルのボリュームを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			ChangeVolumeSoundMem(                int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルのボリュームを設定する( 0 〜 255 )
 extern	int			GetVolumeSoundMem(                                                                   int SoundHandle ) ;						// サウンドハンドルのボリュームを取得する
-extern	int			SetChannelVolumeSoundMem(            int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの指定のチャンネルのボリュームを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			ChangeChannelVolumeSoundMem(         int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの指定のチャンネルのボリュームを設定する( 0 ～ 255 )
+extern	int			SetChannelVolumeSoundMem(            int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの指定のチャンネルのボリュームを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			ChangeChannelVolumeSoundMem(         int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの指定のチャンネルのボリュームを設定する( 0 〜 255 )
 extern	int			GetChannelVolumeSoundMem(            int Channel,                                    int SoundHandle ) ;						// サウンドハンドルの指定のチャンネルのボリュームを取得する
 extern	int			SetFrequencySoundMem(                int FrequencyPal,                               int SoundHandle ) ;						// サウンドハンドルの再生周波数を設定する
 extern	int			GetFrequencySoundMem(                                                                int SoundHandle ) ;						// サウンドハンドルの再生周波数を取得する
 extern	int			ResetFrequencySoundMem(                                                              int SoundHandle ) ;						// サウンドハンドルの再生周波数を読み込み直後の状態に戻す
 
-extern	int			SetNextPlayPanSoundMem(              int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するパンを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			ChangeNextPlayPanSoundMem(           int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するパンを設定する( -255 ～ 255 )
-extern	int			SetNextPlayVolumeSoundMem(           int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するボリュームを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			ChangeNextPlayVolumeSoundMem(        int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するボリュームを設定する( 0 ～ 255 )
-extern	int			SetNextPlayChannelVolumeSoundMem(    int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 100分の1デシベル単位 0 ～ 10000 )
-extern	int			ChangeNextPlayChannelVolumeSoundMem( int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 0 ～ 255 )
+extern	int			SetNextPlayPanSoundMem(              int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するパンを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			ChangeNextPlayPanSoundMem(           int PanPal,                                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するパンを設定する( -255 〜 255 )
+extern	int			SetNextPlayVolumeSoundMem(           int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するボリュームを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			ChangeNextPlayVolumeSoundMem(        int VolumePal,                                  int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するボリュームを設定する( 0 〜 255 )
+extern	int			SetNextPlayChannelVolumeSoundMem(    int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 100分の1デシベル単位 0 〜 10000 )
+extern	int			ChangeNextPlayChannelVolumeSoundMem( int Channel, int VolumePal,                     int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用するチャンネルのボリュームを設定する( 0 〜 255 )
 extern	int			SetNextPlayFrequencySoundMem(        int FrequencyPal,                               int SoundHandle ) ;						// サウンドハンドルの次の再生にのみ使用する再生周波数を設定する
 
 extern	int			SetCurrentPositionSoundMem(          int SamplePosition,                             int SoundHandle ) ;						// サウンドハンドルの再生位置をサンプル単位で設定する(再生が止まっている時のみ有効)
@@ -4045,8 +4130,8 @@ extern	COLOR_F		MV1GetEmiColorScale(				int MHandle ) ;														// モデ�
 extern	int			MV1SetAmbColorScale(				int MHandle, COLOR_F Scale ) ;										// モデルのアンビエントカラーのスケール値を設定する( デフォルト値は 1.0f )
 extern	COLOR_F		MV1GetAmbColorScale(				int MHandle ) ;														// モデルのアンビエントカラーのスケール値を取得する( デフォルト値は 1.0f )
 extern	int			MV1GetSemiTransState(				int MHandle ) ;														// モデルに半透明要素があるかどうかを取得する( 戻り値 TRUE:ある  FALSE:ない )
-extern	int			MV1SetOpacityRate(					int MHandle, float Rate ) ;											// モデルの不透明度を設定する( 不透明 1.0f ～ 透明 0.0f )
-extern	float		MV1GetOpacityRate(					int MHandle ) ;														// モデルの不透明度を取得する( 不透明 1.0f ～ 透明 0.0f )
+extern	int			MV1SetOpacityRate(					int MHandle, float Rate ) ;											// モデルの不透明度を設定する( 不透明 1.0f 〜 透明 0.0f )
+extern	float		MV1GetOpacityRate(					int MHandle ) ;														// モデルの不透明度を取得する( 不透明 1.0f 〜 透明 0.0f )
 extern	int			MV1SetUseDrawMulAlphaColor(			int MHandle, int Flag ) ;											// モデルを描画する際にRGB値に対してA値を乗算するかどうかを設定する( 描画結果が乗算済みアルファ画像になります )( Flag   TRUE:RGB値に対してA値を乗算する  FALSE:乗算しない(デフォルト) )
 extern	int			MV1GetUseDrawMulAlphaColor(			int MHandle ) ;														// モデルを描画する際にRGB値に対してA値を乗算するかどうかを取得する( 描画結果が乗算済みアルファ画像になります )( 戻り値 TRUE:RGB値に対してA値を乗算する  FALSE:乗算しない(デフォルト) )
 extern	int			MV1SetUseZBuffer(					int MHandle, int Flag ) ;											// モデルを描画する際にＺバッファを使用するかどうかを設定する
@@ -4161,11 +4246,11 @@ extern	int			MV1GetMaterialDrawBlendMode(		int MHandle, int MaterialIndex ) ;			
 extern	int			MV1SetMaterialDrawBlendParamAll(	int MHandle,                    int BlendParam ) ;						// 全てのマテリアルの描画ブレンドパラメータを設定する
 extern	int			MV1SetMaterialDrawBlendParam(		int MHandle, int MaterialIndex, int BlendParam ) ;						// 指定のマテリアルの描画ブレンドパラメータを設定する
 extern	int			MV1GetMaterialDrawBlendParam(		int MHandle, int MaterialIndex ) ;										// 指定のマテリアルの描画ブレンドパラメータを設定する
-extern	int			MV1SetMaterialDrawAlphaTestAll(		int MHandle,                    int Enable, int Mode, int Param ) ;		// 全てのマテリアルの描画時のアルファテストの設定を行う( Enable:αテストを行うかどうか( TRUE:行う  FALSE:行わない( デフォルト ) ) Mode:テストモード( DX_CMP_GREATER等 )  Param:描画アルファ値との比較に使用する値( 0～255 ) )
-extern	int			MV1SetMaterialDrawAlphaTest(		int MHandle, int MaterialIndex,	int Enable, int Mode, int Param ) ;		// 指定のマテリアルの描画時のアルファテストの設定を行う( Enable:αテストを行うかどうか( TRUE:行う  FALSE:行わない( デフォルト ) ) Mode:テストモード( DX_CMP_GREATER等 )  Param:描画アルファ値との比較に使用する値( 0～255 ) )
+extern	int			MV1SetMaterialDrawAlphaTestAll(		int MHandle,                    int Enable, int Mode, int Param ) ;		// 全てのマテリアルの描画時のアルファテストの設定を行う( Enable:αテストを行うかどうか( TRUE:行う  FALSE:行わない( デフォルト ) ) Mode:テストモード( DX_CMP_GREATER等 )  Param:描画アルファ値との比較に使用する値( 0〜255 ) )
+extern	int			MV1SetMaterialDrawAlphaTest(		int MHandle, int MaterialIndex,	int Enable, int Mode, int Param ) ;		// 指定のマテリアルの描画時のアルファテストの設定を行う( Enable:αテストを行うかどうか( TRUE:行う  FALSE:行わない( デフォルト ) ) Mode:テストモード( DX_CMP_GREATER等 )  Param:描画アルファ値との比較に使用する値( 0〜255 ) )
 extern	int			MV1GetMaterialDrawAlphaTestEnable(	int MHandle, int MaterialIndex ) ;										// 指定のマテリアルの描画時のアルファテストを行うかどうかを取得する( 戻り値  TRUE:アルファテストを行う  FALSE:アルファテストを行わない )
 extern	int			MV1GetMaterialDrawAlphaTestMode(	int MHandle, int MaterialIndex ) ;										// 指定のマテリアルの描画時のアルファテストのテストモードを取得する( 戻り値  テストモード( DX_CMP_GREATER等 ) )
-extern	int			MV1GetMaterialDrawAlphaTestParam(	int MHandle, int MaterialIndex ) ;										// 指定のマテリアルの描画時のアルファテストの描画アルファ地との比較に使用する値( 0～255 )を取得する
+extern	int			MV1GetMaterialDrawAlphaTestParam(	int MHandle, int MaterialIndex ) ;										// 指定のマテリアルの描画時のアルファテストの描画アルファ地との比較に使用する値( 0〜255 )を取得する
 
 // テクスチャ関係
 extern	int			MV1GetTextureNum(					int MHandle ) ;													// テクスチャの数を取得
@@ -4230,8 +4315,8 @@ extern	COLOR_F		MV1GetFrameSpcColorScale(			int MHandle, int FrameIndex ) ;					
 extern	COLOR_F		MV1GetFrameEmiColorScale(			int MHandle, int FrameIndex ) ;											// 指定のフレームのエミッシブカラーのスケール値を取得する( デフォルト値は 1.0f )
 extern	COLOR_F		MV1GetFrameAmbColorScale(			int MHandle, int FrameIndex ) ;											// 指定のフレームのアンビエントカラーのスケール値を取得する( デフォルト値は 1.0f )
 extern	int			MV1GetFrameSemiTransState(			int MHandle, int FrameIndex ) ;											// 指定のフレームに半透明要素があるかどうかを取得する( 戻り値 TRUE:ある  FALSE:ない )
-extern	int			MV1SetFrameOpacityRate(				int MHandle, int FrameIndex, float Rate ) ;								// 指定のフレームの不透明度を設定する( 不透明 1.0f ～ 透明 0.0f )
-extern	float		MV1GetFrameOpacityRate(				int MHandle, int FrameIndex ) ;											// 指定のフレームの不透明度を取得する( 不透明 1.0f ～ 透明 0.0f )
+extern	int			MV1SetFrameOpacityRate(				int MHandle, int FrameIndex, float Rate ) ;								// 指定のフレームの不透明度を設定する( 不透明 1.0f 〜 透明 0.0f )
+extern	float		MV1GetFrameOpacityRate(				int MHandle, int FrameIndex ) ;											// 指定のフレームの不透明度を取得する( 不透明 1.0f 〜 透明 0.0f )
 extern	int			MV1SetFrameBaseVisible(				int MHandle, int FrameIndex, int VisibleFlag ) ;						// 指定のフレームの初期表示状態を設定する( TRUE:表示  FALSE:非表示 )
 extern	int			MV1GetFrameBaseVisible(				int MHandle, int FrameIndex ) ;											// 指定のフレームの初期表示状態を取得する( TRUE:表示  FALSE:非表示 )
 extern	int			MV1SetFrameTextureAddressTransform( int MHandle, int FrameIndex, float TransU, float TransV, float ScaleU, float ScaleV, float RotCenterU, float RotCenterV, float Rotate ) ;	// 指定のフレームのテクスチャ座標変換パラメータを設定する
@@ -4252,8 +4337,8 @@ extern	COLOR_F		MV1GetMeshDifColorScale( 			int MHandle, int MeshIndex ) ;						
 extern	COLOR_F		MV1GetMeshSpcColorScale( 			int MHandle, int MeshIndex ) ;											// 指定のメッシュのスペキュラカラーのスケール値を取得する( デフォルト値は 1.0f )
 extern	COLOR_F		MV1GetMeshEmiColorScale( 			int MHandle, int MeshIndex ) ;											// 指定のメッシュのエミッシブカラーのスケール値を取得する( デフォルト値は 1.0f )
 extern	COLOR_F		MV1GetMeshAmbColorScale( 			int MHandle, int MeshIndex ) ;											// 指定のメッシュのアンビエントカラーのスケール値を取得する( デフォルト値は 1.0f )
-extern	int			MV1SetMeshOpacityRate( 				int MHandle, int MeshIndex, float Rate ) ;								// 指定のメッシュの不透明度を設定する( 不透明 1.0f ～ 透明 0.0f )
-extern	float		MV1GetMeshOpacityRate( 				int MHandle, int MeshIndex ) ;											// 指定のメッシュの不透明度を取得する( 不透明 1.0f ～ 透明 0.0f )
+extern	int			MV1SetMeshOpacityRate( 				int MHandle, int MeshIndex, float Rate ) ;								// 指定のメッシュの不透明度を設定する( 不透明 1.0f 〜 透明 0.0f )
+extern	float		MV1GetMeshOpacityRate( 				int MHandle, int MeshIndex ) ;											// 指定のメッシュの不透明度を取得する( 不透明 1.0f 〜 透明 0.0f )
 extern	int			MV1SetMeshDrawBlendMode( 			int MHandle, int MeshIndex, int BlendMode ) ;							// 指定のメッシュの描画ブレンドモードを設定する( DX_BLENDMODE_ALPHA 等 )
 extern	int			MV1SetMeshDrawBlendParam( 			int MHandle, int MeshIndex, int BlendParam ) ;							// 指定のメッシュの描画ブレンドパラメータを設定する
 extern	int			MV1GetMeshDrawBlendMode( 			int MHandle, int MeshIndex ) ;											// 指定のメッシュの描画ブレンドモードを取得する( DX_BLENDMODE_ALPHA 等 )
@@ -4279,8 +4364,8 @@ extern	int			MV1SearchShape(						int MHandle, const TCHAR *ShapeName ) ;							
 extern	const TCHAR *MV1GetShapeName(					int MHandle, int ShapeIndex ) ;											// 指定シェイプの名前を取得する
 extern	int			MV1GetShapeTargetMeshNum(			int MHandle, int ShapeIndex ) ;											// 指定シェイプが対象としているメッシュの数を取得する
 extern	int			MV1GetShapeTargetMesh(				int MHandle, int ShapeIndex, int Index ) ;								// 指定シェイプが対象としているメッシュのメッシュインデックスを取得する
-extern	int			MV1SetShapeRate(					int MHandle, int ShapeIndex, float Rate ) ;								// 指定シェイプの有効率を設定する( Rate  0.0f:0% ～ 1.0f:100% )
-extern	float		MV1GetShapeRate(					int MHandle, int ShapeIndex ) ;											// 指定シェイプの有効率を取得する( 戻り値  0.0f:0% ～ 1.0f:100% )
+extern	int			MV1SetShapeRate(					int MHandle, int ShapeIndex, float Rate ) ;								// 指定シェイプの有効率を設定する( Rate  0.0f:0% 〜 1.0f:100% )
+extern	float		MV1GetShapeRate(					int MHandle, int ShapeIndex ) ;											// 指定シェイプの有効率を取得する( 戻り値  0.0f:0% 〜 1.0f:100% )
 
 // トライアングルリスト関係
 extern	int			MV1GetTriangleListNum(				int MHandle ) ;															// モデルに含まれるトライアングルリストの数を取得する
@@ -4320,9 +4405,9 @@ extern	MV1_REF_POLYGONLIST	MV1GetReferenceMesh(		int MHandle, int FrameIndex, in
 
 // ネームスペース DxLib を使用する ------------------------------------------------------
 #ifdef DX_USE_NAMESPACE
-
-// using namespace DxLib ;
-
+#ifdef __DX_MAKE
+using namespace DxLib ;
+#endif
 #endif // DX_USE_NAMESPACE
 
 // ＤＸライブラリ内部でのみ使用するヘッダファイルのインクルード -------------------------
@@ -4332,3 +4417,5 @@ extern	MV1_REF_POLYGONLIST	MV1GetReferenceMesh(		int MHandle, int FrameIndex, in
 #endif
 
 #endif
+
+

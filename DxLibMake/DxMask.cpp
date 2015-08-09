@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		マスクデータ管理プログラム
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -2833,6 +2833,49 @@ extern int NS_FillMaskScreen( int Flag )
 	}
 
 	// 終了
+	return 0 ;
+}
+
+// マスクスクリーンとして使用するグラフィックのハンドルを設定する、-1を渡すと解除( 引数で渡すグラフィックハンドルは MakeScreen で作成した「アルファチャンネル付きの描画対象にできるグラフィックハンドル」である必要があります( アルファチャンネルがマスクに使用されます ) )
+extern int NS_SetMaskScreenGraph( int GraphHandle )
+{
+	IMAGEDATA *Image ;
+
+	if( MASKD.InitializeFlag == FALSE )
+	{
+		return -1 ;
+	}
+
+	// -1 の場合は 0 にする
+	if( GraphHandle == -1 )
+	{
+		GraphHandle = 0 ;
+	}
+	else
+	{
+		// 無効なグラフィックハンドルか、描画対象にできないグラフィックハンドルである場合はエラー
+		Image = Graphics_Image_GetData( GraphHandle ) ;
+		if( Image == NULL ||
+			Image->Orig->FormatDesc.TextureFlag == FALSE ||
+			Image->Orig->FormatDesc.DrawValidFlag == FALSE )
+		{
+			return -1 ;
+		}
+	}
+
+	// 今までと値が同じである場合は何もせず終了
+	if( GraphHandle == MASKD.MaskScreenGraphHandle )
+	{
+		return 0 ;
+	}
+
+	// フルスクリーンマスク処理を行っている場合はマスク描画の結果を反映させる
+	MASK_FULLSCREEN_MASKUPDATE
+
+	// グラフィックハンドルを保存
+	MASKD.MaskScreenGraphHandle = GraphHandle ;
+
+	// 正常終了
 	return 0 ;
 }
 

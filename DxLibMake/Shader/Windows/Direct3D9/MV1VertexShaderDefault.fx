@@ -1,6 +1,6 @@
-ï»¿#include "DxVertexShaderFxCode.h"
+#include "DxVertexShaderFxCode.h"
 
-// mainé–¢æ•°
+// mainŠÖ”
 VS_OUTPUT main( VS_INPUT VSInput )
 {
 	VS_OUTPUT VSOutput ;
@@ -48,13 +48,13 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	VSOutput.Normal_Fog = float4( 0.0f, 0.0f, 0.0f, 1.0f ) ;
 #endif
 
-	// é ‚ç‚¹åº§æ¨™å¤‰æ› ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
+	// ’¸“_À•W•ÏŠ· ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
 
 	#ifdef SKINMESH
 
-		// ã‚¹ã‚­ãƒ³ãƒ¡ãƒƒã‚·ãƒ¥
+		// ƒXƒLƒ“ƒƒbƒVƒ…
 
-		// ãƒ–ãƒ¬ãƒ³ãƒ‰è¡Œåˆ—ã®ä½œæˆ
+		// ƒuƒŒƒ“ƒhs—ñ‚Ìì¬
 		lBoneFloatIndex = VSInput.BlendIndices0 ;
 		lLocalWorldMatrix[ 0 ]  = cfLocalWorldMatrix[ lBoneFloatIndex.x + 0 ] * VSInput.BlendWeight0.xxxx;
 		lLocalWorldMatrix[ 1 ]  = cfLocalWorldMatrix[ lBoneFloatIndex.x + 1 ] * VSInput.BlendWeight0.xxxx;
@@ -97,7 +97,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#ifdef TOONOUTLINE
 
-		// åº§æ¨™è¨ˆç®—( ãƒ­ãƒ¼ã‚«ãƒ«â†’ãƒ¯ãƒ¼ãƒ«ãƒ‰ )
+		// À•WŒvŽZ( ƒ[ƒJƒ‹¨ƒ[ƒ‹ƒh )
 		lWorldPosition.x = dot( VSInput.Position, LOCAL_WORLD_MAT[ 0 ] ) ;
 		lWorldPosition.y = dot( VSInput.Position, LOCAL_WORLD_MAT[ 1 ] ) ;
 		lWorldPosition.z = dot( VSInput.Position, LOCAL_WORLD_MAT[ 2 ] ) ;
@@ -107,16 +107,16 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		lWorldNrm.y = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 1 ].xyz ) ;
 		lWorldNrm.z = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 2 ].xyz ) ;
 
-		// è¼ªéƒ­ç·šã®å¤ªã•åˆ†æ³•ç·šæ–¹å‘ã«ç§»å‹•ã™ã‚‹
+		// —ÖŠsü‚Ì‘¾‚³•ª–@ü•ûŒü‚ÉˆÚ“®‚·‚é
 		lWorldPosition.xyz += lWorldNrm * cfToonOutLineSize.x ;
 
-		// ãƒ¯ãƒ¼ãƒ«ãƒ‰â†’ãƒ“ãƒ¥ãƒ¼
+		// ƒ[ƒ‹ƒh¨ƒrƒ…[
 		lViewPosition.x = dot( lWorldPosition, cfViewMatrix[ 0 ] ) ;
 		lViewPosition.y = dot( lWorldPosition, cfViewMatrix[ 1 ] ) ;
 		lViewPosition.z = dot( lWorldPosition, cfViewMatrix[ 2 ] ) ;
 		lViewPosition.w = 1.0f ;
 
-		// ãƒ“ãƒ¥ãƒ¼â†’ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³
+		// ƒrƒ…[¨ƒvƒƒWƒFƒNƒVƒ‡ƒ“
 		VSOutput.Position.x = dot( lViewPosition, cfProjectionMatrix[ 0 ] ) ;
 		VSOutput.Position.y = dot( lViewPosition, cfProjectionMatrix[ 1 ] ) ;
 		VSOutput.Position.z = dot( lViewPosition, cfProjectionMatrix[ 2 ] ) ;
@@ -124,7 +124,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#else  // TOONOUTLINE
 
-		// åº§æ¨™è¨ˆç®—( ãƒ­ãƒ¼ã‚«ãƒ«â†’ãƒ“ãƒ¥ãƒ¼â†’ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³ )
+		// À•WŒvŽZ( ƒ[ƒJƒ‹¨ƒrƒ…[¨ƒvƒƒWƒFƒNƒVƒ‡ƒ“ )
 		lWorldPosition.x = dot( VSInput.Position, LOCAL_WORLD_MAT[ 0 ] ) ;
 		lWorldPosition.y = dot( VSInput.Position, LOCAL_WORLD_MAT[ 1 ] ) ;
 		lWorldPosition.z = dot( VSInput.Position, LOCAL_WORLD_MAT[ 2 ] ) ;
@@ -144,7 +144,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#ifdef BUMPMAP
 
-		// å¾“æ³•ç·šã€æŽ¥ç·šã€æ³•ç·šã‚’ãƒ“ãƒ¥ãƒ¼ç©ºé–“ã«æŠ•å½±ã™ã‚‹
+		// ]–@üAÚüA–@ü‚ðƒrƒ…[‹óŠÔ‚É“Š‰e‚·‚é
 		lWorldTan.x = dot( VSInput.Tan, LOCAL_WORLD_MAT[ 0 ].xyz ) ;
 		lWorldTan.y = dot( VSInput.Tan, LOCAL_WORLD_MAT[ 1 ].xyz ) ;
 		lWorldTan.z = dot( VSInput.Tan, LOCAL_WORLD_MAT[ 2 ].xyz ) ;
@@ -172,11 +172,11 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	#endif	// BUMPMAP
 
 
-	// é ‚ç‚¹åº§æ¨™å¤‰æ› ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
+	// ’¸“_À•W•ÏŠ· ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
 
 	#if LG_USE == 0 || BUMPMAP == 1 || PHONG == 1
 
-		// ãƒ©ã‚¤ãƒˆã‚’ä½¿ç”¨ã—ãªã„ã‹ã€ãƒãƒ³ãƒ—ãƒžãƒƒãƒ—åˆã¯ãƒ•ã‚©ãƒ³ã‚·ã‚§ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°ã®å ´åˆã¯ãƒžãƒ†ãƒªã‚¢ãƒ«( or é ‚ç‚¹ )ã‚«ãƒ©ãƒ¼ã‚’ãã®ã¾ã¾å‡ºåŠ›
+		// ƒ‰ƒCƒg‚ðŽg—p‚µ‚È‚¢‚©Aƒoƒ“ƒvƒ}ƒbƒv–”‚ÍƒtƒHƒ“ƒVƒF[ƒfƒBƒ“ƒO‚Ìê‡‚Íƒ}ƒeƒŠƒAƒ‹( or ’¸“_ )ƒJƒ‰[‚ð‚»‚Ì‚Ü‚Üo—Í
 		VSOutput.Diffuse  = lDifColor ;
 
 		#if USE_SPE
@@ -185,7 +185,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		
 		#if BUMPMAP == 0 && PHONG
 		
-			// æ³•ç·šã‚’ãƒ“ãƒ¥ãƒ¼ç©ºé–“ã®è§’åº¦ã«å¤‰æ›( LOCAL_WORLD_MAT ã¯ã‚¹ã‚­ãƒ‹ãƒ³ã‚°ãƒ¡ãƒƒã‚·ãƒ¥ ã®å ´åˆã¯ r0 ã‚’ä½¿ã†ã®ã§ mov r0, ZERO ã‚ˆã‚Šå…ˆã«å®Ÿè¡Œã™ã‚‹å¿…è¦ãŒã‚ã‚‹ )
+			// –@ü‚ðƒrƒ…[‹óŠÔ‚ÌŠp“x‚É•ÏŠ·( LOCAL_WORLD_MAT ‚ÍƒXƒLƒjƒ“ƒOƒƒbƒVƒ… ‚Ìê‡‚Í r0 ‚ðŽg‚¤‚Ì‚Å mov r0, ZERO ‚æ‚èæ‚ÉŽÀs‚·‚é•K—v‚ª‚ ‚é )
 			lWorldNrm.x = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 0 ].xyz ) ;
 			lWorldNrm.y = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 1 ].xyz ) ;
 			lWorldNrm.z = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 2 ].xyz ) ;
@@ -194,7 +194,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 			lViewNrm.y = dot( lWorldNrm, cfViewMatrix[ 1 ].xyz ) ;
 			lViewNrm.z = dot( lWorldNrm, cfViewMatrix[ 2 ].xyz ) ;
 
-			// æ³•ç·šã‚’ä¿å­˜
+			// –@ü‚ð•Û‘¶
 			VSOutput.Normal_Fog.xyz = lViewNrm ;
 
 		#endif // PHONG
@@ -205,13 +205,13 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 
 
-	// ãƒ©ã‚¤ãƒˆã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
+	// ƒ‰ƒCƒg‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJŽn )
 	#if LG_USE
 
 		#ifdef BUMPMAP
 
 			#if USE_SPE
-				// é ‚ç‚¹åº§æ¨™ã‹ã‚‰è¦–ç‚¹ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã‚’æŽ¥åº•ç©ºé–“ã«æŠ•å½±ã—ãŸå¾Œæ­£è¦åŒ–ã—ã¦ä¿å­˜
+				// ’¸“_À•W‚©‚çŽ‹“_‚Ö‚ÌƒxƒNƒgƒ‹‚ðÚ’ê‹óŠÔ‚É“Š‰e‚µ‚½Œã³‹K‰»‚µ‚Ä•Û‘¶
 				lBumpTemp.x = dot( lViewTan, -lViewPosition.xyz ) ;
 				lBumpTemp.y = dot( lViewBin, -lViewPosition.xyz ) ;
 				lBumpTemp.z = dot( lViewNrm, -lViewPosition.xyz ) ;
@@ -220,7 +220,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 		#else // BUMPMAP 
 
-			// æ³•ç·šã‚’ãƒ“ãƒ¥ãƒ¼ç©ºé–“ã®è§’åº¦ã«å¤‰æ›( LOCAL_WORLD_MAT ã¯ã‚¹ã‚­ãƒ‹ãƒ³ã‚°ãƒ¡ãƒƒã‚·ãƒ¥ ã®å ´åˆã¯ r0 ã‚’ä½¿ã†ã®ã§ mov r0, ZERO ã‚ˆã‚Šå…ˆã«å®Ÿè¡Œã™ã‚‹å¿…è¦ãŒã‚ã‚‹ )
+			// –@ü‚ðƒrƒ…[‹óŠÔ‚ÌŠp“x‚É•ÏŠ·( LOCAL_WORLD_MAT ‚ÍƒXƒLƒjƒ“ƒOƒƒbƒVƒ… ‚Ìê‡‚Í r0 ‚ðŽg‚¤‚Ì‚Å mov r0, ZERO ‚æ‚èæ‚ÉŽÀs‚·‚é•K—v‚ª‚ ‚é )
 			lWorldNrm.x = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 0 ].xyz ) ;
 			lWorldNrm.y = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 1 ].xyz ) ;
 			lWorldNrm.z = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 2 ].xyz ) ;
@@ -229,18 +229,18 @@ VS_OUTPUT main( VS_INPUT VSInput )
 			lViewNrm.y = dot( lWorldNrm, cfViewMatrix[ 1 ].xyz ) ;
 			lViewNrm.z = dot( lWorldNrm, cfViewMatrix[ 2 ].xyz ) ;
 
-			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã¨ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼ã®è“„ç©å€¤ã®åˆæœŸåŒ–
+			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ÆƒXƒyƒLƒ…ƒ‰ƒJƒ‰[‚Ì’~Ï’l‚Ì‰Šú‰»
 			lTotalDiffuse = float4( 0, 0, 0, 0 ) ;
 			lTotalSpecular = float4( 0, 0, 0, 0 ) ;
 
 			#ifdef PHONG
 
 				#if USE_SPE
-					// é ‚ç‚¹åº§æ¨™ã‹ã‚‰è¦–ç‚¹ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã‚’æ­£è¦åŒ–ã—ã¦ä¿å­˜
+					// ’¸“_À•W‚©‚çŽ‹“_‚Ö‚ÌƒxƒNƒgƒ‹‚ð³‹K‰»‚µ‚Ä•Û‘¶
 					VSOutput.V_to_Eye_ShadowMap3PosZ.xyz = normalize( -lViewPosition.xyz ) ;
 				#endif
 
-				// æ³•ç·šã‚’ä¿å­˜
+				// –@ü‚ð•Û‘¶
 				VSOutput.Normal_Fog.xyz = lViewNrm ;
 
 			#endif // PHONG
@@ -253,7 +253,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 
 
-		// ãƒ©ã‚¤ãƒˆ0ã®å‡¦ç† ***********************************************************************************************************************************( é–‹å§‹ )
+		// ƒ‰ƒCƒg0‚Ìˆ— ***********************************************************************************************************************************( ŠJŽn )
 #if LG0_USE
 
 	#ifdef ALL_VS
@@ -261,24 +261,24 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		{
 	#endif
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°è¨ˆç®—ç”¨ã®ãƒ©ã‚¤ãƒˆã®æ–¹å‘ã‚’äº‹å‰è¨ˆç®— ======( é–‹å§‹ )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸ŠŒvŽZ—p‚Ìƒ‰ƒCƒg‚Ì•ûŒü‚ðŽ–‘OŒvŽZ ======( ŠJŽn )
 
 	#if LG0_DIR
 
-		// ãƒ©ã‚¤ãƒˆã®æ–¹å‘è¨ˆç®—
+		// ƒ‰ƒCƒg‚Ì•ûŒüŒvŽZ
 		lLightDir = cfLight[ 0 ].Direction ;
 
 	#else  // LG0_DIR
 
-		// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
+		// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚ÌŒvŽZ
 		lLightDir = normalize( lViewPosition.xyz - cfLight[ 0 ].Position.xyz ) ;
 
 	#endif  // LG0_DIR
 
-	// ãƒ©ã‚¤ãƒˆã®æƒ…å ±ã‚’åˆæœŸåŒ–
+	// ƒ‰ƒCƒg‚Ìî•ñ‚ð‰Šú‰»
 	VSOutput.Light0_Dir_Gen = ZERO ;
 
-	// ãƒ©ã‚¤ãƒˆã®å‘ãã®é€†ãƒ™ã‚¯ãƒˆãƒ«ã‚’æŽ¥åœ°ç©ºé–“ã«å¤‰æ›
+	// ƒ‰ƒCƒg‚ÌŒü‚«‚Ì‹tƒxƒNƒgƒ‹‚ðÚ’n‹óŠÔ‚É•ÏŠ·
 	#ifdef BUMPMAP
 
 		VSOutput.Light0_Dir_Gen.x = dot( lViewTan, -lLightDir ) ;
@@ -287,15 +287,15 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#elif PHONG // BUMPMAP
 
-		// ãƒ©ã‚¤ãƒˆã®å‘ãã®é€†ãƒ™ã‚¯ãƒˆãƒ«ã‚’ä¿å­˜
+		// ƒ‰ƒCƒg‚ÌŒü‚«‚Ì‹tƒxƒNƒgƒ‹‚ð•Û‘¶
 		VSOutput.Light0_Dir_Gen.xyz = -lLightDir ;
 
 	#endif // BUMPMAP
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°è¨ˆç®—ç”¨ã®ãƒ©ã‚¤ãƒˆã®æ–¹å‘ã‚’äº‹å‰è¨ˆç®— ======( çµ‚äº† )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸ŠŒvŽZ—p‚Ìƒ‰ƒCƒg‚Ì•ûŒü‚ðŽ–‘OŒvŽZ ======( I—¹ )
 
 
-	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— ==========================( é–‹å§‹ )
+	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ ==========================( ŠJŽn )
 	#if LG0_SPOT || LG0_POINT
 
 		#ifdef ALL_VS
@@ -304,17 +304,17 @@ VS_OUTPUT main( VS_INPUT VSInput )
 			{
 		#endif // ALL_VS
 
-		// è·é›¢æ¸›è¡°è¨ˆç®— ------------------
+		// ‹——£Œ¸ŠŒvŽZ ------------------
 
-		// é ‚ç‚¹ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã¨ã®è·é›¢ã®äºŒä¹—ã‚’æ±‚ã‚ã‚‹ lLightTemp.x = ( POS - L0_POS ) * ( POS - L0_POS )
+		// ’¸“_‚Æƒ‰ƒCƒgˆÊ’u‚Æ‚Ì‹——£‚Ì“ñæ‚ð‹‚ß‚é lLightTemp.x = ( POS - L0_POS ) * ( POS - L0_POS )
 		lLightTemp = lViewPosition - cfLight[ 0 ].Position ;
 		lLightTemp.w = 0.0f;
 		lLightDistancePow2 = dot( lLightTemp, lLightTemp ) ;
 
-		// æ¸›è¡°çŽ‡ã®è¨ˆç®— lLightGen = 1 / ( æ¸›è¡°å€¤0 + æ¸›è¡°å€¤1 * è·é›¢ + æ¸›è¡°å€¤2 * ( è·é›¢ * è·é›¢ ) )
+		// Œ¸Š—¦‚ÌŒvŽZ lLightGen = 1 / ( Œ¸Š’l0 + Œ¸Š’l1 * ‹——£ + Œ¸Š’l2 * ( ‹——£ * ‹——£ ) )
 		lLightGen = 1.0f / ( cfLight[ 0 ].Range_FallOff_AT0_AT1.z + cfLight[ 0 ].Range_FallOff_AT0_AT1.w * sqrt( lLightDistancePow2 ) + cfLight[ 0 ].AT2_SpotP0_SpotP1.x * lLightDistancePow2 ) ;
 
-		// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®— --------
+		// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ --------
 
 		#if LG0_SPOT
 
@@ -323,10 +323,10 @@ VS_OUTPUT main( VS_INPUT VSInput )
 				{
 			#endif // ALL_VS
 
-			// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã‹ã‚‰é ‚ç‚¹ä½ç½®ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©( å³ã¡ Cos a )ã‚’è¨ˆç®— 
+			// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚Æƒ‰ƒCƒgˆÊ’u‚©‚ç’¸“_ˆÊ’u‚Ö‚ÌƒxƒNƒgƒ‹‚Ì“àÏ( ‘¦‚¿ Cos a )‚ðŒvŽZ 
 			lLightDirectionCosA = dot( lLightDir, cfLight[ 0 ].Direction ) ;
 
-			// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®—  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
+			// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
 			lLightGen *= saturate( pow( abs( max( lLightDirectionCosA - cfLight[ 0 ].AT2_SpotP0_SpotP1.y, 0.0f ) * cfLight[ 0 ].AT2_SpotP0_SpotP1.z ), cfLight[ 0 ].Range_FallOff_AT0_AT1.y ) ) ;
 
 			#ifdef ALL_VS
@@ -335,10 +335,10 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 		#endif // LG0_SPOT
 
-		// æœ‰åŠ¹è·é›¢å¤–ã ã£ãŸã‚‰æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹å‡¦ç†
+		// —LŒø‹——£ŠO‚¾‚Á‚½‚çŒ¸Š—¦‚ðÅ‘å‚É‚·‚éˆ—
 		lLightGen *= step( lLightDistancePow2, cfLight[ 0 ].Range_FallOff_AT0_AT1.x ) ;
 
-		// ãƒãƒ³ãƒ—ãƒžãƒƒãƒ— or ãƒ•ã‚©ãƒ³ã‚·ã‚§ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°ç”¨ã«æ¸›è¡°çŽ‡ã‚’ä¿å­˜ã™ã‚‹
+		// ƒoƒ“ƒvƒ}ƒbƒv or ƒtƒHƒ“ƒVƒF[ƒfƒBƒ“ƒO—p‚ÉŒ¸Š—¦‚ð•Û‘¶‚·‚é
 		#if PHONG || BUMPMAP
 			VSOutput.Light0_Dir_Gen.w = lLightGen ;
 		#endif // PHONG || BUMPMAP
@@ -348,29 +348,29 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		#endif
 
 	#endif // LG0_SPOT || LG0_POINT
-	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =========================( çµ‚äº† )
+	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =========================( I—¹ )
 
 
 
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆã¨ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°è¨ˆç®— =======( é–‹å§‹ )
+	// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg‚ÆƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg‚ÌŠp“xŒ¸ŠŒvŽZ =======( ŠJŽn )
 	#if BUMPMAP == 0 && PHONG == 0
 
-		// æ³•ç·šã¨ãƒ©ã‚¤ãƒˆã®é€†æ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ã®å†…ç©ã‚’ lLightLitParam.x ã«ã‚»ãƒƒãƒˆ
+		// –@ü‚Æƒ‰ƒCƒg‚Ì‹t•ûŒüƒxƒNƒgƒ‹‚Æ‚Ì“àÏ‚ð lLightLitParam.x ‚ÉƒZƒbƒg
 		lLightLitParam.x = dot( lViewNrm, -lLightDir ) ;
 
 		#ifdef USE_SPE
 
-			// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®— norm( ( norm( é ‚ç‚¹ä½ç½®ã‹ã‚‰è¦–ç‚¹ã¸ã®ãƒ™ã‚¯ãƒˆãƒ« ) + ãƒ©ã‚¤ãƒˆã®æ–¹å‘ ) )
+			// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ norm( ( norm( ’¸“_ˆÊ’u‚©‚çŽ‹“_‚Ö‚ÌƒxƒNƒgƒ‹ ) + ƒ‰ƒCƒg‚Ì•ûŒü ) )
 			lLightHalfVec = normalize( normalize( -lViewPosition.xyz ) - lLightDir ) ;
 
-			// æ³•ç·šã¨ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©ã‚’ lLightLitParam.y ã«ã‚»ãƒƒãƒˆ
+			// –@ü‚Æƒn[ƒtƒxƒNƒgƒ‹‚Ì“àÏ‚ð lLightLitParam.y ‚ÉƒZƒbƒg
 			lLightLitParam.y = dot( lLightHalfVec, lViewNrm ) ;
 
-			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©åå°„çŽ‡ã‚’ lLightLitParam.w ã«ã‚»ãƒƒãƒˆ
+			// ƒXƒyƒLƒ…ƒ‰”½ŽË—¦‚ð lLightLitParam.w ‚ÉƒZƒbƒg
 			lLightLitParam.w = cfMaterial.Power.x ;
 
-			// ãƒ©ã‚¤ãƒˆè¨ˆç®—
+			// ƒ‰ƒCƒgŒvŽZ
 			lLightLitDest = lit( lLightLitParam.x, lLightLitParam.y, lLightLitParam.w ) ;
 
 		#else // USE_SPE
@@ -380,37 +380,37 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		#endif // USE_SPE
 
 	#endif // BUMPMAP == 0 && PHONG == 0
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆã¨ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°è¨ˆç®— =======( çµ‚äº† )
+	// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg‚ÆƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg‚ÌŠp“xŒ¸ŠŒvŽZ =======( I—¹ )
 
 
 
 
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( é–‹å§‹ )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[ŒvŽZ =======================================( ŠJŽn )
 
 	#if BUMPMAP == 0 && PHONG == 0
 
 		#if LG0_SPOT || LG0_POINT
 
-			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆè“„ç©å€¤ += è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆè§’åº¦æ¸›è¡°å€¤ * ( ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã® )
+			// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg’~Ï’l += ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŠp“xŒ¸Š’l * ( ƒfƒBƒtƒ…[ƒYŠp“xŒ¸ŠŒvŽZŒ‹‰Ê * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì )
 			lTotalDiffuse += lLightGen * ( lLightLitDest.y * cfLight[ 0 ].Diffuse * lDifColor + cfLight[ 0 ].Ambient ) ;
 
 		#else  // LG0_SPOT || LG0_POINT
 
-			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆè“„ç©å€¤ += ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®
+			// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg’~Ï’l += ƒfƒBƒtƒ…[ƒYŠp“xŒ¸ŠŒvŽZŒ‹‰Ê * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì
 			lTotalDiffuse += lLightLitDest.y * cfLight[ 0 ].Diffuse * lDifColor + cfLight[ 0 ].Ambient ;
 
 		#endif // LG0_SPOT || LG0_POINT
 
 	#endif // BUMPMAP == 0 && PHONG == 0
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( çµ‚äº† )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[ŒvŽZ =======================================( I—¹ )
 
 
 
 
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( é–‹å§‹ )
+	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ =======================================( ŠJŽn )
 
 	#ifdef USE_SPE
 
@@ -418,12 +418,12 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 			#if LG0_SPOT || LG0_POINT || ALL_VS
 
-				// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆè“„ç©å€¤ += ã‚¹ãƒšã‚­ãƒ¥ãƒ©è§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡° * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
+				// ƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg’~Ï’l += ƒXƒyƒLƒ…ƒ‰Šp“xŒ¸ŠŒvŽZŒ‹‰Ê * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
 				lTotalSpecular += lLightGen * lLightLitDest.z * cfLight[ 0 ].Specular ;
 
 			#else	// LG0_SPOT || LG0_POINT || ALL_VS
 
-				// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆè“„ç©å€¤ += ã‚¹ãƒšã‚­ãƒ¥ãƒ©è§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
+				// ƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg’~Ï’l += ƒXƒyƒLƒ…ƒ‰Šp“xŒ¸ŠŒvŽZŒ‹‰Ê * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
 				lTotalSpecular += lLightLitDest.z * cfLight[ 0 ].Specular ;
 
 			#endif	// LG0_SPOT || LG0_POINT || ALL_VS
@@ -432,7 +432,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#endif // USE_SPE
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( çµ‚äº† )
+	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ =======================================( I—¹ )
 
 
 
@@ -442,7 +442,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	#endif
 
 #endif  // LG0_USE
-// ãƒ©ã‚¤ãƒˆ0ã®å‡¦ç† ***********************************************************************************************************************************( çµ‚äº† )
+// ƒ‰ƒCƒg0‚Ìˆ— ***********************************************************************************************************************************( I—¹ )
 
 
 
@@ -451,7 +451,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 
 
-		// ãƒ©ã‚¤ãƒˆ1ã®å‡¦ç† ***********************************************************************************************************************************( é–‹å§‹ )
+		// ƒ‰ƒCƒg1‚Ìˆ— ***********************************************************************************************************************************( ŠJŽn )
 #if LG1_USE
 
 	#ifdef ALL_VS
@@ -459,24 +459,24 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		{
 	#endif
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°è¨ˆç®—ç”¨ã®ãƒ©ã‚¤ãƒˆã®æ–¹å‘ã‚’äº‹å‰è¨ˆç®— ======( é–‹å§‹ )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸ŠŒvŽZ—p‚Ìƒ‰ƒCƒg‚Ì•ûŒü‚ðŽ–‘OŒvŽZ ======( ŠJŽn )
 
 	#if LG1_DIR
 
-		// ãƒ©ã‚¤ãƒˆã®æ–¹å‘è¨ˆç®—
+		// ƒ‰ƒCƒg‚Ì•ûŒüŒvŽZ
 		lLightDir = cfLight[ 1 ].Direction ;
 
 	#else  // LG1_DIR
 
-		// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
+		// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚ÌŒvŽZ
 		lLightDir = normalize( lViewPosition.xyz - cfLight[ 1 ].Position.xyz ) ;
 
 	#endif  // LG1_DIR
 
-	// ãƒ©ã‚¤ãƒˆã®æƒ…å ±ã‚’åˆæœŸåŒ–
+	// ƒ‰ƒCƒg‚Ìî•ñ‚ð‰Šú‰»
 	VSOutput.Light1_Dir_Gen = ZERO ;
 
-	// ãƒ©ã‚¤ãƒˆã®å‘ãã®é€†ãƒ™ã‚¯ãƒˆãƒ«ã‚’æŽ¥åœ°ç©ºé–“ã«å¤‰æ›
+	// ƒ‰ƒCƒg‚ÌŒü‚«‚Ì‹tƒxƒNƒgƒ‹‚ðÚ’n‹óŠÔ‚É•ÏŠ·
 	#ifdef BUMPMAP
 
 		VSOutput.Light1_Dir_Gen.x = dot( lViewTan, -lLightDir ) ;
@@ -485,15 +485,15 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#elif PHONG // BUMPMAP
 
-		// ãƒ©ã‚¤ãƒˆã®å‘ãã®é€†ãƒ™ã‚¯ãƒˆãƒ«ã‚’ä¿å­˜
+		// ƒ‰ƒCƒg‚ÌŒü‚«‚Ì‹tƒxƒNƒgƒ‹‚ð•Û‘¶
 		VSOutput.Light1_Dir_Gen.xyz = -lLightDir ;
 
 	#endif // BUMPMAP
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°è¨ˆç®—ç”¨ã®ãƒ©ã‚¤ãƒˆã®æ–¹å‘ã‚’äº‹å‰è¨ˆç®— ======( çµ‚äº† )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸ŠŒvŽZ—p‚Ìƒ‰ƒCƒg‚Ì•ûŒü‚ðŽ–‘OŒvŽZ ======( I—¹ )
 
 
-	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— ==========================( é–‹å§‹ )
+	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ ==========================( ŠJŽn )
 	#if LG1_SPOT || LG1_POINT
 
 		#ifdef ALL_VS
@@ -502,17 +502,17 @@ VS_OUTPUT main( VS_INPUT VSInput )
 			{
 		#endif // ALL_VS
 
-		// è·é›¢æ¸›è¡°è¨ˆç®— ------------------
+		// ‹——£Œ¸ŠŒvŽZ ------------------
 
-		// é ‚ç‚¹ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã¨ã®è·é›¢ã®äºŒä¹—ã‚’æ±‚ã‚ã‚‹ lLightTemp.x = ( POS - L1_POS ) * ( POS - L1_POS )
+		// ’¸“_‚Æƒ‰ƒCƒgˆÊ’u‚Æ‚Ì‹——£‚Ì“ñæ‚ð‹‚ß‚é lLightTemp.x = ( POS - L1_POS ) * ( POS - L1_POS )
 		lLightTemp = lViewPosition - cfLight[ 1 ].Position ;
 		lLightTemp.w = 0.0f;
 		lLightDistancePow2 = dot( lLightTemp, lLightTemp ) ;
 
-		// æ¸›è¡°çŽ‡ã®è¨ˆç®— lLightGen = 1 / ( æ¸›è¡°å€¤0 + æ¸›è¡°å€¤1 * è·é›¢ + æ¸›è¡°å€¤2 * ( è·é›¢ * è·é›¢ ) )
+		// Œ¸Š—¦‚ÌŒvŽZ lLightGen = 1 / ( Œ¸Š’l0 + Œ¸Š’l1 * ‹——£ + Œ¸Š’l2 * ( ‹——£ * ‹——£ ) )
 		lLightGen = 1.0f / ( cfLight[ 1 ].Range_FallOff_AT0_AT1.z + cfLight[ 1 ].Range_FallOff_AT0_AT1.w * sqrt( lLightDistancePow2 ) + cfLight[ 1 ].AT2_SpotP0_SpotP1.x * lLightDistancePow2 ) ;
 
-		// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®— --------
+		// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ --------
 
 		#if LG1_SPOT
 
@@ -521,10 +521,10 @@ VS_OUTPUT main( VS_INPUT VSInput )
 				{
 			#endif // ALL_VS
 
-			// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã‹ã‚‰é ‚ç‚¹ä½ç½®ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©( å³ã¡ Cos a )ã‚’è¨ˆç®— 
+			// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚Æƒ‰ƒCƒgˆÊ’u‚©‚ç’¸“_ˆÊ’u‚Ö‚ÌƒxƒNƒgƒ‹‚Ì“àÏ( ‘¦‚¿ Cos a )‚ðŒvŽZ 
 			lLightDirectionCosA = dot( lLightDir, cfLight[ 1 ].Direction ) ;
 
-			// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®—  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
+			// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
 			lLightGen *= saturate( pow( abs( max( lLightDirectionCosA - cfLight[ 1 ].AT2_SpotP0_SpotP1.y, 0.0f ) * cfLight[ 1 ].AT2_SpotP0_SpotP1.z ), cfLight[ 1 ].Range_FallOff_AT0_AT1.y ) ) ;
 
 			#ifdef ALL_VS
@@ -533,10 +533,10 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 		#endif // LG1_SPOT
 
-		// æœ‰åŠ¹è·é›¢å¤–ã ã£ãŸã‚‰æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹å‡¦ç†
+		// —LŒø‹——£ŠO‚¾‚Á‚½‚çŒ¸Š—¦‚ðÅ‘å‚É‚·‚éˆ—
 		lLightGen *= step( lLightDistancePow2, cfLight[ 1 ].Range_FallOff_AT0_AT1.x ) ;
 
-		// ãƒãƒ³ãƒ—ãƒžãƒƒãƒ— or ãƒ•ã‚©ãƒ³ã‚·ã‚§ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°ç”¨ã«æ¸›è¡°çŽ‡ã‚’ä¿å­˜ã™ã‚‹
+		// ƒoƒ“ƒvƒ}ƒbƒv or ƒtƒHƒ“ƒVƒF[ƒfƒBƒ“ƒO—p‚ÉŒ¸Š—¦‚ð•Û‘¶‚·‚é
 		#if PHONG || BUMPMAP
 			VSOutput.Light1_Dir_Gen.w = lLightGen ;
 		#endif // PHONG || BUMPMAP
@@ -546,29 +546,29 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		#endif
 
 	#endif // LG1_SPOT || LG1_POINT
-	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =========================( çµ‚äº† )
+	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =========================( I—¹ )
 
 
 
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆã¨ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°è¨ˆç®— =======( é–‹å§‹ )
+	// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg‚ÆƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg‚ÌŠp“xŒ¸ŠŒvŽZ =======( ŠJŽn )
 	#if BUMPMAP == 0 && PHONG == 0
 
-		// æ³•ç·šã¨ãƒ©ã‚¤ãƒˆã®é€†æ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ã®å†…ç©ã‚’ lLightLitParam.x ã«ã‚»ãƒƒãƒˆ
+		// –@ü‚Æƒ‰ƒCƒg‚Ì‹t•ûŒüƒxƒNƒgƒ‹‚Æ‚Ì“àÏ‚ð lLightLitParam.x ‚ÉƒZƒbƒg
 		lLightLitParam.x = dot( lViewNrm, -lLightDir ) ;
 
 		#ifdef USE_SPE
 
-			// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®— norm( ( norm( é ‚ç‚¹ä½ç½®ã‹ã‚‰è¦–ç‚¹ã¸ã®ãƒ™ã‚¯ãƒˆãƒ« ) + ãƒ©ã‚¤ãƒˆã®æ–¹å‘ ) )
+			// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ norm( ( norm( ’¸“_ˆÊ’u‚©‚çŽ‹“_‚Ö‚ÌƒxƒNƒgƒ‹ ) + ƒ‰ƒCƒg‚Ì•ûŒü ) )
 			lLightHalfVec = normalize( normalize( -lViewPosition.xyz ) - lLightDir ) ;
 
-			// æ³•ç·šã¨ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©ã‚’ lLightLitParam.y ã«ã‚»ãƒƒãƒˆ
+			// –@ü‚Æƒn[ƒtƒxƒNƒgƒ‹‚Ì“àÏ‚ð lLightLitParam.y ‚ÉƒZƒbƒg
 			lLightLitParam.y = dot( lLightHalfVec, lViewNrm ) ;
 
-			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©åå°„çŽ‡ã‚’ lLightLitParam.w ã«ã‚»ãƒƒãƒˆ
+			// ƒXƒyƒLƒ…ƒ‰”½ŽË—¦‚ð lLightLitParam.w ‚ÉƒZƒbƒg
 			lLightLitParam.w = cfMaterial.Power.x ;
 
-			// ãƒ©ã‚¤ãƒˆè¨ˆç®—
+			// ƒ‰ƒCƒgŒvŽZ
 			lLightLitDest = lit( lLightLitParam.x, lLightLitParam.y, lLightLitParam.w ) ;
 
 		#else // USE_SPE
@@ -578,37 +578,37 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		#endif // USE_SPE
 
 	#endif // BUMPMAP == 0 && PHONG == 0
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆã¨ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°è¨ˆç®— =======( çµ‚äº† )
+	// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg‚ÆƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg‚ÌŠp“xŒ¸ŠŒvŽZ =======( I—¹ )
 
 
 
 
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( é–‹å§‹ )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[ŒvŽZ =======================================( ŠJŽn )
 
 	#if BUMPMAP == 0 && PHONG == 0
 
 		#if LG1_SPOT || LG1_POINT
 
-			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆè“„ç©å€¤ += è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆè§’åº¦æ¸›è¡°å€¤ * ( ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã® )
+			// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg’~Ï’l += ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŠp“xŒ¸Š’l * ( ƒfƒBƒtƒ…[ƒYŠp“xŒ¸ŠŒvŽZŒ‹‰Ê * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì )
 			lTotalDiffuse += lLightGen * ( lLightLitDest.y * cfLight[ 1 ].Diffuse * lDifColor + cfLight[ 1 ].Ambient ) ;
 
 		#else  // LG1_SPOT || LG1_POINT
 
-			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆè“„ç©å€¤ += ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®
+			// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg’~Ï’l += ƒfƒBƒtƒ…[ƒYŠp“xŒ¸ŠŒvŽZŒ‹‰Ê * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì
 			lTotalDiffuse += lLightLitDest.y * cfLight[ 1 ].Diffuse * lDifColor + cfLight[ 1 ].Ambient ;
 
 		#endif // LG1_SPOT || LG1_POINT
 
 	#endif // BUMPMAP == 0 && PHONG == 0
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( çµ‚äº† )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[ŒvŽZ =======================================( I—¹ )
 
 
 
 
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( é–‹å§‹ )
+	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ =======================================( ŠJŽn )
 
 	#ifdef USE_SPE
 
@@ -616,12 +616,12 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 			#if LG1_SPOT || LG1_POINT || ALL_VS
 
-				// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆè“„ç©å€¤ += ã‚¹ãƒšã‚­ãƒ¥ãƒ©è§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡° * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
+				// ƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg’~Ï’l += ƒXƒyƒLƒ…ƒ‰Šp“xŒ¸ŠŒvŽZŒ‹‰Ê * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
 				lTotalSpecular += lLightGen * lLightLitDest.z * cfLight[ 1 ].Specular ;
 
 			#else	// LG1_SPOT || LG1_POINT || ALL_VS
 
-				// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆè“„ç©å€¤ += ã‚¹ãƒšã‚­ãƒ¥ãƒ©è§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
+				// ƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg’~Ï’l += ƒXƒyƒLƒ…ƒ‰Šp“xŒ¸ŠŒvŽZŒ‹‰Ê * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
 				lTotalSpecular += lLightLitDest.z * cfLight[ 1 ].Specular ;
 
 			#endif	// LG1_SPOT || LG1_POINT || ALL_VS
@@ -630,7 +630,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#endif // USE_SPE
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( çµ‚äº† )
+	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ =======================================( I—¹ )
 
 
 
@@ -640,7 +640,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	#endif
 
 #endif  // LG1_USE
-// ãƒ©ã‚¤ãƒˆ1ã®å‡¦ç† ***********************************************************************************************************************************( çµ‚äº† )
+// ƒ‰ƒCƒg1‚Ìˆ— ***********************************************************************************************************************************( I—¹ )
 
 
 
@@ -649,7 +649,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 
 
-		// ãƒ©ã‚¤ãƒˆ2ã®å‡¦ç† ***********************************************************************************************************************************( é–‹å§‹ )
+		// ƒ‰ƒCƒg2‚Ìˆ— ***********************************************************************************************************************************( ŠJŽn )
 #if LG2_USE
 
 	#ifdef ALL_VS
@@ -657,24 +657,24 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		{
 	#endif
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°è¨ˆç®—ç”¨ã®ãƒ©ã‚¤ãƒˆã®æ–¹å‘ã‚’äº‹å‰è¨ˆç®— ======( é–‹å§‹ )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸ŠŒvŽZ—p‚Ìƒ‰ƒCƒg‚Ì•ûŒü‚ðŽ–‘OŒvŽZ ======( ŠJŽn )
 
 	#if LG2_DIR
 
-		// ãƒ©ã‚¤ãƒˆã®æ–¹å‘è¨ˆç®—
+		// ƒ‰ƒCƒg‚Ì•ûŒüŒvŽZ
 		lLightDir = cfLight[ 2 ].Direction ;
 
 	#else  // LG2_DIR
 
-		// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®—
+		// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚ÌŒvŽZ
 		lLightDir = normalize( lViewPosition.xyz - cfLight[ 2 ].Position.xyz ) ;
 
 	#endif  // LG2_DIR
 
-	// ãƒ©ã‚¤ãƒˆã®æƒ…å ±ã‚’åˆæœŸåŒ–
+	// ƒ‰ƒCƒg‚Ìî•ñ‚ð‰Šú‰»
 	VSOutput.Light2_Dir_Gen = ZERO ;
 
-	// ãƒ©ã‚¤ãƒˆã®å‘ãã®é€†ãƒ™ã‚¯ãƒˆãƒ«ã‚’æŽ¥åœ°ç©ºé–“ã«å¤‰æ›
+	// ƒ‰ƒCƒg‚ÌŒü‚«‚Ì‹tƒxƒNƒgƒ‹‚ðÚ’n‹óŠÔ‚É•ÏŠ·
 	#ifdef BUMPMAP
 
 		VSOutput.Light2_Dir_Gen.x = dot( lViewTan, -lLightDir ) ;
@@ -683,15 +683,15 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#elif PHONG // BUMPMAP
 
-		// ãƒ©ã‚¤ãƒˆã®å‘ãã®é€†ãƒ™ã‚¯ãƒˆãƒ«ã‚’ä¿å­˜
+		// ƒ‰ƒCƒg‚ÌŒü‚«‚Ì‹tƒxƒNƒgƒ‹‚ð•Û‘¶
 		VSOutput.Light2_Dir_Gen.xyz = -lLightDir ;
 
 	#endif // BUMPMAP
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è§’åº¦æ¸›è¡°è¨ˆç®—ç”¨ã®ãƒ©ã‚¤ãƒˆã®æ–¹å‘ã‚’äº‹å‰è¨ˆç®— ======( çµ‚äº† )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[Šp“xŒ¸ŠŒvŽZ—p‚Ìƒ‰ƒCƒg‚Ì•ûŒü‚ðŽ–‘OŒvŽZ ======( I—¹ )
 
 
-	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— ==========================( é–‹å§‹ )
+	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ ==========================( ŠJŽn )
 	#if LG2_SPOT || LG2_POINT
 
 		#ifdef ALL_VS
@@ -700,17 +700,17 @@ VS_OUTPUT main( VS_INPUT VSInput )
 			{
 		#endif // ALL_VS
 
-		// è·é›¢æ¸›è¡°è¨ˆç®— ------------------
+		// ‹——£Œ¸ŠŒvŽZ ------------------
 
-		// é ‚ç‚¹ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã¨ã®è·é›¢ã®äºŒä¹—ã‚’æ±‚ã‚ã‚‹ lLightTemp.x = ( POS - L2_POS ) * ( POS - L2_POS )
+		// ’¸“_‚Æƒ‰ƒCƒgˆÊ’u‚Æ‚Ì‹——£‚Ì“ñæ‚ð‹‚ß‚é lLightTemp.x = ( POS - L2_POS ) * ( POS - L2_POS )
 		lLightTemp = lViewPosition - cfLight[ 2 ].Position ;
 		lLightTemp.w = 0.0f;
 		lLightDistancePow2 = dot( lLightTemp, lLightTemp ) ;
 
-		// æ¸›è¡°çŽ‡ã®è¨ˆç®— lLightGen = 1 / ( æ¸›è¡°å€¤0 + æ¸›è¡°å€¤1 * è·é›¢ + æ¸›è¡°å€¤2 * ( è·é›¢ * è·é›¢ ) )
+		// Œ¸Š—¦‚ÌŒvŽZ lLightGen = 1 / ( Œ¸Š’l0 + Œ¸Š’l1 * ‹——£ + Œ¸Š’l2 * ( ‹——£ * ‹——£ ) )
 		lLightGen = 1.0f / ( cfLight[ 2 ].Range_FallOff_AT0_AT1.z + cfLight[ 2 ].Range_FallOff_AT0_AT1.w * sqrt( lLightDistancePow2 ) + cfLight[ 2 ].AT2_SpotP0_SpotP1.x * lLightDistancePow2 ) ;
 
-		// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®— --------
+		// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ --------
 
 		#if LG2_SPOT
 
@@ -719,10 +719,10 @@ VS_OUTPUT main( VS_INPUT VSInput )
 				{
 			#endif // ALL_VS
 
-			// ãƒ©ã‚¤ãƒˆæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ãƒ©ã‚¤ãƒˆä½ç½®ã‹ã‚‰é ‚ç‚¹ä½ç½®ã¸ã®ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©( å³ã¡ Cos a )ã‚’è¨ˆç®— 
+			// ƒ‰ƒCƒg•ûŒüƒxƒNƒgƒ‹‚Æƒ‰ƒCƒgˆÊ’u‚©‚ç’¸“_ˆÊ’u‚Ö‚ÌƒxƒNƒgƒ‹‚Ì“àÏ( ‘¦‚¿ Cos a )‚ðŒvŽZ 
 			lLightDirectionCosA = dot( lLightDir, cfLight[ 2 ].Direction ) ;
 
-			// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°è¨ˆç®—  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
+			// ƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸ŠŒvŽZ  pow( falloff, ( ( Cos a - Cos f ) / ( Cos q - Cos f ) ) )
 			lLightGen *= saturate( pow( abs( max( lLightDirectionCosA - cfLight[ 2 ].AT2_SpotP0_SpotP1.y, 0.0f ) * cfLight[ 2 ].AT2_SpotP0_SpotP1.z ), cfLight[ 2 ].Range_FallOff_AT0_AT1.y ) ) ;
 
 			#ifdef ALL_VS
@@ -731,10 +731,10 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 		#endif // LG2_SPOT
 
-		// æœ‰åŠ¹è·é›¢å¤–ã ã£ãŸã‚‰æ¸›è¡°çŽ‡ã‚’æœ€å¤§ã«ã™ã‚‹å‡¦ç†
+		// —LŒø‹——£ŠO‚¾‚Á‚½‚çŒ¸Š—¦‚ðÅ‘å‚É‚·‚éˆ—
 		lLightGen *= step( lLightDistancePow2, cfLight[ 2 ].Range_FallOff_AT0_AT1.x ) ;
 
-		// ãƒãƒ³ãƒ—ãƒžãƒƒãƒ— or ãƒ•ã‚©ãƒ³ã‚·ã‚§ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°ç”¨ã«æ¸›è¡°çŽ‡ã‚’ä¿å­˜ã™ã‚‹
+		// ƒoƒ“ƒvƒ}ƒbƒv or ƒtƒHƒ“ƒVƒF[ƒfƒBƒ“ƒO—p‚ÉŒ¸Š—¦‚ð•Û‘¶‚·‚é
 		#if PHONG || BUMPMAP
 			VSOutput.Light2_Dir_Gen.w = lLightGen ;
 		#endif // PHONG || BUMPMAP
@@ -744,29 +744,29 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		#endif
 
 	#endif // LG2_SPOT || LG2_POINT
-	// è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡°å€¤è¨ˆç®— =========================( çµ‚äº† )
+	// ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š’lŒvŽZ =========================( I—¹ )
 
 
 
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆã¨ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°è¨ˆç®— =======( é–‹å§‹ )
+	// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg‚ÆƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg‚ÌŠp“xŒ¸ŠŒvŽZ =======( ŠJŽn )
 	#if BUMPMAP == 0 && PHONG == 0
 
-		// æ³•ç·šã¨ãƒ©ã‚¤ãƒˆã®é€†æ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ã¨ã®å†…ç©ã‚’ lLightLitParam.x ã«ã‚»ãƒƒãƒˆ
+		// –@ü‚Æƒ‰ƒCƒg‚Ì‹t•ûŒüƒxƒNƒgƒ‹‚Æ‚Ì“àÏ‚ð lLightLitParam.x ‚ÉƒZƒbƒg
 		lLightLitParam.x = dot( lViewNrm, -lLightDir ) ;
 
 		#ifdef USE_SPE
 
-			// ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®è¨ˆç®— norm( ( norm( é ‚ç‚¹ä½ç½®ã‹ã‚‰è¦–ç‚¹ã¸ã®ãƒ™ã‚¯ãƒˆãƒ« ) + ãƒ©ã‚¤ãƒˆã®æ–¹å‘ ) )
+			// ƒn[ƒtƒxƒNƒgƒ‹‚ÌŒvŽZ norm( ( norm( ’¸“_ˆÊ’u‚©‚çŽ‹“_‚Ö‚ÌƒxƒNƒgƒ‹ ) + ƒ‰ƒCƒg‚Ì•ûŒü ) )
 			lLightHalfVec = normalize( normalize( -lViewPosition.xyz ) - lLightDir ) ;
 
-			// æ³•ç·šã¨ãƒãƒ¼ãƒ•ãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©ã‚’ lLightLitParam.y ã«ã‚»ãƒƒãƒˆ
+			// –@ü‚Æƒn[ƒtƒxƒNƒgƒ‹‚Ì“àÏ‚ð lLightLitParam.y ‚ÉƒZƒbƒg
 			lLightLitParam.y = dot( lLightHalfVec, lViewNrm ) ;
 
-			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©åå°„çŽ‡ã‚’ lLightLitParam.w ã«ã‚»ãƒƒãƒˆ
+			// ƒXƒyƒLƒ…ƒ‰”½ŽË—¦‚ð lLightLitParam.w ‚ÉƒZƒbƒg
 			lLightLitParam.w = cfMaterial.Power.x ;
 
-			// ãƒ©ã‚¤ãƒˆè¨ˆç®—
+			// ƒ‰ƒCƒgŒvŽZ
 			lLightLitDest = lit( lLightLitParam.x, lLightLitParam.y, lLightLitParam.w ) ;
 
 		#else // USE_SPE
@@ -776,37 +776,37 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		#endif // USE_SPE
 
 	#endif // BUMPMAP == 0 && PHONG == 0
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆã¨ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆã®è§’åº¦æ¸›è¡°è¨ˆç®— =======( çµ‚äº† )
+	// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg‚ÆƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg‚ÌŠp“xŒ¸ŠŒvŽZ =======( I—¹ )
 
 
 
 
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( é–‹å§‹ )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[ŒvŽZ =======================================( ŠJŽn )
 
 	#if BUMPMAP == 0 && PHONG == 0
 
 		#if LG2_SPOT || LG2_POINT
 
-			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆè“„ç©å€¤ += è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆè§’åº¦æ¸›è¡°å€¤ * ( ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã® )
+			// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg’~Ï’l += ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŠp“xŒ¸Š’l * ( ƒfƒBƒtƒ…[ƒYŠp“xŒ¸ŠŒvŽZŒ‹‰Ê * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì )
 			lTotalDiffuse += lLightGen * ( lLightLitDest.y * cfLight[ 2 ].Diffuse * lDifColor + cfLight[ 2 ].Ambient ) ;
 
 		#else  // LG2_SPOT || LG2_POINT
 
-			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ©ã‚¤ãƒˆè“„ç©å€¤ += ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ * ãƒ©ã‚¤ãƒˆã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ + ãƒ©ã‚¤ãƒˆã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®
+			// ƒfƒBƒtƒ…[ƒYƒ‰ƒCƒg’~Ï’l += ƒfƒBƒtƒ…[ƒYŠp“xŒ¸ŠŒvŽZŒ‹‰Ê * ƒfƒBƒtƒ…[ƒYƒJƒ‰[ * ƒ‰ƒCƒg‚ÌƒfƒBƒtƒ…[ƒYƒJƒ‰[ + ƒ‰ƒCƒg‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚Æƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì
 			lTotalDiffuse += lLightLitDest.y * cfLight[ 2 ].Diffuse * lDifColor + cfLight[ 2 ].Ambient ;
 
 		#endif // LG2_SPOT || LG2_POINT
 
 	#endif // BUMPMAP == 0 && PHONG == 0
 
-	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( çµ‚äº† )
+	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[ŒvŽZ =======================================( I—¹ )
 
 
 
 
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( é–‹å§‹ )
+	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ =======================================( ŠJŽn )
 
 	#ifdef USE_SPE
 
@@ -814,12 +814,12 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 			#if LG2_SPOT || LG2_POINT || ALL_VS
 
-				// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆè“„ç©å€¤ += ã‚¹ãƒšã‚­ãƒ¥ãƒ©è§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * è·é›¢ãƒ»ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆæ¸›è¡° * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
+				// ƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg’~Ï’l += ƒXƒyƒLƒ…ƒ‰Šp“xŒ¸ŠŒvŽZŒ‹‰Ê * ‹——£EƒXƒ|ƒbƒgƒ‰ƒCƒgŒ¸Š * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
 				lTotalSpecular += lLightGen * lLightLitDest.z * cfLight[ 2 ].Specular ;
 
 			#else	// LG2_SPOT || LG2_POINT || ALL_VS
 
-				// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ©ã‚¤ãƒˆè“„ç©å€¤ += ã‚¹ãƒšã‚­ãƒ¥ãƒ©è§’åº¦æ¸›è¡°è¨ˆç®—çµæžœ * ãƒ©ã‚¤ãƒˆã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
+				// ƒXƒyƒLƒ…ƒ‰ƒ‰ƒCƒg’~Ï’l += ƒXƒyƒLƒ…ƒ‰Šp“xŒ¸ŠŒvŽZŒ‹‰Ê * ƒ‰ƒCƒg‚ÌƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
 				lTotalSpecular += lLightLitDest.z * cfLight[ 2 ].Specular ;
 
 			#endif	// LG2_SPOT || LG2_POINT || ALL_VS
@@ -828,7 +828,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#endif // USE_SPE
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è¨ˆç®— =======================================( çµ‚äº† )
+	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ŒvŽZ =======================================( I—¹ )
 
 
 
@@ -838,7 +838,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	#endif
 
 #endif  // LG2_USE
-// ãƒ©ã‚¤ãƒˆ2ã®å‡¦ç† ***********************************************************************************************************************************( çµ‚äº† )
+// ƒ‰ƒCƒg2‚Ìˆ— ***********************************************************************************************************************************( I—¹ )
 
 
 
@@ -854,34 +854,34 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 
 
-		// å…¨ã¦ã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè¦ç´ ã‚’åˆã‚ã›ã¦å‡ºåŠ›ãƒ¬ã‚¸ã‚¹ã‚¿ã«ã‚»ãƒƒãƒˆ =====( é–‹å§‹ )
+		// ‘S‚Ä‚ÌƒfƒBƒtƒ…[ƒY—v‘f‚ð‡‚í‚¹‚Äo—ÍƒŒƒWƒXƒ^‚ÉƒZƒbƒg =====( ŠJŽn )
 
 		#if BUMPMAP == 0 && PHONG == 0
 
-			// å‡ºåŠ›ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ = ãƒ©ã‚¤ãƒˆãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼è“„ç©å€¤ + ( ãƒžãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã¨ã‚°ãƒ­ãƒ¼ãƒãƒ«ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚«ãƒ©ãƒ¼ã‚’ä¹—ç®—ã—ãŸã‚‚ã®ã¨ãƒžãƒ†ãƒªã‚¢ãƒ«ã‚¨ãƒŸãƒƒã‚·ãƒ–ã‚«ãƒ©ãƒ¼ã‚’åŠ ç®—ã—ãŸã‚‚ã® )
+			// o—ÍƒfƒBƒtƒ…[ƒYƒJƒ‰[ = ƒ‰ƒCƒgƒfƒBƒtƒ…[ƒYƒJƒ‰[’~Ï’l + ( ƒ}ƒeƒŠƒAƒ‹‚ÌƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ÆƒOƒ[ƒoƒ‹ƒAƒ“ƒrƒGƒ“ƒgƒJƒ‰[‚ðæŽZ‚µ‚½‚à‚Ì‚Æƒ}ƒeƒŠƒAƒ‹ƒGƒ~ƒbƒVƒuƒJƒ‰[‚ð‰ÁŽZ‚µ‚½‚à‚Ì )
 			VSOutput.Diffuse = lTotalDiffuse + cfAmbient_Emissive ;
 
-			// ã‚¢ãƒ«ãƒ•ã‚¡ã¯ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã®ã‚¢ãƒ«ãƒ•ã‚¡ã‚’ãã®ã¾ã¾ä½¿ã†
+			// ƒAƒ‹ƒtƒ@‚ÍƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ÌƒAƒ‹ƒtƒ@‚ð‚»‚Ì‚Ü‚ÜŽg‚¤
 			VSOutput.Diffuse.w = lDifColor.w ;
 
 		#endif // BUMPMAP == 0 && PHONG == 0
 
-		// å…¨ã¦ã®ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºè¦ç´ ã‚’åˆã‚ã›ã¦å‡ºåŠ›ãƒ¬ã‚¸ã‚¹ã‚¿ã«ã‚»ãƒƒãƒˆ =====( çµ‚äº† )
+		// ‘S‚Ä‚ÌƒfƒBƒtƒ…[ƒY—v‘f‚ð‡‚í‚¹‚Äo—ÍƒŒƒWƒXƒ^‚ÉƒZƒbƒg =====( I—¹ )
 
 
 
 
 
-		// å…¨ã¦ã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©è¦ç´ ã‚’åˆã‚ã›ã¦å‡ºåŠ›ãƒ¬ã‚¸ã‚¹ã‚¿ã«ã‚»ãƒƒãƒˆ =====( é–‹å§‹ )
+		// ‘S‚Ä‚ÌƒXƒyƒLƒ…ƒ‰—v‘f‚ð‡‚í‚¹‚Äo—ÍƒŒƒWƒXƒ^‚ÉƒZƒbƒg =====( ŠJŽn )
 
 		#if USE_SPE && BUMPMAP == 0 && PHONG == 0
 
-			// å‡ºåŠ›ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼ = ãƒ©ã‚¤ãƒˆã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼è“„ç©å€¤ * ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
+			// o—ÍƒXƒyƒLƒ…ƒ‰ƒJƒ‰[ = ƒ‰ƒCƒgƒXƒyƒLƒ…ƒ‰ƒJƒ‰[’~Ï’l * ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
 			VSOutput.Specular = lTotalSpecular * lSpeColor ;
 
 		#endif // USE_SPE && BUMPMAP == 0 && PHONG == 0
 
-		// å…¨ã¦ã®ã‚¹ãƒšã‚­ãƒ¥ãƒ©è¦ç´ ã‚’åˆã‚ã›ã¦å‡ºåŠ›ãƒ¬ã‚¸ã‚¹ã‚¿ã«ã‚»ãƒƒãƒˆ =====( çµ‚äº† )
+		// ‘S‚Ä‚ÌƒXƒyƒLƒ…ƒ‰—v‘f‚ð‡‚í‚¹‚Äo—ÍƒŒƒWƒXƒ^‚ÉƒZƒbƒg =====( I—¹ )
 
 
 
@@ -889,7 +889,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 
 	#endif // LG_USE
-	// ãƒ©ã‚¤ãƒˆã®å‡¦ç† +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
+	// ƒ‰ƒCƒg‚Ìˆ— +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
 
 
 
@@ -905,67 +905,67 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 
 
-	// ãƒ•ã‚©ã‚°è¨ˆç®— =============================================( é–‹å§‹ )
+	// ƒtƒHƒOŒvŽZ =============================================( ŠJŽn )
 
 	#if FOG_LINEAR || FOG_EXP || FOG_EXP2
 
 		#ifdef FOG_LINEAR
 
-			// ç·šå½¢ãƒ•ã‚©ã‚°è¨ˆç®—
+			// üŒ`ƒtƒHƒOŒvŽZ
 			FOG_OUT = lViewPosition.z * FOG_LINEAR_DIV + FOG_LINEAR_ADD ;
 
 		#endif
 
 		#ifdef FOG_EXP
 
-			// æŒ‡æ•°ãƒ•ã‚©ã‚°è¨ˆç®— 1.0f / pow( e, è·é›¢ * density )
+			// Žw”ƒtƒHƒOŒvŽZ 1.0f / pow( e, ‹——£ * density )
 			FOG_OUT = 1.0f / pow( abs( FOG_EXP_E ), lViewPosition.z * FOG_EXP_DENSITY ) ;
 
 		#endif
 
 		#ifdef FOG_EXP2
 
-			// æŒ‡æ•°ãƒ•ã‚©ã‚°ï¼’è¨ˆç®— 1.0f / pow( e, ( è·é›¢ * density ) * ( è·é›¢ * density ) )
+			// Žw”ƒtƒHƒO‚QŒvŽZ 1.0f / pow( e, ( ‹——£ * density ) * ( ‹——£ * density ) )
 			FOG_OUT = 1.0f / pow( abs( FOG_EXP_E ), ( lViewPosition.z * FOG_EXP_DENSITY ) * ( lViewPosition.z * FOG_EXP_DENSITY ) ) ;
 
 		#endif
 
 	#endif // FOG_LINEAR || FOG_EXP || FOG_EXP2
 
-	// ãƒ•ã‚©ã‚°è¨ˆç®— =============================================( çµ‚äº† )
+	// ƒtƒHƒOŒvŽZ =============================================( I—¹ )
 
 #if SHADOWMAP_DRAW
-	// å°„å½±åº§æ¨™ã‚’ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ã¨ã—ã¦å‡ºåŠ›ã™ã‚‹ =================( é–‹å§‹ )
+	// ŽË‰eÀ•W‚ðƒeƒNƒXƒ`ƒƒÀ•W‚Æ‚µ‚Äo—Í‚·‚é =================( ŠJŽn )
 
 	VSOutput.ShadowMap1Pos_ShadowMap3PosX.xyz = VSOutput.Position.xyz ;
 	VSOutput.ShadowMap1Pos_ShadowMap3PosX.w   = cfZeroOne.y;
 
-	// å°„å½±åº§æ¨™ã‚’ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ã¨ã—ã¦å‡ºåŠ›ã™ã‚‹ =================( çµ‚äº† )
+	// ŽË‰eÀ•W‚ðƒeƒNƒXƒ`ƒƒÀ•W‚Æ‚µ‚Äo—Í‚·‚é =================( I—¹ )
 #endif
 
 
 #if SHADOWMAP
-	// æ·±åº¦å½±ç”¨ã®ãƒ©ã‚¤ãƒˆã‹ã‚‰è¦‹ãŸå°„å½±åº§æ¨™ã‚’ç®—å‡º =================( é–‹å§‹ )
+	// [“x‰e—p‚Ìƒ‰ƒCƒg‚©‚çŒ©‚½ŽË‰eÀ•W‚ðŽZo =================( ŠJŽn )
 
-	// ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™ã‚’ãƒ©ã‚¤ãƒˆï¼‘ã®å°„å½±åº§æ¨™ã«å¤‰æ›
+	// ƒ[ƒ‹ƒhÀ•W‚ðƒ‰ƒCƒg‚P‚ÌŽË‰eÀ•W‚É•ÏŠ·
 	VSOutput.ShadowMap1Pos_ShadowMap3PosX.x = dot( lWorldPosition, cfShadowMap1LightViewProjectionMatrix[ 0 ] ) ;
 	VSOutput.ShadowMap1Pos_ShadowMap3PosX.y = dot( lWorldPosition, cfShadowMap1LightViewProjectionMatrix[ 1 ] ) ;
 	VSOutput.ShadowMap1Pos_ShadowMap3PosX.z = dot( lWorldPosition, cfShadowMap1LightViewProjectionMatrix[ 2 ] ) ;
 
-	// ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™ã‚’ãƒ©ã‚¤ãƒˆï¼’ã®å°„å½±åº§æ¨™ã«å¤‰æ›
+	// ƒ[ƒ‹ƒhÀ•W‚ðƒ‰ƒCƒg‚Q‚ÌŽË‰eÀ•W‚É•ÏŠ·
 	VSOutput.ShadowMap2Pos_ShadowMap3PosY.x = dot( lWorldPosition, cfShadowMap2LightViewProjectionMatrix[ 0 ] ) ;
 	VSOutput.ShadowMap2Pos_ShadowMap3PosY.y = dot( lWorldPosition, cfShadowMap2LightViewProjectionMatrix[ 1 ] ) ;
 	VSOutput.ShadowMap2Pos_ShadowMap3PosY.z = dot( lWorldPosition, cfShadowMap2LightViewProjectionMatrix[ 2 ] ) ;
 
-	// ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™ã‚’ãƒ©ã‚¤ãƒˆï¼“ã®å°„å½±åº§æ¨™ã«å¤‰æ›
+	// ƒ[ƒ‹ƒhÀ•W‚ðƒ‰ƒCƒg‚R‚ÌŽË‰eÀ•W‚É•ÏŠ·
 	VSOutput.ShadowMap1Pos_ShadowMap3PosX.w = dot( lWorldPosition, cfShadowMap3LightViewProjectionMatrix[ 0 ] ) ;
 	VSOutput.ShadowMap2Pos_ShadowMap3PosY.w = dot( lWorldPosition, cfShadowMap3LightViewProjectionMatrix[ 1 ] ) ;
 	VSOutput.V_to_Eye_ShadowMap3PosZ.w      = dot( lWorldPosition, cfShadowMap3LightViewProjectionMatrix[ 2 ] ) ;
 
-	// æ·±åº¦å½±ç”¨ã®ãƒ©ã‚¤ãƒˆã‹ã‚‰è¦‹ãŸå°„å½±åº§æ¨™ã‚’ç®—å‡º =================( çµ‚äº† )
+	// [“x‰e—p‚Ìƒ‰ƒCƒg‚©‚çŒ©‚½ŽË‰eÀ•W‚ðŽZo =================( I—¹ )
 #endif
 
-	// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ã®ã‚»ãƒƒãƒˆ
+	// ƒeƒNƒXƒ`ƒƒÀ•W‚ÌƒZƒbƒg
 	VSOutput.TexCoords0_1.x = dot( VSInput.TexCoords0, cfTextureMatrix[ 0 ][ 0 ] ) ;
 	VSOutput.TexCoords0_1.y = dot( VSInput.TexCoords0, cfTextureMatrix[ 0 ][ 1 ] ) ;
 

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		標準Ｃライブラリ使用コード
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -22,9 +22,13 @@
 #include "DxLog.h"
 
 #ifndef DX_NON_MOVIE
+#ifndef DX_NON_DSHOW_MP3
+#ifndef DX_NON_DSHOW_MOVIE
 #include "Windows/DxWinAPI.h"
 #include "Windows/DxGuid.h"
-#endif
+#endif // DX_NON_MOVIE
+#endif // DX_NON_DSHOW_MP3
+#endif // DX_NON_DSHOW_MOVIE
 
 #include <setjmp.h>
 #include <stdarg.h>
@@ -674,9 +678,31 @@ extern int LoadPngImage( STREAMDATA *Src, BASEIMAGE *BaseImage, int GetFormatOnl
 
 #ifndef DX_NON_SAVEFUNCTION
 
+static void png_general_flush( png_structp png_ptr )
+{
+}
+
+static void png_general_write_data(png_structp png_ptr, png_bytep data, png_size_t length)
+{
+	DWORD_PTR fp ;
+
+	fp = ( DWORD_PTR )png_get_io_ptr( png_ptr ) ;
+
+	WriteOnlyFileAccessWrite( fp, data, length ) ;
+}
+
+int png_general_write_set( png_structp png_ptr, DWORD_PTR fp )
+{
+	// コールバック関数のセット
+	png_set_write_fn( png_ptr, ( void * )fp, png_general_write_data, png_general_flush ) ;
+
+	// 終了
+	return 0 ;
+}
+
 extern int SaveBaseImageToPngBase( const char *pFilePathW, const char *pFilePathA, BASEIMAGE *BaseImage, int CompressionLevel )
 {
-	FILE       *fp;
+	DWORD_PTR fp ;
 	png_structp png_ptr;
 	png_infop   info_ptr;
 	png_bytepp  buffer;
@@ -686,11 +712,14 @@ extern int SaveBaseImageToPngBase( const char *pFilePathW, const char *pFilePath
 	// 保存用のファイルを開く
 	if( pFilePathW )
 	{
-		fp = _wfopen( ( wchar_t * )pFilePathW, L"wb");
+		fp = WriteOnlyFileAccessOpenWCHAR( pFilePathW ) ;
 	}
 	else
 	{
-		fp = fopen( pFilePathA, "wb");
+		char TempBuffer[ 1024 ] ;
+
+		ConvString( pFilePathA, CHAR_CHARCODEFORMAT, TempBuffer, WCHAR_T_CHARCODEFORMAT ) ;
+		fp = WriteOnlyFileAccessOpenWCHAR( TempBuffer ) ;
 	}
 	if( fp == NULL ) return -1;
 
@@ -716,13 +745,15 @@ ERR:
 				if( buffer[i] ) DXFREE( buffer[i] );
 			DXFREE( buffer );
 		}
-		if( fp ) fclose( fp );
+		if( fp ) WriteOnlyFileAccessClose( fp );
 		png_destroy_write_struct( &png_ptr, &info_ptr );
 		return -1 ;
 	}
 
+	png_general_write_set( png_ptr, fp ) ;
+
 	// 開いたファイルポインタをセット
-	png_init_io( png_ptr, fp );
+//	png_init_io( png_ptr, fp );
 
 	// 使用するフィルタのセット
 	png_set_filter( png_ptr, 0, PNG_ALL_FILTERS );
@@ -791,7 +822,7 @@ ERR:
 	png_destroy_write_struct( &png_ptr, &info_ptr );
 
 	// ファイルを閉じる
-	fclose(fp);
+	WriteOnlyFileAccessClose( fp ) ;
 
 	// メモリの解放
 	for( i = 0; i < BaseImage->Height; i++ )
@@ -1119,11 +1150,87 @@ extern int LoadJpegImage( STREAMDATA *Src, BASEIMAGE *BaseImage, int GetFormatOn
 
 #ifndef DX_NON_SAVEFUNCTION
 
+#define OUTPUT_BUF_SIZE  4096	/* choose an efficiently fwrite'able size */
+
+/* Expanded data destination object for stdio output */
+
+typedef struct {
+  struct jpeg_destination_mgr pub; /* public fields */
+
+  DWORD_PTR outfile;	/* target stream */
+  JOCTET * buffer;		/* start of buffer */
+} my_destination_mgr;
+
+typedef my_destination_mgr * my_dest_ptr;
+
+METHODDEF(void)
+init_destination_general (j_compress_ptr cinfo)
+{
+  my_dest_ptr dest = (my_dest_ptr) cinfo->dest;
+
+  /* Allocate the output buffer --- it will be released when done with image */
+  dest->buffer = (JOCTET *)
+      (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_IMAGE,
+				  OUTPUT_BUF_SIZE * SIZEOF(JOCTET));
+
+  dest->pub.next_output_byte = dest->buffer;
+  dest->pub.free_in_buffer = OUTPUT_BUF_SIZE;
+}
+
+METHODDEF(boolean)
+empty_output_buffer_general (j_compress_ptr cinfo)
+{
+  my_dest_ptr dest = (my_dest_ptr) cinfo->dest;
+
+  WriteOnlyFileAccessWrite(dest->outfile, dest->buffer, OUTPUT_BUF_SIZE);
+
+  dest->pub.next_output_byte = dest->buffer;
+  dest->pub.free_in_buffer = OUTPUT_BUF_SIZE;
+
+  return TRUE;
+}
+
+METHODDEF(void)
+term_destination_general (j_compress_ptr cinfo)
+{
+  my_dest_ptr dest = (my_dest_ptr) cinfo->dest;
+  size_t datacount = OUTPUT_BUF_SIZE - dest->pub.free_in_buffer;
+
+  /* Write any data remaining in the buffer */
+  if (datacount > 0) {
+    WriteOnlyFileAccessWrite(dest->outfile, dest->buffer, datacount);
+  }
+}
+
+GLOBAL(void)
+jpeg_general_dest (j_compress_ptr cinfo, DWORD_PTR outfile)
+{
+   my_dest_ptr dest;
+
+  /* The destination object is made permanent so that multiple JPEG images
+   * can be written to the same file without re-executing jpeg_stdio_dest.
+   * This makes it dangerous to use this manager and a different destination
+   * manager serially with the same JPEG object, because their private object
+   * sizes may be different.  Caveat programmer.
+   */
+  if (cinfo->dest == NULL) {	/* first time for this JPEG object? */
+    cinfo->dest = (struct jpeg_destination_mgr *)
+      (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_PERMANENT,
+				  SIZEOF(my_destination_mgr));
+  }
+
+  dest = (my_dest_ptr) cinfo->dest;
+  dest->pub.init_destination = init_destination_general;
+  dest->pub.empty_output_buffer = empty_output_buffer_general;
+  dest->pub.term_destination = term_destination_general;
+  dest->outfile = outfile;
+}
+
 extern int SaveBaseImageToJpegBase( const char *pFilePathW, const char *pFilePathA, BASEIMAGE *BaseImage, int Quality, int /*Sample2x1*/ )
 {
 	struct jpeg_compress_struct cinfo ;
 	struct my_error_mgr jerr ;
-	FILE *fp = 0;
+	DWORD_PTR fp = 0;
 	JSAMPARRAY buffer = 0;
 	JSAMPROW sample;
 	int i, j, r, g, b, a;
@@ -1131,11 +1238,14 @@ extern int SaveBaseImageToJpegBase( const char *pFilePathW, const char *pFilePat
 	// 保存用のファイルを開く
 	if( pFilePathW )
 	{
-		fp = _wfopen( ( wchar_t * )pFilePathW, L"wb");
+		fp = WriteOnlyFileAccessOpenWCHAR( pFilePathW ) ;
 	}
 	else
 	{
-		fp = fopen( pFilePathA, "wb");
+		char TempBuffer[ 1024 ] ;
+
+		ConvString( pFilePathA, CHAR_CHARCODEFORMAT, TempBuffer, WCHAR_T_CHARCODEFORMAT ) ;
+		fp = WriteOnlyFileAccessOpenWCHAR( TempBuffer ) ;
 	}
 	if( fp == NULL ) return -1;
 
@@ -1157,7 +1267,7 @@ ERR:
 			DXFREE( buffer );
 		}
 
-		if( fp ) fclose( fp );
+		if( fp ) WriteOnlyFileAccessClose( fp );
 		jpeg_destroy_compress( &cinfo );
 		return -1;
 	}
@@ -1166,7 +1276,8 @@ ERR:
 	jpeg_create_compress( &cinfo );
 
 	// 出力ファイルのポインタをセット
-	jpeg_stdio_dest( &cinfo, fp );
+	jpeg_general_dest( &cinfo, fp ) ;
+//	jpeg_stdio_dest( &cinfo, fp );
 
 	// 出力画像の情報を設定する
 	cinfo.image_width      = ( JDIMENSION )BaseImage->Width;
@@ -1216,7 +1327,7 @@ ERR:
 #endif
 
 	// ファイルを閉じる
-	fclose( fp );
+	WriteOnlyFileAccessClose( fp );
 
 	// データの解放
 	for( i = 0; i < BaseImage->Height; i++ )

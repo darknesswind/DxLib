@@ -3,10 +3,52 @@
 //　ＤＸライブラリ　非公式ログ
 //
 //　Creator : 山田　巧
-//  Last Access : 2015/6/16
+//  Last Access : 2015/8/2
 //
 // ============================================================================
 
+Ver 3.14f	　正式公開のためにバージョン番号を変更。
+Ver 3.14e	　SetCreate3DSoundFlag( TRUE ) ; を実行してから作成した
+			３Ｄサウンドハンドルに対して SetPlayFinishDeleteSoundMem を
+			使用して再生後にハンドルを削除するように設定しておくと、
+			処理のタイミング次第でメモリの不正なアクセスが発生するバグを修正。
+			　ループタイプのアニメーションかどうかを取得するための関数
+			MV1GetAnimLoopFlag を追加。
+			　MakeScreen で作成したアルファチャンネル付きの画像をマスク
+			スクリーンとして使うための関数 SetMaskScreenGraph を追加。
+			　SetSysCommandOffFlag( TRUE ) ; を実行すると、別のウインドウに
+			フォーカスが移った後も Windowsキーや ALTキーが無効になって
+			しまっていたバグを修正。
+			　マルチバイト文字コード版で Shift-JIS 以外の文字コードでの
+			文字の描画が正常に行われないバグを修正。
+			　PMD,PMXファイルのボーンの並び順によっては正常にアニメーションが
+			再生されないことがあるバグを修正。
+			　メッシュの存在しないフレームに対して MV1CollCheck_Line 等の
+			当たり判定を行う関数を実行すると異常に処理時間が掛かるバグを修正。
+			　ソフトウエアイメージに円を描画するための関数
+			DrawCircleSoftImage を追加。
+			　文字列の文字コード形式を別の文字コード形式に変換するための関数
+			ConvertStringCharCodeFormat を追加。
+			　文字列を扱う関数に渡す文字列の文字コード形式を変更するための
+			関数 SetUseCharCodeFormat を追加。
+			　標準フォントハンドルが対応する文字コード形式を変更するための
+			関数 SetFontCharCodeFormat を追加。
+			　フォントハンドルが対応する文字コード形式を変更するための関数
+			SetFontCharCodeFormatToHandle を追加。
+			　strcpyDx や strlenDx などの標準関数の文字列操作関数に似た
+			関数群を追加。
+			　一部のグラフィックスデバイスで DrawCircle で中を塗りつぶす円を
+			描画した際に左に１ドットずれてしまう不具合を修正。
+			　Direct3D 11 が使用できる環境では DrawRectExtendGraph で描画
+			される結果が、指定の範囲から左上に１ピクセルずれるバグを修正。
+			　トゥーンレンダリングの３Ｄモデルを描画する場合、
+			SetUseTextureToShader でテクスチャ番号６に設定したテクスチャが
+			オリジナルシェーダーで使用できないバグを修正。
+			　マルチバイト文字列版では FileRead_findFirst, FileRead_findNext
+			を使用するとメモリの不正なアクセスが発生することがあるバグを修正。
+			　SetUseDirectInputFlag( FALSE ) ; を使用して DirectInput を
+			使用しない設定にした場合、ゲームパッドの入力が取得できなく
+			なっていたバグを修正。
 Ver 3.14d	　C++標準ライブラリを使用すると Visual Studio 2013 で
 			リンクエラーが発生する不具合に対応。
 			( 一部 Visual Studio 2013 でビルドした lib ファイルを追加 )
@@ -345,7 +387,7 @@ Ver 3.12b	　頂点カラーのある xファイルを読み込んだ際に処�
 			異常に読み込みに時間が掛かることがある現象を解消。
 			　DxLibModelViewer.exe に複数の３Ｄモデルを読み込む
 			機能を追加。
-			　PixelShader でNo.8 ～ No.15の８つのサンプラが使用できない
+			　PixelShader でNo.8 〜 No.15の８つのサンプラが使用できない
 			バグを修正。
 			　Tiff画像の読み込みに対応。
 			　３Ｄモデルファイルのフレーム( ボーン )に設定した拡大率が
@@ -778,10 +820,10 @@ Ver 3.10d	　DrawCircleGauge に開始パーセントを指定するための引
 			得られないバグを修正。
 			　ID情報が存在する Tga形式のファイルを正常に読み込めないバグを修正。
 			　ChangeVolumeSoundMem, ChangeNextPlayVolumeSoundMem,
-			ChangeMovieVolumeToGraph の音量値 0～255 をデシベル値に変換する際の
+			ChangeMovieVolumeToGraph の音量値 0〜255 をデシベル値に変換する際の
 			計算パラメータを変更。( 体感の音量変化が線形に感じられるように )
 			　ChangeVolumeSoundMem, ChangeNextPlayVolumeSoundMem,
-			ChangeMovieVolumeToGraph の音量値 0～255 をデシベル値に変換する際の
+			ChangeMovieVolumeToGraph の音量値 0〜255 をデシベル値に変換する際の
 			計算パラメータに以前の値を使うように設定するための関数
 			SetUseOldVolumeCalcFlag を追加。
 			　DXAファイルに対して FileRead_createInfo などのファイル情報列挙
@@ -903,7 +945,7 @@ Ver 3.09e	　Xbox360 for Windowsコントローラーの振動に対応。
 			　SetUseASyncLoadFlag( TRUE ) ; の非同期読み込み設定をした上で
 			LoadSoundMem で読み込むと必ずストリーム再生方式のサウンドハンドルに
 			なってしまうバグを修正。
-			　値が0.0～1.0の範囲から外れているボーンウエイトがあるモデルを
+			　値が0.0〜1.0の範囲から外れているボーンウエイトがあるモデルを
 			mv1ファイルとして保存するとボーンウエイトの値が正しく保存されない
 			バグを修正。
 			　縁付きフォントを半透明で描画すると縁の色が本体部分に表示されてしまう
@@ -2593,7 +2635,7 @@ Ver 2.21a
 				　SetCreateSoundDataType 関数で DX_SOUNDDATATYPE_FILE を指定して
 				ＭＰ３ファイルを読み込み、再生するとメモリの不正なアクセスが発生して
 				しまう不具合を修正。
-				　音量を０～２５５で指定する ChangeVolumeSoundMem 関数の追加。
+				　音量を０〜２５５で指定する ChangeVolumeSoundMem 関数の追加。
 				　サウンドデバイスがない状態で起動するとメモリの不正なアクセスが発生
 				してしまう不具合を修正。
 

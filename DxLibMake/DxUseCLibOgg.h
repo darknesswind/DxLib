@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		標準Ｃライブラリ使用コード　Ogg関係ヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -112,8 +112,9 @@ typedef struct tagDECODE_THEORA
 	volatile int			ThreadSeekFrame  ;			// スレッドにシークして貰うときのシーク先フレーム
 	volatile int			ThreadPacketEnd ;			// データを全て読み終わったフラグ
 	volatile int			ThreadStandbyTime ;			// 待機状態を維持する目安とする時間
-	volatile HANDLE			DecodeThreadHandle ;		// デコード処理スレッド
-	volatile DWORD			DecodeThreadID ;			// デコード処理スレッドのＩＤ 
+//	volatile HANDLE			DecodeThreadHandle ;		// デコード処理スレッド
+//	volatile DWORD			DecodeThreadID ;			// デコード処理スレッドのＩＤ 
+	THREAD_INFO				DecodeThreadInfo ;			// デコードスレッド情報
 
 	STREAMDATASHREDTYPE2W	StreamShred ;				// ストリーム関数
 	DWORD_PTR				StreamData ;				// ストリームデータ

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ハンドル管理プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -80,7 +80,7 @@ extern int InitializeHandleManage(
 	HandleManage->InitializeFunction = InitializeFunction ;
 	HandleManage->TerminateFunction = TerminateFunction ;
 	HandleManage->Name = Name ;
-	ConvString( ( const char * )HandleManage->Name, WCHAR_T_CODEPAGE, HandleManage->NameUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+	ConvString( ( const char * )HandleManage->Name, WCHAR_T_CHARCODEFORMAT, HandleManage->NameUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 
 	// ハンドルのデータポインタアドレスを格納するメモリアドレス配列の確保
 	HandleManage->Handle = ( HANDLEINFO ** )DXCALLOC( sizeof( HANDLEINFO * ) * MaxNum ) ;

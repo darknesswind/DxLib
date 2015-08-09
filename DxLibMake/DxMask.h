@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		マスク処理ヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -50,6 +50,8 @@ struct MASKMANAGEDATA
 	int						MaskBufferSizeX, MaskBufferSizeY ;		// マスクデータバッファのサイズ
 	BYTE					*MaskBuffer ;							// マスクデータバッファ
 	int						MaskBufferPitch ;						// マスクデータバッファのピッチ
+
+	int						MaskScreenGraphHandle ;					// マスク画面として使用するグラフィックハンドル、 無効の場合は 0 ( アルファチャンネルがマスクとして使用される )
 
 	int						MaskReverseEffectFlag ;					// マスクの数値に対する効果を逆転させる
 	int						FullScreenMaskUpdateFlag ;				// 全画面マスク更新を行っているかのフラグ

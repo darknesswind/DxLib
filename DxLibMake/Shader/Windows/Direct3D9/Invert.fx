@@ -1,4 +1,4 @@
-﻿sampler SrcTexture   : register( s0 ) ;
+sampler SrcTexture   : register( s0 ) ;
 
 struct VS_OUTPUT
 {

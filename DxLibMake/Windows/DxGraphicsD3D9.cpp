@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		描画処理プログラム( Direct3D9 )
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -1883,7 +1883,7 @@ extern int Graphics_D3D9_Shader_Initialize( void )
 				{
 					FileName[ 20 ] = ( char )( '0' + j ) ;
 
-					if( DXA_GetFileInfo( &ShaderCode->_2D.BaseShaderBinDxa, DX_CODEPAGE_ASCII, FileName, &Addr, &Size ) == 0 )
+					if( DXA_GetFileInfo( &ShaderCode->_2D.BaseShaderBinDxa, DX_CHARCODEFORMAT_ASCII, FileName, &Addr, &Size ) == 0 )
 					{
 						if( Direct3DDevice9_CreatePixelShader( 
 							( DWORD * )( ( BYTE * )DataImage + Addr ),
@@ -1915,7 +1915,7 @@ extern int Graphics_D3D9_Shader_Initialize( void )
 							{
 								FileName[ 38 ] = ( char )( '0' + m ) ;
 
-								if( DXA_GetFileInfo( &ShaderCode->_2D.BaseShaderBinDxa, DX_CODEPAGE_ASCII, FileName, &Addr, &Size ) == 0 )
+								if( DXA_GetFileInfo( &ShaderCode->_2D.BaseShaderBinDxa, DX_CHARCODEFORMAT_ASCII, FileName, &Addr, &Size ) == 0 )
 								{
 									if( Direct3DDevice9_CreatePixelShader(
 										( DWORD * )( ( BYTE * )DataImage + Addr ),
@@ -1933,7 +1933,7 @@ extern int Graphics_D3D9_Shader_Initialize( void )
 			}
 
 			// マスク処理用シェーダーの作成
-			DXA_GetFileInfo( &ShaderCode->_2D.BaseShaderBinDxa, DX_CODEPAGE_ASCII, "ps_mask_blend.pso", &Addr, &Size ) ;
+			DXA_GetFileInfo( &ShaderCode->_2D.BaseShaderBinDxa, DX_CHARCODEFORMAT_ASCII, "ps_mask_blend.pso", &Addr, &Size ) ;
 			if( Direct3DDevice9_CreatePixelShader(
 				( DWORD * )( ( BYTE * )DataImage + Addr ),
 				&Shader->_2D.MaskEffectPixelShader ) != D_D3D_OK )
@@ -2632,7 +2632,7 @@ extern	D_D3DXSHADER_CONSTANTINFO *Graphics_D3D9_GetShaderConstInfo( SHADERHANDLE
 
 	char ConstantNameA[ 512 ] ;
 
-	ConvString( ( const char * )ConstantName, WCHAR_T_CODEPAGE, ConstantNameA, DX_CODEPAGE_ASCII ) ;
+	ConvString( ( const char * )ConstantName, WCHAR_T_CHARCODEFORMAT, ConstantNameA, DX_CHARCODEFORMAT_ASCII ) ;
 	for( i = 0 ; i < Shader->PF->D3D9.ConstantNum ; i ++, Info ++ )
 	{
 		if( _STRCMP( ConstantNameA, ( char * )Shader->FunctionCode + Info->Name + 12 ) == 0 )
@@ -3606,6 +3606,26 @@ extern int Graphics_D3D9_Device_Create()
 			goto ERR ;
 		}
 		DXST_ERRORLOGFMT_ADDA(( "\x83\x41\x83\x8b\x83\x74\x83\x40\x83\x65\x83\x58\x83\x67\x97\x70 32bit \x83\x4a\x83\x89\x81\x5b\x83\x74\x83\x48\x81\x5b\x83\x7d\x83\x62\x83\x67\x82\xcd %s \x82\xc5\x82\xb7"/*@ "アルファテスト用 32bit カラーフォーマットは %s です" @*/, String )) ;
+
+		// パレットカラーフォーマットのセット
+		if( GSYS.Screen.MainScreenColorBitDepth == 16 )
+		{
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_PAL4           ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_RGB16 ] ;
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_PAL8           ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_RGB16 ] ;
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_PAL4     ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_RGB16 ] ;
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_PAL8     ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_RGB16 ] ;
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_PAL4 ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_RGB16 ] ;
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_PAL8 ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_RGB16 ] ;
+		}
+		else
+		{
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_PAL4           ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_RGB32 ] ;
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_PAL8           ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_RGB32 ] ;
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_PAL4     ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_RGB32 ] ;
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_PAL8     ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHA_RGB32 ] ;
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_PAL4 ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_RGB32 ] ;
+			GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_PAL8 ] = GD3D9.Device.Caps.TextureFormat[ DX_GRAPHICSIMAGE_FORMAT_3D_ALPHATEST_RGB32 ] ;
+		}
 
 		// DXT1フォーマットのチェック
 		if( Direct3D9_CheckDeviceFormat( UseAdapterNumber, D_D3DDEVTYPE_HAL, GD3D9.Device.Caps.ScreenFormat, 0, D_D3DRTYPE_TEXTURE, D_D3DFMT_DXT1 ) == D_D3D_OK )
@@ -5952,7 +5972,7 @@ extern int  Graphics_D3D9_DeviceState_SetFogColor( unsigned int Color )
 	return Direct3DDevice9_SetRenderState( D_D3DRS_FOGCOLOR, Color ) == D_D3D_OK ? 0 : -1 ;
 }
 
-// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
+// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
 extern int  Graphics_D3D9_DeviceState_SetFogStartEnd( float Start, float End )
 {
 	float Data[ 4 ] ;
@@ -6014,7 +6034,7 @@ extern int  Graphics_D3D9_DeviceState_SetFogStartEnd( float Start, float End )
 	return 0 ;
 }
 
-// フォグの密度を設定する( 0.0f ～ 1.0f )
+// フォグの密度を設定する( 0.0f 〜 1.0f )
 extern int  Graphics_D3D9_DeviceState_SetFogDensity( float Density )
 {
 	float Data[ 4 ] ;
@@ -9574,18 +9594,10 @@ extern int  Graphics_D3D9_DeviceState_RefreshBlendState(
 
 	UseShaderFlag = GSYS.HardInfo.UseShader && ( GD3D9.NormalDraw_NotUsePixelShader == FALSE ? TRUE : FALSE ) && UseShader ;
 
-	BlendInfo.TextureStageInfo[0].ResultTempARG = FALSE ;
-	BlendInfo.TextureStageInfo[1].ResultTempARG = FALSE ;
-	BlendInfo.TextureStageInfo[2].ResultTempARG = FALSE ;
-	BlendInfo.TextureStageInfo[3].ResultTempARG = FALSE ;
-	BlendInfo.TextureStageInfo[4].ResultTempARG = FALSE ;
-	BlendInfo.TextureStageInfo[5].ResultTempARG = FALSE ;
-	BlendInfo.TextureStageInfo[6].ResultTempARG = FALSE ;
-	BlendInfo.TextureStageInfo[7].ResultTempARG = FALSE ;
-	BlendInfo.TextureStageInfo[8].ResultTempARG = FALSE ;
-	BlendInfo.TextureStageInfo[9].ResultTempARG = FALSE ;
-	BlendInfo.TextureStageInfo[10].ResultTempARG = FALSE ;
-	BlendInfo.TextureStageInfo[11].ResultTempARG = FALSE ;
+	for( i = 0 ; i < USE_TEXTURESTAGE_NUM ; i ++ )
+	{
+		BlendInfo.TextureStageInfo[i].ResultTempARG = FALSE ;
+	}
 
 	BlendInfo.SeparateAlphaBlendEnable = FALSE ;
 	BlendInfo.SrcBlendAlpha = -1 ;
@@ -17062,33 +17074,33 @@ extern	int		Graphics_D3D9_DrawOval_Thickness( int x, int y, int rx, int ry, unsi
 
 
 
-#define DX_3D_CIRCLE																\
-			if( !( ( x2 < DrawRect.left ) || ( x1 >= DrawRect.right  ) ||				\
-			       ( y1 < DrawRect.top  ) || ( y1 >= DrawRect.bottom ) || LineDrawBuf[ y1 ] ) )			\
-			{																			\
-				if( x1 < DrawRect.left ) x1 = DrawRect.left ;							\
-				if( x2 > DrawRect.right - 1 ) x2 = DrawRect.right - 1 ;					\
-																						\
-				VectBuf[ VectNum ].pos.x  = ( float )x1 - 0.5f ;						\
-				VectBuf[ VectNum ].pos.y  = ( float )y1 ;								\
-				VectBuf[ VectNum ].color = Color ;										\
-				VectBuf[ VectNum ].rhw   = 1.0f ;										\
-				*((DWORD *)&VectBuf[ VectNum ].pos.z) = drawz ;							\
-				VectNum ++ ;															\
-				LineDrawBuf[y1] = TRUE ;												\
-																						\
-				VectBuf[ VectNum ].pos.x =  ( float )( x2 + 1 ) - 0.5f ;				\
-				VectBuf[ VectNum ].pos.y =  ( float )y1 ;								\
-				VectBuf[ VectNum ].color = Color ;										\
-				VectBuf[ VectNum ].rhw   = 1.0f ;										\
-				*((DWORD *)&VectBuf[ VectNum ].pos.z) = drawz ;							\
-				VectNum  ++ ;															\
-																						\
-				if( VectNum >= CIRCLE_VERTEX_NUM )										\
-				{																		\
+#define DX_3D_CIRCLE																						\
+			if( !( ( x2 < DrawRect.left ) || ( x1 >= DrawRect.right  ) ||									\
+			       ( y1 < DrawRect.top  ) || ( y1 >= DrawRect.bottom ) || LineDrawBuf[ y1 ] ) )				\
+			{																								\
+				if( x1 < DrawRect.left ) x1 = DrawRect.left ;												\
+				if( x2 > DrawRect.right - 1 ) x2 = DrawRect.right - 1 ;										\
+																											\
+				VectBuf[ VectNum ].pos.x  = ( float )x1 + GD3D9.Device.Caps.DrawFillCircleLeftVertAddX ;	\
+				VectBuf[ VectNum ].pos.y  = ( float )y1 ;													\
+				VectBuf[ VectNum ].color = Color ;															\
+				VectBuf[ VectNum ].rhw   = 1.0f ;															\
+				*((DWORD *)&VectBuf[ VectNum ].pos.z) = drawz ;												\
+				VectNum ++ ;																				\
+				LineDrawBuf[y1] = TRUE ;																	\
+																											\
+				VectBuf[ VectNum ].pos.x =  ( float )( x2 + 1 ) + GD3D9.Device.Caps.DrawFillCircleRightVertAddX ;	\
+				VectBuf[ VectNum ].pos.y =  ( float )y1 ;													\
+				VectBuf[ VectNum ].color = Color ;															\
+				VectBuf[ VectNum ].rhw   = 1.0f ;															\
+				*((DWORD *)&VectBuf[ VectNum ].pos.z) = drawz ;												\
+				VectNum  ++ ;																				\
+																											\
+				if( VectNum >= CIRCLE_VERTEX_NUM )															\
+				{																							\
 					Direct3DDevice9_DrawPrimitiveUP( D_D3DPT_LINELIST, ( UINT )( VectNum / 2 ), VectBuf, sizeof( VERTEX_NOTEX_2D ) ) ;\
-					VectNum = 0 ;														\
-				}																		\
+					VectNum = 0 ;																			\
+				}																							\
 			}
 
 #define DX_3D_CIRCLE_PSET																\
@@ -19353,6 +19365,48 @@ extern	int		Graphics_D3D9_Initialize_Timing1_PF( void )
 	// ピクセルシェーダーを使用する場合は出力先をテクスチャとして使用できるかどうかのチェックを行う
 	Graphics_D3D9_SetupRenderTargetInputTextureFlag() ;
 
+	// 中を塗りつぶす DrawCircle の際に X 座標に足すべき値を調べる
+	{
+		DWORD RetL ;
+		DWORD RetR ;
+
+		GD3D9.Device.Caps.DrawFillCircleLeftVertAddX  = -0.5f ;
+		GD3D9.Device.Caps.DrawFillCircleRightVertAddX = -0.5f ;
+
+		NS_DrawCircle( 16, 16, 10, GetColor( 255,255,255 ), TRUE ) ;
+		RetL = NS_GetPixel( 5, 16 ) ;
+		RetR = NS_GetPixel( 26, 16 ) ;
+		NS_DrawBox( 5, 5, 28, 28, 0, TRUE ) ;
+
+		if( RetL != 0 )
+		{
+			GD3D9.Device.Caps.DrawFillCircleLeftVertAddX  = -0.1f ;
+		}
+
+		if( RetR == 0 )
+		{
+			GD3D9.Device.Caps.DrawFillCircleLeftVertAddX  = -0.1f ;
+		}
+
+		if( RetL != 0 || RetR == 0 )
+		{
+			NS_DrawCircle( 16, 16, 10, GetColor( 255,255,255 ), TRUE ) ;
+			RetL = NS_GetPixel( 5, 16 ) ;
+			RetR = NS_GetPixel( 26, 16 ) ;
+			NS_DrawBox( 5, 5, 28, 28, 0, TRUE ) ;
+
+			if( RetL != 0 )
+			{
+				GD3D9.Device.Caps.DrawFillCircleLeftVertAddX  = 0.0f ;
+			}
+
+			if( RetR == 0 )
+			{
+				GD3D9.Device.Caps.DrawFillCircleLeftVertAddX  = 0.0f ;
+			}
+		}
+	}
+
 	// 正常終了
 	return 0 ;
 }
@@ -19882,7 +19936,7 @@ extern	int		Graphics_Hardware_D3D9_SetFogColor_PF( DWORD FogColor )
 	return 0 ;
 }
 
-// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
+// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
 extern	int		Graphics_Hardware_D3D9_SetFogStartEnd_PF( float start, float end )
 {
 	Graphics_D3D9_DeviceState_SetFogStartEnd( start, end ) ;
@@ -19891,7 +19945,7 @@ extern	int		Graphics_Hardware_D3D9_SetFogStartEnd_PF( float start, float end )
 	return 0 ;
 }
 
-// フォグの密度を設定する( 0.0f ～ 1.0f )
+// フォグの密度を設定する( 0.0f 〜 1.0f )
 extern	int		Graphics_Hardware_D3D9_SetFogDensity_PF( float density )
 {
 	Graphics_D3D9_DeviceState_SetFogDensity( density ) ;
@@ -21004,9 +21058,10 @@ extern	const COLORDATA *Graphics_Hardware_D3D9_GetDispColorData_PF( void )
 extern	DWORD Graphics_Hardware_D3D9_GetPixel_PF( int x, int y )
 {
 	RECT      SrcRect ;
-	COLORDATA *DestColorData ;
+//	COLORDATA *DestColorData ;
 	BASEIMAGE BufferImage ;
 	DWORD     Ret = 0xffffffff ;
+	int       Red, Green, Blue, Alpha ;
 
 	// 描画待機している描画物を描画
 	DRAWSTOCKINFO
@@ -21022,12 +21077,25 @@ extern	DWORD Graphics_Hardware_D3D9_GetPixel_PF( int x, int y )
 	if( Graphics_Screen_LockDrawScreen( &SrcRect, &BufferImage, -1, -1, TRUE, 0 ) < 0 )
 		return Ret ;
 
-	DestColorData = Graphics_D3D9_GetD3DFormatColorData( GD3D9.Device.Caps.ScreenFormat ) ;
 	switch( BufferImage.ColorData.ColorBitDepth )
 	{
-	case 16 : Ret = NS_GetColor4( DestColorData, &BufferImage.ColorData, *( ( WORD  * )BufferImage.GraphData ) ) & ~DestColorData->NoneMask ; break ;
-	case 32 : Ret = NS_GetColor4( DestColorData, &BufferImage.ColorData, *( ( DWORD * )BufferImage.GraphData ) ) & ~DestColorData->NoneMask ; break ;
+	case 16 :
+		NS_GetColor5( &BufferImage.ColorData, *( ( WORD   * )BufferImage.GraphData ), &Red, &Green, &Blue, &Alpha ) ;
+		break ;
+
+	case 32 :
+		NS_GetColor5( &BufferImage.ColorData, *( ( DWORD  * )BufferImage.GraphData ), &Red, &Green, &Blue, &Alpha ) ;
+		break ;
 	}
+
+	Ret = 0xff000000 | ( ( ( unsigned int )Red ) << 16 ) | ( ( ( unsigned int )Green ) << 8 ) | ( ( unsigned int )Blue ) ;
+
+//	DestColorData = Graphics_D3D9_GetD3DFormatColorData( GD3D9.Device.Caps.ScreenFormat ) ;
+//	switch( BufferImage.ColorData.ColorBitDepth )
+//	{
+//	case 16 : Ret = NS_GetColor4( DestColorData, &BufferImage.ColorData, *( ( WORD  * )BufferImage.GraphData ) ) & ~DestColorData->NoneMask ; break ;
+//	case 32 : Ret = NS_GetColor4( DestColorData, &BufferImage.ColorData, *( ( DWORD * )BufferImage.GraphData ) ) & ~DestColorData->NoneMask ; break ;
+//	}
 
 	// 描画先バッファをアンロック
 	Graphics_Screen_UnlockDrawScreen() ;
@@ -23216,7 +23284,7 @@ extern	int		Graphics_Hardware_D3D9_GetMultiSampleQuality_PF( int Samples )
 	Graphics_Image_InitSetupGraphHandleGParam( &GParam ) ; 
 	GParam.DrawValidImageCreateFlag = TRUE ;
 	GParam.CubeMapTextureCreateFlag = FALSE ;
-	Graphics_Image_SetupFormatDesc( &Format, &GParam, 256, 256, GParam.AlphaChannelImageCreateFlag, FALSE, DX_BASEIMAGE_FORMAT_NORMAL, -1 ) ;
+	Graphics_Image_SetupFormatDesc( &Format, &GParam, 256, 256, GParam.AlphaChannelImageCreateFlag, FALSE, 0, DX_BASEIMAGE_FORMAT_NORMAL, -1 ) ;
 
 	// フォーマットインデックスを得る
 	FormatIndex = NS_GetTexFormatIndex( &Format ) ;

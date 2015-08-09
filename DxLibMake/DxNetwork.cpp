@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		通信関連プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -154,7 +154,7 @@ static	int ErrorNetWork( const char *ErrorStr, ... )
 	va_start( VaList, ErrorStr ) ;
 
 	// 編集後の文字列を取得する
-	CL_vsprintf( DX_CODEPAGE_UTF16LE, TRUE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, String, ErrorStr, VaList ) ;
+	CL_vsprintf( DX_CHARCODEFORMAT_UTF16LE, TRUE, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT, String, ErrorStr, VaList ) ;
 	
 	// 可変長リストのポインタをリセットする
 	va_end( VaList ) ;
@@ -632,7 +632,7 @@ extern int NS_GetHostIPbyName( const TCHAR *HostName, IPDATA *IPDataBuf )
 #ifdef UNICODE
 	char TempHostName[ 1024 ] ;
 
-	ConvString( ( const char * )HostName, WCHAR_T_CODEPAGE, TempHostName, DX_CODEPAGE_ASCII ) ;
+	ConvString( ( const char * )HostName, WCHAR_T_CHARCODEFORMAT, TempHostName, DX_CHARCODEFORMAT_ASCII ) ;
 	UseHostName = TempHostName ;
 #else
 	UseHostName = HostName ;
@@ -699,7 +699,7 @@ extern int NS_GetHostIPbyName_IPv6( const TCHAR *HostName, IPDATA_IPv6 *IPDataBu
 #ifdef UNICODE
 	char TempHostName[ 1024 ] ;
 
-	ConvString( ( const char * )HostName, WCHAR_T_CODEPAGE, TempHostName, DX_CODEPAGE_ASCII ) ;
+	ConvString( ( const char * )HostName, WCHAR_T_CHARCODEFORMAT, TempHostName, DX_CHARCODEFORMAT_ASCII ) ;
 	UseHostName = TempHostName ;
 #else
 	UseHostName = HostName ;

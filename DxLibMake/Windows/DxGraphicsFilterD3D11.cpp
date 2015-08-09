@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		GraphFilter系プログラム( Direct3D11 )
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -71,7 +71,7 @@ static int	Direct3D11_GraphFilter_GetWorkTexture( int IsFloatType, DWORD TexSize
 		Graphics_Image_InitSetupGraphHandleGParam_Normal_DrawValid_NoneZBuffer( &GParam, 32, TRUE ) ;
 		GParam.DrawValidFloatTypeGraphCreateFlag = IsFloatType ;
 
-		GraphFilterSystemInfoD3D11.WorkDrawValidGrHandle[ IsFloatType ][ NPow ][ HandleIndex ] = Graphics_Image_MakeGraph_UseGParam( &GParam, TexSize, TexSize, FALSE, FALSE ) ;
+		GraphFilterSystemInfoD3D11.WorkDrawValidGrHandle[ IsFloatType ][ NPow ][ HandleIndex ] = Graphics_Image_MakeGraph_UseGParam( &GParam, TexSize, TexSize, FALSE, FALSE, 0, FALSE ) ;
 		if( GraphFilterSystemInfoD3D11.WorkDrawValidGrHandle[ IsFloatType ][ NPow ][ HandleIndex ] < 0 )
 		{
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x5c\x4f\x6d\x69\x28\x75\xcf\x63\x3b\x75\xef\x53\xfd\x80\xc6\x30\xaf\x30\xb9\x30\xc1\x30\xe3\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x53\x00\x69\x00\x7a\x00\x65\x00\x3a\x00\x25\x00\x64\x00\x78\x00\x25\x00\x64\x00\x00"/*@ L"作業用描画可能テクスチャの作成に失敗しました Size:%dx%d" @*/, TexSize, TexSize )) ;
@@ -95,7 +95,7 @@ static int Direct3D11_MemLoadShaderCode( const char *ShaderName, bool IsVertexSh
 		return -1 ;
 	}
 
-	if( DXA_GetFileInfo( &GD3D11.ShaderCode.Base.FilterShaderBinDxa, DX_CODEPAGE_ASCII, ShaderName, &Addr, &Size ) < 0 )
+	if( DXA_GetFileInfo( &GD3D11.ShaderCode.Base.FilterShaderBinDxa, DX_CHARCODEFORMAT_ASCII, ShaderName, &Addr, &Size ) < 0 )
 	{
 		return -1 ;
 	}
@@ -249,7 +249,7 @@ extern int	GraphFilter_D3D11_Mono_PF(        GRAPHFILTER_INFO *Info, float Cb, f
 		{
 			char PathUTF16LE[ 128 ] ;
 
-			ConvString( PsoFileName[ 0 ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( PsoFileName[ 0 ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 			return -1 ;
 		}
@@ -351,7 +351,7 @@ extern int	GraphFilter_D3D11_Gauss_PF( GRAPHFILTER_INFO *Info, int PixelWidth, f
 			{
 				char PathUTF16LE[ 128 ] ;
 
-				ConvString( PsoFileName[ UseShader ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+				ConvString( PsoFileName[ UseShader ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 				DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 				return -1 ;
 			}
@@ -537,7 +537,7 @@ extern int	GraphFilter_D3D11_Down_Scale_PF(  GRAPHFILTER_INFO *Info, int DivNum 
 		{
 			char PathUTF16LE[ 128 ] ;
 
-			ConvString( PsoFileName[ UseShader ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( PsoFileName[ UseShader ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 			return -1 ;
 		}
@@ -639,7 +639,7 @@ extern int	GraphFilter_D3D11_Bright_Clip_PF( GRAPHFILTER_INFO *Info, int CmpType
 		{
 			char PathUTF16LE[ 128 ] ;
 
-			ConvString( PsoFileName[ UseShader ][ UseFill ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( PsoFileName[ UseShader ][ UseFill ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 			return -1 ;
 		}
@@ -692,7 +692,7 @@ extern int	GraphFilter_D3D11_HSB_PF(         GRAPHFILTER_INFO *Info, int HueType
 		{
 			char PathUTF16LE[ 128 ] ;
 
-			ConvString( PsoFileName[ UseShader ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( PsoFileName[ UseShader ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 			return -1 ;
 		}
@@ -738,7 +738,7 @@ extern int	GraphFilter_D3D11_Invert_PF(      GRAPHFILTER_INFO *Info )
 		{
 			char PathUTF16LE[ 128 ] ;
 
-			ConvString( PsoFileName[ 0 ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( PsoFileName[ 0 ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 			return -1 ;
 		}
@@ -767,7 +767,7 @@ extern int	GraphFilter_D3D11_Level_PF(       GRAPHFILTER_INFO *Info, float Min, 
 		{
 			char PathUTF16LE[ 128 ] ;
 
-			ConvString( PsoFileName[ 0 ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( PsoFileName[ 0 ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 			return -1 ;
 		}
@@ -808,7 +808,7 @@ extern int	GraphFilter_D3D11_TwoColor_PF(    GRAPHFILTER_INFO *Info, float Thres
 		{
 			char PathUTF16LE[ 128 ] ;
 
-			ConvString( PsoFileName[ 0 ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( PsoFileName[ 0 ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 			return -1 ;
 		}
@@ -858,7 +858,7 @@ extern int	GraphFilter_D3D11_GradientMap_PF( GRAPHFILTER_INFO *Info, int MapGrHa
 		{
 			char PathUTF16LE[ 128 ] ;
 
-			ConvString( PsoFileName[ UseShader ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( PsoFileName[ UseShader ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 			return -1 ;
 		}
@@ -898,7 +898,7 @@ extern int	GraphFilter_D3D11_PremulAlpha_PF( GRAPHFILTER_INFO *Info )
 		{
 			char PathUTF16LE[ 128 ] ;
 
-			ConvString( PsoFileName[ UseShader ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( PsoFileName[ UseShader ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 			return -1 ;
 		}
@@ -928,7 +928,7 @@ extern int	GraphFilter_D3D11_InterpAlpha_PF( GRAPHFILTER_INFO *Info )
 		{
 			char PathUTF16LE[ 128 ] ;
 
-			ConvString( PsoFileName[ UseShader ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( PsoFileName[ UseShader ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 			return -1 ;
 		}
@@ -977,7 +977,7 @@ extern int	GraphBlend_D3D11_Basic_PF(           GRAPHFILTER_INFO *Info )
 		{
 			char PathUTF16LE[ 128 ] ;
 
-			ConvString( PsoFileName[ UseShader ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( PsoFileName[ UseShader ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 			return -1 ;
 		}
@@ -1086,7 +1086,7 @@ extern int	GraphBlend_D3D11_RGBA_Select_Mix_PF( GRAPHFILTER_INFO *Info, int Sele
 			*PixelShaderHandle = Direct3D11_MemLoadShaderCode( FileName, false ) ;
 			if( *PixelShaderHandle < 0 )
 			{
-				ConvString( FileName, DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+				ConvString( FileName, DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x47\x00\x42\x00\x41\x00\x4d\x00\x69\x00\x78\x00\x53\x00\x20\x00\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"RGBAMixS フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 				return -1 ;
 			}
@@ -1118,7 +1118,7 @@ extern int	GraphBlend_D3D11_RGBA_Select_Mix_PF( GRAPHFILTER_INFO *Info, int Sele
 			*PixelShaderHandle = Direct3D11_MemLoadShaderCode( FileName, false ) ;
 			if( *PixelShaderHandle < 0 )
 			{
-				ConvString( FileName, DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+				ConvString( FileName, DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 				DXST_ERRORLOGFMT_ADDUTF16LE(( "\x52\x00\x47\x00\x42\x00\x41\x00\x4d\x00\x69\x00\x78\x00\x53\x00\x20\x00\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"RGBAMixS フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 				return -1 ;
 			}
@@ -1133,7 +1133,7 @@ extern int	GraphBlend_D3D11_RGBA_Select_Mix_PF( GRAPHFILTER_INFO *Info, int Sele
 			*PixelShaderHandle = Direct3D11_MemLoadShaderCode( PsoFileName[ 0 ], false ) ;
 			if( *PixelShaderHandle < 0 )
 			{
-				ConvString( PsoFileName[ 0 ], DX_CODEPAGE_ASCII, ( char * )PathUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+				ConvString( PsoFileName[ 0 ], DX_CHARCODEFORMAT_ASCII, ( char * )PathUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 				DXST_ERRORLOGFMT_ADDUTF16LE(( "\xd5\x30\xa3\x30\xeb\x30\xbf\x30\xfc\x30\x28\x75\xb7\x30\xa7\x30\xfc\x30\xc0\x30\xfc\x30\x6e\x30\x5c\x4f\x10\x62\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x20\x00\x25\x00\x73\x00\x00"/*@ L"フィルター用シェーダーの作成に失敗しました %s" @*/, PathUTF16LE )) ;
 				return -1 ;
 			}

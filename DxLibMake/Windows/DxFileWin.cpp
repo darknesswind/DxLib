@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		Windows用ファイル関係プログラム
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -547,6 +547,70 @@ extern int ReadOnlyFileAccessFindClose_PF( FINDINFO *FindInfo )
 	// ０以外が返ってきたら成功
 	return FindClose( FindInfo->PF.FindHandle ) != 0 ? 0 : -1 ;
 }
+
+
+
+
+
+// 書き込み専用ファイルアクセス関数
+extern	int			WriteOnlyFileAccessDelete_PF( const wchar_t *Path )
+{
+	DeleteFileW( Path ) ;
+
+	return 0 ;
+}
+
+extern	DWORD_PTR	WriteOnlyFileAccessOpen_PF(  const wchar_t *Path )
+{
+	DeleteFileW( Path ) ;
+	HANDLE Result = CreateFileW( Path, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL ) ;
+
+	return Result == INVALID_HANDLE_VALUE ? NULL : ( DWORD_PTR )Result ;
+}
+
+extern	int			WriteOnlyFileAccessClose_PF( DWORD_PTR Handle )
+{
+	return CloseHandle( ( HANDLE )Handle ) ;
+}
+
+extern	int			WriteOnlyFileAccessSeek_PF(  DWORD_PTR Handle, LONGLONG SeekPoint, int SeekType )
+{
+	DWORD MoveMethod = FILE_BEGIN ;
+
+	switch( SeekType )
+	{
+	case SEEK_SET :
+		MoveMethod = FILE_BEGIN ;
+		break ;
+
+	case SEEK_END :
+		MoveMethod = FILE_END ;
+		break ;
+
+	case SEEK_CUR :
+		MoveMethod = FILE_CURRENT ;
+		break ;
+	}
+
+	SetFilePointer( ( HANDLE )Handle, ( LONG )SeekPoint, NULL, MoveMethod ) ;
+
+	return 0 ;
+}
+
+extern	int			WriteOnlyFileAccessWrite_PF( DWORD_PTR Handle, void *Buffer, size_t WriteSize, size_t *GetWriteSize )
+{
+	DWORD lWriteSize ;
+
+	WriteFile( ( HANDLE )Handle, Buffer, ( DWORD )WriteSize, &lWriteSize, NULL ) ;
+
+	if( GetWriteSize )
+	{
+		*GetWriteSize = lWriteSize ;
+	}
+
+	return 0 ;
+}
+
 
 
 

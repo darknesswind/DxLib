@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		キーボードフックＤＬＬプログラムファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -83,24 +83,33 @@ LRESULT CALLBACK Dx_MsgHookProc(int Code, WPARAM WParam, LPARAM LParam)
 }
 */
 // 低レベルキーボードフックの開始を行う関数
-__declspec(dllexport) BOOL SetMSGHookDll( HWND MainWindowHandle, HHOOK *pKeyboardHookHandle/*, HHOOK *pGetMessageHookHandle*/ )
+__declspec(dllexport) BOOL SetMSGHookDll( HWND MainWindowHandle, HHOOK *pKeyboardHookHandle/*, HHOOK *pGetMessageHookHandle*/, int Enable )
 {
 	MainWindowHandle = MainWindowHandle;
 
-	KeyboardHookHandle = SetWindowsHookEx( WH_KEYBOARD_LL, Dx_LowLevelKeyboardProc, InstanceDLL, 0 );
-//	GetMessageHookHandle = SetWindowsHookEx( WH_GETMESSAGE, Dx_MsgHookProc, InstanceDLL, 0 );
+	if( Enable )
+	{
+		KeyboardHookHandle = SetWindowsHookEx( WH_KEYBOARD_LL, Dx_LowLevelKeyboardProc, InstanceDLL, 0 );
+	//	GetMessageHookHandle = SetWindowsHookEx( WH_GETMESSAGE, Dx_MsgHookProc, InstanceDLL, 0 );
 
-	if( pKeyboardHookHandle )
-	{
-		*pKeyboardHookHandle = KeyboardHookHandle ;
+		if( pKeyboardHookHandle )
+		{
+			*pKeyboardHookHandle = KeyboardHookHandle ;
+		}
+	/*
+		if( pGetMessageHookHandle )
+		{
+			*pGetMessageHookHandle = GetMessageHookHandle ;
+		}
+	*/
+		return KeyboardHookHandle == NULL /*|| GetMessageHookHandle == NULL*/ ? FALSE : TRUE ;
 	}
-/*
-	if( pGetMessageHookHandle )
+	else
 	{
-		*pGetMessageHookHandle = GetMessageHookHandle ;
+		UnhookWindowsHookEx( *pKeyboardHookHandle ) ;
+
+		return TRUE ;
 	}
-*/
-	return KeyboardHookHandle == NULL /*|| GetMessageHookHandle == NULL*/ ? FALSE : TRUE ;
 }
 
 // DllMain

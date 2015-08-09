@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		フォント処理用プログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -35,11 +35,17 @@ namespace DxLib
 #define DX_FONT_SRCIMAGETYPE_1BIT_SCALE4		(1)					// 1ピクセル1ビット、画像解像度4倍
 #define DX_FONT_SRCIMAGETYPE_1BIT_SCALE8		(2)					// 1ピクセル1ビット、画像解像度8倍
 #define DX_FONT_SRCIMAGETYPE_1BIT_SCALE16		(3)					// 1ピクセル1ビット、画像解像度16倍
-#define DX_FONT_SRCIMAGETYPE_4BIT_MAX15			(4)					// 1ピクセル4ビット、値の範囲は0～15
+#define DX_FONT_SRCIMAGETYPE_4BIT_MAX15			(4)					// 1ピクセル4ビット、値の範囲は0〜15
 #define DX_FONT_SRCIMAGETYPE_8BIT_ON_OFF		(5)					// 1ピクセル8ビット、値の範囲は0又は0以外
-#define DX_FONT_SRCIMAGETYPE_8BIT_MAX16			(6)					// 1ピクセル8ビット、値の範囲は0～16
-#define DX_FONT_SRCIMAGETYPE_8BIT_MAX64			(7)					// 1ピクセル8ビット、値の範囲は0～64
-#define DX_FONT_SRCIMAGETYPE_8BIT_MAX255		(8)					// 1ピクセル8ビット、値の範囲は0～255
+#define DX_FONT_SRCIMAGETYPE_8BIT_MAX16			(6)					// 1ピクセル8ビット、値の範囲は0〜16
+#define DX_FONT_SRCIMAGETYPE_8BIT_MAX64			(7)					// 1ピクセル8ビット、値の範囲は0〜64
+#define DX_FONT_SRCIMAGETYPE_8BIT_MAX255		(8)					// 1ピクセル8ビット、値の範囲は0〜255
+
+#define FONT_CACHE_MAXNUM						(2024)				// フォントキャッシュに格納できる最大文字数
+#define FONT_CACHE_EX_NUM						(1024)				// 0xffff を超えるコードの文字データアドレスを保持する数
+#define FONT_CACHE_MEMORYSIZE					(0x50000)			// フォントキャッシュの最大容量
+#define FONT_CACHE_MAX_YLENGTH					(0x4000)			// フォントキャッシュサーフェスの最大縦幅
+#define FONT_GRAPHICHANDLE_IMAGE_MAXNUM			(256)				// 特定の文字コードをグラフィックハンドルの画像に置き換えられる最大数
 
 // 構造体定義 --------------------------------------------------------------------
 
@@ -74,7 +80,7 @@ struct FONTBASEINFO
 	BYTE					Padding ;
 	WORD					MaxWidth ;							// フォントの最大幅
 	WORD					CharSet ;							// キャラクタセット
-	WORD					CodePage ;							// コードページ( 0xffff の場合は特に指定なし )
+	WORD					CharCodeFormat ;						// 文字コード形式( 0xffff の場合は特に指定なし )
 	DWORD					Padding2 ;
 } ;
 
@@ -121,13 +127,16 @@ struct FONTDATAFILECHARADATA
 struct FONTCHARDATA
 {
 	DWORD					CodeUnicode ;		// Unicode の文字コード
-	WORD					ValidFlag ;			// 有効フラグ
+	BYTE					ValidFlag ;			// 有効フラグ
+	BYTE					GraphHandleFlag ;	// GraphIndex がグラフィックハンドルかどうかのフラグ( TRUE:グラフィックハンドル  FALSE:文字データのインデックス )
 	short					DrawX ;				// 文字画像を描画すべきＸ座標
 	short					DrawY ;				// 文字画像を描画すべきＹ座標
 	short					AddX ;				// 次の文字を描画すべき相対Ｘ座標
 	WORD					SizeX ;				// 文字画像の幅
 	WORD					SizeY ;				// 文字画像の高さ
-	int						GraphIndex ;		// 文字データのインデックス
+	int						GraphIndex ;		// 文字データのインデックス( 若しくはグラフィックハンドル )
+	int						GraphIndexX ;		// 文字データのＸマス位置
+	int						GraphIndexY ;		// 文字データのＹマス位置
 	struct FONTCODEDATA *	CodeData ;			// このフォントを管理しているデータのポインタ
 } ;
 
@@ -146,7 +155,7 @@ struct FONTDATAFILEUSEINFO
 	FONTDATAFILECHARADATA *	Chara ;								// フォントデータファイル内の各文字の情報
 	BYTE *					Image ;								// フォントデータファイルの画像データのアドレス
 	int						ImageType ;							// フォントデータファイルのイメージデータタイプ( DX_FONT_SRCIMAGETYPE_1BIT 等 )
-	FONTDATAFILECHARADATA **CharaTable ;						// フォントデータファイル内の各文字の情報へのアドレスのテーブル( コード 0x0000～0xffff の範囲 )
+	FONTDATAFILECHARADATA **CharaTable ;						// フォントデータファイル内の各文字の情報へのアドレスのテーブル( コード 0x0000〜0xffff の範囲 )
 	FONTDATAFILECHARADATA **CharaExArray ;						// 0xffff を超える文字コードの文字情報へのアドレス
 	void *					PressImageDecodeBuffer ;			// 解凍した文字イメージを格納するバッファ
 } ;
@@ -173,8 +182,12 @@ struct FONTMANAGE
 	int						CachePitch ;						// テキストキャッシュメモリのピッチ	
 	int						CacheDataBitNum ;					// テキストキャッシュ上の１ピクセルのビット数
 
+	int						GraphHandleFontImageNum ;			// 特定の文字コードをグラフィックハンドルの画像に置き換えている数
+	FONTCHARDATA			GraphHandleFontImage[ FONT_GRAPHICHANDLE_IMAGE_MAXNUM ] ;	// 特定の文字コードをグラフィックハンドルの画像に置き換える処理用のデータ
+
 	wchar_t					FontName[ 128 ] ;					// フォント名
 	FONTBASEINFO			BaseInfo ;							// 基本情報
+	int						UseCharCodeFormat ;					// 引数で渡す文字コード形式
 	int						Space ;								// 次の文字を表示する座標に加算ドット数
 	int						FontType ;							// フォントのタイプ
 	int						EdgeSize ;							// エッジの太さ
@@ -209,12 +222,16 @@ struct FONTSYSTEM
 	int						CacheCharNum ;						// フォントキャッシュでキャッシュできる文字の数
 	int						UsePremulAlphaFlag ;				// 乗算済みαを使用するかどうかのフラグ( TRUE:使用する  FALSE:使用しない )
 	BYTE					BitCountTable[ 256 ] ;				// ビットカウントテーブル
-	BYTE					MAX15ToMAX16[ 16 ] ;				// 0～15  の値を 0～16 に変換するためのテーブル
-	BYTE					MAX255ToMAX16[ 256 ] ;				// 0～255 の値を 0～16 に変換するためのテーブル
-	BYTE					MAX15ToMAX64[ 16 ] ;				// 0～15  の値を 0～64 に変換するためのテーブル
-	BYTE					MAX255ToMAX64[ 256 ] ;				// 0～255 の値を 0～64 に変換するためのテーブル
+	BYTE					MAX15ToMAX16[ 16 ] ;				// 0〜15  の値を 0〜16 に変換するためのテーブル
+	BYTE					MAX255ToMAX16[ 256 ] ;				// 0〜255 の値を 0〜16 に変換するためのテーブル
+	BYTE					MAX15ToMAX64[ 16 ] ;				// 0〜15  の値を 0〜64 に変換するためのテーブル
+	BYTE					MAX255ToMAX64[ 256 ] ;				// 0〜255 の値を 0〜64 に変換するためのテーブル
 
 	wchar_t					DoubleByteSpaceCharCode ;			// 全角スペースの wchar_t コード
+
+	int						UseDefaultFontImage ;				// デフォルトフォントイメージを使用しているかどうか( TRUE:使用している  FALSE:使用していない )
+	void *					DefaultFontImage ;					// デフォルトフォントイメージを格納しているアドレスを保存するポインタ
+	int						DefaultFontImageGraphHandle[ 8 ][ 16 ] ;	// デフォルトフォントイメージのグラフィックハンドル
 
 	int						DefaultFontHandle ;					// デフォルトで使用するフォントのハンドル
 
@@ -254,12 +271,12 @@ extern FONTSYSTEM FontSystem ;
 extern	int			InitFontManage( void ) ;																					// フォントシステムの初期化
 extern	int			TermFontManage( void ) ;																					// フォント制御の終了
 extern	int			InitCacheFontToHandle( void ) ;																				// フォントのキャッシュ情報を初期化する
-extern	int			InitFontCacheToHandle( int FontHandle, int ASyncThread = FALSE ) ;											// 特定のフォントのキャッシュ情報を初期化する
+extern	int			InitFontCacheToHandle( FONTMANAGE *ManageData, int ASyncThread = FALSE ) ;											// 特定のフォントのキャッシュ情報を初期化する
 
 extern	int			InitializeFontHandle( HANDLEINFO *HandleInfo ) ;															// フォントハンドルを初期化する
 extern	int			TerminateFontHandle( HANDLEINFO *HandleInfo ) ;																// フォントハンドルの後始末をする
 
-extern	int			RefreshFontDrawResourceToHandle( int FontHandle, int ASyncThread = FALSE ) ;								// フォントハンドルが使用する描画バッファやテクスチャキャッシュを再初期化する
+extern	int			RefreshFontDrawResourceToHandle( FONTMANAGE *ManageData, int ASyncThread = FALSE ) ;								// フォントハンドルが使用する描画バッファやテクスチャキャッシュを再初期化する
 extern	int			FontCacheStringDrawToHandleST(
 							int DrawFlag,
 							int   xi, int   yi,
@@ -270,7 +287,7 @@ extern	int			FontCacheStringDrawToHandleST(
 							float RotCenterX, float RotCenterY, double RotAngle, 
 							const wchar_t *StrData,
 							unsigned int Color, MEMIMG *DestMemImg, const RECT *ClipRect,
-							int TransFlag, int FontHandle, unsigned int EdgeColor,
+							int TransFlag, FONTMANAGE *ManageData, unsigned int EdgeColor,
 							int StrLen, int VerticalFlag, SIZE *DrawSize ) ;
 extern	int			RefreshDefaultFont( void ) ;																				// デフォルトフォントを再作成する
 extern	int			InitFontToHandleBase( int Terminate = FALSE ) ;																// InitFontToHandle の内部関数
@@ -284,10 +301,10 @@ extern	int			LoadFontDataFromMemToHandle_UseGParam( CREATEFONTTOHANDLE_GPARAM *G
 extern	int			LoadFontDataToHandle_UseGParam(        CREATEFONTTOHANDLE_GPARAM *GParam, const wchar_t FileName, int EdgeSize, int ASyncLoadFlag = FALSE ) ;																// LoadFontDataToHandle のグローバル変数にアクセスしないバージョン
 
 extern	int			SetupFontCache( CREATEFONTTOHANDLE_GPARAM *GParam, FONTMANAGE *ManageData, int ASyncThread ) ;											// 文字キャッシュのセットアップを行う
-extern	FONTCHARDATA *	FontCacheCharAddToHandle( int AddNum, const DWORD *CharCode, int FontHandle, int TextureCacheUpdate = TRUE ) ;	// 文字キャッシュに新しい文字を加える
+extern	FONTCHARDATA *	FontCacheCharAddToHandle( int AddNum, const DWORD *CharCode, FONTMANAGE *ManageData, int TextureCacheUpdate = TRUE ) ;	// 文字キャッシュに新しい文字を加える
 extern	int				FontCacheCharImageBltToHandle( FONTMANAGE *ManageData, FONTCHARDATA *CharData, DWORD CharCode, int Space, int ImageType /* DX_FONT_SRCIMAGETYPE_1BIT 等 */, void *ImageBuffer, DWORD ImageSizeX, DWORD ImageSizeY, DWORD ImagePitch, int ImageDrawX, int ImageDrawY, int ImageAddX, int TextureCacheUpdate ) ;		// 指定のフォントデータに画像を転送する
 
-extern	int			GetFontHandleCharCode( int FontHandle ) ;		// フォントハンドルに設定されているコードページを取得する( 戻り値  -1:エラー  -1以外:コードページ )
+extern	int			GetFontHandleCharCodeFormat( int FontHandle ) ;		// フォントハンドルに設定されている文字コード形式を取得する( 戻り値  -1:エラー  -1以外:文字コード形式 )
 
 // 指定の文字コードのフォントキャッシュデータを取得する、キャッシュ内に無い場合はキャッシュへの追加を試みて、失敗したら NULL を返す
 extern	FONTCHARDATA *GetFontCacheChar( FONTMANAGE *ManageData, DWORD CharCode, int ErrorMessage = TRUE ) ;
@@ -303,6 +320,8 @@ extern	int			CreateFontToHandle_WCHAR_T(                     const wchar_t *Font
 extern	int			LoadFontDataToHandle_WCHAR_T(					const wchar_t *FileName,                      int EdgeSize = -1 ) ;			// フォントデータファイルからフォントハンドルを作成する
 extern	int			ChangeFont_WCHAR_T(                             const wchar_t *FontName, int CharSet = -1 /* DX_CHARSET_SHFTJIS 等 */ ) ;							// デフォルトフォントハンドルで使用するフォントを変更
 extern	int			SetDefaultFontState_WCHAR_T(                    const wchar_t *FontName, int Size, int Thick, int FontType = -1 , int CharSet = -1 , int EdgeSize = -1 , int Italic = FALSE ) ;	// デフォルトフォントハンドルの設定を変更する
+extern	int			AddFontImageToHandle_WCHAR_T(					int FontHandle, const wchar_t *Char, int GrHandle, int DrawX, int DrawY, int AddX ) ;				// 指定の文字の代わりに描画するグラフィックハンドルを登録する
+extern	int			SubFontImageToHandle_WCHAR_T(					int FontHandle, const wchar_t *Char ) ;															// 指定の文字の代わりに描画するグラフィックハンドルの登録を解除する
 
 extern	int			GetDrawStringWidth_WCHAR_T(                     const wchar_t *String, int StrLen, int VerticalFlag = FALSE ) ;									// デフォルトフォントハンドルを使用した文字列の描画幅を取得する
 extern	int			GetDrawFormatStringWidth_WCHAR_T(               const wchar_t *FormatString, ... ) ;																// デフォルトフォントハンドルを使用した書式付き文字列の描画幅を取得する

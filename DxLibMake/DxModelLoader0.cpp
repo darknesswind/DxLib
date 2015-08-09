@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		Ｘファイル読み込みプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -98,7 +98,7 @@ namespace DxLib
 
 
 // テンプレートの文字列テーブル
-char *TTable[29] = 
+const char *TTable[29] = 
 {
 	"",
 	"",
@@ -138,7 +138,7 @@ char *TTable[29] =
 #define OOFF( x ) ( ( X_OBJECT * )( ( BYTE * )(x) - sizeof( X_OBJECT ) ) )
 
 // デフォルトのスキップ文字列
-char *DefSkipStr = " \r\n\t,;" ;
+const char *DefSkipStr = " \r\n\t,;" ;
 
 // データ型宣言 ---------------------------------
 
@@ -341,7 +341,7 @@ struct X_FRAME
 struct X_FLOATKEYS
 {
 	DWORD					nValues ;							// 浮動小数点数の数
-	FLOAT					*values ;							// 浮動小数点数
+	float					*values ;							// 浮動小数点数
 } ;
 
 // アニメーションで使用される浮動小数点数のセット及び正の時間
@@ -404,7 +404,7 @@ struct X_SKINWEIGHTS
 	X_STRING				transformNodeName ;					// 変換に使用するボーンの名前
 	DWORD					nWeights ;							// ウエイト値の数
 	DWORD					*vertexIndices ;					// ウエイトを影響させる対象となるメッシュ上の頂点のインデックス
-	FLOAT					*weights ;							// 頂点に対するウエイト
+	float					*weights ;							// 頂点に対するウエイト
 	X_MATRIX4X4				matrixOffset ;						// オフセット行列
 
 	X_FRAME					*Frame ;							// 関わっているフレームのデータ位置
@@ -507,13 +507,13 @@ extern	char	*KakkoSkip( char *StrPoint ) ;																// 次に出てくる�
 extern	char	*StrTorkn( char *SertchStr, const char *SkipString ) ;										// strtokのパチもん
 
 // 文字列解析系関数
-extern	int		SetPStr(		X_PSTRING *PStrBuf, char *String, int StrOffset, char *SkipStr, int StrSize = -1, bool binf = false, bool f64f = false ) ;	// 文字列解析用データをセットする
+extern	int		SetPStr(		X_PSTRING *PStrBuf, char *String, int StrOffset, const char *SkipStr, int StrSize = -1, bool binf = false, bool f64f = false ) ;	// 文字列解析用データをセットする
 extern	int		PStrGet(		X_PSTRING *PStrBuf, char *StrBuf ) ;										// 次に出てくる文字列を取得する
-extern	int		PStrGet(		X_PSTRING *PStrBuf, char *StrBuf, char *AddSkipStr ) ;						// 次に出てくる文字列を取得する
-extern	int		PStrGetNMP(		X_PSTRING *PStrBuf, char *StrBuf, char *AddSkipStr = "" ) ;					// 検索オフセットを移動せずに次の文字列を得る
+extern	int		PStrGet(		X_PSTRING *PStrBuf, char *StrBuf, const char *AddSkipStr ) ;				// 次に出てくる文字列を取得する
+extern	int		PStrGetNMP(		X_PSTRING *PStrBuf, char *StrBuf, const char *AddSkipStr = "" ) ;			// 検索オフセットを移動せずに次の文字列を得る
 extern	int		PStrKakkoSkip(	X_PSTRING *PString ) ;														// 次に出てくる『{...}』を読み飛ばす
-extern	int		PStrMove(		X_PSTRING *PStrBuf, char *CmpStr ) ;										// 指定の文字列中のどれかの文字が来るまで読み飛ばす
-extern	int		PStrMoveP(		X_PSTRING *PStrBuf, char *CmpStr ) ;										// 指定の文字列中のどれかの文字の次の文字まで読み飛ばす
+extern	int		PStrMove(		X_PSTRING *PStrBuf, const char *CmpStr ) ;									// 指定の文字列中のどれかの文字が来るまで読み飛ばす
+extern	int		PStrMoveP(		X_PSTRING *PStrBuf, const char *CmpStr ) ;									// 指定の文字列中のどれかの文字の次の文字まで読み飛ばす
 extern	int		PStrMoveNum(	X_PSTRING *PStrBuf ) ;														// 数字が出るまで読み飛ばす
 extern	int		PStrGetNameBP(	X_PSTRING *PStrBuf, char *StrBuf ) ;										// バイナリデータの TOKEN_NAME を得た後トークンを進める
 extern	int		PStrGetNameB(	X_PSTRING *PStrBuf, char *StrBuf ) ;										// バイナリデータの TOKEN_NAME を得る
@@ -531,7 +531,7 @@ extern	int		PStrKakkoSkipB(	X_PSTRING *PString ) ;														// 次に出て�
 #define PSTRMOV(x,y)		( (x)->StrOffset += (y) )														// ポイントしているアドレスを移動する
 
 // Ｘファイル解析データ処理関連
-static	X_OBJECT	*AddObject( int TempType, char *Name, X_OBJECT *Parents, X_MODEL *Model ) ;				// オブジェクトデータを追加する
+static	X_OBJECT	*AddObject( int TempType, const char *Name, X_OBJECT *Parents, X_MODEL *Model ) ;		// オブジェクトデータを追加する
 extern	int			TerminateXModel( X_MODEL *Model ) ;														// Ｘファイルの解析で得たデータを解放する
 static	void		*GetRelationObject( int Type, X_OBJECT *Object ) ;										// 指定のオブジェクトに関連のある指定のタイプのオブジェクトを得る
 static	int			EnumRelationObject( int Type, int *NumBuf, void **AddresBuf, X_OBJECT *Object ) ;		// 指定のオブジェクトに関連のある指定のタイプのオブジェクトを列挙する
@@ -810,7 +810,7 @@ char *KakkoSkip( char *StrPoint )
 // 文字列解析系関数
 
 // 文字列解析用データをセットする
-extern int SetPStr( X_PSTRING *PStrBuf, char *String, int StrOffset, char *SkipStr, int StrSize, bool binf, bool f64f )
+extern int SetPStr( X_PSTRING *PStrBuf, char *String, int StrOffset, const char *SkipStr, int StrSize, bool binf, bool f64f )
 {
 	PStrBuf->binf = binf ;
 	PStrBuf->f64f = f64f ;
@@ -912,7 +912,7 @@ R2 :
 }
 
 // 次に出てくる文字列を取得する
-extern int PStrGet( X_PSTRING *PStrBuf, char *StrBuf, char *AddSkipStr )
+extern int PStrGet( X_PSTRING *PStrBuf, char *StrBuf, const char *AddSkipStr )
 {
 	char SkipStr[42] ;
 	int r ;
@@ -927,7 +927,7 @@ extern int PStrGet( X_PSTRING *PStrBuf, char *StrBuf, char *AddSkipStr )
 }
 
 // 検索オフセットを移動せずに次の文字列を得る
-extern int PStrGetNMP( X_PSTRING *PStrBuf, char *StrBuf, char *AddSkipStr )
+extern int PStrGetNMP( X_PSTRING *PStrBuf, char *StrBuf, const char *AddSkipStr )
 {
 	char SkipStr[42] ;
 	int r ;
@@ -1020,7 +1020,7 @@ extern int PStrKakkoSkip( X_PSTRING *PString )
 
 
 // 指定の文字列中のどれかの文字が来るまで読み飛ばす
-extern int PStrMove( X_PSTRING *PStrBuf, char *CmpStr )
+extern int PStrMove( X_PSTRING *PStrBuf, const char *CmpStr )
 {
 	int i ;
 	int Len ;
@@ -1065,7 +1065,7 @@ R1 :
 }
 
 // 指定の文字列中のどれかの文字の次の文字まで読み飛ばす
-extern int PStrMoveP( X_PSTRING *PStrBuf, char *CmpStr )
+extern int PStrMoveP( X_PSTRING *PStrBuf, const char *CmpStr )
 {
 	int r ;
 
@@ -1221,7 +1221,7 @@ extern int TerminateXModel( X_MODEL *Model )
 }
 
 // オブジェクトデータを追加する
-static X_OBJECT *AddObject( int TempType, char *Name, X_OBJECT *Parents, X_MODEL *Model )
+static X_OBJECT *AddObject( int TempType, const char *Name, X_OBJECT *Parents, X_MODEL *Model )
 {
 	X_OBJECT *O ;
 	X_MODEL *M = Model ;
@@ -1817,7 +1817,7 @@ R1 :
 				if( Ob->RelationObject[ Ob->RelationObjectNum ].Object == NULL )
 					return DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x93\x95\xa5\x63\xc2\x53\x67\x71\x28\x75\xdd\x30\xa4\x30\xf3\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 間接参照用ポインタを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 				Ob->RelationObject[ Ob->RelationObjectNum ].ObjectMaxNum = NewMaxNum ;
-				Ob->RelationObject[ Ob->RelationObjectNum ].ObjectName = "" ;
+				Ob->RelationObject[ Ob->RelationObjectNum ].ObjectName = ( char * )"" ;
 				Ob->RelationObject[ Ob->RelationObjectNum ].Object[ 0 ] = O ;
 				Ob->RelationObject[ Ob->RelationObjectNum ].ObjectNum ++ ;
 //				Ob->RelationObject[ Ob->RelationObjectNum ] = O ;
@@ -2901,7 +2901,7 @@ static int TempFloat( X_PSTRING *PStr, X_MODEL * /*Model*/, X_FLOAT *Float )
 	PStrGet( PStr, StrB ) ;
 
 	// 数値に換える
-	Float->f = ( float )atof( StrB ) ;
+	Float->f = ( float )_ATOF( StrB ) ;
 
 	// 終了
 	return 0 ;
@@ -3804,7 +3804,7 @@ static int TempFrame( X_PSTRING * /*PStr*/, X_MODEL * /*Model*/, X_FRAME * /*Fra
 // 浮動小数点の配列及び配列内の float の数テンプレートの解析
 static int TempFloatKeys( X_PSTRING *PStr, X_MODEL *Model, X_FLOATKEYS *FloatKeys )
 {
-	FLOAT *f ;
+	float *f ;
 	DWORD i ;
 
 	// float 値の数を取得
@@ -3816,7 +3816,7 @@ static int TempFloatKeys( X_PSTRING *PStr, X_MODEL *Model, X_FLOATKEYS *FloatKey
 	}
 
 	// float 値を格納するメモリの確保
-	if( ( FloatKeys->values = ( FLOAT * )ADDMEMAREA( sizeof( FLOAT ) * FloatKeys->nValues, &Model->XModelMem ) ) == NULL )
+	if( ( FloatKeys->values = ( float * )ADDMEMAREA( sizeof( float ) * FloatKeys->nValues, &Model->XModelMem ) ) == NULL )
 	{
 		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x6e\x6d\xd5\x52\x0f\x5c\x70\x65\xb9\x70\xea\x30\xb9\x30\xc8\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 浮動小数点リストを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
@@ -3869,7 +3869,7 @@ static int TempFloatKeys( X_PSTRING *PStr, X_MODEL *Model, X_FLOATKEYS *FloatKey
 static int TempTimedFloatKeys( X_PSTRING *PStr, X_MODEL *Model, X_TIMEDFLOATKEYS *TimedFloatKeys )
 {
 	DWORD i ;
-	FLOAT *f ;
+	float *f ;
 
 	if( !PStr->binf )
 	{
@@ -3890,7 +3890,7 @@ static int TempTimedFloatKeys( X_PSTRING *PStr, X_MODEL *Model, X_TIMEDFLOATKEYS
 		FloatKeys->nValues = PSTRDWORD(PStr,10) ;
 
 		// float 値を格納するメモリの確保
-		if( ( FloatKeys->values = ( FLOAT * )ADDMEMAREA( sizeof( FLOAT ) * FloatKeys->nValues, &Model->XModelMem ) ) == NULL )
+		if( ( FloatKeys->values = ( float * )ADDMEMAREA( sizeof( float ) * FloatKeys->nValues, &Model->XModelMem ) ) == NULL )
 		{
 			DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\x6e\x6d\xd5\x52\x0f\x5c\x70\x65\xb9\x70\xad\x30\xfc\x30\xc7\x30\xfc\x30\xbf\x30\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : 浮動小数点キーデータを格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 			return -1 ;
@@ -4002,7 +4002,7 @@ static int TempAnimationKey( X_PSTRING *PStr, X_MODEL *Model, X_ANIMATIONKEY *An
 				{
 					X_FLOATKEYS *FloatKeys = &TimedFloatKeys->tfkeys ;
 
-					FLOAT *f ;
+					float *f ;
 					DWORD i ;
 
 					// float 値の数を取得
@@ -4012,7 +4012,7 @@ static int TempAnimationKey( X_PSTRING *PStr, X_MODEL *Model, X_ANIMATIONKEY *An
 					j = 6 ;
 
 					// float 値を格納するメモリの確保
-					if( ( FloatKeys->values = ( FLOAT * )ADDMEMAREA( sizeof( FLOAT ) * FloatKeys->nValues, &Model->XModelMem ) ) == NULL )
+					if( ( FloatKeys->values = ( float * )ADDMEMAREA( sizeof( float ) * FloatKeys->nValues, &Model->XModelMem ) ) == NULL )
 					{
 						DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xa2\x30\xcb\x30\xe1\x30\xfc\x30\xb7\x30\xe7\x30\xf3\x30\xad\x30\xfc\x30\x6e\x30\x6e\x6d\xd5\x52\x0f\x5c\x70\x65\xb9\x70\x24\x50\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : アニメーションキーの浮動小数点値を格納するメモリ領域の確保に失敗しました\n" @*/ )) ;
 						return -1 ;
@@ -4134,7 +4134,7 @@ static int TempSkinWeights( X_PSTRING *PStr, X_MODEL *Model, X_SKINWEIGHTS *Skin
 {
 	DWORD i ;
 	DWORD *D ;
-	FLOAT *F ;
+	float *F ;
 
 	// 影響を受けるボーン名を取得する
 	TempString( PStr, Model, &SkinWeights->transformNodeName ) ;
@@ -4158,7 +4158,7 @@ static int TempSkinWeights( X_PSTRING *PStr, X_MODEL *Model, X_SKINWEIGHTS *Skin
 		return -1 ;
 	}
 
-	if( ( SkinWeights->weights = ( FLOAT * )ADDMEMAREA( sizeof( FLOAT ) * ( SkinWeights->nWeights + 1 ), &Model->XModelMem ) ) == NULL )
+	if( ( SkinWeights->weights = ( float * )ADDMEMAREA( sizeof( float ) * ( SkinWeights->nWeights + 1 ), &Model->XModelMem ) ) == NULL )
 	{
 		DXST_ERRORLOGFMT_ADDUTF16LE(( "\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x58\x00\x46\x00\x69\x00\x6c\x00\x65\x00\x20\x00\x3a\x00\x20\x00\xb9\x30\xad\x30\xf3\x30\xe1\x30\xc3\x30\xb7\x30\xe5\x30\x6e\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\x24\x50\xc5\x60\x31\x58\x6e\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\x24\x50\x92\x30\x3c\x68\x0d\x7d\x59\x30\x8b\x30\x5f\x30\x81\x30\x6e\x30\xe1\x30\xe2\x30\xea\x30\x18\x98\xdf\x57\x6e\x30\xba\x78\xdd\x4f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Load XFile : スキンメッシュのウエイト値情報のウエイト値を格納するためのメモリ領域の確保に失敗しました\n" @*/ )) ;
 		return -1 ;
@@ -4289,8 +4289,8 @@ extern int MV1LoadModelToX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncThre
 	// 読み込み用モデルの初期化
 	MV1InitReadModel( &RModel ) ;
 
-	// モデル名とファイル名とコードページをセット
-	RModel.CodePage = CHAR_CODEPAGE ;
+	// モデル名とファイル名と文字コード形式をセット
+	RModel.CharCodeFormat = CHAR_CHARCODEFORMAT ;
 	RModel.FilePath = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->FilePath ) + 1 ) * sizeof( wchar_t ) ) ;
 	RModel.Name     = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->Name     ) + 1 ) * sizeof( wchar_t ) ) ;
 	_WCSCPY( RModel.FilePath, LoadParam->FilePath ) ;

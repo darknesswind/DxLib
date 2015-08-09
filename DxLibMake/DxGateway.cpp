@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		内部との出入り口プログラムファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -282,6 +282,321 @@ extern int DxSetAllocMemoryErrorCheckFlag( int Flag )
 	DXFUNC_BEGIN
 	Result = NS_DxSetAllocMemoryErrorCheckFlag( Flag ) ;
 	DXFUNC_END
+	return Result ;
+}
+
+extern int ConvertStringCharCodeFormat( int SrcCharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */, const void *SrcString, int DestCharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */, void *DestStringBuffer )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_ConvertStringCharCodeFormat( SrcCharCodeFormat, SrcString, DestCharCodeFormat, DestStringBuffer ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern int SetUseCharCodeFormat( int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_SetUseCharCodeFormat( CharCodeFormat ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	void			strcpyDx(   TCHAR *Dest, const TCHAR *Src )
+{
+	DXFUNC_BEGIN
+	NS_strcpyDx( Dest, Src ) ;
+	DXFUNC_END
+}
+extern	void			strpcpyDx(    TCHAR *Dest, const TCHAR *Src, int Pos )
+{
+	DXFUNC_BEGIN
+	NS_strpcpyDx(    Dest, Src, Pos ) ;
+	DXFUNC_END
+}
+extern	void			strpcpy2Dx(   TCHAR *Dest, const TCHAR *Src, int Pos )
+{
+	DXFUNC_BEGIN
+	NS_strpcpy2Dx(   Dest, Src, Pos ) ;
+	DXFUNC_END
+}
+extern	void			strncpyDx(  TCHAR *Dest, const TCHAR *Src, int Num )
+{
+	DXFUNC_BEGIN
+	NS_strncpyDx( Dest, Src, Num ) ;
+	DXFUNC_END
+}
+extern	void			strncpy2Dx( TCHAR *Dest, const TCHAR *Src, int Num )
+{
+	DXFUNC_BEGIN
+	NS_strncpy2Dx( Dest, Src, Num ) ;
+	DXFUNC_END
+}
+extern	void			strrncpyDx(   TCHAR *Dest, const TCHAR *Src, int Num )
+{
+	DXFUNC_BEGIN
+	NS_strrncpyDx(   Dest, Src, Num ) ;
+	DXFUNC_END
+}
+extern	void			strrncpy2Dx(  TCHAR *Dest, const TCHAR *Src, int Num )
+{
+	DXFUNC_BEGIN
+	NS_strrncpy2Dx(  Dest, Src, Num ) ;
+	DXFUNC_END
+}
+extern	void			strpncpyDx(   TCHAR *Dest, const TCHAR *Src, int Pos, int Num )
+{
+	DXFUNC_BEGIN
+	NS_strpncpyDx(   Dest, Src, Pos, Num ) ;
+	DXFUNC_END
+}
+extern	void			strpncpy2Dx(  TCHAR *Dest, const TCHAR *Src, int Pos, int Num )
+{
+	DXFUNC_BEGIN
+	NS_strpncpy2Dx(  Dest, Src, Pos, Num ) ;
+	DXFUNC_END
+}
+extern	void			strcatDx(   TCHAR *Dest, const TCHAR *Src )
+{
+	DXFUNC_BEGIN
+	NS_strcatDx( Dest, Src ) ;
+	DXFUNC_END
+}
+extern	int				strlenDx(   const TCHAR *Str )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strlenDx( Str ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				strlen2Dx(  const TCHAR *Str )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strlen2Dx( Str ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				strcmpDx(   const TCHAR *Str1, const TCHAR *Str2 )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strcmpDx( Str1, Str2 ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				stricmpDx(  const TCHAR *Str1, const TCHAR *Str2 )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_stricmpDx( Str1, Str2 ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				strncmpDx(  const TCHAR *Str1, const TCHAR *Str2, int Size )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strncmpDx( Str1, Str2, Size ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				strncmp2Dx( const TCHAR *Str1, const TCHAR *Str2, int Num )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strncmp2Dx( Str1, Str2, Num ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				strpncmpDx(   const TCHAR *Str1, const TCHAR *Str2, int Pos, int Num )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strpncmpDx(   Str1, Str2, Pos, Num ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				strpncmp2Dx(  const TCHAR *Str1, const TCHAR *Str2, int Pos, int Num )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strpncmp2Dx(  Str1, Str2, Pos, Num ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	DWORD			strgetchrDx(  const TCHAR *Str, int Pos, int *CharNums )
+{
+	DWORD Result ;
+	DXFUNC_BEGIN
+	Result = NS_strgetchrDx(  Str, Pos, CharNums ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	DWORD			strgetchr2Dx( const TCHAR *Str, int Pos, int *CharNums )
+{
+	DWORD Result ;
+	DXFUNC_BEGIN
+	Result = NS_strgetchr2Dx( Str, Pos, CharNums ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				strputchrDx(  TCHAR *Str, int Pos, DWORD CharCode )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strputchrDx( Str, Pos, CharCode ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				strputchr2Dx( TCHAR *Str, int Pos, DWORD CharCode )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strputchr2Dx( Str, Pos, CharCode ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	const TCHAR *	strposDx(     const TCHAR *Str, int Pos )
+{
+	const TCHAR *Result ;
+	DXFUNC_BEGIN
+	Result = NS_strposDx(     Str, Pos ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	const TCHAR *	strpos2Dx(    const TCHAR *Str, int Pos )
+{
+	const TCHAR *Result ;
+	DXFUNC_BEGIN
+	Result = NS_strpos2Dx(    Str, Pos ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	const TCHAR *	strstrDx(   const TCHAR *Str1, const TCHAR *Str2 )
+{
+	const TCHAR *Result ;
+	DXFUNC_BEGIN
+	Result = NS_strstrDx(  Str1, Str2 ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				strstr2Dx(    const TCHAR *Str1, const TCHAR *Str2 )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strstr2Dx(  Str1, Str2 ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	const TCHAR *	strchrDx(   const TCHAR *Str, DWORD CharCode )
+{
+	const TCHAR * Result ;
+	DXFUNC_BEGIN
+	Result = NS_strchrDx( Str, CharCode ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				strchr2Dx(    const TCHAR *Str, DWORD CharCode )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strchr2Dx(  Str, CharCode ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	const TCHAR *	strrchrDx(  const TCHAR *Str, DWORD CharCode )
+{
+	const TCHAR * Result ;
+	DXFUNC_BEGIN
+	Result = NS_strrchrDx( Str, CharCode ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				strrchr2Dx(   const TCHAR *Str, DWORD CharCode )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_strrchr2Dx( Str, CharCode ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	TCHAR *			struprDx(   TCHAR *Str )
+{
+	TCHAR * Result ;
+	DXFUNC_BEGIN
+	Result = NS_struprDx( Str ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				vsprintfDx( TCHAR *Buffer, const TCHAR *FormatString, va_list Arg )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_vsprintfDx( Buffer, FormatString, Arg ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				sprintfDx(  TCHAR *Buffer, const TCHAR *FormatString, ... )
+{
+	int Result ;
+	va_list VaList ;
+
+	DXFUNC_BEGIN
+
+	va_start( VaList, FormatString ) ;
+	Result = NS_vsprintfDx( Buffer, FormatString, VaList ) ;
+	va_end( VaList ) ;
+
+	DXFUNC_END
+
+	return Result ;
+}
+extern	TCHAR *			itoaDx(     int Value, TCHAR *Buffer, int Radix )
+{
+	TCHAR *Result ;
+	DXFUNC_BEGIN
+	Result = NS_itoaDx( Value, Buffer, Radix ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				atoiDx(     const TCHAR *Str )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_atoiDx( Str ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	double			atofDx(     const TCHAR *Str )
+{
+	double Result ;
+	DXFUNC_BEGIN
+	Result = NS_atofDx( Str ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				vsscanfDx(  const TCHAR *String, const TCHAR *FormatString, va_list Arg )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_vsscanfDx( String, FormatString, Arg ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern	int				sscanfDx(   const TCHAR *String, const TCHAR *FormatString, ... )
+{
+	int Result ;
+	va_list VaList ;
+
+	DXFUNC_BEGIN
+
+	va_start( VaList, FormatString ) ;
+	Result = NS_vsscanfDx( String, FormatString, VaList ) ;
+	va_end( VaList ) ;
+
+	DXFUNC_END
+
 	return Result ;
 }
 
@@ -9210,6 +9525,14 @@ extern int FillMaskScreen( int Flag )
 	DXFUNC_END
 	return Result ;
 }
+extern int SetMaskScreenGraph( int GraphHandle )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_SetMaskScreenGraph( GraphHandle ) ;
+	DXFUNC_END
+	return Result ;
+}
 
 extern int InitMask( void )
 {
@@ -9498,6 +9821,14 @@ extern int SetFontSpaceToHandle( int Point, int FontHandle )
 	DXFUNC_END
 	return Result ;
 }
+extern int SetFontCharCodeFormatToHandle( int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ , int FontHandle )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_SetFontCharCodeFormatToHandle( CharCodeFormat, FontHandle ) ;
+	DXFUNC_END
+	return Result ;
+}
 extern int SetDefaultFontState( const TCHAR *FontName, int Size, int Thick, int FontType, int CharSet, int EdgeSize, int Italic )
 {
 	int Result ;
@@ -9519,6 +9850,22 @@ extern int SetFontLostFlag( int FontHandle, int *LostFlag )
 	int Result ;
 	DXFUNC_BEGIN
 	Result = NS_SetFontLostFlag( FontHandle, LostFlag ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern int AddFontImageToHandle( int FontHandle, const TCHAR *Char, int GrHandle, int DrawX, int DrawY, int AddX )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_AddFontImageToHandle( FontHandle, Char, GrHandle, DrawX, DrawY, AddX ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern int SubFontImageToHandle( int FontHandle, const TCHAR *Char )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_SubFontImageToHandle( FontHandle, Char ) ;
 	DXFUNC_END
 	return Result ;
 }
@@ -9551,6 +9898,14 @@ extern int GetFontSpace( void )
 	int Result ;
 	DXFUNC_BEGIN
 	Result = NS_GetFontSpace() ;
+	DXFUNC_END
+	return Result ;
+}
+extern int SetFontCharCodeFormat( int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_SetFontCharCodeFormat( CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ ) ;
 	DXFUNC_END
 	return Result ;
 }
@@ -10405,6 +10760,16 @@ extern	int		DrawLineSoftImage(  int SIHandle, int x1, int y1, int x2, int y2, in
 	Result = NS_DrawLineBaseImage( &SoftImg->BaseImage,  x1,  y1, x2, y2,  r,  g,  b,  a ) ;
 	return Result ;
 }
+extern	int		DrawCircleSoftImage( int SIHandle, int x, int y, int radius, int r, int g, int b, int a, int FillFlag )
+{
+	int Result ;
+	SOFTIMAGE *SoftImg ;
+
+	if( SFTIMGCHK( SIHandle, SoftImg ) )
+		return -1 ;
+	Result = NS_DrawCircleBaseImage( &SoftImg->BaseImage, x, y, radius, r, g, b, a, FillFlag ) ;
+	return Result ;
+}
 extern	int		BltSoftImage( int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int SrcSIHandle, int DestX, int DestY, int DestSIHandle )
 {
 	int Result ;
@@ -10847,6 +11212,14 @@ extern	int		DrawLineBaseImage( BASEIMAGE *BaseImage, int x1, int y1, int x2, int
 	DXFUNC_END
 	return Result ;
 }
+extern	int		DrawCircleBaseImage( BASEIMAGE *BaseImage, int x, int y, int radius, int r, int g, int b, int a, int FillFlag )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_DrawCircleBaseImage( BaseImage, x, y, radius, r, g, b, a, FillFlag );
+	DXFUNC_END
+	return Result ;
+}
 extern	int		BltBaseImage( int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int DestX, int DestY, BASEIMAGE *SrcBaseImage, BASEIMAGE *DestBaseImage )
 {
 	int Result ;
@@ -10908,6 +11281,14 @@ extern int CheckPixelAlphaBaseImage( const BASEIMAGE *BaseImage )
 	int Result ;
 	DXFUNC_BEGIN
 	Result = NS_CheckPixelAlphaBaseImage( BaseImage ) ;
+	DXFUNC_END
+	return Result ;
+}
+extern int GetBaseImageUseMaxPaletteNo( const BASEIMAGE *BaseImage )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_GetBaseImageUseMaxPaletteNo( BaseImage ) ;
 	DXFUNC_END
 	return Result ;
 }
@@ -13480,12 +13861,19 @@ extern int MV1GetAnimIndex( int MHandle, const TCHAR *AnimName )
 	DXFUNC_END
 	return Result ;
 }
-
 extern float MV1GetAnimTotalTime( int MHandle, int AnimIndex ) 
 {
 	float Result ;
 	DXFUNC_BEGIN
 	Result = NS_MV1GetAnimTotalTime( MHandle, AnimIndex )  ;
+	DXFUNC_END
+	return Result ;
+}
+extern int MV1GetAnimLoopFlag( int MHandle, int AnimIndex )
+{
+	int Result ;
+	DXFUNC_BEGIN
+	Result = NS_MV1GetAnimLoopFlag( MHandle, AnimIndex ) ;
 	DXFUNC_END
 	return Result ;
 }

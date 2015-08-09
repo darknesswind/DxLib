@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ＶＭＤデータ読み込みプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -1035,7 +1035,7 @@ extern int LoadFile_VMD(
 #ifdef UNICODE
 		if( FileReadFunc->Read( StringW, VmdData, FileSize, FileReadFunc->Data ) != -1 )
 #else
-		ConvString( ( const char * )StringW, WCHAR_T_CODEPAGE, StringA, _TCODEPAGE ) ;
+		ConvString( ( const char * )StringW, WCHAR_T_CHARCODEFORMAT, StringA, _TCHARCODEFORMAT ) ;
 		if( FileReadFunc->Read( StringA, VmdData, FileSize, FileReadFunc->Data ) != -1 )
 #endif
 		{
@@ -1047,7 +1047,7 @@ extern int LoadFile_VMD(
 #ifdef UNICODE
 			if( FileReadFunc->Read( StringW, VmdData, FileSize, FileReadFunc->Data ) == -1 )
 #else
-			ConvString( ( const char * )StringW, WCHAR_T_CODEPAGE, StringA, _TCODEPAGE ) ;
+			ConvString( ( const char * )StringW, WCHAR_T_CHARCODEFORMAT, StringA, _TCHARCODEFORMAT ) ;
 			if( FileReadFunc->Read( StringA, VmdData, FileSize, FileReadFunc->Data ) == -1 )
 #endif
 			{

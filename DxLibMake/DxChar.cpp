@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		文字コード関係プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // ----------------------------------------------------------------------------
 
@@ -162,28 +162,28 @@ extern int InitCharCode( void )
 
 
 
-// 指定のコードページの情報最少サイズを取得する( 戻り値：バイト数 )
-__inline int GetCodePageUnitSize_inline( int CodePage )
+// 指定の文字コード形式の情報最少サイズを取得する( 戻り値：バイト数 )
+__inline int GetCharCodeFormatUnitSize_inline( int CharCodeFormat )
 {
-	// 対応していないコードページの場合は何もせず終了
-	switch( CodePage )
+	// 対応していない文字コード形式の場合は何もせず終了
+	switch( CharCodeFormat )
 	{
-	case DX_CODEPAGE_SHIFTJIS :
-	case DX_CODEPAGE_GB2312 :
-	case DX_CODEPAGE_UHC :
-	case DX_CODEPAGE_BIG5 :
-	case DX_CODEPAGE_ASCII :
+	case DX_CHARCODEFORMAT_SHIFTJIS :
+	case DX_CHARCODEFORMAT_GB2312 :
+	case DX_CHARCODEFORMAT_UHC :
+	case DX_CHARCODEFORMAT_BIG5 :
+	case DX_CHARCODEFORMAT_ASCII :
 		return 1 ;
 
-	case DX_CODEPAGE_UTF16LE :
-	case DX_CODEPAGE_UTF16BE :
+	case DX_CHARCODEFORMAT_UTF16LE :
+	case DX_CHARCODEFORMAT_UTF16BE :
 		return 2 ;
 
-	case DX_CODEPAGE_UTF8 :
+	case DX_CHARCODEFORMAT_UTF8 :
 		return 1 ;
 
-	case DX_CODEPAGE_UTF32LE :
-	case DX_CODEPAGE_UTF32BE :
+	case DX_CHARCODEFORMAT_UTF32LE :
+	case DX_CHARCODEFORMAT_UTF32BE :
 		return 4 ;
 
 	default :
@@ -191,36 +191,36 @@ __inline int GetCodePageUnitSize_inline( int CodePage )
 	}
 }
 
-// 指定のコードページの情報最少サイズを取得する( 戻り値：バイト数 )
-extern int GetCodePageUnitSize( int CodePage )
+// 指定の文字コード形式の情報最少サイズを取得する( 戻り値：バイト数 )
+extern int GetCharCodeFormatUnitSize( int CharCodeFormat )
 {
-	return GetCodePageUnitSize_inline( CodePage ) ;
+	return GetCharCodeFormatUnitSize_inline( CharCodeFormat ) ;
 }
 
 // １文字のバイト数を取得する( 戻り値：１文字のバイト数 )
-__inline int GetCharBytes_inline( const char *CharCode, int CodePage )
+__inline int GetCharBytes_inline( const char *CharCode, int CharCodeFormat )
 {
-	switch( CodePage )
+	switch( CharCodeFormat )
 	{
-	case DX_CODEPAGE_SHIFTJIS :
+	case DX_CHARCODEFORMAT_SHIFTJIS :
 		return CHECK_SHIFTJIS_2BYTE( ( ( BYTE * )CharCode )[ 0 ] ) ? 2 : 1 ;
 	//	return ( ( ( BYTE * )CharCode )[ 0 ] >= 0x81 && ( ( BYTE * )CharCode )[ 0 ] <= 0x9F ) || ( ( ( BYTE * )CharCode )[ 0 ] >= 0xE0 && ( ( BYTE * )CharCode )[ 0 ] <= 0xFC ) ;
 
-	case DX_CODEPAGE_ASCII :
+	case DX_CHARCODEFORMAT_ASCII :
 		return 1 ;
 
-	case DX_CODEPAGE_GB2312 :
-	case DX_CODEPAGE_UHC :
-	case DX_CODEPAGE_BIG5 :
+	case DX_CHARCODEFORMAT_GB2312 :
+	case DX_CHARCODEFORMAT_UHC :
+	case DX_CHARCODEFORMAT_BIG5 :
 		return ( ( ( ( BYTE * )CharCode )[ 0 ] & 0x80 ) != 0 ) ? 2 : 1 ;
 
-	case DX_CODEPAGE_UTF16LE :
+	case DX_CHARCODEFORMAT_UTF16LE :
 		return ( ( ( ( BYTE * )CharCode )[ 0 ] | ( ( ( BYTE * )CharCode )[ 1 ] << 8 ) ) & 0xfc00 ) == 0xd800 ? 4 : 2 ;
 
-	case DX_CODEPAGE_UTF16BE :
+	case DX_CHARCODEFORMAT_UTF16BE :
 		return ( ( ( ( ( BYTE * )CharCode )[ 0 ] << 8 ) | ( ( BYTE * )CharCode )[ 1 ] ) & 0xfc00 ) == 0xd800 ? 4 : 2 ;
 
-	case DX_CODEPAGE_UTF8 :
+	case DX_CHARCODEFORMAT_UTF8 :
 		if( ( ( ( BYTE * )CharCode )[ 0 ] & 0x80 ) == 0x00 )
 		{
 			return 1 ;
@@ -252,8 +252,8 @@ __inline int GetCharBytes_inline( const char *CharCode, int CodePage )
 		}
 		break ;
 
-	case DX_CODEPAGE_UTF32LE :
-	case DX_CODEPAGE_UTF32BE :
+	case DX_CHARCODEFORMAT_UTF32LE :
+	case DX_CHARCODEFORMAT_UTF32BE :
 		return 4 ;
 	}
 
@@ -261,18 +261,18 @@ __inline int GetCharBytes_inline( const char *CharCode, int CodePage )
 }
 
 // １文字のバイト数を取得する( 戻り値：１文字のバイト数 )
-extern int GetCharBytes( const char *CharCode, int CodePage )
+extern int GetCharBytes( const char *CharCode, int CharCodeFormat )
 {
-	return GetCharBytes_inline( CharCode, CodePage ) ;
+	return GetCharBytes_inline( CharCode, CharCodeFormat ) ;
 }
 
 // １文字の文字コードと文字のバイト数を取得する
-__inline DWORD GetCharCode_inline( const char *CharCode, int CodePage, int *CharBytes )
+__inline DWORD GetCharCode_inline( const char *CharCode, int CharCodeFormat, int *CharBytes )
 {
 	int UseSrcSize ;
 	DWORD DestCode ;
 
-	switch( GetCodePageUnitSize_inline( CodePage ) )
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
 	{
 	case 1 :
 		if( ( ( BYTE * )CharCode )[ 0 ] == 0 )
@@ -308,14 +308,14 @@ __inline DWORD GetCharCode_inline( const char *CharCode, int CodePage, int *Char
 		break ;
 	}
 
-	UseSrcSize = GetCharBytes_inline( CharCode, CodePage ) ;
+	UseSrcSize = GetCharBytes_inline( CharCode, CharCodeFormat ) ;
 
-	switch( CodePage )
+	switch( CharCodeFormat )
 	{
-	case DX_CODEPAGE_SHIFTJIS :
-	case DX_CODEPAGE_GB2312 :
-	case DX_CODEPAGE_UHC :
-	case DX_CODEPAGE_BIG5 :
+	case DX_CHARCODEFORMAT_SHIFTJIS :
+	case DX_CHARCODEFORMAT_GB2312 :
+	case DX_CHARCODEFORMAT_UHC :
+	case DX_CHARCODEFORMAT_BIG5 :
 		if( UseSrcSize == 2 )
 		{
 			DestCode = ( ( ( BYTE * )CharCode )[ 0 ] << 8 ) | ( ( BYTE * )CharCode )[ 1 ] ;
@@ -326,17 +326,17 @@ __inline DWORD GetCharCode_inline( const char *CharCode, int CodePage, int *Char
 		}
 		break ;
 
-	case DX_CODEPAGE_ASCII :
+	case DX_CHARCODEFORMAT_ASCII :
 		DestCode = ( ( BYTE * )CharCode )[ 0 ] ;
 		break ;
 
-	case DX_CODEPAGE_UTF16LE :
-	case DX_CODEPAGE_UTF16BE :
+	case DX_CHARCODEFORMAT_UTF16LE :
+	case DX_CHARCODEFORMAT_UTF16BE :
 		{
 			DWORD SrcCode1 ;
 			DWORD SrcCode2 ;
 
-			if( CodePage == DX_CODEPAGE_UTF16BE )
+			if( CharCodeFormat == DX_CHARCODEFORMAT_UTF16BE )
 			{
 				SrcCode1 = ( ( ( BYTE * )CharCode )[ 0 ] << 8 ) | ( ( BYTE * )CharCode )[ 1 ] ;
 			}
@@ -347,7 +347,7 @@ __inline DWORD GetCharCode_inline( const char *CharCode, int CodePage, int *Char
 
 			if( UseSrcSize == 4 )
 			{
-				if( CodePage == DX_CODEPAGE_UTF16BE )
+				if( CharCodeFormat == DX_CHARCODEFORMAT_UTF16BE )
 				{
 					SrcCode2 = ( ( ( BYTE * )CharCode )[ 2 ] << 8 ) | ( ( BYTE * )CharCode )[ 3 ] ;
 				}
@@ -365,7 +365,7 @@ __inline DWORD GetCharCode_inline( const char *CharCode, int CodePage, int *Char
 		}
 		break ;
 
-	case DX_CODEPAGE_UTF8 :
+	case DX_CHARCODEFORMAT_UTF8 :
 		switch( UseSrcSize )
 		{
 		case 1 :
@@ -394,11 +394,11 @@ __inline DWORD GetCharCode_inline( const char *CharCode, int CodePage, int *Char
 		}
 		break ;
 
-	case DX_CODEPAGE_UTF32LE :
+	case DX_CHARCODEFORMAT_UTF32LE :
 		DestCode = ( ( BYTE * )CharCode )[ 0 ] | ( ( ( BYTE * )CharCode )[ 1 ] << 8 ) | ( ( ( BYTE * )CharCode )[ 2 ] << 16 ) | ( ( ( BYTE * )CharCode )[ 3 ] << 24 ) ;
 		break ;
 
-	case DX_CODEPAGE_UTF32BE :
+	case DX_CHARCODEFORMAT_UTF32BE :
 		DestCode = ( ( ( BYTE * )CharCode )[ 0 ] << 24 ) | ( ( ( BYTE * )CharCode )[ 1 ] << 16 ) | ( ( ( BYTE * )CharCode )[ 2 ] << 8 ) | ( ( BYTE * )CharCode )[ 3 ] ;
 		break ;
 
@@ -415,20 +415,20 @@ __inline DWORD GetCharCode_inline( const char *CharCode, int CodePage, int *Char
 }
 
 // １文字の文字コードと文字のバイト数を取得する
-extern DWORD GetCharCode( const char *CharCode, int CodePage, int *CharBytes )
+extern DWORD GetCharCode( const char *CharCode, int CharCodeFormat, int *CharBytes )
 {
-	return GetCharCode_inline( CharCode, CodePage, CharBytes ) ;
+	return GetCharCode_inline( CharCode, CharCodeFormat, CharBytes ) ;
 }
 
 // 文字コードを通常の文字列に変換する、終端にヌル文字は書き込まない( 戻り値：書き込んだバイト数 )
-__inline int PutCharCode_inline( DWORD CharCode, int CodePage, char *Dest )
+__inline int PutCharCode_inline( DWORD CharCode, int CharCodeFormat, char *Dest )
 {
-	switch( CodePage )
+	switch( CharCodeFormat )
 	{
-	case DX_CODEPAGE_SHIFTJIS :
-	case DX_CODEPAGE_GB2312 :
-	case DX_CODEPAGE_UHC :
-	case DX_CODEPAGE_BIG5 :
+	case DX_CHARCODEFORMAT_SHIFTJIS :
+	case DX_CHARCODEFORMAT_GB2312 :
+	case DX_CHARCODEFORMAT_UHC :
+	case DX_CHARCODEFORMAT_BIG5 :
 		if( CharCode >= 0x100 )
 		{
 			if( Dest != NULL )
@@ -447,15 +447,15 @@ __inline int PutCharCode_inline( DWORD CharCode, int CodePage, char *Dest )
 			return 1 ;
 		}
 
-	case DX_CODEPAGE_ASCII :
+	case DX_CHARCODEFORMAT_ASCII :
 		if( Dest != NULL )
 		{
 			( ( BYTE * )Dest )[ 0 ] = ( BYTE )CharCode ;
 		}
 		return 1 ;
 
-	case DX_CODEPAGE_UTF16LE :
-	case DX_CODEPAGE_UTF16BE :
+	case DX_CHARCODEFORMAT_UTF16LE :
+	case DX_CHARCODEFORMAT_UTF16BE :
 		{
 			DWORD DestCode1 ;
 			DWORD DestCode2 ;
@@ -484,7 +484,7 @@ __inline int PutCharCode_inline( DWORD CharCode, int CodePage, char *Dest )
 
 			if( Dest != NULL )
 			{
-				if( CodePage == DX_CODEPAGE_UTF16BE )
+				if( CharCodeFormat == DX_CHARCODEFORMAT_UTF16BE )
 				{
 					( ( BYTE * )Dest )[ 0 ] = ( BYTE )( DestCode1 >> 8 ) ;
 					( ( BYTE * )Dest )[ 1 ] = ( BYTE )( DestCode1 ) ;
@@ -511,7 +511,7 @@ __inline int PutCharCode_inline( DWORD CharCode, int CodePage, char *Dest )
 			return DestSize ;
 		}
 
-	case DX_CODEPAGE_UTF8 :
+	case DX_CHARCODEFORMAT_UTF8 :
 		if( CharCode <= 0x7f )
 		{
 			if( Dest != NULL )
@@ -591,7 +591,7 @@ __inline int PutCharCode_inline( DWORD CharCode, int CodePage, char *Dest )
 			return 0 ;
 		}
 
-	case DX_CODEPAGE_UTF32LE :
+	case DX_CHARCODEFORMAT_UTF32LE :
 		if( Dest != NULL )
 		{
 			( ( BYTE * )Dest )[ 0 ] = ( BYTE )( CharCode       ) ;
@@ -601,7 +601,7 @@ __inline int PutCharCode_inline( DWORD CharCode, int CodePage, char *Dest )
 		}
 		return 4 ;
 
-	case DX_CODEPAGE_UTF32BE :
+	case DX_CHARCODEFORMAT_UTF32BE :
 		if( Dest != NULL )
 		{
 			( ( BYTE * )Dest )[ 0 ] = ( BYTE )( CharCode >> 24 ) ;
@@ -617,13 +617,13 @@ __inline int PutCharCode_inline( DWORD CharCode, int CodePage, char *Dest )
 }
 
 // 文字コードを通常の文字列に変換する、終端にヌル文字は書き込まない( 戻り値：書き込んだバイト数 )
-extern int PutCharCode( DWORD CharCode, int CodePage, char *Dest )
+extern int PutCharCode( DWORD CharCode, int CharCodeFormat, char *Dest )
 {
-	return PutCharCode_inline( CharCode, CodePage, Dest ) ;
+	return PutCharCode_inline( CharCode, CharCodeFormat, Dest ) ;
 }
 
-// 文字コードを指定のコードページの文字に変換する
-__inline DWORD ConvCharCode_inline( DWORD SrcCharCode, int SrcCodePage, int DestCodePage )
+// 文字コードを指定の文字コード形式の文字に変換する
+__inline DWORD ConvCharCode_inline( DWORD SrcCharCode, int SrcCharCodeFormat, int DestCharCodeFormat )
 {
 	// キャラクターコードテーブルが初期化されていなかったら初期化
 	if( g_CharCodeSystem.InitializeFlag == FALSE )
@@ -631,21 +631,21 @@ __inline DWORD ConvCharCode_inline( DWORD SrcCharCode, int SrcCodePage, int Dest
 		InitCharCode() ;
 	}
 
-	if( SrcCodePage == DestCodePage )
+	if( SrcCharCodeFormat == DestCharCodeFormat )
 	{
 		return SrcCharCode ;
 	}
 
-	switch( SrcCodePage )
+	switch( SrcCharCodeFormat )
 	{
-	case DX_CODEPAGE_SHIFTJIS :
-	case DX_CODEPAGE_GB2312 :
-	case DX_CODEPAGE_UHC :
-	case DX_CODEPAGE_BIG5 :
+	case DX_CHARCODEFORMAT_SHIFTJIS :
+	case DX_CHARCODEFORMAT_GB2312 :
+	case DX_CHARCODEFORMAT_UHC :
+	case DX_CHARCODEFORMAT_BIG5 :
 		{
 			DWORD Unicode ;
 
-			if( DestCodePage == DX_CODEPAGE_ASCII )
+			if( DestCharCodeFormat == DX_CHARCODEFORMAT_ASCII )
 			{
 				if( SrcCharCode > 0xff )
 				{
@@ -654,21 +654,21 @@ __inline DWORD ConvCharCode_inline( DWORD SrcCharCode, int SrcCodePage, int Dest
 				return SrcCharCode ;
 			}
 
-			switch( SrcCodePage )
+			switch( SrcCharCodeFormat )
 			{
-			case DX_CODEPAGE_SHIFTJIS :
+			case DX_CHARCODEFORMAT_SHIFTJIS :
 				Unicode = g_CharCodeSystem.CharCodeCP932Info.MultiByteToUTF16[ SrcCharCode ] ;
 				break ;
 
-			case DX_CODEPAGE_GB2312 :
+			case DX_CHARCODEFORMAT_GB2312 :
 				Unicode = g_CharCodeSystem.CharCodeCP936Info.MultiByteToUTF16[ SrcCharCode ] ;
 				break ;
 
-			case DX_CODEPAGE_UHC :
+			case DX_CHARCODEFORMAT_UHC :
 				Unicode = g_CharCodeSystem.CharCodeCP949Info.MultiByteToUTF16[ SrcCharCode ] ;
 				break ;
 
-			case DX_CODEPAGE_BIG5 :
+			case DX_CHARCODEFORMAT_BIG5 :
 				Unicode = g_CharCodeSystem.CharCodeCP950Info.MultiByteToUTF16[ SrcCharCode ] ;
 				break ;
 
@@ -676,25 +676,25 @@ __inline DWORD ConvCharCode_inline( DWORD SrcCharCode, int SrcCodePage, int Dest
 				return 0 ;
 			}
 
-			switch( DestCodePage )
+			switch( DestCharCodeFormat )
 			{
-			case DX_CODEPAGE_SHIFTJIS :
+			case DX_CHARCODEFORMAT_SHIFTJIS :
 				return g_CharCodeSystem.CharCodeCP932Info.UTF16ToMultiByte[ Unicode ] ;
 
-			case DX_CODEPAGE_GB2312 :
+			case DX_CHARCODEFORMAT_GB2312 :
 				return g_CharCodeSystem.CharCodeCP936Info.UTF16ToMultiByte[ Unicode ] ;
 
-			case DX_CODEPAGE_UHC :
+			case DX_CHARCODEFORMAT_UHC :
 				return g_CharCodeSystem.CharCodeCP949Info.UTF16ToMultiByte[ Unicode ] ;
 
-			case DX_CODEPAGE_BIG5 :
+			case DX_CHARCODEFORMAT_BIG5 :
 				return g_CharCodeSystem.CharCodeCP950Info.UTF16ToMultiByte[ Unicode ] ;
 
-			case DX_CODEPAGE_UTF16LE :
-			case DX_CODEPAGE_UTF16BE :
-			case DX_CODEPAGE_UTF8 :
-			case DX_CODEPAGE_UTF32LE :
-			case DX_CODEPAGE_UTF32BE :
+			case DX_CHARCODEFORMAT_UTF16LE :
+			case DX_CHARCODEFORMAT_UTF16BE :
+			case DX_CHARCODEFORMAT_UTF8 :
+			case DX_CHARCODEFORMAT_UTF32LE :
+			case DX_CHARCODEFORMAT_UTF32BE :
 				return Unicode ;
 
 			default :
@@ -702,56 +702,56 @@ __inline DWORD ConvCharCode_inline( DWORD SrcCharCode, int SrcCodePage, int Dest
 			}
 		}
 
-	case DX_CODEPAGE_ASCII :
+	case DX_CHARCODEFORMAT_ASCII :
 		return SrcCharCode ;
 
-	case DX_CODEPAGE_UTF16LE :
-	case DX_CODEPAGE_UTF16BE :
-	case DX_CODEPAGE_UTF8 :
-	case DX_CODEPAGE_UTF32LE :
-	case DX_CODEPAGE_UTF32BE :
-		switch( DestCodePage )
+	case DX_CHARCODEFORMAT_UTF16LE :
+	case DX_CHARCODEFORMAT_UTF16BE :
+	case DX_CHARCODEFORMAT_UTF8 :
+	case DX_CHARCODEFORMAT_UTF32LE :
+	case DX_CHARCODEFORMAT_UTF32BE :
+		switch( DestCharCodeFormat )
 		{
-		case DX_CODEPAGE_ASCII :
+		case DX_CHARCODEFORMAT_ASCII :
 			if( SrcCharCode > 0xff )
 			{
 				return 0 ;
 			}
 			return SrcCharCode ;
 
-		case DX_CODEPAGE_SHIFTJIS :
+		case DX_CHARCODEFORMAT_SHIFTJIS :
 			if( SrcCharCode > 0xffff )
 			{
 				return 0 ;
 			}
 			return g_CharCodeSystem.CharCodeCP932Info.UTF16ToMultiByte[ SrcCharCode ] ;
 
-		case DX_CODEPAGE_GB2312 :
+		case DX_CHARCODEFORMAT_GB2312 :
 			if( SrcCharCode > 0xffff )
 			{
 				return 0 ;
 			}
 			return g_CharCodeSystem.CharCodeCP936Info.UTF16ToMultiByte[ SrcCharCode ] ;
 
-		case DX_CODEPAGE_UHC :
+		case DX_CHARCODEFORMAT_UHC :
 			if( SrcCharCode > 0xffff )
 			{
 				return 0 ;
 			}
 			return g_CharCodeSystem.CharCodeCP949Info.UTF16ToMultiByte[ SrcCharCode ] ;
 
-		case DX_CODEPAGE_BIG5 :
+		case DX_CHARCODEFORMAT_BIG5 :
 			if( SrcCharCode > 0xffff )
 			{
 				return 0 ;
 			}
 			return g_CharCodeSystem.CharCodeCP950Info.UTF16ToMultiByte[ SrcCharCode ] ;
 
-		case DX_CODEPAGE_UTF16LE :
-		case DX_CODEPAGE_UTF16BE :
-		case DX_CODEPAGE_UTF8 :
-		case DX_CODEPAGE_UTF32LE :
-		case DX_CODEPAGE_UTF32BE :
+		case DX_CHARCODEFORMAT_UTF16LE :
+		case DX_CHARCODEFORMAT_UTF16BE :
+		case DX_CHARCODEFORMAT_UTF8 :
+		case DX_CHARCODEFORMAT_UTF32LE :
+		case DX_CHARCODEFORMAT_UTF32BE :
 			return SrcCharCode ;
 
 		default :
@@ -763,14 +763,14 @@ __inline DWORD ConvCharCode_inline( DWORD SrcCharCode, int SrcCodePage, int Dest
 	}
 }
 
-// 文字コードを指定のコードページの文字に変換する
-extern DWORD ConvCharCode( DWORD SrcCharCode, int SrcCodePage, int DestCodePage )
+// 文字コードを指定の文字コード形式の文字に変換する
+extern DWORD ConvCharCode( DWORD SrcCharCode, int SrcCharCodeFormat, int DestCharCodeFormat )
 {
-	return ConvCharCode_inline( SrcCharCode, SrcCodePage, DestCodePage ) ;
+	return ConvCharCode_inline( SrcCharCode, SrcCharCodeFormat, DestCharCodeFormat ) ;
 }
 
-// １文字４バイトの配列を、別コードページの１文字４バイトの配列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
-extern int ConvCharCodeString( const DWORD *Src, int SrcCodePage, DWORD *Dest, int DestCodePage )
+// １文字４バイトの配列を、別文字コード形式の１文字４バイトの配列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
+extern int ConvCharCodeString( const DWORD *Src, int SrcCharCodeFormat, DWORD *Dest, int DestCharCodeFormat )
 {
 	int DestSize ;
 	DWORD DestCode ;
@@ -783,7 +783,7 @@ extern int ConvCharCodeString( const DWORD *Src, int SrcCodePage, DWORD *Dest, i
 			break ;
 		}
 
-		DestCode = ConvCharCode_inline( *Src, SrcCodePage, DestCodePage ) ;
+		DestCode = ConvCharCode_inline( *Src, SrcCharCodeFormat, DestCharCodeFormat ) ;
 		Src ++ ;
 
 		if( DestCode != 0 )
@@ -809,7 +809,7 @@ extern int ConvCharCodeString( const DWORD *Src, int SrcCodePage, DWORD *Dest, i
 }
 
 // 文字列を１文字４バイトの配列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
-__inline int StringToCharCodeString_inline( const char *Src, int SrcCodePage, DWORD *Dest )
+__inline int StringToCharCodeString_inline( const char *Src, int SrcCharCodeFormat, DWORD *Dest )
 {
 	int DestSize ;
 	DWORD SrcCode ;
@@ -820,7 +820,7 @@ __inline int StringToCharCodeString_inline( const char *Src, int SrcCodePage, DW
 	DestSize = 0 ;
 	for(;;)
 	{
-		SrcCode = GetCharCode_inline( ( const char * )SrcStr, SrcCodePage, &UseSrcSize ) ;
+		SrcCode = GetCharCode_inline( ( const char * )SrcStr, SrcCharCodeFormat, &UseSrcSize ) ;
 		SrcStr += UseSrcSize ;
 		if( SrcCode == 0 )
 		{
@@ -846,13 +846,13 @@ __inline int StringToCharCodeString_inline( const char *Src, int SrcCodePage, DW
 }
 
 // 文字列を１文字４バイトの配列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
-extern int StringToCharCodeString( const char *Src, int SrcCodePage, DWORD *Dest )
+extern int StringToCharCodeString( const char *Src, int SrcCharCodeFormat, DWORD *Dest )
 {
-	return StringToCharCodeString_inline( Src, SrcCodePage, Dest ) ;
+	return StringToCharCodeString_inline( Src, SrcCharCodeFormat, Dest ) ;
 }
 
 // １文字４バイトの配列を文字列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
-extern int CharCodeStringToString( const DWORD *Src, char *Dest, int DestCodePage )
+extern int CharCodeStringToString( const DWORD *Src, char *Dest, int DestCharCodeFormat )
 {
 	int DestSize ;
 	BYTE *DestStr ;
@@ -867,7 +867,7 @@ extern int CharCodeStringToString( const DWORD *Src, char *Dest, int DestCodePag
 			break ;
 		}
 
-		WriteSize = PutCharCode_inline( *Src, DestCodePage, ( char * )DestStr ) ;
+		WriteSize = PutCharCode_inline( *Src, DestCharCodeFormat, ( char * )DestStr ) ;
 		if( DestStr != NULL )
 		{
 			DestStr += WriteSize ;
@@ -876,7 +876,7 @@ extern int CharCodeStringToString( const DWORD *Src, char *Dest, int DestCodePag
 		Src ++ ;
 	}
 
-	switch( DestCodePage )
+	switch( DestCharCodeFormat )
 	{
 	case 1 :
 		if( DestStr != NULL )
@@ -1732,8 +1732,8 @@ __inline int ConvString_UTF32BE_TO_SHIFTJIS( const char *Src, char *Dest )
 	return DestSize ;
 }
 
-// 文字列を指定のコードページの文字列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
-extern int ConvString( const char *Src, int SrcCodePage, char *Dest, int DestCodePage )
+// 文字列を指定の文字コード形式の文字列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
+extern int ConvString( const char *Src, int SrcCharCodeFormat, char *Dest, int DestCharCodeFormat )
 {
 	// キャラクターコードテーブルが初期化されていなかったら初期化
 	if( g_CharCodeSystem.InitializeFlag == FALSE )
@@ -1742,77 +1742,77 @@ extern int ConvString( const char *Src, int SrcCodePage, char *Dest, int DestCod
 	}
 
 	// 高速処理用の関数がある場合はそちらを使用する
-	switch( SrcCodePage )
+	switch( SrcCharCodeFormat )
 	{
-	case DX_CODEPAGE_SHIFTJIS :
-		switch( DestCodePage )
+	case DX_CHARCODEFORMAT_SHIFTJIS :
+		switch( DestCharCodeFormat )
 		{
-		case DX_CODEPAGE_ASCII   : return ConvString_SHIFTJIS_TO_ASCII(   Src, Dest ) ;
-		case DX_CODEPAGE_UTF16LE : return ConvString_SHIFTJIS_TO_UTF16LE( Src, Dest ) ;
-		case DX_CODEPAGE_UTF16BE : return ConvString_SHIFTJIS_TO_UTF16BE( Src, Dest ) ;
-		case DX_CODEPAGE_UTF8    : return ConvString_SHIFTJIS_TO_UTF8(    Src, Dest ) ;
-		case DX_CODEPAGE_UTF32LE : return ConvString_SHIFTJIS_TO_UTF32LE( Src, Dest ) ;
-		case DX_CODEPAGE_UTF32BE : return ConvString_SHIFTJIS_TO_UTF32BE( Src, Dest ) ;
+		case DX_CHARCODEFORMAT_ASCII   : return ConvString_SHIFTJIS_TO_ASCII(   Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF16LE : return ConvString_SHIFTJIS_TO_UTF16LE( Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF16BE : return ConvString_SHIFTJIS_TO_UTF16BE( Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF8    : return ConvString_SHIFTJIS_TO_UTF8(    Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF32LE : return ConvString_SHIFTJIS_TO_UTF32LE( Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF32BE : return ConvString_SHIFTJIS_TO_UTF32BE( Src, Dest ) ;
 		}
 		break ;
 
-	case DX_CODEPAGE_UTF16LE :
-		switch( DestCodePage )
+	case DX_CHARCODEFORMAT_UTF16LE :
+		switch( DestCharCodeFormat )
 		{
-		case DX_CODEPAGE_ASCII    : return ConvString_UTF16LE_TO_ASCII(    Src, Dest ) ;
-		case DX_CODEPAGE_SHIFTJIS : return ConvString_UTF16LE_TO_SHIFTJIS( Src, Dest ) ;
-		case DX_CODEPAGE_UTF16BE  : return ConvString_UTF16LE_TO_UTF16BE(  Src, Dest ) ;
-		case DX_CODEPAGE_UTF8     : return ConvString_UTF16LE_TO_UTF8(     Src, Dest ) ;
-		case DX_CODEPAGE_UTF32LE  : return ConvString_UTF16LE_TO_UTF32LE(  Src, Dest ) ;
-		case DX_CODEPAGE_UTF32BE  : return ConvString_UTF16LE_TO_UTF32BE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_ASCII    : return ConvString_UTF16LE_TO_ASCII(    Src, Dest ) ;
+		case DX_CHARCODEFORMAT_SHIFTJIS : return ConvString_UTF16LE_TO_SHIFTJIS( Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF16BE  : return ConvString_UTF16LE_TO_UTF16BE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF8     : return ConvString_UTF16LE_TO_UTF8(     Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF32LE  : return ConvString_UTF16LE_TO_UTF32LE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF32BE  : return ConvString_UTF16LE_TO_UTF32BE(  Src, Dest ) ;
 		}
 		break ;
 
-	case DX_CODEPAGE_UTF16BE :
-		switch( DestCodePage )
+	case DX_CHARCODEFORMAT_UTF16BE :
+		switch( DestCharCodeFormat )
 		{
-		case DX_CODEPAGE_ASCII    : return ConvString_UTF16BE_TO_ASCII(    Src, Dest ) ;
-		case DX_CODEPAGE_SHIFTJIS : return ConvString_UTF16BE_TO_SHIFTJIS( Src, Dest ) ;
-		case DX_CODEPAGE_UTF16LE  : return ConvString_UTF16BE_TO_UTF16LE(  Src, Dest ) ;
-		case DX_CODEPAGE_UTF8     : return ConvString_UTF16BE_TO_UTF8(     Src, Dest ) ;
-		case DX_CODEPAGE_UTF32LE  : return ConvString_UTF16BE_TO_UTF32LE(  Src, Dest ) ;
-		case DX_CODEPAGE_UTF32BE  : return ConvString_UTF16BE_TO_UTF32BE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_ASCII    : return ConvString_UTF16BE_TO_ASCII(    Src, Dest ) ;
+		case DX_CHARCODEFORMAT_SHIFTJIS : return ConvString_UTF16BE_TO_SHIFTJIS( Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF16LE  : return ConvString_UTF16BE_TO_UTF16LE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF8     : return ConvString_UTF16BE_TO_UTF8(     Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF32LE  : return ConvString_UTF16BE_TO_UTF32LE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF32BE  : return ConvString_UTF16BE_TO_UTF32BE(  Src, Dest ) ;
 		}
 		break ;
 
-	case DX_CODEPAGE_UTF8 :
-		switch( DestCodePage )
+	case DX_CHARCODEFORMAT_UTF8 :
+		switch( DestCharCodeFormat )
 		{
-		case DX_CODEPAGE_ASCII    : return ConvString_UTF8_TO_ASCII(    Src, Dest ) ;
-		case DX_CODEPAGE_SHIFTJIS : return ConvString_UTF8_TO_SHIFTJIS( Src, Dest ) ;
-		case DX_CODEPAGE_UTF16LE  : return ConvString_UTF8_TO_UTF16LE(  Src, Dest ) ;
-		case DX_CODEPAGE_UTF16BE  : return ConvString_UTF8_TO_UTF16BE(  Src, Dest ) ;
-		case DX_CODEPAGE_UTF32LE  : return ConvString_UTF8_TO_UTF32LE(  Src, Dest ) ;
-		case DX_CODEPAGE_UTF32BE  : return ConvString_UTF8_TO_UTF32BE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_ASCII    : return ConvString_UTF8_TO_ASCII(    Src, Dest ) ;
+		case DX_CHARCODEFORMAT_SHIFTJIS : return ConvString_UTF8_TO_SHIFTJIS( Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF16LE  : return ConvString_UTF8_TO_UTF16LE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF16BE  : return ConvString_UTF8_TO_UTF16BE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF32LE  : return ConvString_UTF8_TO_UTF32LE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF32BE  : return ConvString_UTF8_TO_UTF32BE(  Src, Dest ) ;
 		}
 		break ;
 
-	case DX_CODEPAGE_UTF32LE :
-		switch( DestCodePage )
+	case DX_CHARCODEFORMAT_UTF32LE :
+		switch( DestCharCodeFormat )
 		{
-		case DX_CODEPAGE_ASCII    : return ConvString_UTF32LE_TO_ASCII(    Src, Dest ) ;
-		case DX_CODEPAGE_SHIFTJIS : return ConvString_UTF32LE_TO_SHIFTJIS( Src, Dest ) ;
-		case DX_CODEPAGE_UTF16LE  : return ConvString_UTF32LE_TO_UTF16LE(  Src, Dest ) ;
-		case DX_CODEPAGE_UTF16BE  : return ConvString_UTF32LE_TO_UTF16BE(  Src, Dest ) ;
-		case DX_CODEPAGE_UTF8     : return ConvString_UTF32LE_TO_UTF8(     Src, Dest ) ;
-		case DX_CODEPAGE_UTF32BE  : return ConvString_UTF32LE_TO_UTF32BE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_ASCII    : return ConvString_UTF32LE_TO_ASCII(    Src, Dest ) ;
+		case DX_CHARCODEFORMAT_SHIFTJIS : return ConvString_UTF32LE_TO_SHIFTJIS( Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF16LE  : return ConvString_UTF32LE_TO_UTF16LE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF16BE  : return ConvString_UTF32LE_TO_UTF16BE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF8     : return ConvString_UTF32LE_TO_UTF8(     Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF32BE  : return ConvString_UTF32LE_TO_UTF32BE(  Src, Dest ) ;
 		}
 		break ;
 
-	case DX_CODEPAGE_UTF32BE :
-		switch( DestCodePage )
+	case DX_CHARCODEFORMAT_UTF32BE :
+		switch( DestCharCodeFormat )
 		{
-		case DX_CODEPAGE_ASCII    : return ConvString_UTF32BE_TO_ASCII(    Src, Dest ) ;
-		case DX_CODEPAGE_SHIFTJIS : return ConvString_UTF32BE_TO_SHIFTJIS( Src, Dest ) ;
-		case DX_CODEPAGE_UTF16LE  : return ConvString_UTF32BE_TO_UTF16LE(  Src, Dest ) ;
-		case DX_CODEPAGE_UTF16BE  : return ConvString_UTF32BE_TO_UTF16BE(  Src, Dest ) ;
-		case DX_CODEPAGE_UTF8     : return ConvString_UTF32BE_TO_UTF8(     Src, Dest ) ;
-		case DX_CODEPAGE_UTF32LE  : return ConvString_UTF32BE_TO_UTF32LE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_ASCII    : return ConvString_UTF32BE_TO_ASCII(    Src, Dest ) ;
+		case DX_CHARCODEFORMAT_SHIFTJIS : return ConvString_UTF32BE_TO_SHIFTJIS( Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF16LE  : return ConvString_UTF32BE_TO_UTF16LE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF16BE  : return ConvString_UTF32BE_TO_UTF16BE(  Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF8     : return ConvString_UTF32BE_TO_UTF8(     Src, Dest ) ;
+		case DX_CHARCODEFORMAT_UTF32LE  : return ConvString_UTF32BE_TO_UTF32LE(  Src, Dest ) ;
 		}
 		break ;
 	}
@@ -1832,16 +1832,16 @@ extern int ConvString( const char *Src, int SrcCodePage, char *Dest, int DestCod
 		DestSize = 0 ;
 		for(;;)
 		{
-			SrcCode = GetCharCode_inline( ( const char * )SrcStr, SrcCodePage, &UseSrcSize ) ;
+			SrcCode = GetCharCode_inline( ( const char * )SrcStr, SrcCharCodeFormat, &UseSrcSize ) ;
 			if( SrcCode == 0 )
 			{
 				break ;
 			}
 			SrcStr += UseSrcSize ;
 
-			DestCode = ConvCharCode_inline( SrcCode, SrcCodePage, DestCodePage ) ;
+			DestCode = ConvCharCode_inline( SrcCode, SrcCharCodeFormat, DestCharCodeFormat ) ;
 
-			WriteSize = PutCharCode_inline( DestCode, DestCodePage, ( char * )DestStr ) ;
+			WriteSize = PutCharCode_inline( DestCode, DestCharCodeFormat, ( char * )DestStr ) ;
 			if( DestStr != NULL )
 			{
 				DestStr += WriteSize ;
@@ -1849,7 +1849,7 @@ extern int ConvString( const char *Src, int SrcCodePage, char *Dest, int DestCod
 			DestSize += WriteSize ;
 		}
 
-		switch( GetCodePageUnitSize_inline( DestCodePage ) )
+		switch( GetCharCodeFormatUnitSize_inline( DestCharCodeFormat ) )
 		{
 		case 1 :
 			if( DestStr != NULL )
@@ -1884,7 +1884,7 @@ extern int ConvString( const char *Src, int SrcCodePage, char *Dest, int DestCod
 }
 
 // 文字列に含まれる文字数を取得する
-extern int GetStringCharNum( const char *String, int CodePage )
+extern int GetStringCharNum( const char *String, int CharCodeFormat )
 {
 	DWORD CharCode ;
 	int CharBytes ;
@@ -1895,7 +1895,7 @@ extern int GetStringCharNum( const char *String, int CodePage )
 	Count = 0 ;
 	for(;;)
 	{
-		CharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )String )[ Address ], CodePage, &CharBytes ) ;
+		CharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )String )[ Address ], CharCodeFormat, &CharBytes ) ;
 		if( CharCode == 0 )
 		{
 			break ;
@@ -1909,7 +1909,7 @@ extern int GetStringCharNum( const char *String, int CodePage )
 }
 
 // 指定番号の文字のアドレスを取得する
-extern const char *GetStringCharAddress( const char *String, int CodePage, int Index )
+extern const char *GetStringCharAddress( const char *String, int CharCodeFormat, int Index )
 {
 	DWORD CharCode ;
 	int CharBytes ;
@@ -1925,7 +1925,7 @@ extern const char *GetStringCharAddress( const char *String, int CodePage, int I
 			return ( const char * )&( ( BYTE * )String )[ Address ] ;
 		}
 
-		CharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )String )[ Address ], CodePage, &CharBytes ) ;
+		CharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )String )[ Address ], CharCodeFormat, &CharBytes ) ;
 		if( CharCode == 0 )
 		{
 			break ;
@@ -1939,7 +1939,7 @@ extern const char *GetStringCharAddress( const char *String, int CodePage, int I
 }
 
 // 指定番号の文字のコードを取得する
-extern DWORD GetStringCharCode( const char *String, int CodePage, int Index )
+extern DWORD GetStringCharCode( const char *String, int CharCodeFormat, int Index )
 {
 	DWORD CharCode ;
 	int CharBytes ;
@@ -1950,7 +1950,7 @@ extern DWORD GetStringCharCode( const char *String, int CodePage, int Index )
 	Count = 0 ;
 	for(;;)
 	{
-		CharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )String )[ Address ], CodePage, &CharBytes ) ;
+		CharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )String )[ Address ], CharCodeFormat, &CharBytes ) ;
 		if( CharCode == 0 || Count == Index )
 		{
 			break ;
@@ -1970,11 +1970,11 @@ extern DWORD GetStringCharCode( const char *String, int CodePage, int Index )
 
 
 
-extern void CL_strcpy( int CodePage, char *Dest, const char *Src )
+extern void CL_strcpy( int CharCodeFormat, char *Dest, const char *Src )
 {
 	int i ;
 
-	switch( GetCodePageUnitSize_inline( CodePage ) )
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
 	{
 	case 1 :
 		for( i = 0 ; ( ( BYTE * )Src )[ i ] != 0 ; i ++ )
@@ -2002,11 +2002,40 @@ extern void CL_strcpy( int CodePage, char *Dest, const char *Src )
 	}
 }
 
-extern void CL_strncpy( int CodePage, char *Dest, const char *Src, int Num )
+extern void CL_strpcpy( int CharCodeFormat, char *Dest, const char *Src, int Pos )
+{
+	int UnitSize ;
+	int Size ;
+
+	Size = CL_strlen( CharCodeFormat, Src ) ;
+	if( Pos > Size )
+	{
+		return ;
+	}
+
+	UnitSize = GetCharCodeFormatUnitSize_inline( CharCodeFormat ) ;
+	CL_strcpy( CharCodeFormat, Dest, ( const char * )( ( BYTE * )Src + UnitSize * Pos ) ) ;
+}
+
+extern void CL_strpcpy2( int CharCodeFormat, char *Dest, const char *Src, int Pos )
+{
+	const char *SrcT ;
+
+	SrcT = CL_strpos2( CharCodeFormat, Src, Pos ) ;
+	if( SrcT == NULL )
+	{
+		PutCharCode( 0, CharCodeFormat, Dest ) ;
+		return ;
+	}
+
+	CL_strcpy( CharCodeFormat, Dest, SrcT ) ;
+}
+
+extern void CL_strncpy( int CharCodeFormat, char *Dest, const char *Src, int Num )
 {
 	int i ;
 
-	switch( GetCodePageUnitSize_inline( CodePage ) )
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
 	{
 	case 1 :
 		for( i = 0 ; i < Num && ( ( BYTE * )Src )[ i ] != 0 ; i ++ )
@@ -2043,34 +2072,556 @@ extern void CL_strncpy( int CodePage, char *Dest, const char *Src, int Num )
 	}
 }
 
-extern void CL_strcat( int CodePage, char *Dest, const char *Src )
+extern void CL_strncpy2( int CharCodeFormat, char *Dest, const char *Src, int Num )
 {
 	int i ;
+	int j ;
+	int Addr ;
+	int Size ;
 
-	switch( GetCodePageUnitSize_inline( CodePage ) )
+	Addr = 0 ;
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
 	{
 	case 1 :
-		for( i = 0 ; ( ( BYTE * )Dest )[ i ] != 0 ; i ++ ){}
-		CL_strcpy( CodePage, ( char * )&( ( BYTE * )Dest )[ i ], Src ) ;
+		for( i = 0 ; i < Num && ( ( BYTE * )Src )[ Addr ] != 0 ; i ++ )
+		{
+			Size = GetCharBytes_inline( ( const char * )( ( BYTE * )Src + Addr ), CharCodeFormat ) / 1 ;
+			for( j = 0 ; j < Size ; j ++, Addr ++ )
+			{
+				( ( BYTE * )Dest )[ Addr ] = ( ( BYTE * )Src )[ Addr ] ;
+			}
+		}
+		( ( BYTE * )Dest )[ Addr ] = 0 ;
 		break ;
 
 	case 2 :
-		for( i = 0 ; ( ( WORD * )Dest )[ i ] != 0 ; i ++ ){}
-		CL_strcpy( CodePage, ( char * )&( ( WORD * )Dest )[ i ], Src ) ;
+		for( i = 0 ; i < Num && ( ( WORD * )Src )[ Addr ] != 0 ; i ++ )
+		{
+			Size = GetCharBytes_inline( ( const char * )( ( WORD * )Src + Addr ), CharCodeFormat ) >> 1 ;
+			for( j = 0 ; j < Size ; j ++, Addr ++ )
+			{
+				( ( WORD * )Dest )[ Addr ] = ( ( WORD * )Src )[ Addr ] ;
+			}
+		}
+		( ( WORD * )Dest )[ Addr ] = 0 ;
 		break ;
 
 	case 4 :
-		for( i = 0 ; ( ( DWORD * )Dest )[ i ] != 0 ; i ++ ){}
-		CL_strcpy( CodePage, ( char * )&( ( DWORD * )Dest )[ i ], Src ) ;
+		for( i = 0 ; i < Num && ( ( DWORD * )Src )[ Addr ] != 0 ; i ++ )
+		{
+			Size = GetCharBytes_inline( ( const char * )( ( DWORD * )Src + Addr ), CharCodeFormat ) >> 2 ;
+			for( j = 0 ; j < Size ; j ++, Addr ++ )
+			{
+				( ( DWORD * )Dest )[ Addr ] = ( ( DWORD * )Src )[ Addr ] ;
+			}
+		}
+		( ( DWORD * )Dest )[ Addr ] = 0 ;
 		break ;
 	}
 }
 
-extern const char *CL_strstr( int CodePage, const char *Str1, const char *Str2 )
+extern void CL_strrncpy( int CharCodeFormat, char *Dest, const char *Src, int Num )
+{
+	int Size ;
+	int UnitSize ;
+
+	UnitSize = GetCharCodeFormatUnitSize_inline( CharCodeFormat ) ;
+
+	Size = CL_strlen( CharCodeFormat, Src ) ;
+	if( Num > Size )
+	{
+		int i ;
+		int Addr ;
+
+		_MEMCPY( Dest, Src, Size * UnitSize ) ;
+
+		Addr = Size * UnitSize ;
+		for( i = 0 ; i < UnitSize ; i ++ )
+		{
+			( ( BYTE * )Dest )[ Addr + i ] = 0 ;
+		}
+	}
+	else
+	{
+		_MEMCPY( Dest, ( BYTE * )Src + ( Size - Num ) * UnitSize, Num * UnitSize ) ;
+	}
+}
+
+extern void CL_strrncpy2( int CharCodeFormat, char *Dest, const char *Src, int Num )
+{
+	int Size ;
+
+	Size = CL_strlen2( CharCodeFormat, Src ) ;
+	if( Num > Size )
+	{
+		CL_strcpy( CharCodeFormat, Dest, Src ) ;
+	}
+	else
+	{
+		const char *SrcT ;
+		SrcT = CL_strpos2( CharCodeFormat, Src, Size - Num ) ;
+		CL_strncpy2( CharCodeFormat, Dest, SrcT, Num ) ;
+	}
+}
+
+extern void CL_strpncpy( int CharCodeFormat, char *Dest, const char *Src, int Pos, int Num )
+{
+	int UnitSize ;
+	int Size ;
+
+	Size = CL_strlen( CharCodeFormat, Src ) ;
+	if( Pos >= Size )
+	{
+		return ;
+	}
+
+	UnitSize = GetCharCodeFormatUnitSize_inline( CharCodeFormat ) ;
+	CL_strncpy( CharCodeFormat, Dest, ( const char * )( ( BYTE * )Src + UnitSize * Pos ), Num ) ;
+}
+
+extern void CL_strpncpy2( int CharCodeFormat, char *Dest, const char *Src, int Pos, int Num )
+{
+	const char *SrcT ;
+
+	SrcT = CL_strpos2( CharCodeFormat, Src, Pos ) ;
+	if( SrcT == NULL )
+	{
+		PutCharCode( 0, CharCodeFormat, Dest ) ;
+		return ;
+	}
+
+	CL_strncpy2( CharCodeFormat, Dest, SrcT, Num ) ;
+}
+
+extern void CL_strcat( int CharCodeFormat, char *Dest, const char *Src )
+{
+	int i ;
+
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
+	{
+	case 1 :
+		for( i = 0 ; ( ( BYTE * )Dest )[ i ] != 0 ; i ++ ){}
+		CL_strcpy( CharCodeFormat, ( char * )&( ( BYTE * )Dest )[ i ], Src ) ;
+		break ;
+
+	case 2 :
+		for( i = 0 ; ( ( WORD * )Dest )[ i ] != 0 ; i ++ ){}
+		CL_strcpy( CharCodeFormat, ( char * )&( ( WORD * )Dest )[ i ], Src ) ;
+		break ;
+
+	case 4 :
+		for( i = 0 ; ( ( DWORD * )Dest )[ i ] != 0 ; i ++ ){}
+		CL_strcpy( CharCodeFormat, ( char * )&( ( DWORD * )Dest )[ i ], Src ) ;
+		break ;
+	}
+}
+
+extern int CL_strlen( int CharCodeFormat, const char *Str )
+{
+	int i ;
+
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
+	{
+	case 1 :
+		for( i = 0 ; ( ( BYTE  * )Str )[ i ] != 0 ; i ++ ){}
+		return i ;
+
+	case 2 :
+		for( i = 0 ; ( ( WORD * )Str )[ i ] != 0 ; i ++ ){}
+		return i ;
+
+	case 4 :
+		for( i = 0 ; ( ( DWORD * )Str )[ i ] != 0 ; i ++ ){}
+		return i ;
+	}
+
+	return 0 ;
+}
+
+extern int CL_strlen2( int CharCodeFormat, const char *Str )
+{
+	return GetStringCharNum( Str, CharCodeFormat ) ;
+}
+
+extern int CL_strcmp( int CharCodeFormat, const char *Str1, const char *Str2 )
+{
+	int i ;
+
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
+	{
+	case 1 :
+		for( i = 0 ; ( ( BYTE * )Str1 )[ i ] != 0 &&
+			         ( ( BYTE * )Str2 )[ i ] != 0 &&
+					 ( ( BYTE * )Str1 )[ i ] == ( ( BYTE * )Str2 )[ i ] ; i ++ ){}
+		if( ( ( BYTE * )Str1 )[ i ] == 0 &&
+			( ( BYTE * )Str2 )[ i ] == 0 )
+		{
+			return 0 ;
+		}
+		return ( ( BYTE * )Str1 )[ i ] < ( ( BYTE * )Str2 )[ i ] ? -1 : 1 ;
+
+	case 2 :
+		for( i = 0 ; ( ( WORD * )Str1 )[ i ] != 0 &&
+			         ( ( WORD * )Str2 )[ i ] != 0 &&
+					 ( ( WORD * )Str1 )[ i ] == ( ( WORD * )Str2 )[ i ] ; i ++ ){}
+		if( ( ( WORD * )Str1 )[ i ] == 0 &&
+			( ( WORD * )Str2 )[ i ] == 0 )
+		{
+			return 0 ;
+		}
+		return ( ( WORD * )Str1 )[ i ] < ( ( WORD * )Str2 )[ i ] ? -1 : 1 ;
+
+	case 4 :
+		for( i = 0 ; ( ( DWORD * )Str1 )[ i ] != 0 &&
+			         ( ( DWORD * )Str2 )[ i ] != 0 &&
+					 ( ( DWORD * )Str1 )[ i ] == ( ( DWORD * )Str2 )[ i ] ; i ++ ){}
+		if( ( ( DWORD * )Str1 )[ i ] == 0 &&
+			( ( DWORD * )Str2 )[ i ] == 0 )
+		{
+			return 0 ;
+		}
+		return ( ( DWORD * )Str1 )[ i ] < ( ( DWORD * )Str2 )[ i ] ? -1 : 1 ;
+	}
+
+	return 0 ;
+}
+
+extern int CL_strcmp_str2_ascii( int CharCodeFormat, const char *Str1, const char *Str2 )
+{
+	int i ;
+
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
+	{
+	case 1 :
+		for( i = 0 ; ( ( BYTE * )Str1 )[ i ] != 0 &&
+			         ( ( BYTE * )Str2 )[ i ] != 0 &&
+					 ( ( BYTE * )Str1 )[ i ] == ( ( BYTE * )Str2 )[ i ] ; i ++ ){}
+		if( ( ( BYTE * )Str1 )[ i ] == 0 &&
+			( ( BYTE * )Str2 )[ i ] == 0 )
+		{
+			return 0 ;
+		}
+		return ( ( BYTE * )Str1 )[ i ] < ( ( BYTE * )Str2 )[ i ] ? -1 : 1 ;
+
+	case 2 :
+		for( i = 0 ; ( ( WORD * )Str1 )[ i ] != 0 &&
+			         ( ( BYTE * )Str2 )[ i ] != 0 &&
+					 ( ( WORD * )Str1 )[ i ] == ( ( BYTE * )Str2 )[ i ] ; i ++ ){}
+		if( ( ( WORD * )Str1 )[ i ] == 0 &&
+			( ( BYTE * )Str2 )[ i ] == 0 )
+		{
+			return 0 ;
+		}
+		return ( ( WORD * )Str1 )[ i ] < ( ( BYTE * )Str2 )[ i ] ? -1 : 1 ;
+
+	case 4 :
+		for( i = 0 ; ( ( DWORD * )Str1 )[ i ] != 0 &&
+			         ( ( BYTE  * )Str2 )[ i ] != 0 &&
+					 ( ( DWORD * )Str1 )[ i ] == ( ( BYTE * )Str2 )[ i ] ; i ++ ){}
+		if( ( ( DWORD * )Str1 )[ i ] == 0 &&
+			( ( BYTE  * )Str2 )[ i ] == 0 )
+		{
+			return 0 ;
+		}
+		return ( ( DWORD * )Str1 )[ i ] < ( ( BYTE * )Str2 )[ i ] ? -1 : 1 ;
+	}
+
+	return 0 ;
+}
+
+extern int CL_stricmp( int CharCodeFormat, const char *Str1, const char *Str2 )
+{
+	int i ;
+	DWORD Str1Code ;
+	DWORD Str2Code ;
+	int Str1CodeBytes ;
+	int Str2CodeBytes ;
+
+	for( i = 0 ;; i += Str1CodeBytes )
+	{
+		Str1Code = GetCharCode_inline( ( const char * )&( ( BYTE * )Str1 )[ i ], CharCodeFormat, &Str1CodeBytes ) ;
+		Str2Code = GetCharCode_inline( ( const char * )&( ( BYTE * )Str2 )[ i ], CharCodeFormat, &Str2CodeBytes ) ;
+
+		if( Str1Code >= 0x61 && Str1Code <= 0x7a )
+		{
+			Str1Code = Str1Code - 0x61 + 0x41 ;
+		}
+
+		if( Str2Code >= 0x61 && Str2Code <= 0x7a )
+		{
+			Str2Code = Str2Code - 0x61 + 0x41 ;
+		}
+
+		if( Str1Code      != Str2Code      ||
+			Str1CodeBytes != Str2CodeBytes ||
+			Str1Code == 0                  ||
+			Str2Code == 0                  )
+		{
+			break ;
+		}
+	}
+
+	if( Str1CodeBytes != Str2CodeBytes )
+	{
+		return Str1CodeBytes < Str2CodeBytes ? -1 : 1 ;
+	}
+
+	return Str1Code == Str2Code ? 0 : ( Str1Code < Str2Code ? -1 : 1 ) ;
+}
+
+extern int CL_strncmp( int CharCodeFormat, const char *Str1, const char *Str2, int Num )
+{
+	int i ;
+
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
+	{
+	case 1 :
+		for( i = 0 ; i < Num ; i ++ )
+		{
+			if( ( ( BYTE * )Str1 )[ i ] == 0 || ( ( BYTE * )Str2 )[ i ] == 0 )
+			{
+				if( ( ( BYTE * )Str1 )[ i ] == 0 && ( ( BYTE * )Str2 )[ i ] == 0 )
+				{
+					return 0 ;
+				}
+				break ;
+			}
+
+			if( ( ( BYTE * )Str1 )[ i ] != ( ( BYTE * )Str2 )[ i ] ) 
+			{
+				break ;
+			}
+		}
+		return i == Num ? 0 : ( ( ( BYTE * )Str1 )[ i ] < ( ( BYTE * )Str2 )[ i ] ? -1 : 1 ) ;
+
+	case 2 :
+		for( i = 0 ; i < Num ; i ++ )
+		{
+			if( ( ( WORD * )Str1 )[ i ] == 0 || ( ( WORD * )Str2 )[ i ] == 0 )
+			{
+				if( ( ( WORD * )Str1 )[ i ] == 0 && ( ( WORD * )Str2 )[ i ] == 0 )
+				{
+					return 0 ;
+				}
+				break ;
+			}
+
+			if( ( ( WORD * )Str1 )[ i ] != ( ( WORD * )Str2 )[ i ] ) 
+			{
+				break ;
+			}
+		}
+		return i == Num ? 0 : ( ( ( WORD * )Str1 )[ i ] < ( ( WORD * )Str2 )[ i ] ? -1 : 1 ) ;
+
+	case 3 :
+		for( i = 0 ; i < Num ; i ++ )
+		{
+			if( ( ( DWORD * )Str1 )[ i ] == 0 || ( ( DWORD * )Str2 )[ i ] == 0 )
+			{
+				if( ( ( DWORD * )Str1 )[ i ] == 0 && ( ( DWORD * )Str2 )[ i ] == 0 )
+				{
+					return 0 ;
+				}
+				break ;
+			}
+
+			if( ( ( DWORD * )Str1 )[ i ] != ( ( DWORD * )Str2 )[ i ] ) 
+			{
+				break ;
+			}
+		}
+		return i == Num ? 0 : ( ( ( DWORD * )Str1 )[ i ] < ( ( DWORD * )Str2 )[ i ] ? -1 : 1 ) ;
+	}
+
+	return 0 ;
+}
+
+extern int CL_strncmp2( int CharCodeFormat, const char *Str1, const char *Str2, int Num )
+{
+	int i ;
+	int Addr ;
+	int Size1 ;
+	int Size2 ;
+	int Code1 = 0 ;
+	int Code2 = 0 ;
+
+	Addr = 0 ;
+	for( i = 0 ; i < Num ; i ++ )
+	{
+		Code1 = GetCharCode_inline( ( const char * )( ( BYTE * )Str1 + Addr ), CharCodeFormat, &Size1 ) ;
+		Code2 = GetCharCode_inline( ( const char * )( ( BYTE * )Str2 + Addr ), CharCodeFormat, &Size2 ) ;
+
+		if( Code1 == 0 || Code2 == 0 || Size1 != Size2 || Code1 != Code2 )
+		{
+			if( Code1 == 0 && Code2 == 0 )
+			{
+				return 0 ;
+			}
+			break ;
+		}
+
+		Addr += Size1 ;
+	}
+	return i == Num ? 0 : ( Code1 < Code2 ? -1 : 1 ) ;
+}
+
+extern int CL_strpncmp( int CharCodeFormat, const char *Str1, const char *Str2, int Pos, int Num )
+{
+	const char *StrT ;
+
+	StrT = CL_strpos( CharCodeFormat, Str1, Pos ) ;
+	if( StrT == NULL )
+	{
+		return -1 ;
+	}
+
+	return CL_strncmp( CharCodeFormat, StrT, Str2, Num ) ;
+}
+
+extern int CL_strpncmp2( int CharCodeFormat, const char *Str1, const char *Str2, int Pos, int Num )
+{
+	const char *StrT ;
+
+	StrT = CL_strpos2( CharCodeFormat, Str1, Pos ) ;
+	if( StrT == NULL )
+	{
+		return -1 ;
+	}
+
+	return CL_strncmp2( CharCodeFormat, StrT, Str2, Num ) ;
+}
+
+extern DWORD CL_strgetchr( int CharCodeFormat, const char *Str, int Pos, int *CharNums )
+{
+	const char *StrT ;
+	int CharBytes ;
+	DWORD Ret ;
+
+	StrT = CL_strpos( CharCodeFormat, Str, Pos ) ;
+	if( StrT == NULL )
+	{
+		if( CharNums != NULL )
+		{
+			*CharNums = 0 ;
+		}
+		return 0 ;
+	}
+
+	Ret = GetCharCode_inline( StrT, CharCodeFormat, &CharBytes ) ;
+
+	if( CharNums != NULL )
+	{
+		*CharNums = CharBytes / GetCharCodeFormatUnitSize_inline( CharCodeFormat ) ;
+	}
+
+	return Ret ;
+}
+
+extern DWORD CL_strgetchr2( int CharCodeFormat, const char *Str, int Pos, int *CharNums )
+{
+	const char *StrT ;
+	int CharBytes ;
+	DWORD Ret ;
+
+	StrT = CL_strpos2( CharCodeFormat, Str, Pos ) ;
+	if( StrT == NULL )
+	{
+		if( CharNums != NULL )
+		{
+			*CharNums = 0 ;
+		}
+		return 0 ;
+	}
+
+	Ret = GetCharCode_inline( StrT, CharCodeFormat, &CharBytes ) ;
+
+	if( CharNums != NULL )
+	{
+		*CharNums = CharBytes / GetCharCodeFormatUnitSize_inline( CharCodeFormat ) ;
+	}
+
+	return Ret ;
+}
+
+extern int CL_strputchr( int CharCodeFormat, char *Str, int Pos, DWORD CharCode )
+{
+	char *StrT ;
+	int UnitSize ;
+	int Bytes ;
+
+	StrT = ( char * )CL_strpos( CharCodeFormat, Str, Pos ) ;
+	if( StrT == NULL )
+	{
+		return -1 ;
+	}
+
+	UnitSize = GetCharCodeFormatUnitSize_inline( CharCodeFormat ) ;
+	Bytes = PutCharCode( CharCode, CharCodeFormat, StrT ) ;
+
+	return Bytes / UnitSize ;
+}
+
+extern int CL_strputchr2( int CharCodeFormat, char *Str, int Pos, DWORD CharCode )
+{
+	char *StrT ;
+	int UnitSize ;
+	int Bytes ;
+
+	StrT = ( char * )CL_strpos2( CharCodeFormat, Str, Pos ) ;
+	if( StrT == NULL )
+	{
+		return -1 ;
+	}
+
+	UnitSize = GetCharCodeFormatUnitSize_inline( CharCodeFormat ) ;
+	Bytes = PutCharCode( CharCode, CharCodeFormat, StrT ) ;
+
+	return Bytes / UnitSize ;
+}
+
+extern const char *CL_strpos( int CharCodeFormat, const char *Str, int Pos )
+{
+	int Size ;
+	int UnitSize ;
+
+	UnitSize = GetCharCodeFormatUnitSize_inline( CharCodeFormat ) ;
+
+	Size = CL_strlen( CharCodeFormat, Str ) ;
+	if( Pos > Size )
+	{
+		return NULL ;
+	}
+
+	return ( const char * )( ( BYTE * )Str + UnitSize * Pos ) ;
+}
+
+extern const char *CL_strpos2( int CharCodeFormat, const char *Str, int Pos )
+{
+	int i ;
+	int Addr ;
+	DWORD StrCharCode ;
+	int CodeBytes ;
+
+	Addr = 0 ;
+	for( i = 0 ; i < Pos ; i ++ )
+	{
+		StrCharCode = GetCharCode_inline( ( const char * )( ( BYTE * )Str + Addr ), CharCodeFormat, &CodeBytes ) ;
+		if( StrCharCode == 0 )
+		{
+			return NULL ;
+		}
+
+		Addr += CodeBytes ;
+	}
+
+	return ( const char * )( ( BYTE * )Str + Addr ) ;
+}
+
+extern const char *CL_strstr( int CharCodeFormat, const char *Str1, const char *Str2 )
 {
 	int i, j ;
 
-	switch( GetCodePageUnitSize_inline( CodePage ) )
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
 	{
 	case 1 :
 		for( i = 0 ; ( ( BYTE * )Str1 )[ i ] != 0 ; i ++ )
@@ -2133,188 +2684,245 @@ extern const char *CL_strstr( int CodePage, const char *Str1, const char *Str2 )
 	return NULL ;
 }
 
-extern int CL_strlen( int CodePage, const char *Str )
+extern int CL_strstr2( int CharCodeFormat, const char *Str1, const char *Str2 )
 {
-	int i ;
+	int i, j ;
+	int Pos ;
+	int Size ;
 
-	switch( GetCodePageUnitSize_inline( CodePage ) )
+	Pos = 0 ;
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
 	{
 	case 1 :
-		for( i = 0 ; ( ( BYTE  * )Str )[ i ] != 0 ; i ++ ){}
-		return i ;
+		for( i = 0 ; ( ( BYTE * )Str1 )[ i ] != 0 ; Pos ++ )
+		{
+			for( j = 0 ; ( ( BYTE * )Str2 )[ j     ] != 0 &&
+				         ( ( BYTE * )Str1 )[ i + j ] != 0 &&
+						 ( ( BYTE * )Str1 )[ i + j ] == ( ( BYTE * )Str2 )[ j ] ; j ++ ){}
+
+			if( ( ( BYTE * )Str2 )[ j ] == 0 )
+			{
+				return Pos ;
+			}
+
+			if( ( ( BYTE * )Str1 )[ i + j ] == 0 )
+			{
+				return -1 ;
+			}
+
+			Size = GetCharBytes_inline( ( const char * )( &( ( BYTE * )Str1 )[ i ] ), CharCodeFormat ) ;
+			i += Size ;
+		}
+		break ;
 
 	case 2 :
-		for( i = 0 ; ( ( WORD * )Str )[ i ] != 0 ; i ++ ){}
-		return i ;
+		for( i = 0 ; ( ( WORD * )Str1 )[ i ] != 0 ; Pos ++ )
+		{
+			for( j = 0 ; ( ( WORD * )Str2 )[ j     ] != 0 &&
+				         ( ( WORD * )Str1 )[ i + j ] != 0 &&
+						 ( ( WORD * )Str1 )[ i + j ] == ( ( WORD * )Str2 )[ j ] ; j ++ ){}
+
+			if( ( ( WORD * )Str2 )[ j ] == 0 )
+			{
+				return Pos ;
+			}
+
+			if( ( ( WORD * )Str1 )[ i + j ] == 0 )
+			{
+				return -1 ;
+			}
+
+			Size = GetCharBytes_inline( ( const char * )( &( ( WORD * )Str1 )[ i ] ), CharCodeFormat ) ;
+			i += Size >> 1 ;
+		}
+		break ;
 
 	case 4 :
-		for( i = 0 ; ( ( DWORD * )Str )[ i ] != 0 ; i ++ ){}
-		return i ;
+		for( i = 0 ; ( ( DWORD * )Str1 )[ i ] != 0 ; Pos ++ )
+		{
+			for( j = 0 ; ( ( DWORD * )Str2 )[ j     ] != 0 &&
+				         ( ( DWORD * )Str1 )[ i + j ] != 0 &&
+						 ( ( DWORD * )Str1 )[ i + j ] == ( ( DWORD * )Str2 )[ j ] ; j ++ ){}
+
+			if( ( ( DWORD * )Str2 )[ j ] == 0 )
+			{
+				return Pos ;
+			}
+
+			if( ( ( DWORD * )Str1 )[ i + j ] == 0 )
+			{
+				return -1 ;
+			}
+
+			Size = GetCharBytes_inline( ( const char * )( &( ( DWORD * )Str1 )[ i ] ), CharCodeFormat ) ;
+			i += Size >> 2 ;
+		}
+		break ;
 	}
 
-	return 0 ;
+	return -1 ;
 }
 
-extern int CL_strcmp( int CodePage, const char *Str1, const char *Str2 )
+extern const char *CL_strrstr( int CharCodeFormat, const char *Str1, const char *Str2 )
 {
-	int i ;
+	int i, j ;
+	const char *lastp = NULL ;
 
-	switch( GetCodePageUnitSize_inline( CodePage ) )
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
 	{
 	case 1 :
-		for( i = 0 ; ( ( BYTE * )Str1 )[ i ] != 0 &&
-			         ( ( BYTE * )Str2 )[ i ] != 0 &&
-					 ( ( BYTE * )Str1 )[ i ] == ( ( BYTE * )Str2 )[ i ] ; i ++ ){}
-		if( ( ( BYTE * )Str1 )[ i ] == 0 &&
-			( ( BYTE * )Str2 )[ i ] == 0 )
+		for( i = 0 ; ( ( BYTE * )Str1 )[ i ] != 0 ; i ++ )
 		{
-			return 0 ;
+			for( j = 0 ; ( ( BYTE * )Str2 )[ j     ] != 0 &&
+				         ( ( BYTE * )Str1 )[ i + j ] != 0 &&
+						 ( ( BYTE * )Str1 )[ i + j ] == ( ( BYTE * )Str2 )[ j ] ; j ++ ){}
+
+			if( ( ( BYTE * )Str2 )[ j ] == 0 )
+			{
+				lastp = ( const char * )&( ( BYTE * )Str1 )[ i ] ;
+			}
+
+			if( ( ( BYTE * )Str1 )[ i + j ] == 0 )
+			{
+				break ;
+			}
 		}
-		return ( ( BYTE * )Str1 )[ i ] < ( ( BYTE * )Str2 )[ i ] ? -1 : 1 ;
+		break ;
 
 	case 2 :
-		for( i = 0 ; ( ( WORD * )Str1 )[ i ] != 0 &&
-			         ( ( WORD * )Str2 )[ i ] != 0 &&
-					 ( ( WORD * )Str1 )[ i ] == ( ( WORD * )Str2 )[ i ] ; i ++ ){}
-		if( ( ( WORD * )Str1 )[ i ] == 0 &&
-			( ( WORD * )Str2 )[ i ] == 0 )
+		for( i = 0 ; ( ( WORD * )Str1 )[ i ] != 0 ; i ++ )
 		{
-			return 0 ;
+			for( j = 0 ; ( ( WORD * )Str2 )[ j     ] != 0 &&
+				         ( ( WORD * )Str1 )[ i + j ] != 0 &&
+						 ( ( WORD * )Str1 )[ i + j ] == ( ( WORD * )Str2 )[ j ] ; j ++ ){}
+
+			if( ( ( WORD * )Str2 )[ j ] == 0 )
+			{
+				lastp = ( const char * )&( ( WORD * )Str1 )[ i ] ;
+			}
+
+			if( ( ( WORD * )Str1 )[ i + j ] == 0 )
+			{
+				break ;
+			}
 		}
-		return ( ( WORD * )Str1 )[ i ] < ( ( WORD * )Str2 )[ i ] ? -1 : 1 ;
+		break ;
 
 	case 4 :
-		for( i = 0 ; ( ( DWORD * )Str1 )[ i ] != 0 &&
-			         ( ( DWORD * )Str2 )[ i ] != 0 &&
-					 ( ( DWORD * )Str1 )[ i ] == ( ( DWORD * )Str2 )[ i ] ; i ++ ){}
-		if( ( ( DWORD * )Str1 )[ i ] == 0 &&
-			( ( DWORD * )Str2 )[ i ] == 0 )
+		for( i = 0 ; ( ( DWORD * )Str1 )[ i ] != 0 ; i ++ )
 		{
-			return 0 ;
+			for( j = 0 ; ( ( DWORD * )Str2 )[ j     ] != 0 &&
+				         ( ( DWORD * )Str1 )[ i + j ] != 0 &&
+						 ( ( DWORD * )Str1 )[ i + j ] == ( ( DWORD * )Str2 )[ j ] ; j ++ ){}
+
+			if( ( ( DWORD * )Str2 )[ j ] == 0 )
+			{
+				lastp = ( const char * )&( ( DWORD * )Str1 )[ i ] ;
+			}
+
+			if( ( ( DWORD * )Str1 )[ i + j ] == 0 )
+			{
+				break ;
+			}
 		}
-		return ( ( DWORD * )Str1 )[ i ] < ( ( DWORD * )Str2 )[ i ] ? -1 : 1 ;
+		break ;
 	}
 
-	return 0 ;
+	return lastp ;
 }
 
-extern int CL_strcmp_str2_ascii( int CodePage, const char *Str1, const char *Str2 )
+extern int CL_strrstr2( int CharCodeFormat, const char *Str1, const char *Str2 )
 {
-	int i ;
+	int i, j ;
+	int Pos ;
+	int lastp = -1 ;
+	int Size ;
 
-	switch( GetCodePageUnitSize_inline( CodePage ) )
+	Pos = 0 ;
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
 	{
 	case 1 :
-		for( i = 0 ; ( ( BYTE * )Str1 )[ i ] != 0 &&
-			         ( ( BYTE * )Str2 )[ i ] != 0 &&
-					 ( ( BYTE * )Str1 )[ i ] == ( ( BYTE * )Str2 )[ i ] ; i ++ ){}
-		if( ( ( BYTE * )Str1 )[ i ] == 0 &&
-			( ( BYTE * )Str2 )[ i ] == 0 )
+		for( i = 0 ; ( ( BYTE * )Str1 )[ i ] != 0 ; Pos ++ )
 		{
-			return 0 ;
+			for( j = 0 ; ( ( BYTE * )Str2 )[ j     ] != 0 &&
+				         ( ( BYTE * )Str1 )[ i + j ] != 0 &&
+						 ( ( BYTE * )Str1 )[ i + j ] == ( ( BYTE * )Str2 )[ j ] ; j ++ ){}
+
+			if( ( ( BYTE * )Str2 )[ j ] == 0 )
+			{
+				lastp = Pos ;
+			}
+
+			if( ( ( BYTE * )Str1 )[ i + j ] == 0 )
+			{
+				break ;
+			}
+
+			Size = GetCharBytes_inline( ( const char * )( &( ( BYTE * )Str1 )[ i ] ), CharCodeFormat ) ;
+			i += Size ;
 		}
-		return ( ( BYTE * )Str1 )[ i ] < ( ( BYTE * )Str2 )[ i ] ? -1 : 1 ;
+		break ;
 
 	case 2 :
-		for( i = 0 ; ( ( WORD * )Str1 )[ i ] != 0 &&
-			         ( ( BYTE * )Str2 )[ i ] != 0 &&
-					 ( ( WORD * )Str1 )[ i ] == ( ( BYTE * )Str2 )[ i ] ; i ++ ){}
-		if( ( ( WORD * )Str1 )[ i ] == 0 &&
-			( ( BYTE * )Str2 )[ i ] == 0 )
+		for( i = 0 ; ( ( WORD * )Str1 )[ i ] != 0 ; Pos ++ )
 		{
-			return 0 ;
+			for( j = 0 ; ( ( WORD * )Str2 )[ j     ] != 0 &&
+				         ( ( WORD * )Str1 )[ i + j ] != 0 &&
+						 ( ( WORD * )Str1 )[ i + j ] == ( ( WORD * )Str2 )[ j ] ; j ++ ){}
+
+			if( ( ( WORD * )Str2 )[ j ] == 0 )
+			{
+				lastp = Pos ;
+			}
+
+			if( ( ( WORD * )Str1 )[ i + j ] == 0 )
+			{
+				break ;
+			}
+
+			Size = GetCharBytes_inline( ( const char * )( &( ( WORD * )Str1 )[ i ] ), CharCodeFormat ) ;
+			i += Size >> 1 ;
 		}
-		return ( ( WORD * )Str1 )[ i ] < ( ( BYTE * )Str2 )[ i ] ? -1 : 1 ;
+		break ;
 
 	case 4 :
-		for( i = 0 ; ( ( DWORD * )Str1 )[ i ] != 0 &&
-			         ( ( BYTE  * )Str2 )[ i ] != 0 &&
-					 ( ( DWORD * )Str1 )[ i ] == ( ( BYTE * )Str2 )[ i ] ; i ++ ){}
-		if( ( ( DWORD * )Str1 )[ i ] == 0 &&
-			( ( BYTE  * )Str2 )[ i ] == 0 )
+		for( i = 0 ; ( ( DWORD * )Str1 )[ i ] != 0 ; Pos ++ )
 		{
-			return 0 ;
+			for( j = 0 ; ( ( DWORD * )Str2 )[ j     ] != 0 &&
+				         ( ( DWORD * )Str1 )[ i + j ] != 0 &&
+						 ( ( DWORD * )Str1 )[ i + j ] == ( ( DWORD * )Str2 )[ j ] ; j ++ ){}
+
+			if( ( ( DWORD * )Str2 )[ j ] == 0 )
+			{
+				lastp = Pos ;
+			}
+
+			if( ( ( DWORD * )Str1 )[ i + j ] == 0 )
+			{
+				break ;
+			}
+
+			Size = GetCharBytes_inline( ( const char * )( &( ( DWORD * )Str1 )[ i ] ), CharCodeFormat ) ;
+			i += Size >> 2 ;
 		}
-		return ( ( DWORD * )Str1 )[ i ] < ( ( BYTE * )Str2 )[ i ] ? -1 : 1 ;
+		break ;
 	}
 
-	return 0 ;
+	return lastp ;
 }
 
-extern int CL_stricmp( int CodePage, const char *Str1, const char *Str2 )
-{
-	int i ;
-	DWORD Str1Code ;
-	DWORD Str2Code ;
-	int Str1CodeBytes ;
-	int Str2CodeBytes ;
-
-	for( i = 0 ;; i += Str1CodeBytes )
-	{
-		Str1Code = GetCharCode_inline( ( const char * )&( ( BYTE * )Str1 )[ i ], CodePage, &Str1CodeBytes ) ;
-		Str2Code = GetCharCode_inline( ( const char * )&( ( BYTE * )Str2 )[ i ], CodePage, &Str2CodeBytes ) ;
-
-		if( Str1Code >= 0x61 && Str1Code <= 0x7a )
-		{
-			Str1Code = Str1Code - 0x61 + 0x41 ;
-		}
-
-		if( Str2Code >= 0x61 && Str2Code <= 0x7a )
-		{
-			Str2Code = Str2Code - 0x61 + 0x41 ;
-		}
-
-		if( Str1Code      != Str2Code      ||
-			Str1CodeBytes != Str2CodeBytes ||
-			Str1Code == 0                  ||
-			Str2Code == 0                  )
-		{
-			break ;
-		}
-	}
-
-	if( Str1CodeBytes != Str2CodeBytes )
-	{
-		return Str1CodeBytes < Str2CodeBytes ? -1 : 1 ;
-	}
-
-	return Str1Code == Str2Code ? 0 : ( Str1Code < Str2Code ? -1 : 1 ) ;
-}
-
-extern int CL_strncmp( int CodePage, const char *Str1, const char *Str2, int Size )
-{
-	int i ;
-
-	switch( GetCodePageUnitSize_inline( CodePage ) )
-	{
-	case 1 :
-		for( i = 0 ; i < Size && ( ( BYTE * )Str1 )[ i ] == ( ( BYTE * )Str2 )[ i ] ; i ++ ){}
-		return i == Size ? 0 : ( ( ( BYTE * )Str1 )[ i ] < ( ( BYTE * )Str2 )[ i ] ? -1 : 1 ) ;
-
-	case 2 :
-		for( i = 0 ; i < Size && ( ( WORD * )Str1 )[ i ] == ( ( WORD * )Str2 )[ i ] ; i ++ ){}
-		return i == Size ? 0 : ( ( ( WORD * )Str1 )[ i ] < ( ( WORD * )Str2 )[ i ] ? -1 : 1 ) ;
-
-	case 3 :
-		for( i = 0 ; i < Size && ( ( DWORD * )Str1 )[ i ] == ( ( DWORD * )Str2 )[ i ] ; i ++ ){}
-		return i == Size ? 0 : ( ( ( DWORD * )Str1 )[ i ] < ( ( DWORD * )Str2 )[ i ] ? -1 : 1 ) ;
-	}
-
-	return 0 ;
-}
-
-extern const char *CL_strchr( int CodePage, const char *Str, DWORD CharCode )
+extern const char *CL_strchr( int CharCodeFormat, const char *Str, DWORD CharCode )
 {
 	int i ;
 	DWORD StrCharCode ;
 	int CodeBytes ;
 
-	switch( GetCodePageUnitSize_inline( CodePage ) )
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
 	{
 	case 1 :
 		for( i = 0 ; ( ( BYTE * )Str )[ i ] != 0 ; i ++ )
 		{
-			StrCharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )Str )[ i ], CodePage, &CodeBytes ) ;
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
 			if( StrCharCode == CharCode )
 			{
 				return ( const char * )&( ( BYTE * )Str )[ i ] ;
@@ -2330,7 +2938,7 @@ extern const char *CL_strchr( int CodePage, const char *Str, DWORD CharCode )
 	case 2 :
 		for( i = 0 ; ( ( WORD * )Str )[ i ] != 0 ; i ++ )
 		{
-			StrCharCode = GetCharCode_inline( ( const char * )&( ( WORD * )Str )[ i ], CodePage, &CodeBytes ) ;
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( WORD * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
 			if( StrCharCode == CharCode )
 			{
 				return ( const char * )&( ( WORD * )Str )[ i ] ;
@@ -2346,7 +2954,7 @@ extern const char *CL_strchr( int CodePage, const char *Str, DWORD CharCode )
 	case 4 :
 		for( i = 0 ; ( ( DWORD * )Str )[ i ] != 0 ; i ++ )
 		{
-			StrCharCode = GetCharCode_inline( ( const char * )&( ( DWORD * )Str )[ i ], CodePage, &CodeBytes ) ;
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( DWORD * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
 			if( StrCharCode == CharCode )
 			{
 				return ( const char * )&( ( DWORD * )Str )[ i ] ;
@@ -2358,7 +2966,60 @@ extern const char *CL_strchr( int CodePage, const char *Str, DWORD CharCode )
 	return NULL ;
 }
 
-extern const char *CL_strrchr( int CodePage, const char *Str, DWORD CharCode )
+extern int CL_strchr2( int CharCodeFormat, const char *Str, DWORD CharCode )
+{
+	int i ;
+	DWORD StrCharCode ;
+	int CodeBytes ;
+	int Pos ;
+
+	Pos = 0 ;
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
+	{
+	case 1 :
+		for( i = 0 ; ( ( BYTE * )Str )[ i ] != 0 ; Pos ++ )
+		{
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
+			if( StrCharCode == CharCode )
+			{
+				return Pos ;
+			}
+
+			i += CodeBytes ;
+		}
+		return -1 ;
+
+	case 2 :
+		for( i = 0 ; ( ( WORD * )Str )[ i ] != 0 ; Pos ++ )
+		{
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( WORD * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
+			if( StrCharCode == CharCode )
+			{
+				return Pos ;
+			}
+
+			i += CodeBytes >> 1 ;
+		}
+		return -1 ;
+
+	case 4 :
+		for( i = 0 ; ( ( DWORD * )Str )[ i ] != 0 ; Pos ++ )
+		{
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( DWORD * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
+			if( StrCharCode == CharCode )
+			{
+				return Pos ;
+			}
+
+			i += CodeBytes >> 2 ;
+		}
+		return -1 ;
+	}
+
+	return -1 ;
+}
+
+extern const char *CL_strrchr( int CharCodeFormat, const char *Str, DWORD CharCode )
 {
 	const char *lastp ;
 	DWORD StrCharCode ;
@@ -2367,12 +3028,12 @@ extern const char *CL_strrchr( int CodePage, const char *Str, DWORD CharCode )
 
 	lastp = NULL;
 
-	switch( GetCodePageUnitSize_inline( CodePage ) )
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
 	{
 	case 1 :
 		for( i = 0 ; ( ( BYTE * )Str )[ i ] != 0 ; i ++ )
 		{
-			StrCharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )Str )[ i ], CodePage, &CodeBytes ) ;
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
 			if( StrCharCode == CharCode )
 			{
 				lastp = ( const char * )&( ( BYTE * )Str )[ i ] ;
@@ -2388,7 +3049,7 @@ extern const char *CL_strrchr( int CodePage, const char *Str, DWORD CharCode )
 	case 2 :
 		for( i = 0 ; ( ( WORD * )Str )[ i ] != 0 ; i ++ )
 		{
-			StrCharCode = GetCharCode_inline( ( const char * )&( ( WORD * )Str )[ i ], CodePage, &CodeBytes ) ;
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( WORD * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
 			if( StrCharCode == CharCode )
 			{
 				lastp = ( const char * )&( ( WORD * )Str )[ i ] ;
@@ -2404,7 +3065,7 @@ extern const char *CL_strrchr( int CodePage, const char *Str, DWORD CharCode )
 	case 4 :
 		for( i = 0 ; ( ( DWORD * )Str )[ i ] != 0 ; i ++ )
 		{
-			StrCharCode = GetCharCode_inline( ( const char * )&( ( DWORD * )Str )[ i ], CodePage, &CodeBytes ) ;
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( DWORD * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
 			if( StrCharCode == CharCode )
 			{
 				lastp = ( const char * )&( ( DWORD * )Str )[ i ] ;
@@ -2416,22 +3077,77 @@ extern const char *CL_strrchr( int CodePage, const char *Str, DWORD CharCode )
 	return lastp ;
 }
 
-extern char * CL_strupr( int CodePage, char *Str )
+extern int CL_strrchr2( int CharCodeFormat, const char *Str, DWORD CharCode )
+{
+	int i ;
+	int lastp ;
+	DWORD StrCharCode ;
+	int CodeBytes ;
+	int Pos ;
+
+	Pos = 0 ;
+	lastp = -1 ;
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
+	{
+	case 1 :
+		for( i = 0 ; ( ( BYTE * )Str )[ i ] != 0 ; Pos ++ )
+		{
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
+			if( StrCharCode == CharCode )
+			{
+				lastp = Pos ;
+			}
+
+			i += CodeBytes ;
+		}
+		break ;
+
+	case 2 :
+		for( i = 0 ; ( ( WORD * )Str )[ i ] != 0 ; Pos ++ )
+		{
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( WORD * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
+			if( StrCharCode == CharCode )
+			{
+				lastp = Pos ;
+			}
+
+			i += CodeBytes >> 1 ;
+		}
+		break ;
+
+	case 4 :
+		for( i = 0 ; ( ( DWORD * )Str )[ i ] != 0 ; Pos ++ )
+		{
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( DWORD * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
+			if( StrCharCode == CharCode )
+			{
+				lastp = Pos ;
+			}
+
+			i += CodeBytes >> 2 ;
+		}
+		break ;
+	}
+
+	return lastp ;
+}
+
+extern char * CL_strupr( int CharCodeFormat, char *Str )
 {
 	DWORD StrCharCode ;
 	int CodeBytes ;
 	int i ;
 
-	switch( GetCodePageUnitSize_inline( CodePage ) )
+	switch( GetCharCodeFormatUnitSize_inline( CharCodeFormat ) )
 	{
 	case 1 :
 		for( i = 0 ; ( ( BYTE * )Str )[ i ] != 0 ; i ++ )
 		{
-			StrCharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )Str )[ i ], CodePage, &CodeBytes ) ;
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( BYTE * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
 			if( StrCharCode >= 0x61 && StrCharCode <= 0x7a )
 			{
 				StrCharCode = StrCharCode - 0x61 + 0x41 ;
-				PutCharCode_inline( StrCharCode, CodePage, ( char * )&( ( BYTE * )Str )[ i ] ) ;
+				PutCharCode_inline( StrCharCode, CharCodeFormat, ( char * )&( ( BYTE * )Str )[ i ] ) ;
 			}
 
 			if( CodeBytes > 1 )
@@ -2444,11 +3160,11 @@ extern char * CL_strupr( int CodePage, char *Str )
 	case 2 :
 		for( i = 0 ; ( ( WORD * )Str )[ i ] != 0 ; i ++ )
 		{
-			StrCharCode = GetCharCode_inline( ( const char * )&( ( WORD * )Str )[ i ], CodePage, &CodeBytes ) ;
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( WORD * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
 			if( StrCharCode >= 0x61 && StrCharCode <= 0x7a )
 			{
 				StrCharCode = StrCharCode - 0x61 + 0x41 ;
-				PutCharCode_inline( StrCharCode, CodePage, ( char * )&( ( WORD * )Str )[ i ] ) ;
+				PutCharCode_inline( StrCharCode, CharCodeFormat, ( char * )&( ( WORD * )Str )[ i ] ) ;
 			}
 
 			if( CodeBytes > 2 )
@@ -2461,11 +3177,11 @@ extern char * CL_strupr( int CodePage, char *Str )
 	case 4 :
 		for( i = 0 ; ( ( DWORD * )Str )[ i ] != 0 ; i ++ )
 		{
-			StrCharCode = GetCharCode_inline( ( const char * )&( ( DWORD * )Str )[ i ], CodePage, &CodeBytes ) ;
+			StrCharCode = GetCharCode_inline( ( const char * )&( ( DWORD * )Str )[ i ], CharCodeFormat, &CodeBytes ) ;
 			if( StrCharCode >= 0x61 && StrCharCode <= 0x7a )
 			{
 				StrCharCode = StrCharCode - 0x61 + 0x41 ;
-				PutCharCode_inline( StrCharCode, CodePage, ( char * )&( ( DWORD * )Str )[ i ] ) ;
+				PutCharCode_inline( StrCharCode, CharCodeFormat, ( char * )&( ( DWORD * )Str )[ i ] ) ;
 			}
 		}
 		break ;
@@ -2504,7 +3220,7 @@ static DWORD CL_vsprintf_help_getnumber( const DWORD *CharCode, int *UseCharNum 
 }
 
 // 指定の文字を指定数書き込む、戻り値は書き込んだバイト数
-static int CL_vsprintf_help_set_char( ULONGLONG Num, DWORD CharCode, char *Dest, int DestCodePage )
+static int CL_vsprintf_help_set_char( ULONGLONG Num, DWORD CharCode, char *Dest, int DestCharCodeFormat )
 {
 	DWORD i ;
 	int DestSize ;
@@ -2512,7 +3228,7 @@ static int CL_vsprintf_help_set_char( ULONGLONG Num, DWORD CharCode, char *Dest,
 	DestSize = 0 ;
 	for( i = 0 ; i < Num ; i ++ )
 	{
-		DestSize += PutCharCode_inline( CharCode, DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+		DestSize += PutCharCode_inline( CharCode, DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 	}
 
 	return DestSize ;
@@ -3281,7 +3997,7 @@ static int CL_vsprintf_help_ftoa(
 	int Width,
 	int Precision,
 	char *Dest,
-	int DestCodePage
+	int DestCharCodeFormat
 )
 {
 	int DestSize ;
@@ -3430,19 +4146,19 @@ static int CL_vsprintf_help_ftoa(
 		// 符号系文字がある場合はセットする
 		if( NumberMinus || Flag_Plus || Flag_Space )
 		{
-			DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+			DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 		}
 
 		// 数値をセットする
 		for( i = 0 ; i < ( int )NumberNum ; i++ )
 		{
-			DestSize += PutCharCode_inline( NumberStrTemp[ i ], DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+			DestSize += PutCharCode_inline( NumberStrTemp[ i ], DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 		}
 
 		// 余剰幅がある場合は、スペースをセットする
 		if( Width > 0 )
 		{
-			DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+			DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 		}
 	}
 	else
@@ -3453,13 +4169,13 @@ static int CL_vsprintf_help_ftoa(
 			// 符号系文字がある場合はセットする
 			if( NumberMinus || Flag_Plus || Flag_Space )
 			{
-				DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+				DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 			}
 
 			// 余剰幅がある場合は、0をセットする
 			if( Width > 0 )
 			{
-				DestSize += CL_vsprintf_help_set_char( Width, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+				DestSize += CL_vsprintf_help_set_char( Width, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 			}
 		}
 		else
@@ -3467,20 +4183,20 @@ static int CL_vsprintf_help_ftoa(
 			// 余剰幅がある場合は、スペースをセットする
 			if( Width > 0 )
 			{
-				DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+				DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 			}
 
 			// 符号系文字がある場合はセットする
 			if( NumberMinus || Flag_Plus || Flag_Space )
 			{
-				DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+				DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 			}
 		}
 
 		// 数値をセットする
 		for( i = 0 ; i < ( int )NumberNum ; i++ )
 		{
-			DestSize += PutCharCode_inline( NumberStrTemp[ i ], DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+			DestSize += PutCharCode_inline( NumberStrTemp[ i ], DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 		}
 	}
 
@@ -3502,7 +4218,7 @@ static int CL_vsprintf_help_itoa(
 	int Precision,
 	int Big,
 	char *Dest,
-	int DestCodePage
+	int DestCharCodeFormat
 )
 {
 	int DestSize ;
@@ -3639,7 +4355,7 @@ static int CL_vsprintf_help_itoa(
 		// 符号系文字がある場合はセットする
 		if( NumberMinus || Flag_Plus || Flag_Space )
 		{
-			DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+			DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 		}
 
 		// 進数付属文字がある場合は記号をセットする
@@ -3647,31 +4363,31 @@ static int CL_vsprintf_help_itoa(
 		{
 			if( Decimal == 8 )
 			{
-				DestSize += PutCharCode_inline( '0', DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+				DestSize += PutCharCode_inline( '0', DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 			}
 			else
 			{
-				DestSize += PutCharCode_inline( '0',             DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
-				DestSize += PutCharCode_inline( Big ? 'X' : 'x', DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+				DestSize += PutCharCode_inline( '0',             DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+				DestSize += PutCharCode_inline( Big ? 'X' : 'x', DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 			}
 		}
 
 		// 精度に足りない分の 0 をセットする
 		if( PrecisionCharNum > 0 )
 		{
-			DestSize += CL_vsprintf_help_set_char( PrecisionCharNum, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+			DestSize += CL_vsprintf_help_set_char( PrecisionCharNum, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 		}
 
 		// 数値をセットする
 		for( i = NumberNum - 1 ; i >= 0 ; i-- )
 		{
-			DestSize += PutCharCode_inline( NumberStrTemp[ i ], DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+			DestSize += PutCharCode_inline( NumberStrTemp[ i ], DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 		}
 
 		// 余剰幅がある場合は、スペースをセットする
 		if( Width > 0 )
 		{
-			DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+			DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 		}
 	}
 	else
@@ -3682,7 +4398,7 @@ static int CL_vsprintf_help_itoa(
 			// 符号系文字がある場合はセットする
 			if( NumberMinus || Flag_Plus || Flag_Space )
 			{
-				DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+				DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 			}
 
 			// 進数付属文字がある場合は記号をセットする
@@ -3690,19 +4406,19 @@ static int CL_vsprintf_help_itoa(
 			{
 				if( Decimal == 8 )
 				{
-					DestSize += PutCharCode_inline( '0', DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+					DestSize += PutCharCode_inline( '0', DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 				}
 				else
 				{
-					DestSize += PutCharCode_inline( '0',             DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
-					DestSize += PutCharCode_inline( Big ? 'X' : 'x', DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+					DestSize += PutCharCode_inline( '0',             DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+					DestSize += PutCharCode_inline( Big ? 'X' : 'x', DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 				}
 			}
 
 			// 余剰幅がある場合は、0をセットする
 			if( Width > 0 )
 			{
-				DestSize += CL_vsprintf_help_set_char( Width, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+				DestSize += CL_vsprintf_help_set_char( Width, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 			}
 		}
 		else
@@ -3710,13 +4426,13 @@ static int CL_vsprintf_help_itoa(
 			// 余剰幅がある場合は、スペースをセットする
 			if( Width > 0 )
 			{
-				DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+				DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 			}
 
 			// 符号系文字がある場合はセットする
 			if( NumberMinus || Flag_Plus || Flag_Space )
 			{
-				DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+				DestSize += PutCharCode_inline( NumberMinus ? '-' : ( Flag_Plus ? '+' : ' ' ), DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 			}
 
 			// 進数付属文字がある場合は記号をセットする
@@ -3724,12 +4440,12 @@ static int CL_vsprintf_help_itoa(
 			{
 				if( Decimal == 8 )
 				{
-					DestSize += PutCharCode_inline( '0', DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+					DestSize += PutCharCode_inline( '0', DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 				}
 				else
 				{
-					DestSize += PutCharCode_inline( '0',             DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
-					DestSize += PutCharCode_inline( Big ? 'X' : 'x', DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+					DestSize += PutCharCode_inline( '0',             DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+					DestSize += PutCharCode_inline( Big ? 'X' : 'x', DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 				}
 			}
 		}
@@ -3737,13 +4453,13 @@ static int CL_vsprintf_help_itoa(
 		// 精度に足りない分の 0 をセットする
 		if( PrecisionCharNum > 0 )
 		{
-			DestSize += CL_vsprintf_help_set_char( PrecisionCharNum, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+			DestSize += CL_vsprintf_help_set_char( PrecisionCharNum, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 		}
 
 		// 数値をセットする
 		for( i = NumberNum - 1 ; i >= 0 ; i-- )
 		{
-			DestSize += PutCharCode_inline( NumberStrTemp[ i ], DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+			DestSize += PutCharCode_inline( NumberStrTemp[ i ], DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 		}
 	}
 
@@ -3758,7 +4474,7 @@ static int CL_vsprintf_help_s(
 	int Width,
 	int Precision,
 	char *Dest,
-	int DestCodePage
+	int DestCharCodeFormat
 )
 {
 	int DestSize ;
@@ -3771,19 +4487,19 @@ static int CL_vsprintf_help_s(
 	if( String == NULL )
 	{
 		int TempAddr = 0 ;
-		TempAddr += PutCharCode_inline( '(', DestCodePage, ( char * )&NullBuffer[ TempAddr ] ) ;
-		TempAddr += PutCharCode_inline( 'n', DestCodePage, ( char * )&NullBuffer[ TempAddr ] ) ;
-		TempAddr += PutCharCode_inline( 'u', DestCodePage, ( char * )&NullBuffer[ TempAddr ] ) ;
-		TempAddr += PutCharCode_inline( 'l', DestCodePage, ( char * )&NullBuffer[ TempAddr ] ) ;
-		TempAddr += PutCharCode_inline( 'l', DestCodePage, ( char * )&NullBuffer[ TempAddr ] ) ;
-		TempAddr += PutCharCode_inline( ')', DestCodePage, ( char * )&NullBuffer[ TempAddr ] ) ;
-		TempAddr += PutCharCode_inline(   0, DestCodePage, ( char * )&NullBuffer[ TempAddr ] ) ;
+		TempAddr += PutCharCode_inline( '(', DestCharCodeFormat, ( char * )&NullBuffer[ TempAddr ] ) ;
+		TempAddr += PutCharCode_inline( 'n', DestCharCodeFormat, ( char * )&NullBuffer[ TempAddr ] ) ;
+		TempAddr += PutCharCode_inline( 'u', DestCharCodeFormat, ( char * )&NullBuffer[ TempAddr ] ) ;
+		TempAddr += PutCharCode_inline( 'l', DestCharCodeFormat, ( char * )&NullBuffer[ TempAddr ] ) ;
+		TempAddr += PutCharCode_inline( 'l', DestCharCodeFormat, ( char * )&NullBuffer[ TempAddr ] ) ;
+		TempAddr += PutCharCode_inline( ')', DestCharCodeFormat, ( char * )&NullBuffer[ TempAddr ] ) ;
+		TempAddr += PutCharCode_inline(   0, DestCharCodeFormat, ( char * )&NullBuffer[ TempAddr ] ) ;
 
 		String = ( char * )NullBuffer ;
 	}
 
 	// 文字列の長さを取得
-	StrLength = CL_strlen( DestCodePage, String ) ;
+	StrLength = CL_strlen( DestCharCodeFormat, String ) ;
 
 	// 幅の指定が無い場合は仮で 0 をセット
 	if( Width < 0 )
@@ -3820,13 +4536,13 @@ static int CL_vsprintf_help_s(
 		// 左詰め指定がある場合
 
 		// 文字列をコピーする
-		CL_strncpy( DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ], String, Precision ) ;
-		DestSize += GetCodePageUnitSize_inline( DestCodePage ) * Precision ;
+		CL_strncpy( DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ], String, Precision ) ;
+		DestSize += GetCharCodeFormatUnitSize_inline( DestCharCodeFormat ) * Precision ;
 
 		// 余剰幅がある場合は、スペースをセットする
 		if( Width > 0 )
 		{
-			DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+			DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 		}
 	}
 	else
@@ -3837,7 +4553,7 @@ static int CL_vsprintf_help_s(
 			// 余剰幅がある場合は、0をセットする
 			if( Width > 0 )
 			{
-				DestSize += CL_vsprintf_help_set_char( Width, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+				DestSize += CL_vsprintf_help_set_char( Width, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 			}
 		}
 		else
@@ -3845,13 +4561,13 @@ static int CL_vsprintf_help_s(
 			// 余剰幅がある場合は、スペースをセットする
 			if( Width > 0 )
 			{
-				DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+				DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 			}
 		}
 
 		// 文字列をコピーする
-		CL_strncpy( DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ], String, Precision ) ;
-		DestSize += GetCodePageUnitSize_inline( DestCodePage ) * Precision ;
+		CL_strncpy( DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ], String, Precision ) ;
+		DestSize += GetCharCodeFormatUnitSize_inline( DestCharCodeFormat ) * Precision ;
 	}
 
 	return DestSize ;
@@ -3864,7 +4580,7 @@ static int CL_vsprintf_help_c(
 	int Flag_Minus,
 	int Width,
 	char *Dest,
-	int DestCodePage
+	int DestCharCodeFormat
 )
 {
 	int DestSize ;
@@ -3892,12 +4608,12 @@ static int CL_vsprintf_help_c(
 		// 左詰め指定がある場合
 
 		// 文字をセットする
-		DestSize += PutCharCode_inline( CharCode, DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+		DestSize += PutCharCode_inline( CharCode, DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 
 		// 余剰幅がある場合は、スペースをセットする
 		if( Width > 0 )
 		{
-			DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+			DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 		}
 	}
 	else
@@ -3908,7 +4624,7 @@ static int CL_vsprintf_help_c(
 			// 余剰幅がある場合は、0をセットする
 			if( Width > 0 )
 			{
-				DestSize += CL_vsprintf_help_set_char( Width, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+				DestSize += CL_vsprintf_help_set_char( Width, '0', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 			}
 		}
 		else
@@ -3916,18 +4632,18 @@ static int CL_vsprintf_help_c(
 			// 余剰幅がある場合は、スペースをセットする
 			if( Width > 0 )
 			{
-				DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCodePage ) ;
+				DestSize += CL_vsprintf_help_set_char( Width, ' ', ( char * )&( ( BYTE * )Dest )[ DestSize ], DestCharCodeFormat ) ;
 			}
 		}
 
 		// 文字をセットする
-		DestSize += PutCharCode_inline( CharCode, DestCodePage, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
+		DestSize += PutCharCode_inline( CharCode, DestCharCodeFormat, ( char * )&( ( BYTE * )Dest )[ DestSize ] ) ;
 	}
 
 	return DestSize ;
 }
 
-extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCodePage, char *Buffer, const char *FormatString, va_list Arg )
+extern int CL_vsprintf( int CharCodeFormat, int IsWChar, int CharCharCodeFormat, int WCharCharCodeFormat, char *Buffer, const char *FormatString, va_list Arg )
 {
 	int i ;
 	int DestSize ;
@@ -3938,7 +4654,7 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 	int FormatStringSize ;
 
 	// １文字４バイト形式に変換する
-	FormatStringSize = StringToCharCodeString_inline( FormatString, CodePage, NULL ) ;
+	FormatStringSize = StringToCharCodeString_inline( FormatString, CharCodeFormat, NULL ) ;
 	if( FormatStringSize + sizeof( DWORD ) * 16 > sizeof( BaseBuffer ) )
 	{
 		TempBuffer = ( DWORD * )DXALLOC( FormatStringSize + sizeof( DWORD ) * 16 ) ;
@@ -3954,21 +4670,21 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 		FCode = BaseBuffer ;
 	}
 	_MEMSET( FCode, 0, FormatStringSize + sizeof( DWORD ) * 16 ) ;
-	StringToCharCodeString_inline( FormatString, CodePage, FCode ) ;
+	StringToCharCodeString_inline( FormatString, CharCodeFormat, FCode ) ;
 
 	DestSize = 0 ;
 	for( i = 0 ; FCode[ i ] != 0 ; )
 	{
 		if( FCode[ i ] == 0x25 && FCode[ i + 1 ] == 0x25 )
 		{
-			WriteBytes = PutCharCode_inline( 0x25, CodePage, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
+			WriteBytes = PutCharCode_inline( 0x25, CharCodeFormat, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
 			DestSize += WriteBytes ;
 			i += 2 ;
 		}
 		else
 		if( FCode[ i ] != 0x25 || FCode[ i + 1 ] == 0x25 )
 		{
-			WriteBytes = PutCharCode_inline( FCode[ i ], CodePage, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
+			WriteBytes = PutCharCode_inline( FCode[ i ], CharCodeFormat, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
 			DestSize += WriteBytes ;
 			i ++ ;
 		}
@@ -4181,18 +4897,18 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 				case PRINTF_TYPE_C :
 					{
 						DWORD ParamC = 0 ;
-						int UseCodePage ;
+						int UseCharCodeFormat ;
 
 						if( Type == PRINTF_TYPE_c )
 						{
-							UseCodePage = IsWChar ? WCharCodePage : CharCodePage ;
+							UseCharCodeFormat = IsWChar ? WCharCharCodeFormat : CharCharCodeFormat ;
 						}
 						else
 						{
-							UseCodePage = IsWChar ? CharCodePage : WCharCodePage ;
+							UseCharCodeFormat = IsWChar ? CharCharCodeFormat : WCharCharCodeFormat ;
 						}
 
-						switch( GetCodePageUnitSize_inline( UseCodePage ) )
+						switch( GetCharCodeFormatUnitSize_inline( UseCharCodeFormat ) )
 						{
 						case 1 :
 							ParamC = va_arg( Arg, BYTE ) ;
@@ -4207,9 +4923,9 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 							break ;
 						}
 
-						if( UseCodePage != CodePage )
+						if( UseCharCodeFormat != CharCodeFormat )
 						{
-							ParamC = ConvCharCode( ParamC, UseCodePage, CodePage ) ;
+							ParamC = ConvCharCode( ParamC, UseCharCodeFormat, CharCodeFormat ) ;
 						}
 
 						WriteBytes = CL_vsprintf_help_c(
@@ -4217,7 +4933,7 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 							Flag_Zero, Flag_Minus,
 							Width,
 							( char * )&( ( BYTE * )Buffer )[ DestSize ],
-							CodePage
+							CharCodeFormat
 						) ;
 						DestSize += WriteBytes ;
 					}
@@ -4264,7 +4980,7 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 							Width, Precision,
 							0,		// Big
 							( char * )&( ( BYTE * )Buffer )[ DestSize ],
-							CodePage
+							CharCodeFormat
 						) ;
 						DestSize += WriteBytes ;
 					}
@@ -4332,7 +5048,7 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 							Width, Precision,
 							Type == PRINTF_TYPE_X,	// Big
 							( char * )&( ( BYTE * )Buffer )[ DestSize ],
-							CodePage
+							CharCodeFormat
 						) ;
 						DestSize += WriteBytes ;
 					}
@@ -4356,7 +5072,7 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 							Flag_Sharp, Flag_Zero, Flag_Minus, Flag_Plus, Flag_Space,
 							Width, Precision,
 							( char * )&( ( BYTE * )Buffer )[ DestSize ],
-							CodePage
+							CharCodeFormat
 						) ;
 						DestSize += WriteBytes ;
 					}
@@ -4390,7 +5106,7 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 							Width, Precision,
 							1,		// Big
 							( char * )&( ( BYTE * )Buffer )[ DestSize ],
-							CodePage
+							CharCodeFormat
 						) ;
 						DestSize += WriteBytes ;
 					}
@@ -4403,7 +5119,7 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 						char ParamPBuffer[ 512 ] ;
 						char *ParamPTempBuffer = NULL ;
 						char *UseParamPBuffer ;
-						int UseCodePage ;
+						int UseCharCodeFormat ;
 
 						ParamP = va_arg( Arg, char * ) ;
 
@@ -4411,18 +5127,18 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 						{
 							if( Type == PRINTF_TYPE_s )
 							{
-								UseCodePage = IsWChar ? WCharCodePage : CharCodePage ;
+								UseCharCodeFormat = IsWChar ? WCharCharCodeFormat : CharCharCodeFormat ;
 							}
 							else
 							{
-								UseCodePage = IsWChar ? CharCodePage : WCharCodePage ;
+								UseCharCodeFormat = IsWChar ? CharCharCodeFormat : WCharCharCodeFormat ;
 							}
 
-							if( UseCodePage != CodePage )
+							if( UseCharCodeFormat != CharCodeFormat )
 							{
 								int DataSize ;
 
-								DataSize = ( CL_strlen( UseCodePage, ParamP ) + 1 ) * GetCodePageUnitSize( UseCodePage ) ;
+								DataSize = ( CL_strlen( UseCharCodeFormat, ParamP ) + 1 ) * GetCharCodeFormatUnitSize( UseCharCodeFormat ) ;
 								if( DataSize > sizeof( ParamPBuffer ) )
 								{
 									ParamPTempBuffer = ( char * )DXALLOC( DataSize ) ;
@@ -4442,7 +5158,7 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 
 								if( UseParamPBuffer != NULL )
 								{
-									ConvString( ParamP, UseCodePage, UseParamPBuffer, CodePage ) ;
+									ConvString( ParamP, UseCharCodeFormat, UseParamPBuffer, CharCodeFormat ) ;
 									ParamP = UseParamPBuffer ;
 								}
 								else
@@ -4459,7 +5175,7 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 								Flag_Zero, Flag_Minus,
 								Width, Precision,
 								( char * )&( ( BYTE * )Buffer )[ DestSize ],
-								CodePage
+								CharCodeFormat
 							) ;
 
 							if( ParamPTempBuffer != NULL )
@@ -4482,7 +5198,7 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 	}
 
 	// 終端文字をセット
-	DestSize += PutCharCode_inline( 0, CodePage, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
+	DestSize += PutCharCode_inline( 0, CharCodeFormat, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
 
 	if( TempBuffer != NULL )
 	{
@@ -4493,21 +5209,21 @@ extern int CL_vsprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCo
 	return 0 ;
 }
 
-extern int CL_sprintf( int CodePage, int IsWChar, int CharCodePage, int WCharCodePage, char *Buffer, const char *FormatString, ... )
+extern int CL_sprintf( int CharCodeFormat, int IsWChar, int CharCharCodeFormat, int WCharCharCodeFormat, char *Buffer, const char *FormatString, ... )
 {
 	int Result ;
 	va_list VaList ;
 
 	va_start( VaList, FormatString ) ;
 
-	Result = CL_vsprintf( CodePage, IsWChar, CharCodePage, WCharCodePage, Buffer, FormatString, VaList ) ;
+	Result = CL_vsprintf( CharCodeFormat, IsWChar, CharCharCodeFormat, WCharCharCodeFormat, Buffer, FormatString, VaList ) ;
 
 	va_end( VaList ) ;
 
 	return Result ;
 }
 
-extern char *CL_itoa( int CodePage, int Value, char *Buffer, int Radix )
+extern char *CL_itoa( int CharCodeFormat, int Value, char *Buffer, int Radix )
 {
 	int i ;
 	BYTE Number[ 512 ] ;
@@ -4519,14 +5235,14 @@ extern char *CL_itoa( int CodePage, int Value, char *Buffer, int Radix )
 	// 数値が 0 の場合は 0 のみセット
 	if( Value == 0 )
 	{
-		DestSize += PutCharCode_inline( '0', CodePage, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
+		DestSize += PutCharCode_inline( '0', CharCodeFormat, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
 	}
 	else
 	{
 		// 数値がマイナスの場合は - 記号を追加した上で値をプラスにする
 		if( Value < 0 )
 		{
-			DestSize += PutCharCode_inline( '-', CodePage, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
+			DestSize += PutCharCode_inline( '-', CharCodeFormat, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
 			Value = -Value ;
 		}
 
@@ -4539,17 +5255,17 @@ extern char *CL_itoa( int CodePage, int Value, char *Buffer, int Radix )
 		// 数値を文字列化
 		for( i = NumberNum - 1 ; i >= 0 ; i -- )
 		{
-			DestSize += PutCharCode_inline( Number[ i ] <= 9 ? '0' + Number[ i ] : 'a' + Number[ i ] - 10, CodePage, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
+			DestSize += PutCharCode_inline( Number[ i ] <= 9 ? '0' + Number[ i ] : 'a' + Number[ i ] - 10, CharCodeFormat, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
 		}
 	}
 
 	// 終端文字をセット
-	DestSize += PutCharCode_inline( 0, CodePage, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
+	DestSize += PutCharCode_inline( 0, CharCodeFormat, ( char * )&( ( BYTE * )Buffer )[ DestSize ] ) ;
 	
 	return Buffer ;
 }
 
-extern int CL_atoi( int CodePage, const char *Str )
+extern int CL_atoi( int CharCodeFormat, const char *Str )
 {
 	int i ;
 	int AddNum ;
@@ -4569,7 +5285,7 @@ extern int CL_atoi( int CodePage, const char *Str )
 	}
 
 	// １文字４バイト形式に変換する
-	StringSize = StringToCharCodeString_inline( Str, CodePage, NULL ) ;
+	StringSize = StringToCharCodeString_inline( Str, CharCodeFormat, NULL ) ;
 	if( StringSize + sizeof( DWORD ) * 16 > sizeof( BaseBuffer ) )
 	{
 		TempBuffer = ( DWORD * )DXALLOC( StringSize + sizeof( DWORD ) * 16 ) ;
@@ -4585,7 +5301,7 @@ extern int CL_atoi( int CodePage, const char *Str )
 		FCode = BaseBuffer ;
 	}
 	_MEMSET( FCode, 0, StringSize + sizeof( DWORD ) * 16 ) ;
-	StringToCharCodeString_inline( Str, CodePage, FCode ) ;
+	StringToCharCodeString_inline( Str, CharCodeFormat, FCode ) ;
 
 	// 数字を探す
 	while( *FCode != '\0' )
@@ -4646,7 +5362,7 @@ END :
 	return Total ;
 }
 
-extern double CL_atof( int CodePage, const char *Str )
+extern double CL_atof( int CharCodeFormat, const char *Str )
 {
 	int MinusFlag ;
 	int DotFlag ;
@@ -4682,7 +5398,7 @@ extern double CL_atof( int CodePage, const char *Str )
 	}
 
 	// １文字４バイト形式に変換する
-	StringSize = StringToCharCodeString_inline( Str, CodePage, NULL ) ;
+	StringSize = StringToCharCodeString_inline( Str, CharCodeFormat, NULL ) ;
 	if( StringSize + sizeof( DWORD ) * 16 > sizeof( BaseBuffer ) )
 	{
 		TempBuffer = ( DWORD * )DXALLOC( StringSize + sizeof( DWORD ) * 16 ) ;
@@ -4698,7 +5414,7 @@ extern double CL_atof( int CodePage, const char *Str )
 		FCode = BaseBuffer ;
 	}
 	_MEMSET( FCode, 0, StringSize + sizeof( DWORD ) * 16 ) ;
-	StringToCharCodeString_inline( Str, CodePage, FCode ) ;
+	StringToCharCodeString_inline( Str, CharCodeFormat, FCode ) ;
 
 	// いきなり終端文字の場合は 0.0 を返す
 	if( *FCode == '\0' )
@@ -4907,7 +5623,7 @@ static int CL_vsscanf_skipspace( DWORD *String )
 	return AddSize ;
 }
 
-extern int CL_vsscanf( int CodePage, int IsWChar, int CharCodePage, int WCharCodePage, const char *String, const char *FormatString, va_list Arg )
+extern int CL_vsscanf( int CharCodeFormat, int IsWChar, int CharCharCodeFormat, int WCharCharCodeFormat, const char *String, const char *FormatString, va_list Arg )
 {
 	DWORD c ;
 	DWORD Number[ 256 ] ;
@@ -4943,7 +5659,7 @@ extern int CL_vsscanf( int CodePage, int IsWChar, int CharCodePage, int WCharCod
 
 	// １文字４バイト形式に変換する
 	{
-		StringSize = StringToCharCodeString_inline( String, CodePage, NULL ) ;
+		StringSize = StringToCharCodeString_inline( String, CharCodeFormat, NULL ) ;
 		if( StringSize + sizeof( DWORD ) * 16 > sizeof( StringBaseBuffer ) )
 		{
 			StringTempBuffer = ( DWORD * )DXALLOC( StringSize + sizeof( DWORD ) * 16 ) ;
@@ -4959,10 +5675,10 @@ extern int CL_vsscanf( int CodePage, int IsWChar, int CharCodePage, int WCharCod
 			SCode = StringBaseBuffer ;
 		}
 		_MEMSET( SCode, 0, StringSize + sizeof( DWORD ) * 16 ) ;
-		StringToCharCodeString_inline( String, CodePage, SCode ) ;
+		StringToCharCodeString_inline( String, CharCodeFormat, SCode ) ;
 
 
-		FormatStringSize = StringToCharCodeString_inline( FormatString, CodePage, NULL ) ;
+		FormatStringSize = StringToCharCodeString_inline( FormatString, CharCodeFormat, NULL ) ;
 		if( FormatStringSize + sizeof( DWORD ) * 16 > sizeof( FormatStringBaseBuffer ) )
 		{
 			FormatStringTempBuffer = ( DWORD * )DXALLOC( FormatStringSize + sizeof( DWORD ) * 16 ) ;
@@ -4983,7 +5699,7 @@ extern int CL_vsscanf( int CodePage, int IsWChar, int CharCodePage, int WCharCod
 			FCode = FormatStringBaseBuffer ;
 		}
 		_MEMSET( FCode, 0, FormatStringSize + sizeof( DWORD ) * 16 ) ;
-		StringToCharCodeString_inline( FormatString, CodePage, FCode ) ;
+		StringToCharCodeString_inline( FormatString, CharCodeFormat, FCode ) ;
 	}
 
 	// いきなり終端文字の場合は 0 を返す
@@ -5159,7 +5875,7 @@ extern int CL_vsscanf( int CodePage, int IsWChar, int CharCodePage, int WCharCod
 
 					if( pStr )
 					{
-						pStr += PutCharCode_inline( c, CodePage, ( char * )pStr ) ;
+						pStr += PutCharCode_inline( c, CharCodeFormat, ( char * )pStr ) ;
 					}
 					i ++ ;
 					if( Width != 0 && Width == i )
@@ -5170,7 +5886,7 @@ extern int CL_vsscanf( int CodePage, int IsWChar, int CharCodePage, int WCharCod
 
 				if( pStr )
 				{
-					pStr += PutCharCode_inline( '\0', CodePage, ( char * )pStr ) ;
+					pStr += PutCharCode_inline( '\0', CharCodeFormat, ( char * )pStr ) ;
 				}
 
 				if( Eof == FALSE && Width != i )
@@ -5562,17 +6278,17 @@ STR_8INT:
 			if( *FCode == 'c' || *FCode == 'C' )
 			{
 				int UseUnitSize ;
-				int UseCodePage ;
+				int UseCharCodeFormat ;
 
 				if( *FCode == 'c' )
 				{
-					UseCodePage = IsWChar ? WCharCodePage : CharCodePage ;
+					UseCharCodeFormat = IsWChar ? WCharCharCodeFormat : CharCharCodeFormat ;
 				}
 				else
 				{
-					UseCodePage = IsWChar ? CharCodePage : WCharCodePage ;
+					UseCharCodeFormat = IsWChar ? CharCharCodeFormat : WCharCharCodeFormat ;
 				}
-				UseUnitSize = GetCodePageUnitSize( UseCodePage ) ;
+				UseUnitSize = GetCharCodeFormatUnitSize( UseCharCodeFormat ) ;
 
 				FCode ++ ;
 				if( Width == -1 )
@@ -5595,19 +6311,19 @@ STR_8INT:
 					c = *SCode ;
 					SCode ++ ;
 
-					if( UseCodePage != CodePage )
+					if( UseCharCodeFormat != CharCodeFormat )
 					{
-						c = ConvCharCode( c, CodePage, UseCodePage ) ;
+						c = ConvCharCode( c, CharCodeFormat, UseCharCodeFormat ) ;
 					}
 
 					if( pStr )
 					{
-						CharBytes = PutCharCode_inline( c, UseCodePage, ( char * )pStr ) ;
+						CharBytes = PutCharCode_inline( c, UseCharCodeFormat, ( char * )pStr ) ;
 						pStr += CharBytes ;
 					}
 					else
 					{
-						CharBytes = PutCharCode_inline( c, UseCodePage, ( char * )TempBuffer ) ;
+						CharBytes = PutCharCode_inline( c, UseCharCodeFormat, ( char * )TempBuffer ) ;
 					}
 				}
 			}
@@ -5615,17 +6331,17 @@ STR_8INT:
 			if( *FCode == 's' || *FCode == 'S' )
 			{
 				int UseUnitSize ;
-				int UseCodePage ;
+				int UseCharCodeFormat ;
 
 				if( *FCode == 's' )
 				{
-					UseCodePage = IsWChar ? WCharCodePage : CharCodePage ;
+					UseCharCodeFormat = IsWChar ? WCharCharCodeFormat : CharCharCodeFormat ;
 				}
 				else
 				{
-					UseCodePage = IsWChar ? CharCodePage : WCharCodePage ;
+					UseCharCodeFormat = IsWChar ? CharCharCodeFormat : WCharCharCodeFormat ;
 				}
-				UseUnitSize = GetCodePageUnitSize( UseCodePage ) ;
+				UseUnitSize = GetCharCodeFormatUnitSize( UseCharCodeFormat ) ;
 
 				FCode ++ ;
 				SCode += CL_vsscanf_skipspace( SCode ) ;
@@ -5658,19 +6374,19 @@ STR_8INT:
 						break;
 					}
 
-					if( UseCodePage != CodePage )
+					if( UseCharCodeFormat != CharCodeFormat )
 					{
-						c = ConvCharCode( c, CodePage, UseCodePage ) ;
+						c = ConvCharCode( c, CharCodeFormat, UseCharCodeFormat ) ;
 					}
 
 					if( pStr )
 					{
-						CharBytes = PutCharCode_inline( c, UseCodePage, ( char * )pStr ) ;
+						CharBytes = PutCharCode_inline( c, UseCharCodeFormat, ( char * )pStr ) ;
 						pStr += CharBytes ;
 					}
 					else
 					{
-						CharBytes = PutCharCode_inline( c, UseCodePage, ( char * )TempBuffer ) ;
+						CharBytes = PutCharCode_inline( c, UseCharCodeFormat, ( char * )TempBuffer ) ;
 					}
 
 					i += CharBytes / UseUnitSize ;
@@ -5682,7 +6398,7 @@ STR_8INT:
 
 				if( pStr )
 				{
-					pStr += PutCharCode_inline( '\0', UseCodePage, ( char * )pStr ) ;
+					pStr += PutCharCode_inline( '\0', UseCharCodeFormat, ( char * )pStr ) ;
 				}
 			}
 			else
@@ -5979,14 +6695,14 @@ END :
 	return ReadNum;
 }
 
-extern int CL_sscanf( int CodePage, int IsWChar, int CharCodePage, int WCharCodePage, const char *String, const char *FormatString, ... )
+extern int CL_sscanf( int CharCodeFormat, int IsWChar, int CharCharCodeFormat, int WCharCharCodeFormat, const char *String, const char *FormatString, ... )
 {
 	int Result ;
 	va_list VaList ;
 
 	va_start( VaList, FormatString ) ;
 
-	Result = CL_vsscanf( CodePage, IsWChar, CharCodePage, WCharCodePage, String, FormatString, VaList ) ;
+	Result = CL_vsscanf( CharCodeFormat, IsWChar, CharCharCodeFormat, WCharCharCodeFormat, String, FormatString, VaList ) ;
 
 	va_end( VaList ) ;
 

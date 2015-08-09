@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		Windows用システムプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -78,7 +78,7 @@ extern int NS_DxLib_Init( void )
 	InitCharCode() ;
 
 	// 使用する文字セットをセット
-	_SET_DEFAULT_CODEPAGE() ;
+	_SET_DEFAULT_CHARCODEFORMAT() ;
 
 	// API を読み込む
 	LoadWinAPI() ;
@@ -606,9 +606,9 @@ extern int NS_ProcessMessage( void )
 						// サウンドの周期的処理を行う
 						NS_ProcessStreamSoundMemAll() ;
 						ST_SoftSoundPlayerProcessAll() ;
-						ProcessPlayFinishDeleteSoundMemAll() ;
 						ProcessPlay3DSoundMemAll() ;
 					}
+					ProcessPlayFinishDeleteSoundMemAll() ;
 #endif // DX_NON_SOUND
 
 					// 描画処理のメッセージループ時に行うべき処理を実行する
@@ -705,9 +705,9 @@ extern int NS_ProcessMessage( void )
 		// サウンドの周期的処理を行う
 		NS_ProcessStreamSoundMemAll() ;
 		ST_SoftSoundPlayerProcessAll() ;
-		ProcessPlayFinishDeleteSoundMemAll() ;
 		ProcessPlay3DSoundMemAll() ;
 	}
+	ProcessPlayFinishDeleteSoundMemAll() ;
 #endif // DX_NON_SOUND
 
 	// 描画処理のメッセージループ時に行うべき処理を実行する
@@ -827,7 +827,7 @@ extern int DxLib_ErrorUTF16LE( const char *ErrorStr )
 	int Result ;
 
 	CHAR_TO_WCHAR_T_STRING_BEGIN( ErrorStr )
-	CHAR_TO_WCHAR_T_STRING_SETUP( ErrorStr, return -1, DX_CODEPAGE_UTF16LE )
+	CHAR_TO_WCHAR_T_STRING_SETUP( ErrorStr, return -1, DX_CHARCODEFORMAT_UTF16LE )
 
 	Result = DxLib_Error( UseErrorStrBuffer ) ;
 
@@ -852,20 +852,11 @@ extern int DxLib_ErrorUTF16LE( const char *ErrorStr )
 
 
 
-// 文字列変換
 
 
-// ワイド文字列をマルチバイト文字列に変換する
-//extern int WCharToMBChar( int CodePage, const DXWCHAR *Src, char *Dest, int DestSize )
-//{
-//	return WideCharToMultiByte( ( UINT )CodePage, 0, ( wchar_t * )Src, -1, Dest, DestSize, NULL, NULL ) ;
-//}
 
-// マルチバイト文字列をワイド文字列に変換する
-//extern int MBCharToWChar( int CodePage, const char *Src, DXWCHAR *Dest, int DestSize )
-//{
-//	return MultiByteToWideChar( ( UINT )CodePage, 0, Src, -1, ( wchar_t * )Dest, DestSize ) ;
-//}
+
+
 
 
 
@@ -1052,32 +1043,8 @@ extern int NS_GetDateTime( DATEDATA *DateBuf )
 	// 終了
 	return 0 ;
 }
-/*
-extern int NS_GetDateTime( DATEDATA *DateBuf )
-{
-	timeb TimeData2 ;
-	struct tm TimeData ;
 
-	// 標準関数の時刻データを取得
-	ftime( &TimeData2 ) ;
 
-	// 日本時間を得る
-	TimeData = *localtime( &TimeData2.time ) ;
-//	TimeData.tm_hour += -TimeData2.timezone / 60 ;
-//	TimeData.tm_min += -TimeData2.timezone % 60 ;
-
-	// 標準関数時刻データを元に専用のデータ型データに時刻を繁栄させる
-	DateBuf->Year	= TimeData.tm_year + 1900 ;
-	DateBuf->Mon	= TimeData.tm_mon + 1 ;
-	DateBuf->Day	= TimeData.tm_mday ;
-	DateBuf->Hour	= TimeData.tm_hour ;
-	DateBuf->Min	= TimeData.tm_min ;
-	DateBuf->Sec	= TimeData.tm_sec ;
-
-	// 終了
-	return 0 ;
-}
-*/
 
 
 

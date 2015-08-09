@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		描画処理プログラム( Direct3D9 )ヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -643,7 +643,7 @@ struct GRAPHICS_HARDDATA_DIRECT3D9_DRAWSETTING
 	int						BlendGraphType ;						// ブレンド画像タイプ
 	int						BlendGraphFadeRatio ;					// ブレンド画像のフェードパラメータ
 	int						BlendGraphBorderParam ;					// ブレンド画像の境界パラメータ(０(ブレンド画像の影響０)　←　(ブレンド画像の影響少ない)　←　１２８(ブレンド画像の影響１００％)　→　(ブレンド画像の影響を超えて非描画部分が増える)　→２５５(全く描画されない) )
-	int						BlendGraphBorderRange ;					// ブレンド画像の境界幅(０～２５５　狭い～広い　しかし４段階)
+	int						BlendGraphBorderRange ;					// ブレンド画像の境界幅(０〜２５５　狭い〜広い　しかし４段階)
 	float					BlendTextureWidth ;						// ブレンドテクスチャの幅
 	float					BlendTextureHeight ;					// ブレンドテクスチャの高さ
 	float					InvBlendTextureWidth ;					// ブレンドテクスチャの幅の逆数
@@ -682,6 +682,8 @@ struct GRAPHICS_HARDDATA_DIRECT3D9_DEVICE_CAPS
 //	int						RenderTargetNum ;									// 同時に設定できるレンダリングターゲットの数
 //	int						MaxPrimitiveCount ;									// 一度に描画できるプリミティブの最大数
 	int						UseRenderTargetLock ;								// 描画先サーフェスのロックを行うかどうか( TRUE:行う  FALSE:行わない )
+	float					DrawFillCircleLeftVertAddX ;						// 中を塗りつぶす円の描画の際に左端座標の x 座標に足す値
+	float					DrawFillCircleRightVertAddX ;						// 中を塗りつぶす円の描画の際に右端座標の x 座標に足す値
 
 #ifndef DX_NON_FILTER
 	int						ValidRenderTargetInputTexture ;						// 描画先を入力テクスチャとして使用できるかどうか( TRUE:使用できる  FALSE:使用できない )
@@ -1113,8 +1115,8 @@ extern	int		Graphics_D3D9_DeviceState_SetTextureAddressTransformMatrix( int Use,
 extern	int		Graphics_D3D9_DeviceState_SetFogEnable( int Flag ) ;												// フォグを有効にするかどうかを設定する( TRUE:有効  FALSE:無効 )
 extern	int		Graphics_D3D9_DeviceState_SetFogVertexMode( int Mode /* DX_FOGMODE_NONE 等 */ ) ;					// フォグモードを設定する
 extern	int		Graphics_D3D9_DeviceState_SetFogColor( unsigned int Color ) ;										// フォグカラーを変更する
-extern	int		Graphics_D3D9_DeviceState_SetFogStartEnd( float Start, float End ) ;								// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
-extern	int		Graphics_D3D9_DeviceState_SetFogDensity( float Density ) ;											// フォグの密度を設定する( 0.0f ～ 1.0f )
+extern	int		Graphics_D3D9_DeviceState_SetFogStartEnd( float Start, float End ) ;								// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
+extern	int		Graphics_D3D9_DeviceState_SetFogDensity( float Density ) ;											// フォグの密度を設定する( 0.0f 〜 1.0f )
 extern	int		Graphics_D3D9_DeviceState_SetLighting( int Flag ) ;													// ライトの有無フラグをセットする
 extern	int		Graphics_D3D9_DeviceState_SetMaxAnisotropy( int MaxAnisotropy, int Sampler = -1 ) ;					// 最大異方性をセットする
 extern	int		Graphics_D3D9_DeviceState_SetViewport( D_D3DVIEWPORT9 *Viewport ) ;									// ビューポートをセットする
@@ -1326,8 +1328,8 @@ extern	int		Graphics_Hardware_D3D9_SetTextureAddressTransformMatrix_PF( int UseF
 extern	int		Graphics_Hardware_D3D9_SetFogEnable_PF( int Flag ) ;														// フォグを有効にするかどうかを設定する( TRUE:有効  FALSE:無効 )
 extern	int		Graphics_Hardware_D3D9_SetFogMode_PF( int Mode /* DX_FOGMODE_NONE 等 */ ) ;									// フォグモードを設定する
 extern	int		Graphics_Hardware_D3D9_SetFogColor_PF( DWORD FogColor ) ;													// フォグカラーを変更する
-extern	int		Graphics_Hardware_D3D9_SetFogStartEnd_PF( float start, float end ) ;										// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
-extern	int		Graphics_Hardware_D3D9_SetFogDensity_PF( float density ) ;													// フォグの密度を設定する( 0.0f ～ 1.0f )
+extern	int		Graphics_Hardware_D3D9_SetFogStartEnd_PF( float start, float end ) ;										// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
+extern	int		Graphics_Hardware_D3D9_SetFogDensity_PF( float density ) ;													// フォグの密度を設定する( 0.0f 〜 1.0f )
 extern	int		Graphics_Hardware_D3D9_ApplyLigFogToHardware_PF( void ) ;													// 基本データに設定されているフォグ情報をハードウェアに反映する
 extern	int		Graphics_Hardware_D3D9_SetUseOldDrawModiGraphCodeFlag_PF( int Flag ) ;										// 以前の DrawModiGraph 関数のコードを使用するかどうかのフラグをセットする
 extern	int		Graphics_Hardware_D3D9_RefreshAlphaChDrawMode_PF( void ) ;													// 描画先に正しいα値を書き込むかどうかのフラグを更新する

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		メモリ関係プログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -37,15 +37,17 @@ namespace DxLib
 
 // メモリ確保系関数
 #if !defined( __BCC ) || defined( _DEBUG )
-	#define DXALLOC( size )			NS_DxAlloc( (size), __FILE__, __LINE__ )
-	#define DXCALLOC( size )		NS_DxCalloc( (size), __FILE__, __LINE__ )
-	#define DXREALLOC( mem, size )	NS_DxRealloc( (mem), (size), __FILE__, __LINE__ )
-	#define DXFREE( mem )			NS_DxFree( (mem) )
+	#define DXALLOCBASE( size, aligned )	DxAllocBase( (size), (aligned), __FILE__, __LINE__ )
+	#define DXALLOC( size )					NS_DxAlloc( (size), __FILE__, __LINE__ )
+	#define DXCALLOC( size )				NS_DxCalloc( (size), __FILE__, __LINE__ )
+	#define DXREALLOC( mem, size )			NS_DxRealloc( (mem), (size), __FILE__, __LINE__ )
+	#define DXFREE( mem )					NS_DxFree( (mem) )
 #else
-	#define DXALLOC( size )			NS_DxAlloc( (size), "", 0 )
-	#define DXCALLOC( size )		NS_DxCalloc( (size), "", 0 )
-	#define DXREALLOC( mem, size )	NS_DxRealloc( (mem), (size), "", 0 )
-	#define DXFREE( mem )			NS_DxFree( (mem) )
+	#define DXALLOCBASE( size, aligned )	DxAllocBase( (size), (aligned), "", 0 )
+	#define DXALLOC( size )					NS_DxAlloc( (size), "", 0 )
+	#define DXCALLOC( size )				NS_DxCalloc( (size), "", 0 )
+	#define DXREALLOC( mem, size )			NS_DxRealloc( (mem), (size), "", 0 )
+	#define DXFREE( mem )					NS_DxFree( (mem) )
 #endif
 
 
@@ -102,6 +104,8 @@ extern	int					 NormalMemory_AutoAlloc_CreateHeapCallback_PF(     int Param, voi
 extern	void *				 NormalMemory_AutoAlloc_GetHeapAddressCallback_PF( int Param, void *Buffer ) ;			// 環境依存の一般的なヒープ用のメモリ領域を確保するためのコールバック関数群の AutoAlloc_GetHeapAddressCallback
 extern	ALLOCMEM_SIZE_TYPE	 NormalMemory_AutoAlloc_GetHeapSizeCallback_PF(    int Param, void *Buffer ) ;			// 環境依存の一般的なヒープ用のメモリ領域を確保するためのコールバック関数群の AutoAlloc_GetHeapSizeCallback
 extern	int					 NormalMemory_AutoAlloc_DeleteHeapCallback_PF(     int Param, void *Buffer ) ;			// 環境依存の一般的なヒープ用のメモリ領域を確保するためのコールバック関数群の AutoAlloc_DeleteHeapCallback
+
+extern	int			DxDumpAlloc_PF( void ) ;									// 確保しているメモリを列挙する関数の環境依存処理
 
 #ifdef DX_USE_NAMESPACE
 

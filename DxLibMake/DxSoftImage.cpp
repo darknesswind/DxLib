@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ソフトウェアで扱う画像プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -834,7 +834,7 @@ extern	void	NS_DrawPixelSoftImage_Unsafe_ARGB8( int SIHandle, int x, int y, int 
 	*((DWORD *)((BYTE *)BaseImage->GraphData + BaseImage->Pitch * y + x * 4)) = ( DWORD )( ( a << 24 ) | ( r << 16 ) | ( g << 8 ) | b ) ;
 }
 
-// ソフトウエアで扱うイメージの指定座標にドットを描画する(パレット画像用、有効値は０～２５５)
+// ソフトウエアで扱うイメージの指定座標にドットを描画する(パレット画像用、有効値は０〜２５５)
 extern	int		NS_DrawPixelPalCodeSoftImage( int SIHandle, int x, int y, int palNo )
 {
 	SOFTIMAGE *SoftImg ;
@@ -846,7 +846,7 @@ extern	int		NS_DrawPixelPalCodeSoftImage( int SIHandle, int x, int y, int palNo 
 	return NS_SetPixelPalCodeBaseImage( &SoftImg->BaseImage,  x,  y,  palNo ) ;
 }
 
-// ソフトウエアで扱うイメージの指定座標の色コードを取得する(パレット画像用、戻り値は０～２５５)
+// ソフトウエアで扱うイメージの指定座標の色コードを取得する(パレット画像用、戻り値は０〜２５５)
 extern	int		NS_GetPixelPalCodeSoftImage( int SIHandle, int x, int y )
 {
 	SOFTIMAGE *SoftImg ;
@@ -931,7 +931,7 @@ extern	void		NS_GetPixelSoftImage_Unsafe_ARGB8(  int SIHandle, int x, int y, int
 	*b = ( int )(   Color         & 0xff ) ;
 }
 
-// ソフトウエアで扱うイメージの指定座標に線を描画する(各色要素は０～２５５)
+// ソフトウエアで扱うイメージの指定座標に線を描画する(各色要素は０〜２５５)
 extern int NS_DrawLineSoftImage(  int SIHandle, int x1, int y1, int x2, int y2, int r, int g, int b, int a )
 {
 	SOFTIMAGE *SoftImg ;
@@ -941,6 +941,18 @@ extern int NS_DrawLineSoftImage(  int SIHandle, int x1, int y1, int x2, int y2, 
 		return -1 ;
 
 	return NS_DrawLineBaseImage( &SoftImg->BaseImage, x1, y1, x2, y2, r, g, b, a ) ;
+}
+
+// ソフトウエアイメージハンドルの指定座標に円を描画する(各色要素は０〜２５５)
+extern int NS_DrawCircleSoftImage( int SIHandle, int x, int y, int radius, int r, int g, int b, int a, int FillFlag )
+{
+	SOFTIMAGE *SoftImg ;
+
+	// アドレスの取得
+	if( SFTIMGCHK( SIHandle, SoftImg ) )
+		return -1 ;
+
+	return NS_DrawCircleBaseImage( &SoftImg->BaseImage, x, y, radius, r, g, b, a, FillFlag ) ;
 }
 
 // ソフトウエアで扱うイメージを別のイメージ上に転送する
@@ -971,7 +983,7 @@ extern	int		NS_BltSoftImageWithTransColor( int SrcX, int SrcY, int SrcSizeX, int
 	return NS_BltBaseImageWithTransColor( SrcX, SrcY, SrcSizeX, SrcSizeY, DestX, DestY, &SrcSoftImg->BaseImage, &DestSoftImg->BaseImage, Tr, Tg, Tb, Ta ) ;
 }
 
-// ソフトウエアで扱うイメージをアルファ値のブレンドを考慮した上で転送する( Opacity は透明度 : 0( 完全透明 ) ～ 255( 完全不透明 ) )( 出力先が ARGB8 形式以外の場合はエラーになります )
+// ソフトウエアで扱うイメージをアルファ値のブレンドを考慮した上で転送する( Opacity は透明度 : 0( 完全透明 ) 〜 255( 完全不透明 ) )( 出力先が ARGB8 形式以外の場合はエラーになります )
 extern	int		NS_BltSoftImageWithAlphaBlend( int SrcX, int SrcY, int SrcSizeX, int SrcSizeY, int SrcSIHandle, int DestX, int DestY, int DestSIHandle, int Opacity )
 {
 	SOFTIMAGE *SrcSoftImg, *DestSoftImg ;

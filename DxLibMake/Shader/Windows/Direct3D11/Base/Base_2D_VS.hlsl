@@ -1,28 +1,28 @@
-#include "../VertexShader.h"
+ï»¿#include "../VertexShader.h"
 
-// ’¸“_ƒVƒF[ƒ_[‚Ì“ü—Í
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®å…¥åŠ›
 struct VS_INPUT
 {
-	float4 Position        : POSITION0 ;		// À•W( ƒgƒ‰ƒ“ƒXƒtƒH[ƒ€Ï‚İ )
+	float4 Position        : POSITION0 ;		// åº§æ¨™( ãƒˆãƒ©ãƒ³ã‚¹ãƒ•ã‚©ãƒ¼ãƒ æ¸ˆã¿ )
 
 #ifdef USE_DIFFUSE
-	float4 Diffuse         : COLOR0 ;			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[
+	float4 Diffuse         : COLOR0 ;			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
 #endif // USE_DIFFUSE
 
 #ifdef USE_SPECULAR
-	float4 Specular        : COLOR1 ;			// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
+	float4 Specular        : COLOR1 ;			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
 #endif // USE_SPECULAR
 
 #ifdef USE_TEXCOORD0
-	float2 TexCoords0      : TEXCOORD0 ;		// ƒeƒNƒXƒ`ƒƒÀ•W‚O
+	float2 TexCoords0      : TEXCOORD0 ;		// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ï¼
 #endif // USE_TEXCOORD0
 
 #ifdef USE_TEXCOORD1
-	float2 TexCoords1      : TEXCOORD1 ;		// ƒeƒNƒXƒ`ƒƒÀ•W‚P
+	float2 TexCoords1      : TEXCOORD1 ;		// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ï¼‘
 #endif // USE_TEXCOORD1
 } ;
 
-// ’¸“_ƒVƒF[ƒ_[‚Ìo—Í
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®å‡ºåŠ›
 struct VS_OUTPUT
 {
 	float4 Position        : SV_POSITION ;
@@ -31,7 +31,7 @@ struct VS_OUTPUT
 	float2 TexCoords1      : TEXCOORD1 ;
 } ;
 
-// 2D—p
+// 2Dç”¨
 VS_OUTPUT VS2D_Normal( VS_INPUT VSInput )
 {
 	VS_OUTPUT VSOutput ;
@@ -45,14 +45,14 @@ VS_OUTPUT VS2D_Normal( VS_INPUT VSInput )
 	Position.z *= Position.w ;
 
 
-	// À•W•ÏŠ·
+	// åº§æ¨™å¤‰æ›
 	VSOutput.Position.x = dot( Position, g_Base.AntiViewportMatrix[ 0 ] ) ;
 	VSOutput.Position.y = dot( Position, g_Base.AntiViewportMatrix[ 1 ] ) ;
 	VSOutput.Position.z = dot( Position, g_Base.AntiViewportMatrix[ 2 ] ) ;
 	VSOutput.Position.w = dot( Position, g_Base.AntiViewportMatrix[ 3 ] ) ;
 
 
-	// ƒpƒ‰ƒ[ƒ^ƒZƒbƒg
+	// ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚»ãƒƒãƒˆ
 #ifdef USE_DIFFUSE
 	VSOutput.Diffuse    = VSInput.Diffuse ;
 #else  // USE_DIFFUSE
@@ -81,15 +81,15 @@ VS_OUTPUT VS2D_Normal( VS_INPUT VSInput )
 
 
 
-// ’Pƒ“]‘——p’¸“_ƒVƒF[ƒ_[‚Ì“ü—Í
+// å˜ç´”è»¢é€ç”¨é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®å…¥åŠ›
 struct STRETCHRECT_VS_INPUT
 {
-	float2 Position        : POSITION0 ;		// À•W
-	float2 TexCoords0      : TEXCOORD0 ;		// ƒeƒNƒXƒ`ƒƒÀ•W0
-	float2 TexCoords1      : TEXCOORD1 ;		// ƒeƒNƒXƒ`ƒƒÀ•W1
+	float2 Position        : POSITION0 ;		// åº§æ¨™
+	float2 TexCoords0      : TEXCOORD0 ;		// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™0
+	float2 TexCoords1      : TEXCOORD1 ;		// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™1
 } ;
 
-// ’Pƒ“]‘——p’¸“_ƒVƒF[ƒ_[‚Ìo—Í
+// å˜ç´”è»¢é€ç”¨é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®å‡ºåŠ›
 struct STRETCHRECT_VS_OUTPUT
 {
 	float4 Position        : SV_POSITION ;
@@ -97,7 +97,7 @@ struct STRETCHRECT_VS_OUTPUT
 	float2 TexCoords1      : TEXCOORD1 ;
 } ;
 
-// ’Pƒ“]‘——p’¸“_ƒVƒF[ƒ_[
+// å˜ç´”è»¢é€ç”¨é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
 STRETCHRECT_VS_OUTPUT StretchRect_VS( STRETCHRECT_VS_INPUT VSInput )
 {
 	STRETCHRECT_VS_OUTPUT VSOutput ;

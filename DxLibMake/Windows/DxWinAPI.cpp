@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		WinAPIプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -105,10 +105,10 @@ extern int LoadWinAPI( void )
 		WinAPIData.Win32Func.joyGetPosExFunc = ( MMRESULT ( WINAPI * )( UINT , LPJOYINFOEX  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "joyGetPosEx" ) ;
 
 //#ifdef UNICODE
-		WinAPIData.Win32Func.joyGetDevCapsFunc = ( MMRESULT ( WINAPI * )( UINT , LPJOYCAPS , UINT  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "joyGetDevCapsW" ) ;
+		WinAPIData.Win32Func.joyGetDevCapsFunc = ( MMRESULT ( WINAPI * )( UINT , LPJOYCAPSW , UINT  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "joyGetDevCapsW" ) ;
 		WinAPIData.Win32Func.mciSendCommandFunc = ( MCIERROR ( WINAPI * )( MCIDEVICEID , UINT , DWORD_PTR , DWORD_PTR  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "mciSendCommandW" ) ;
 //#else
-//		WinAPIData.Win32Func.joyGetDevCapsFunc = ( MMRESULT ( WINAPI * )( UINT , LPJOYCAPS , UINT  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "joyGetDevCapsA" ) ;
+//		WinAPIData.Win32Func.joyGetDevCapsFunc = ( MMRESULT ( WINAPI * )( UINT , LPJOYCAPSA , UINT  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "joyGetDevCapsA" ) ;
 //		WinAPIData.Win32Func.mciSendCommandFunc = ( MCIERROR ( WINAPI * )( MCIDEVICEID , UINT , DWORD_PTR , DWORD_PTR  ) )GetProcAddress( WinAPIData.Win32Func.WinMMDLL, "mciSendCommandA" ) ;
 //#endif
 	}

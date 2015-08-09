@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		通信プログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -63,7 +63,7 @@ struct DXARC_HEAD
 	ULONGLONG					FileTableStartAddress ;			// ファイルテーブルの先頭アドレス(メンバ変数 FileNameTableStartAddress のアドレスを０とする)
 	ULONGLONG					DirectoryTableStartAddress ;	// ディレクトリテーブルの先頭アドレス(メンバ変数 FileNameTableStartAddress のアドレスを０とする)
 																// アドレス０から配置されている DXARC_DIRECTORY 構造体がルートディレクトリ
-	ULONGLONG					CodePage ;						// ファイル名に使用しているコードページ番号( Ver4以降 )
+	ULONGLONG					CharCodeFormat ;					// ファイル名に使用している文字コード形式番号( Ver4以降 )
 } ;
 
 // アーカイブデータの最初のヘッダ
@@ -77,7 +77,7 @@ struct DXARC_HEAD_VER5
 	DWORD						FileTableStartAddress ;			// ファイルテーブルの先頭アドレス(メンバ変数 FileNameTableStartAddress のアドレスを０とする)
 	DWORD						DirectoryTableStartAddress ;	// ディレクトリテーブルの先頭アドレス(メンバ変数 FileNameTableStartAddress のアドレスを０とする)
 																// アドレス０から配置されている DXARC_DIRECTORY 構造体がルートディレクトリ
-	DWORD						CodePage ;						// ファイル名に使用しているコードページ番号( Ver4以降 )
+	DWORD						CharCodeFormat ;					// ファイル名に使用している文字コード形式番号( Ver4以降 )
 } ;
 
 // ファイルの時間情報
@@ -179,7 +179,7 @@ struct DXARC
 		DXARC_HEAD				Head ;							// アーカイブのヘッダ
 		DXARC_HEAD_VER5			HeadV5 ;						// アーカイブのヘッダ(Ver5以前)
 	};
-	int							CodePage ;						// コードページ
+	int							CharCodeFormat ;					// 文字コード形式
 	DWORD_PTR					WinFilePointer__ ;				// アーカイブファイルのポインタ	
 	void						*MemoryImage ;					// メモリイメージを開いた場合のアドレス
 	DXARC_TABLE					Table ;							// 各テーブルへの先頭アドレスが格納された構造体
@@ -290,9 +290,9 @@ extern	int			DXA_CloseArchive(				DXARC *DXA ) ;													// アーカイブ�
 
 //extern int		DXA_LoadFile(					DXARC *DXA, const char *FilePath, void *Buffer, ULONGLONG BufferSize ) ;	// アーカイブファイル中の指定のファイルをメモリに読み込む( -1:エラー 0以上:ファイルサイズ )
 extern	void *		DXA_GetFileImage(				DXARC *DXA ) ;													// アーカイブファイルをメモリに読み込んだ場合のファイルイメージが格納されている先頭アドレスを取得する( DXA_OpenArchiveFromFileUseMem 若しくは DXA_OpenArchiveFromMem で開いた場合に有効、データが圧縮されている場合は注意 )
-extern	int			DXA_GetFileInfo(				DXARC *DXA, int CodePage, const char *FilePath, int *Position, int *Size ) ;	// アーカイブファイル中の指定のファイルのファイル内の位置とファイルの大きさを得る( -1:エラー )
-extern	int			DXA_ChangeCurrentDir(			DXARC *DXA, int CodePage, const char *DirPath ) ;								// アーカイブ内のカレントディレクトリを変更する( 0:成功  -1:失敗 )
-//extern int		DXA_GetCurrentDir(				DXARC *DXA, int CodePage, char *DirPathBuffer, int BufferSize ) ;				// アーカイブ内のカレントディレクトリを取得する
+extern	int			DXA_GetFileInfo(				DXARC *DXA, int CharCodeFormat, const char *FilePath, int *Position, int *Size ) ;	// アーカイブファイル中の指定のファイルのファイル内の位置とファイルの大きさを得る( -1:エラー )
+extern	int			DXA_ChangeCurrentDir(			DXARC *DXA, int CharCodeFormat, const char *DirPath ) ;								// アーカイブ内のカレントディレクトリを変更する( 0:成功  -1:失敗 )
+//extern int		DXA_GetCurrentDir(				DXARC *DXA, int CharCodeFormat, char *DirPathBuffer, int BufferSize ) ;				// アーカイブ内のカレントディレクトリを取得する
 extern	DWORD_PTR	DXA_FindFirst(					DXARC *DXA, const BYTE *FilePath, FILEINFOW *Buffer ) ;			// アーカイブ内のオブジェクトを検索する( -1:エラー -1以外:DXA検索ハンドル )
 extern	int			DXA_FindNext(					DWORD_PTR DxaFindHandle, FILEINFOW *Buffer ) ;					// アーカイブ内のオブジェクトを検索する( -1:エラー 0:成功 )
 extern	int			DXA_FindClose(					DWORD_PTR DxaFindHandle ) ;										// アーカイブ内のオブジェクト検索を終了する

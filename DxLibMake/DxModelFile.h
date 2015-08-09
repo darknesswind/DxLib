@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -78,8 +78,8 @@ namespace DxLib
 #define MV1_ANIM_KEYSET_FLAG_TIME_UNIT_UN_W					(0x0040)				// このフラグが立っていたらタイム間隔値はWORD値
 #define MV1_ANIM_KEYSET_FLAG_TIME_BIT16						(0x0080)				// このフラグが立っていたらタイム配列の値が１６ビット値
 #define MV1_ANIM_KEYSET_FLAG_KEY_BIT16						(0x0100)				// このフラグが立っていたらキーは１６ビット値
-#define MV1_ANIM_KEYSET_FLAG_KEY_MP_PP						(0x0200)				// このフラグが立っていたらキーは -PI ～ PI を 0～65535 で表したもの
-#define MV1_ANIM_KEYSET_FLAG_KEY_Z_TP						(0x0400)				// このフラグが立っていたらキーは 0.0f ～ 2 * PI を 0～65535 で表したもの
+#define MV1_ANIM_KEYSET_FLAG_KEY_MP_PP						(0x0200)				// このフラグが立っていたらキーは -PI 〜 PI を 0〜65535 で表したもの
+#define MV1_ANIM_KEYSET_FLAG_KEY_Z_TP						(0x0400)				// このフラグが立っていたらキーは 0.0f 〜 2 * PI を 0〜65535 で表したもの
 
 // 構造体定義 --------------------------------
 
@@ -104,8 +104,8 @@ struct MV1_ROTATE_F1
 // 16bitデータタイプ用補助情報構造体
 struct MV1_ANIM_KEY_16BIT_F1
 {
-	BYTE									Min ;								// 最小値( bit7:０かどうか( 0:0以外 1:0 )  bit6:符号(0:+ 1:-)  bit5:乗数方向(0:+ 1:-) bit4～0:乗数(最大10の15乗) ) 
-	BYTE									Unit ;								// 16bit値１辺りの値( bit7:乗数方向(0:+ 1:-) bit6～4:乗数(最大10の7乗) bit3～0:乗算される値( 0～15 ) )
+	BYTE									Min ;								// 最小値( bit7:０かどうか( 0:0以外 1:0 )  bit6:符号(0:+ 1:-)  bit5:乗数方向(0:+ 1:-) bit4〜0:乗数(最大10の15乗) ) 
+	BYTE									Unit ;								// 16bit値１辺りの値( bit7:乗数方向(0:+ 1:-) bit6〜4:乗数(最大10の7乗) bit3〜0:乗算される値( 0〜15 ) )
 } ;
 
 // アニメーションキー(４×４行列の４列目が(0,0,0,1)固定の行列タイプ)データ構造体
@@ -219,7 +219,7 @@ struct MV1_ANIMSET_F1
 
 	DWORD									UserData[ 4 ] ;						// 外部定義の情報
 
-	DWORD									Flag ;								// フラグ( 0bit:加算アニメーションか  1bit:キーの補間は行列線形補間か )
+	DWORD									Flag ;								// フラグ( 0bit:加算アニメーションか  1bit:キーの補間は行列線形補間か  2bit:ループアニメーションか )
 	DWORD									Padding[ 3 ] ;
 } ;
 
@@ -268,7 +268,7 @@ struct MV1_MATERIAL_TOON_F1
 	int										SpecularGradTexture ;				// ( トゥーンレンダリングでのみ使用 )スペキュラカラーグラデーションテクスチャインデックス、当たっているライトのスペキュラカラーでＵ値が決まるもの、無効の場合は－１( MV1_MODEL_BASE.Textue 配列のインデックス )
 	int										DiffuseGradBlendType ;				// ( トゥーンレンダリングでのみ使用 )ディフューズグラデーションテクスチャのブレンドタイプ( DX_MATERIAL_BLENDTYPE_TRANSLUCENT など )
 	int										SpecularGradBlendType ;				// ( トゥーンレンダリングでのみ使用 )スペキュラグラデーションテクスチャのブレンドタイプ( DX_MATERIAL_BLENDTYPE_ADDITIVE など )
-	float									OutLineWidth ;						// ( トゥーンレンダリングでのみ使用 )輪郭線の幅( 0.0f ～ 1.0f )
+	float									OutLineWidth ;						// ( トゥーンレンダリングでのみ使用 )輪郭線の幅( 0.0f 〜 1.0f )
 	COLOR_F									OutLineColor ;						// ( トゥーンレンダリングでのみ使用 )輪郭線の色
 	float									OutLineDotWidth ;					// ( トゥーンレンダリングでのみ使用 )輪郭線のドット単位での幅
 	BYTE									EnableSphereMap ;					// ( トゥーンレンダリングでのみ使用 )スフィアマップの情報が有効かどうか( 1:有効  0:無効 )
@@ -490,7 +490,7 @@ struct MV1_MESH_F1
 // シェイプ頂点データ構造体
 struct MV1_SHAPE_VERTEX_F1
 {
-	DWORD									TargetMeshVertex ;					// 対象となる頂点番号( MV1_MESH_F1.Vertex に対するインデックス )
+	int										TargetMeshVertex ;					// 対象となる頂点番号( MV1_MESH_F1.Vertex に対するインデックス )
 	VECTOR									Position ;							// 座標( 元の座標に対する差分 )
 	VECTOR									Normal ;							// 法線
 } ;

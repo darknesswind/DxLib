@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		Windows用フォント関係プログラム
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -494,7 +494,7 @@ extern int FontCacheCharAddToHandle_Timing1_PF( FONTMANAGE *ManageData, FONTCHAR
 		wchar_t AddStr[ 4 ] ;
 		int     CharNum ;
 
-		CharNum = PutCharCode( CharCode, WIN32_WCHAR_CODEPAGE, ( char * )AddStr ) / sizeof( wchar_t ) ;
+		CharNum = PutCharCode( CharCode, WIN32_WCHAR_CHARCODEFORMAT, ( char * )AddStr ) / sizeof( wchar_t ) ;
 
 		// 追加する文字の大きさを取得
 		GetTextExtentPoint32W( FontSystem_Win.Devicecontext, AddStr, CharNum, &TempSize );
@@ -584,7 +584,7 @@ extern int FontCacheCharAddToHandle_Timing1_PF( FONTMANAGE *ManageData, FONTCHAR
 			gcp.lStructSize = sizeof( gcp ) ;
 			gcp.lpGlyphs    = gcpBuffer ;
 			gcp.nGlyphs     = 2 ;
-			Bytes = PutCharCode( CharCode, DX_CODEPAGE_UTF16LE, ( char * )CodeWString ) ;
+			Bytes = PutCharCode( CharCode, DX_CHARCODEFORMAT_UTF16LE, ( char * )CodeWString ) ;
 			Result = GetCharacterPlacementW( FontSystem_Win.Devicecontext, CodeWString, Bytes / 2, 0, &gcp, GCP_GLYPHSHAPE ) ;
 			if( Result == 0 )
 			{
@@ -767,7 +767,7 @@ extern int NS_CreateFontDataFile( const TCHAR *SaveFilePath, const TCHAR *FontNa
 	DWORD					 CharaIndex ;
 	DWORD					 CharaNum ;
 	const int				 CacheCharNum = 16 ;
-	int						 CodePage ;
+	int						 CharCodeFormat ;
 
 	// 指定のパラメータに合ったフォントハンドルを作成する
 	FontCacheToTextureFlag        = NS_GetFontCacheToTextureFlag() ;
@@ -802,8 +802,8 @@ extern int NS_CreateFontDataFile( const TCHAR *SaveFilePath, const TCHAR *FontNa
 
 	ManageData = GetFontManageDataToHandle( FontHandle ) ;
 
-	// コードページの取得
-	CodePage = GetFontHandleCharCode( FontHandle ) ;
+	// 文字コード形式の取得
+	CharCodeFormat = GetFontHandleCharCodeFormat( FontHandle ) ;
 
 	// SaveCharaList が NULL の場合は、全ての文字を変換の対象にする
 	CharaNum = 0 ;
@@ -826,14 +826,14 @@ extern int NS_CreateFontDataFile( const TCHAR *SaveFilePath, const TCHAR *FontNa
 		int   StringCharNum ;
 		DWORD j ;
 
-		StringCharNum = GetStringCharNum( ( const char * )SaveCharaList, CodePage ) ;
+		StringCharNum = GetStringCharNum( ( const char * )SaveCharaList, CharCodeFormat ) ;
 		CharaList = ( DWORD * )DXALLOC( sizeof( DWORD ) * StringCharNum ) ;
 
 		SrcAddr = 0 ;
 		for( i = 0 ; i < StringCharNum ; i ++ )
 		{
-			CharCode = GetCharCode( ( const char * )&( ( BYTE * )SaveCharaList )[ SrcAddr ], CodePage, &CharBytes ) ;
-			CharCode = ConvCharCode( CharCode, CodePage, DX_CODEPAGE_UTF32LE ) ;
+			CharCode = GetCharCode( ( const char * )&( ( BYTE * )SaveCharaList )[ SrcAddr ], CharCodeFormat, &CharBytes ) ;
+			CharCode = ConvCharCode( CharCode, CharCodeFormat, DX_CHARCODEFORMAT_UTF32LE ) ;
 
 			for( j = 0 ; j < CharaNum ; j ++ )
 			{
@@ -891,10 +891,10 @@ extern int NS_CreateFontDataFile( const TCHAR *SaveFilePath, const TCHAR *FontNa
 	FontFileHeader->Magic[ 3 ]              = 'F' ;
 	FontFileHeader->Version                 = 0 ;
 	FontFileHeader->Press.BaseInfo          = ManageData->BaseInfo ;
-	FontFileHeader->Press.BaseInfo.CodePage = ( WORD )CodePage ;
+	FontFileHeader->Press.BaseInfo.CharCodeFormat = ( WORD )CharCodeFormat ;
 	FontFileHeader->Press.ImageBitDepth     = ( BYTE )BitDepth ;
 
-	ConvString( ( const char * )ManageData->FontName, WCHAR_T_CODEPAGE, ( char * )FontFileHeader->Press.FontName, DX_CODEPAGE_UTF16LE ) ;
+	ConvString( ( const char * )ManageData->FontName, WCHAR_T_CHARCODEFORMAT, ( char * )FontFileHeader->Press.FontName, DX_CHARCODEFORMAT_UTF16LE ) ;
 
 	FontCharaData = ( FONTDATAFILECHARADATA * )( FileHeaderBuffer + 1 ) ;
 	FileImageBufferAddress = 0 ;
@@ -912,7 +912,7 @@ extern int NS_CreateFontDataFile( const TCHAR *SaveFilePath, const TCHAR *FontNa
 				AddNum = CacheCharNum ;
 			}
 
-			FontCacheCharAddToHandle( AddNum, &CharaList[ CharaIndex ], FontHandle, FALSE ) ;
+			FontCacheCharAddToHandle( AddNum, &CharaList[ CharaIndex ], ManageData, FALSE ) ;
 		}
 
 		// キャッシュに存在しない場合は追加する

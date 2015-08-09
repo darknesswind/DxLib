@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ヒープ関連プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -77,7 +77,7 @@ static	void		Heap_AddFreeMemTag_TLSF( HEAPINFO *Heap, ALLOCMEMTAG *AddFreeMemTag
 static	void		Heap_SubFreeMemTag_TLSF( HEAPINFO *Heap, ALLOCMEMTAG *SubFreeMemTag ) ;										// ヒープの空きメモリリストから指定のメモリタグを外す( ALLOCMEMTYPE_TLSF用 )
 
 // ヘルパー関数
-static	void *		Heap_AllocMemory( HEAPINFO *Heap, ALLOCMEMTAG *MemTag, DWORD_PTR UseAddress, ALLOCMEM_SIZE_TYPE Size, ALLOCMEM_SIZE_TYPE Aligned, int Reverse, const char *Name, int Line ) ;		// 指定の空きメモリタグに対して指定サイズのメモリを確保した際の処理を行う
+static	void *		Heap_AllocMemory( HEAPINFO *Heap, ALLOCMEMTAG *MemTag, DWORD_PTR UseAddress, ALLOCMEM_SIZE_TYPE UserSize, ALLOCMEM_SIZE_TYPE Size, ALLOCMEM_SIZE_TYPE Aligned, int Reverse, const char *Name, int Line ) ;		// 指定の空きメモリタグに対して指定サイズのメモリを確保した際の処理を行う
 static	void		Heap_FreeMemory(  HEAPINFO *Heap, ALLOCMEMTAG *MemTag, int ReallocProcess = FALSE ) ;						// 指定の使用メモリタグを解放する処理を行う
 
 
@@ -213,13 +213,13 @@ static	void		AllocMemTag_SetBaseInfo( HEAPINFO *Heap, ALLOCMEMTAG *MemTag, int U
 		// 名前を保存
 		if( Name == NULL )
 		{
-			CL_strcpy( DX_CODEPAGE_ASCII, MemTag->Name, Use ? "NoName" : "Free" ) ;
+			CL_strcpy( DX_CHARCODEFORMAT_ASCII, MemTag->Name, Use ? "NoName" : "Free" ) ;
 		}
 		else
 		{
-//			CL_strncpy( DX_CODEPAGE_ASCII, MemTag->Name, Name, ALLOCMEMTAG_NAMELENGTH - 1 ) ;
-			int Length = CL_strlen( DX_CODEPAGE_ASCII, Name ) ;
-			CL_strcpy( DX_CODEPAGE_ASCII, MemTag->Name, &Name[ Length < ( ALLOCMEMTAG_NAMELENGTH - 1 ) ? 0 : Length - ( ALLOCMEMTAG_NAMELENGTH - 1 ) ] ) ;
+//			CL_strncpy( DX_CHARCODEFORMAT_ASCII, MemTag->Name, Name, ALLOCMEMTAG_NAMELENGTH - 1 ) ;
+			int Length = CL_strlen( DX_CHARCODEFORMAT_ASCII, Name ) ;
+			CL_strcpy( DX_CHARCODEFORMAT_ASCII, MemTag->Name, &Name[ Length < ( ALLOCMEMTAG_NAMELENGTH - 1 ) ? 0 : Length - ( ALLOCMEMTAG_NAMELENGTH - 1 ) ] ) ;
 		}
 
 		// 行番号保存
@@ -568,7 +568,7 @@ static	void		Heap_SubFreeMemTag_TLSF( HEAPINFO *Heap, ALLOCMEMTAG *SubFreeMemTag
 // ヘルパー関数
 
 // 指定の空きメモリタグに対して指定のメモリを確保した際の処理を行う
-static void * Heap_AllocMemory( HEAPINFO *Heap, ALLOCMEMTAG *MemTag, DWORD_PTR UseAddress, ALLOCMEM_SIZE_TYPE Size, ALLOCMEM_SIZE_TYPE Aligned, int Reverse, const char *Name, int Line )
+static void * Heap_AllocMemory( HEAPINFO *Heap, ALLOCMEMTAG *MemTag, DWORD_PTR UseAddress, ALLOCMEM_SIZE_TYPE UserSize, ALLOCMEM_SIZE_TYPE Size, ALLOCMEM_SIZE_TYPE Aligned, int Reverse, const char *Name, int Line )
 {
 	void *ReturnAddress = NULL ;
 
@@ -707,7 +707,7 @@ static void * Heap_AllocMemory( HEAPINFO *Heap, ALLOCMEMTAG *MemTag, DWORD_PTR U
 				Heap->TotalUseSize += NewUseMemTag->Size ;
 
 				// 指定されたサイズをセット
-				NewUseMemTag->UserSize = Size ;
+				NewUseMemTag->UserSize = UserSize ;
 
 				// 返すアドレスをセット
 				NewUseMemTag->UserAddress = ( void * )UseAddress ;
@@ -728,7 +728,7 @@ static void * Heap_AllocMemory( HEAPINFO *Heap, ALLOCMEMTAG *MemTag, DWORD_PTR U
 				// 入らない場合は、既存のメモリタグ全部を使用メモリタグにしてしまう
 
 				// 指定されたサイズをセット
-				MemTag->UserSize = Size ;
+				MemTag->UserSize = UserSize ;
 
 				// 返すアドレスをセット
 				MemTag->UserAddress = ( void * )UseAddress ;
@@ -769,7 +769,7 @@ static void * Heap_AllocMemory( HEAPINFO *Heap, ALLOCMEMTAG *MemTag, DWORD_PTR U
 		ALLOCMEMTAG *	FreePrevMemTag ;
 
 		// 指定されたサイズをセット
-		MemTag->UserSize = Size ;
+		MemTag->UserSize = UserSize ;
 
 		// 返すアドレスをセット
 		MemTag->UserAddress = ( void * )UseAddress ;
@@ -1693,6 +1693,7 @@ extern void * AllocMemory(
 )
 {
 	void *	ReturnAddress = NULL ;
+	ALLOCMEM_SIZE_TYPE	OrigSize = Size ;
 
 	DX_HEAP_ENTER_CRITICAL_SECTION( Heap )
 
@@ -1783,7 +1784,7 @@ extern void * AllocMemory(
 			else
 			{
 				// 空きメモリタグに対してメモリの確保処理を行う
-				ReturnAddress = Heap_AllocMemory( Heap, MemTag, UseAddress, Size, Aligned, Reverse, Name, Line ) ;
+				ReturnAddress = Heap_AllocMemory( Heap, MemTag, UseAddress, OrigSize, Size, Aligned, Reverse, Name, Line ) ;
 			}
 		}
 		else
@@ -1846,7 +1847,7 @@ extern void * AllocMemory(
 			else
 			{
 				// 空きメモリタグに対してメモリの確保処理を行う
-				ReturnAddress = Heap_AllocMemory( Heap, MemTag, UseAddress, Size, Aligned, Reverse, Name, Line ) ;
+				ReturnAddress = Heap_AllocMemory( Heap, MemTag, UseAddress, OrigSize, Size, Aligned, Reverse, Name, Line ) ;
 			}
 		}
 	}
@@ -1985,7 +1986,7 @@ extern void * AllocMemory(
 		}
 
 		// 空きメモリタグに対してメモリの確保処理を行う
-		ReturnAddress = Heap_AllocMemory( Heap, MemTag, UseAddress, Size, Aligned, Reverse, Name, Line ) ;
+		ReturnAddress = Heap_AllocMemory( Heap, MemTag, UseAddress, OrigSize, Size, Aligned, Reverse, Name, Line ) ;
 	}
 
 	DX_HEAP_LEAVE_CRITICAL_SECTION( Heap )
@@ -1996,9 +1997,10 @@ extern void * AllocMemory(
 // 確保したメモリのサイズを変更する( UseSeparateInfo=TRUE の場合は、AllocAddress に ALLOCMEMTAG 構造体のアドレスを渡す )
 extern void * ReallocMemory( void *AllocAddress, int UseSeparateInfo, ALLOCMEM_SIZE_TYPE Size, ALLOCMEM_SIZE_TYPE Aligned, const char *Name, int Line )
 {
-	ALLOCMEMTAG *	MemTag ;
-	HEAPINFO *		Heap ;
-	void *			ReturnAddress = NULL ;
+	ALLOCMEMTAG *		MemTag ;
+	HEAPINFO *			Heap ;
+	ALLOCMEM_SIZE_TYPE	OrigSize = Size ;
+	void *				ReturnAddress = NULL ;
 
 	if( AllocAddress == NULL )
 	{
@@ -2049,7 +2051,7 @@ extern void * ReallocMemory( void *AllocAddress, int UseSeparateInfo, ALLOCMEM_S
 	Size = ( Size + Aligned - 1 ) / Aligned * Aligned ;
 
 	// 確保時と指定されたサイズが同じ場合はファイル名と行番号だけ更新する
-	if( MemTag->UserSize == Size )
+	if( MemTag->UserSize == OrigSize )
 	{
 		AllocMemTag_SetBaseInfo( Heap, MemTag, TRUE, TRUE, Name, Line ) ;
 
@@ -2144,7 +2146,7 @@ extern void * ReallocMemory( void *AllocAddress, int UseSeparateInfo, ALLOCMEM_S
 			// 新しいメモリ領域を確保
 			ReturnAddress = AllocMemory(
 				Heap,
-				Size,
+				OrigSize,
 				Aligned,
 				FALSE,
 				Name,
@@ -2181,6 +2183,7 @@ extern void * ReallocMemory( void *AllocAddress, int UseSeparateInfo, ALLOCMEM_S
 				Heap,
 				MemTag,
 				UseAddress,
+				OrigSize,
 				Size,
 				Aligned,
 				FALSE,
@@ -2381,7 +2384,7 @@ extern void PrintInfoMemory( void *AllocAddress, int UseSeparateInfo )
 		MemTag = ( ALLOCMEMTAG * )( ( BYTE * )AllocAddress - *( ( DWORD * )( ( BYTE * )AllocAddress - sizeof( DWORD ) ) ) ) ;
 	}
 
-	CL_sprintf( DX_CODEPAGE_ASCII, FALSE, DX_CODEPAGE_ASCII, WCHAR_T_CODEPAGE, str,
+	CL_sprintf( DX_CHARCODEFORMAT_ASCII, FALSE, DX_CHARCODEFORMAT_ASCII, WCHAR_T_CHARCODEFORMAT, str,
 #ifdef __64BIT__
 		"\tsize:%10d(%10.3fkb)  user size:%10d(%10.3fkb)  time:%05d  file:%-26s  line:%-6d  ID:%-5d  addr:%016llx",
 #else // __64BIT__
@@ -2404,21 +2407,24 @@ extern void PrintInfoMemory( void *AllocAddress, int UseSeparateInfo )
 		size_t	len ;
 		size_t	i ;
 
-		CL_strcpy( DX_CODEPAGE_ASCII, str + CL_strlen( DX_CODEPAGE_ASCII, str ), "  data:<" ) ;
+//		CL_strcpy( DX_CHARCODEFORMAT_ASCII, str + CL_strlen( DX_CHARCODEFORMAT_ASCII, str ), "  data:<" ) ;
 		len = 16 < MemTag->UserSize ? 16 : MemTag->UserSize ;
-		p = str + CL_strlen( DX_CODEPAGE_ASCII, str ) ;
+		p = str + CL_strlen( DX_CHARCODEFORMAT_ASCII, str ) ;
 		d = ( BYTE * )MemTag->UserAddress ;
-		for( i = 0 ; i < len ; i ++, p ++ )
-		{
-			*p = d[ i ] < 0x20 ? '.' : d[ i ] ;
-		}
-		CL_strcpy( DX_CODEPAGE_ASCII, p, "> [" ) ;
-		p += 3 ;
+//		for( i = 0 ; i < len ; i ++, p ++ )
+//		{
+//			*p = d[ i ] < 0x20 ? '.' : d[ i ] ;
+//		}
+//		CL_strcpy( DX_CHARCODEFORMAT_ASCII, p, "> [" ) ;
+//		p += 3 ;
+
+		CL_strcpy( DX_CHARCODEFORMAT_ASCII, p, "  data:[" ) ;
+		p += 8 ;
 		for( i = 0 ; i < len ; i ++, p += 3, d ++ )
 		{
-			CL_sprintf( DX_CODEPAGE_ASCII, FALSE, DX_CODEPAGE_ASCII, WCHAR_T_CODEPAGE, p, "%02x ", *( ( unsigned char * ) d ) ) ;
+			CL_sprintf( DX_CHARCODEFORMAT_ASCII, FALSE, DX_CHARCODEFORMAT_ASCII, WCHAR_T_CHARCODEFORMAT, p, "%02x ", *( ( unsigned char * ) d ) ) ;
 		}
-		CL_strcpy( DX_CODEPAGE_ASCII, &p[ -1 ], "]\n" ) ;
+		CL_strcpy( DX_CHARCODEFORMAT_ASCII, &p[ -1 ], "]\n" ) ;
 	}
 
 	DXST_ERRORLOG_ADDA( str ) ;

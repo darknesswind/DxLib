@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ読み込みプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -20,7 +20,6 @@
 #include "DxMemory.h"
 #include "DxMath.h"
 #include "DxLog.h"
-#include "Windows/DxWindow.h"
 #include "DxSystem.h"
 
 #ifdef DX_USE_NAMESPACE
@@ -2881,7 +2880,7 @@ extern int MV1RLoadFile( const char *FilePath, void **FileImage, int *FileSize )
 	wchar_t FilePathW[ 512 ] ;
 
 	// テクスチャファイルを開く
-	ConvString( ( const char * )FilePath, DX_CODEPAGE_SHIFTJIS, ( char * )FilePathW, WCHAR_T_CODEPAGE ) ;
+	ConvString( ( const char * )FilePath, DX_CHARCODEFORMAT_SHIFTJIS, ( char * )FilePathW, WCHAR_T_CHARCODEFORMAT ) ;
 	FileHandle = FOPEN( FilePathW ) ;
 
 	// ファイルが開けなかったらカレントフォルダから開こうとしてみる
@@ -3097,7 +3096,7 @@ extern char *MV1RAddStringWToA(	MV1_MODEL_R *ReadModel, const wchar_t *String )
 {
 	char TempBuffer[ 512 ] ;
 
-	ConvString( ( const char * )String, WCHAR_T_CODEPAGE, TempBuffer, ReadModel->CodePage ) ;
+	ConvString( ( const char * )String, WCHAR_T_CHARCODEFORMAT, TempBuffer, ReadModel->CharCodeFormat ) ;
 	return MV1RAddString( ReadModel, TempBuffer ) ;
 }
 
@@ -3108,7 +3107,7 @@ extern wchar_t *MV1RAddStringAToW( MV1_MODEL_R *ReadModel, const char *String )
 {
 	wchar_t TempBuffer[ 512 ] ;
 
-	ConvString( String, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+	ConvString( String, ReadModel->CharCodeFormat, ( char * )TempBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 	return MV1RAddStringW( ReadModel, TempBuffer ) ;
 }
 
@@ -3123,14 +3122,14 @@ static MV1_FRAME_R *MV1RAddFrameBase( MV1_MODEL_R *ReadModel, const char *NameA,
 #ifndef UNICODE
 	if( NameA == NULL )
 	{
-		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		ConvString( ( const char * )NameW, WCHAR_T_CHARCODEFORMAT, ( char * )TempBuffer, ReadModel->CharCodeFormat ) ;
 		NameA = ( const char * )TempBuffer ;
 	}
 	else
 #endif
 	if( NameW == NULL )
 	{
-		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		ConvString( ( const char * )NameA, ReadModel->CharCodeFormat, ( char * )TempBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 		NameW = ( const wchar_t * )TempBuffer ;
 	}
 
@@ -3350,14 +3349,14 @@ static MV1_SHAPE_R *MV1RAddShapeBase( MV1_MODEL_R *ReadModel, const char *NameA,
 #ifndef UNICODE
 	if( NameA == NULL )
 	{
-		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		ConvString( ( const char * )NameW, WCHAR_T_CHARCODEFORMAT, ( char * )TempBuffer, ReadModel->CharCodeFormat ) ;
 		NameA = ( const char * )TempBuffer ;
 	}
 	else
 #endif
 	if( NameW == NULL )
 	{
-		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		ConvString( ( const char * )NameA, ReadModel->CharCodeFormat, ( char * )TempBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 		NameW = ( const wchar_t * )TempBuffer ;
 	}
 
@@ -3413,14 +3412,14 @@ static MV1_PHYSICS_RIGIDBODY_R *MV1RAddPhysicsRididBodyBase( MV1_MODEL_R *ReadMo
 #ifndef UNICODE
 	if( NameA == NULL )
 	{
-		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		ConvString( ( const char * )NameW, WCHAR_T_CHARCODEFORMAT, ( char * )TempBuffer, ReadModel->CharCodeFormat ) ;
 		NameA = ( const char * )TempBuffer ;
 	}
 	else
 #endif
 	if( NameW == NULL )
 	{
-		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		ConvString( ( const char * )NameA, ReadModel->CharCodeFormat, ( char * )TempBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 		NameW = ( const wchar_t * )TempBuffer ;
 	}
 
@@ -3475,14 +3474,14 @@ static MV1_PHYSICS_JOINT_R *MV1RAddPhysicsJointBase( MV1_MODEL_R *ReadModel, con
 #ifndef UNICODE
 	if( NameA == NULL )
 	{
-		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		ConvString( ( const char * )NameW, WCHAR_T_CHARCODEFORMAT, ( char * )TempBuffer, ReadModel->CharCodeFormat ) ;
 		NameA = ( const char * )TempBuffer ;
 	}
 	else
 #endif
 	if( NameW == NULL )
 	{
-		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		ConvString( ( const char * )NameA, ReadModel->CharCodeFormat, ( char * )TempBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 		NameW = ( const wchar_t * )TempBuffer ;
 	}
 
@@ -3577,14 +3576,14 @@ static MV1_MATERIAL_R *MV1RAddMaterialBase( MV1_MODEL_R *ReadModel, const char *
 #ifndef UNICODE
 	if( NameA == NULL )
 	{
-		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		ConvString( ( const char * )NameW, WCHAR_T_CHARCODEFORMAT, ( char * )TempBuffer, ReadModel->CharCodeFormat ) ;
 		NameA = ( const char * )TempBuffer ;
 	}
 	else
 #endif
 	if( NameW == NULL )
 	{
-		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		ConvString( ( const char * )NameA, ReadModel->CharCodeFormat, ( char * )TempBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 		NameW = ( const wchar_t * )TempBuffer ;
 	}
 
@@ -3680,14 +3679,14 @@ static MV1_TEXTURE_R *MV1RAddTextureBase(
 #ifndef UNICODE
 	if( NameA == NULL )
 	{
-		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempNameBuffer, ReadModel->CodePage ) ;
+		ConvString( ( const char * )NameW, WCHAR_T_CHARCODEFORMAT, ( char * )TempNameBuffer, ReadModel->CharCodeFormat ) ;
 		NameA = ( const char * )TempNameBuffer ;
 	}
 	else
 #endif
 	if( NameW == NULL )
 	{
-		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempNameBuffer, WCHAR_T_CODEPAGE ) ;
+		ConvString( ( const char * )NameA, ReadModel->CharCodeFormat, ( char * )TempNameBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 		NameW = ( const wchar_t * )TempNameBuffer ;
 	}
 
@@ -3696,14 +3695,14 @@ static MV1_TEXTURE_R *MV1RAddTextureBase(
 #ifndef UNICODE
 		if( ColorFilePathA == NULL )
 		{
-			ConvString( ( const char * )ColorFilePathW, WCHAR_T_CODEPAGE, ( char * )TempColorFilePathBuffer, ReadModel->CodePage ) ;
+			ConvString( ( const char * )ColorFilePathW, WCHAR_T_CHARCODEFORMAT, ( char * )TempColorFilePathBuffer, ReadModel->CharCodeFormat ) ;
 			ColorFilePathA = ( const char * )TempColorFilePathBuffer ;
 		}
 		else
 #endif
 		if( ColorFilePathW == NULL )
 		{
-			ConvString( ( const char * )ColorFilePathA, ReadModel->CodePage, ( char * )TempColorFilePathBuffer, WCHAR_T_CODEPAGE ) ;
+			ConvString( ( const char * )ColorFilePathA, ReadModel->CharCodeFormat, ( char * )TempColorFilePathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 			ColorFilePathW = ( const wchar_t * )TempColorFilePathBuffer ;
 		}
 	}
@@ -3713,14 +3712,14 @@ static MV1_TEXTURE_R *MV1RAddTextureBase(
 #ifndef UNICODE
 		if( AlphaFilePathA == NULL )
 		{
-			ConvString( ( const char * )AlphaFilePathW, WCHAR_T_CODEPAGE, ( char * )TempAlphaFilePathBuffer, ReadModel->CodePage ) ;
+			ConvString( ( const char * )AlphaFilePathW, WCHAR_T_CHARCODEFORMAT, ( char * )TempAlphaFilePathBuffer, ReadModel->CharCodeFormat ) ;
 			AlphaFilePathA = ( const char * )TempAlphaFilePathBuffer ;
 		}
 		else
 #endif
 		if( AlphaFilePathW == NULL )
 		{
-			ConvString( ( const char * )AlphaFilePathA, ReadModel->CodePage, ( char * )TempAlphaFilePathBuffer, WCHAR_T_CODEPAGE ) ;
+			ConvString( ( const char * )AlphaFilePathA, ReadModel->CharCodeFormat, ( char * )TempAlphaFilePathBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 			AlphaFilePathW = ( const wchar_t * )TempAlphaFilePathBuffer ;
 		}
 	}
@@ -3868,7 +3867,7 @@ static MV1_TEXTURE_R *MV1RAddTextureBase(
 	if( ColorFilePathW )
 	{
 #ifndef UNICODE
-		ConvString( ( const char * )ColorOpenFilePathW, WCHAR_T_CODEPAGE, ( char * )TempColorFilePathBuffer, ReadModel->CodePage ) ;
+		ConvString( ( const char * )ColorOpenFilePathW, WCHAR_T_CHARCODEFORMAT, ( char * )TempColorFilePathBuffer, ReadModel->CharCodeFormat ) ;
 		ColorOpenFilePathA = ( const char * )TempColorFilePathBuffer ;
 
 		Texture->ColorFileNameA = MV1RAddString( ReadModel, ColorOpenFilePathA ) ;
@@ -3889,7 +3888,7 @@ static MV1_TEXTURE_R *MV1RAddTextureBase(
 	if( AlphaFilePathW )
 	{
 #ifndef UNICODE
-		ConvString( ( const char * )AlphaOpenFilePathW, WCHAR_T_CODEPAGE, ( char * )TempAlphaFilePathBuffer, ReadModel->CodePage ) ;
+		ConvString( ( const char * )AlphaOpenFilePathW, WCHAR_T_CHARCODEFORMAT, ( char * )TempAlphaFilePathBuffer, ReadModel->CharCodeFormat ) ;
 		AlphaOpenFilePathA = ( const char * )TempAlphaFilePathBuffer ;
 
 		Texture->AlphaFileNameA = MV1RAddString( ReadModel, AlphaOpenFilePathA ) ;
@@ -3964,14 +3963,14 @@ static MV1_ANIMSET_R *MV1RAddAnimSetBase( MV1_MODEL_R *ReadModel, const char *Na
 #ifndef UNICODE
 	if( NameA == NULL )
 	{
-		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		ConvString( ( const char * )NameW, WCHAR_T_CHARCODEFORMAT, ( char * )TempBuffer, ReadModel->CharCodeFormat ) ;
 		NameA = ( const char * )TempBuffer ;
 	}
 	else
 #endif
 	if( NameW == NULL )
 	{
-		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		ConvString( ( const char * )NameA, ReadModel->CharCodeFormat, ( char * )TempBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 		NameW = ( const wchar_t * )TempBuffer ;
 	}
 
@@ -4063,14 +4062,14 @@ static MV1_LIGHT_R *MV1RAddLightBase( MV1_MODEL_R *ReadModel, const char *NameA,
 #ifndef UNICODE
 	if( NameA == NULL )
 	{
-		ConvString( ( const char * )NameW, WCHAR_T_CODEPAGE, ( char * )TempBuffer, ReadModel->CodePage ) ;
+		ConvString( ( const char * )NameW, WCHAR_T_CHARCODEFORMAT, ( char * )TempBuffer, ReadModel->CharCodeFormat ) ;
 		NameA = ( const char * )TempBuffer ;
 	}
 	else
 #endif
 	if( NameW == NULL )
 	{
-		ConvString( ( const char * )NameA, ReadModel->CodePage, ( char * )TempBuffer, WCHAR_T_CODEPAGE ) ;
+		ConvString( ( const char * )NameA, ReadModel->CharCodeFormat, ( char * )TempBuffer, WCHAR_T_CHARCODEFORMAT ) ;
 		NameW = ( const wchar_t * )TempBuffer ;
 	}
 
@@ -5159,6 +5158,9 @@ extern int MV1LoadModelToReadModel(
 #endif
 				MBAnimSet->NameW = MV1RGetStringSpaceW( MBase, AnimSet->NameW ) ;
 
+				// ループアニメーションかどうかをセット
+				MBAnimSet->IsLoopAnim = AnimSet->IsLoopAnim ;
+
 				// 加算アニメーションかどうかをセット
 				MBAnimSet->IsAddAnim = AnimSet->IsAddAnim ;
 
@@ -5900,7 +5902,7 @@ extern int MV1LoadModelToReadModel(
 							{
 								char FrameNameUTF16LE[ 512 ] ;
 
-								ConvString( ( const char * )Frame->NameW, WCHAR_T_CODEPAGE, FrameNameUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+								ConvString( ( const char * )Frame->NameW, WCHAR_T_CHARCODEFORMAT, FrameNameUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 								DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x52\x00\x65\x00\x61\x00\x64\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00\x20\x00\x43\x00\x6f\x00\x6e\x00\x76\x00\x65\x00\x72\x00\x74\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\xd5\x30\xec\x30\xfc\x30\xe0\x30\x20\x00\x25\x00\x73\x00\x20\x00\x6e\x30\xb9\x30\xad\x30\xcb\x30\xf3\x30\xb0\x30\xe1\x30\xc3\x30\xb7\x30\xe5\x30\x6e\x30\xb9\x30\xad\x30\xf3\x30\xa6\x30\xa8\x30\xa4\x30\xc8\x30\xc5\x60\x31\x58\x67\x30\x00\x4e\xf4\x81\x59\x30\x8b\x30\xce\x30\xfc\x30\xc9\x30\x6e\x30\x21\x71\x44\x30\xea\x30\xf3\x30\xaf\x30\xc5\x60\x31\x58\x4c\x30\x42\x30\x8a\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"Read Model Convert Error : フレーム %s のスキニングメッシュのスキンウエイト情報で一致するノードの無いリンク情報がありました\n" @*/, FrameNameUTF16LE ) ) ;
 								goto ERRORLABEL ;
 							}

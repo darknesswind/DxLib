@@ -2,7 +2,7 @@
 //
 //		ＤＸライブラリ　ムービー再生処理用プログラム
 //
-//				Ver 3.14d
+//				Ver 3.14f
 //
 // ----------------------------------------------------------------------------
 
@@ -63,6 +63,12 @@ extern int InitializeMovieManage( void )
 	// ハンドル管理情報の初期化
 	InitializeHandleManage( DX_HANDLETYPE_MOVIE, sizeof( MOVIEGRAPH ), MAX_MOVIE_NUM, InitializeMovieHandle, TerminateMovieHandle, L"Movie" ) ;
 
+	// 環境依存の初期化処理を行う
+	if( InitializeMovieManage_PF() < 0 )
+	{
+		return -1 ;
+	}
+
 	// 初期化フラグ立てる
 	MOVIE.InitializeFlag = TRUE ;
 
@@ -75,6 +81,12 @@ extern int TerminateMovieManage( void )
 {
 	if( MOVIE.InitializeFlag == FALSE )
 		return -1 ;
+
+	// 環境依存の後始末処理を行う
+	if( TerminateMovieManage_PF() < 0 )
+	{
+		return -1 ;
+	}
 
 	// ハンドル管理情報の後始末
 	TerminateHandleManage( DX_HANDLETYPE_MOVIE ) ;
@@ -558,11 +570,9 @@ extern int GetMovieState( int MovieHandle )
 		// 環境依存処理
 		return GetMovieState_PF( Movie ) ;
 	}
-
-	return Movie->PlayFlag ;
 }
 
-// ムービーのボリュームをセットする(0～10000)
+// ムービーのボリュームをセットする(0〜10000)
 extern int SetMovieVolume( int Volume, int MovieHandle )
 {
 	MOVIEGRAPH * Movie ;

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		文字コード関係プログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -22,17 +22,6 @@ namespace DxLib
 #endif // DX_USE_NAMESPACE
 
 // マクロ定義 --------------------------------------------------------------------
-
-#define DX_CODEPAGE_SHIFTJIS	(932)
-#define DX_CODEPAGE_GB2312		(936)
-#define DX_CODEPAGE_UHC			(949)
-#define DX_CODEPAGE_BIG5		(950)
-#define DX_CODEPAGE_UTF16LE		(1200)
-#define DX_CODEPAGE_UTF16BE		(1201)
-#define DX_CODEPAGE_ASCII		(1252)
-#define DX_CODEPAGE_UTF8		(65001)
-#define DX_CODEPAGE_UTF32LE		(32766)			// 正式なコードが無かったので勝手に定義
-#define DX_CODEPAGE_UTF32BE		(32767)			// 正式なコードが無かったので勝手に定義
 
 // シフトJIS２バイト文字判定
 #define CHECK_SHIFTJIS_2BYTE( x )			( ( BYTE )( ( ( ( BYTE )(x) ) ^ 0x20) - ( BYTE )0xa1 ) < 0x3c )
@@ -86,38 +75,60 @@ extern CHARCODESYSTEM g_CharCodeSystem ;
 
 extern	int				InitCharCode( void ) ;																			// 文字コード関連処理の初期化を行う
 
-extern	int				GetCodePageUnitSize(	int CodePage ) ;														// 指定のコードページの情報最少サイズを取得する( 戻り値：バイト数 )
-extern	int				GetCharBytes(			const char *CharCode, int CodePage ) ;									// １文字のバイト数を取得する( 戻り値：１文字のバイト数 )
-extern	DWORD			GetCharCode(			const char *CharCode, int CodePage, int *CharBytes ) ;					// １文字の文字コードと文字のバイト数を取得する
-extern	int				PutCharCode(			DWORD CharCode, int CodePage, char *Dest ) ;							// 文字コードを通常の文字列に変換する、終端にヌル文字は書き込まない( 戻り値：書き込んだバイト数 )
-extern	DWORD			ConvCharCode(			DWORD SrcCharCode, int SrcCodePage, int DestCodePage ) ;				// 文字コードを指定のコードページの文字に変換する
-extern	int				ConvCharCodeString(		const DWORD *Src, int SrcCodePage, DWORD *Dest, int DestCodePage ) ;	// １文字４バイトの配列を、別コードページの１文字４バイトの配列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
-extern	int				StringToCharCodeString( const char  *Src, int SrcCodePage, DWORD  *Dest ) ;						// 文字列を１文字４バイトの配列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
-extern	int				CharCodeStringToString( const DWORD *Src, char *Dest, int DestCodePage ) ;						// １文字４バイトの配列を文字列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
-extern	int				ConvString(				const char *Src, int SrcCodePage, char *Dest, int DestCodePage ) ;		// 文字列を指定のコードページの文字列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
-extern	int				GetStringCharNum(		const char *String, int CodePage ) ;									// 文字列に含まれる文字数を取得する
-extern	const char *	GetStringCharAddress(	const char *String, int CodePage, int Index ) ;							// 指定番号の文字のアドレスを取得する
-extern	DWORD			GetStringCharCode(		const char *String, int CodePage, int Index ) ;							// 指定番号の文字のコードを取得する
+extern	int				GetCharCodeFormatUnitSize(	int CharCodeFormat ) ;														// 指定の文字コード形式の情報最少サイズを取得する( 戻り値：バイト数 )
+extern	int				GetCharBytes(			const char *CharCode, int CharCodeFormat ) ;									// １文字のバイト数を取得する( 戻り値：１文字のバイト数 )
+extern	DWORD			GetCharCode(			const char *CharCode, int CharCodeFormat, int *CharBytes ) ;					// １文字の文字コードと文字のバイト数を取得する
+extern	int				PutCharCode(			DWORD CharCode, int CharCodeFormat, char *Dest ) ;							// 文字コードを通常の文字列に変換する、終端にヌル文字は書き込まない( 戻り値：書き込んだバイト数 )
+extern	DWORD			ConvCharCode(			DWORD SrcCharCode, int SrcCharCodeFormat, int DestCharCodeFormat ) ;				// 文字コードを指定の文字コード形式の文字に変換する
+extern	int				ConvCharCodeString(		const DWORD *Src, int SrcCharCodeFormat, DWORD *Dest, int DestCharCodeFormat ) ;	// １文字４バイトの配列を、別文字コード形式の１文字４バイトの配列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
+extern	int				StringToCharCodeString( const char  *Src, int SrcCharCodeFormat, DWORD  *Dest ) ;						// 文字列を１文字４バイトの配列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
+extern	int				CharCodeStringToString( const DWORD *Src, char *Dest, int DestCharCodeFormat ) ;						// １文字４バイトの配列を文字列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
+extern	int				ConvString(				const char *Src, int SrcCharCodeFormat, char *Dest, int DestCharCodeFormat ) ;		// 文字列を指定の文字コード形式の文字列に変換する( 戻り値：変換後のサイズ、ヌル文字含む( 単位：バイト ) )
+extern	int				GetStringCharNum(		const char *String, int CharCodeFormat ) ;									// 文字列に含まれる文字数を取得する
+extern	const char *	GetStringCharAddress(	const char *String, int CharCodeFormat, int Index ) ;							// 指定番号の文字のアドレスを取得する
+extern	DWORD			GetStringCharCode(		const char *String, int CharCodeFormat, int Index ) ;							// 指定番号の文字のコードを取得する
 
-extern	void			CL_strcpy(            int CodePage, char *Dest, const char *Src ) ;
-extern	void			CL_strncpy(           int CodePage, char *Dest, const char *Src, int Num ) ;
-extern	void			CL_strcat(            int CodePage, char *Dest, const char *Src ) ;
-extern	const char *	CL_strstr(            int CodePage, const char *Str1, const char *Str2 ) ;
-extern	int				CL_strlen(            int CodePage, const char *Str ) ;
-extern	int				CL_strcmp(            int CodePage, const char *Str1, const char *Str2 ) ;
-extern	int				CL_stricmp(           int CodePage, const char *Str1, const char *Str2 ) ;
-extern	int				CL_strcmp_str2_ascii( int CodePage, const char *Str1, const char *Str2 ) ;
-extern	int				CL_strncmp(           int CodePage, const char *Str1, const char *Str2, int Size ) ;
-extern	const char *	CL_strchr(            int CodePage, const char *Str, DWORD CharCode ) ;
-extern	const char *	CL_strrchr(           int CodePage, const char *Str, DWORD CharCode ) ;
-extern	char *			CL_strupr(            int CodePage, char *Str ) ;
-extern	int				CL_vsprintf(          int CodePage, int IsWChar, int CharCodePage, int WCharCodePage, char *Buffer, const char *FormatString, va_list Arg ) ;
-extern	int				CL_sprintf(           int CodePage, int IsWChar, int CharCodePage, int WCharCodePage, char *Buffer, const char *FormatString, ... ) ;
-extern	char *			CL_itoa(              int CodePage, int Value, char *Buffer, int Radix ) ;
-extern	int				CL_atoi(              int CodePage, const char *Str ) ;
-extern	double			CL_atof(              int CodePage, const char *Str ) ;
-extern	int				CL_vsscanf(           int CodePage, int IsWChar, int CharCodePage, int WCharCodePage, const char *String, const char *FormatString, va_list Arg ) ;
-extern	int				CL_sscanf(            int CodePage, int IsWChar, int CharCodePage, int WCharCodePage, const char *String, const char *FormatString, ... ) ;
+extern	void			CL_strcpy(            int CharCodeFormat, char *Dest, const char *Src ) ;
+extern	void			CL_strpcpy(           int CharCodeFormat, char *Dest, const char *Src, int Pos ) ;
+extern	void			CL_strpcpy2(          int CharCodeFormat, char *Dest, const char *Src, int Pos ) ;
+extern	void			CL_strncpy(           int CharCodeFormat, char *Dest, const char *Src, int Num ) ;
+extern	void			CL_strncpy2(          int CharCodeFormat, char *Dest, const char *Src, int Num ) ;
+extern	void			CL_strrncpy(          int CharCodeFormat, char *Dest, const char *Src, int Num ) ;
+extern	void			CL_strrncpy2(         int CharCodeFormat, char *Dest, const char *Src, int Num ) ;
+extern	void			CL_strpncpy(          int CharCodeFormat, char *Dest, const char *Src, int Pos, int Num ) ;
+extern	void			CL_strpncpy2(         int CharCodeFormat, char *Dest, const char *Src, int Pos, int Num ) ;
+extern	void			CL_strcat(            int CharCodeFormat, char *Dest, const char *Src ) ;
+extern	int				CL_strlen(            int CharCodeFormat, const char *Str ) ;
+extern	int				CL_strlen2(           int CharCodeFormat, const char *Str ) ;
+extern	int				CL_strcmp(            int CharCodeFormat, const char *Str1, const char *Str2 ) ;
+extern	int				CL_stricmp(           int CharCodeFormat, const char *Str1, const char *Str2 ) ;
+extern	int				CL_strcmp_str2_ascii( int CharCodeFormat, const char *Str1, const char *Str2 ) ;
+extern	int				CL_strncmp(           int CharCodeFormat, const char *Str1, const char *Str2, int Num ) ;
+extern	int				CL_strncmp2(          int CharCodeFormat, const char *Str1, const char *Str2, int Num ) ;
+extern	int				CL_strpncmp(          int CharCodeFormat, const char *Str1, const char *Str2, int Pos, int Num ) ;
+extern	int				CL_strpncmp2(         int CharCodeFormat, const char *Str1, const char *Str2, int Pos, int Num ) ;
+extern	DWORD			CL_strgetchr(         int CharCodeFormat, const char *Str, int Pos, int *CharNums ) ;
+extern	DWORD			CL_strgetchr2(        int CharCodeFormat, const char *Str, int Pos, int *CharNums ) ;
+extern	int				CL_strputchr(         int CharCodeFormat, char *Str, int Pos, DWORD CharCode ) ;
+extern	int				CL_strputchr2(        int CharCodeFormat, char *Str, int Pos, DWORD CharCode ) ;
+extern	const char *	CL_strpos(            int CharCodeFormat, const char *Str, int Pos ) ;
+extern	const char *	CL_strpos2(           int CharCodeFormat, const char *Str, int Pos ) ;
+extern	const char *	CL_strstr(            int CharCodeFormat, const char *Str1, const char *Str2 ) ;
+extern	int				CL_strstr2(           int CharCodeFormat, const char *Str1, const char *Str2 ) ;
+extern	const char *	CL_strrstr(           int CharCodeFormat, const char *Str1, const char *Str2 ) ;
+extern	int				CL_strrstr2(          int CharCodeFormat, const char *Str1, const char *Str2 ) ;
+extern	const char *	CL_strchr(            int CharCodeFormat, const char *Str, DWORD CharCode ) ;
+extern	int				CL_strchr2(           int CharCodeFormat, const char *Str, DWORD CharCode ) ;
+extern	const char *	CL_strrchr(           int CharCodeFormat, const char *Str, DWORD CharCode ) ;
+extern	int				CL_strrchr2(          int CharCodeFormat, const char *Str, DWORD CharCode ) ;
+extern	char *			CL_strupr(            int CharCodeFormat, char *Str ) ;
+extern	int				CL_vsprintf(          int CharCodeFormat, int IsWChar, int CharCharCodeFormat, int WCharCharCodeFormat, char *Buffer, const char *FormatString, va_list Arg ) ;
+extern	int				CL_sprintf(           int CharCodeFormat, int IsWChar, int CharCharCodeFormat, int WCharCharCodeFormat, char *Buffer, const char *FormatString, ... ) ;
+extern	char *			CL_itoa(              int CharCodeFormat, int Value, char *Buffer, int Radix ) ;
+extern	int				CL_atoi(              int CharCodeFormat, const char *Str ) ;
+extern	double			CL_atof(              int CharCodeFormat, const char *Str ) ;
+extern	int				CL_vsscanf(           int CharCodeFormat, int IsWChar, int CharCharCodeFormat, int WCharCharCodeFormat, const char *String, const char *FormatString, va_list Arg ) ;
+extern	int				CL_sscanf(            int CharCodeFormat, int IsWChar, int CharCharCodeFormat, int WCharCharCodeFormat, const char *String, const char *FormatString, ... ) ;
 
 #ifdef DX_USE_NAMESPACE
 

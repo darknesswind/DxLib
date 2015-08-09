@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		標準関数の互換関数プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -54,30 +54,30 @@ extern int _GET_CHARSET( void )
 	return g_BaseFuncSystem.UseCharSet ;
 }
 
-extern void _SET_CHAR_CODEPAGE( int CodePage )
+extern void _SET_CHAR_CHARCODEFORMAT( int CharCodeFormat )
 {
-	g_BaseFuncSystem.Use_char_CodePage = CodePage ;
+	g_BaseFuncSystem.Use_char_CharCodeFormat = CharCodeFormat ;
 }
 
-extern int _GET_CHAR_CODEPAGE( void )
+extern int _GET_CHAR_CHARCODEFORMAT( void )
 {
-	return g_BaseFuncSystem.Use_char_CodePage ;
+	return g_BaseFuncSystem.Use_char_CharCodeFormat ;
 }
 
-extern void _SET_WCHAR_T_CODEPAGE( int CodePage )
+extern void _SET_WCHAR_T_CHARCODEFORMAT( int CharCodeFormat )
 {
-	g_BaseFuncSystem.Use_wchar_t_CodePage = CodePage ;
+	g_BaseFuncSystem.Use_wchar_t_CharCodeFormat = CharCodeFormat ;
 }
 
-extern int _GET_WCHAR_T_CODEPAGE( void )
+extern int _GET_WCHAR_T_CHARCODEFORMAT( void )
 {
-	return g_BaseFuncSystem.Use_wchar_t_CodePage ;
+	return g_BaseFuncSystem.Use_wchar_t_CharCodeFormat ;
 }
 
 // 文字列処理関数
 extern void _STRCPY( char *Dest, const char *Src )
 {
-	CL_strcpy( CHAR_CODEPAGE, Dest, Src ) ;
+	CL_strcpy( CHAR_CHARCODEFORMAT, Dest, Src ) ;
 //	int i ;
 //	for( i = 0 ; Src[i] != '\0' ; i ++ ) Dest[i] = Src[i] ;
 //	Dest[i] = '\0' ;
@@ -85,7 +85,7 @@ extern void _STRCPY( char *Dest, const char *Src )
 
 extern void _WCSCPY( wchar_t *Dest, const wchar_t *Src )
 {
-	CL_strcpy( WCHAR_T_CODEPAGE, ( char * )Dest, ( const char * )Src ) ;
+	CL_strcpy( WCHAR_T_CHARCODEFORMAT, ( char * )Dest, ( const char * )Src ) ;
 //	int i ;
 //	for( i = 0 ; Src[i] != L'\0' ; i ++ ) Dest[i] = Src[i] ;
 //	Dest[i] = L'\0' ;
@@ -93,7 +93,7 @@ extern void _WCSCPY( wchar_t *Dest, const wchar_t *Src )
 
 extern void _STRNCPY( char *Dest, const char *Src, int Num )
 {
-	CL_strncpy( CHAR_CODEPAGE, Dest, Src, Num ) ;
+	CL_strncpy( CHAR_CHARCODEFORMAT, Dest, Src, Num ) ;
 //	int i ;
 //	for( i = 0 ; i < Num && Src[i] != '\0' ; i ++ ) Dest[i] = Src[i] ;
 //	Dest[i] = '\0' ;
@@ -101,7 +101,7 @@ extern void _STRNCPY( char *Dest, const char *Src, int Num )
 
 extern void _WCSNCPY( wchar_t *Dest, const wchar_t *Src, int Num )
 {
-	CL_strncpy( WCHAR_T_CODEPAGE, ( char * )Dest, ( const char * )Src, Num ) ;
+	CL_strncpy( WCHAR_T_CHARCODEFORMAT, ( char * )Dest, ( const char * )Src, Num ) ;
 //	int i ;
 //	for( i = 0 ; i < Num && Src[i] != L'\0' ; i ++ ) Dest[i] = Src[i] ;
 //	Dest[i] = L'\0' ;
@@ -109,7 +109,7 @@ extern void _WCSNCPY( wchar_t *Dest, const wchar_t *Src, int Num )
 
 extern void _STRCAT( char *Dest, const char *Src )
 {
-	CL_strcat( CHAR_CODEPAGE, Dest, Src ) ;
+	CL_strcat( CHAR_CHARCODEFORMAT, Dest, Src ) ;
 //	int i ;
 //	for( i = 0 ; Dest[i] != '\0' ; i ++ ){}
 //	_STRCPY( &Dest[i], Src ) ;
@@ -117,7 +117,7 @@ extern void _STRCAT( char *Dest, const char *Src )
 
 extern void _WCSCAT( wchar_t *Dest, const wchar_t *Src )
 {
-	CL_strcat( WCHAR_T_CODEPAGE, ( char * )Dest, ( const char * )Src ) ;
+	CL_strcat( WCHAR_T_CHARCODEFORMAT, ( char * )Dest, ( const char * )Src ) ;
 //	int i ;
 //	for( i = 0 ; Dest[i] != L'\0' ; i ++ ){}
 //	_WCSCPY( &Dest[i], Src ) ;
@@ -125,7 +125,7 @@ extern void _WCSCAT( wchar_t *Dest, const wchar_t *Src )
 
 extern const char *_STRSTR( const char *Str1, const char *Str2 )
 {
-	return CL_strstr( CHAR_CODEPAGE, Str1, Str2 ) ;
+	return CL_strstr( CHAR_CHARCODEFORMAT, Str1, Str2 ) ;
 //	int i, j ;
 //	for( i = 0 ; Str1[i] != '\0' ; i ++ )
 //	{
@@ -138,7 +138,7 @@ extern const char *_STRSTR( const char *Str1, const char *Str2 )
 
 extern const wchar_t *_WCSSTR( const wchar_t *Str1, const wchar_t *Str2 )
 {
-	return ( const wchar_t * )CL_strstr( WCHAR_T_CODEPAGE, ( const char * )Str1, ( const char * )Str2 ) ;
+	return ( const wchar_t * )CL_strstr( WCHAR_T_CHARCODEFORMAT, ( const char * )Str1, ( const char * )Str2 ) ;
 //	int i, j ;
 //	for( i = 0 ; Str1[i] != L'\0' ; i ++ )
 //	{
@@ -151,7 +151,7 @@ extern const wchar_t *_WCSSTR( const wchar_t *Str1, const wchar_t *Str2 )
 
 extern int _STRLEN( const char *Str )
 {
-	return CL_strlen( CHAR_CODEPAGE, Str ) ;
+	return CL_strlen( CHAR_CHARCODEFORMAT, Str ) ;
 //	int i ;
 //
 //	for( i = 0 ; Str[ i ] ; i ++ ){}
@@ -160,7 +160,7 @@ extern int _STRLEN( const char *Str )
 
 extern int _WCSLEN( const wchar_t *Str )
 {
-	return CL_strlen( WCHAR_T_CODEPAGE, ( const char * )Str ) ;
+	return CL_strlen( WCHAR_T_CHARCODEFORMAT, ( const char * )Str ) ;
 //	int i ;
 //
 //	for( i = 0 ; Str[ i ] ; i ++ ){}
@@ -169,7 +169,7 @@ extern int _WCSLEN( const wchar_t *Str )
 
 extern const char *_STRCHR( const char *Str, int Char )
 {
-	return CL_strchr( CHAR_CODEPAGE, Str, ( DWORD )Char ) ;
+	return CL_strchr( CHAR_CHARCODEFORMAT, Str, ( DWORD )Char ) ;
 //	while( *Str1 != '\0' )
 //	{
 //		if( CheckMultiByteChar( *Str1, g_BaseFuncSystem.UseCharSet ) == TRUE )
@@ -187,7 +187,7 @@ extern const char *_STRCHR( const char *Str, int Char )
 
 extern const wchar_t *_WCSCHR( const wchar_t *Str, wchar_t Char )
 {
-	return ( const wchar_t * )CL_strchr( WCHAR_T_CODEPAGE, ( const char * )Str, ( DWORD )Char ) ;
+	return ( const wchar_t * )CL_strchr( WCHAR_T_CHARCODEFORMAT, ( const char * )Str, ( DWORD )Char ) ;
 //	while( *Str1 != L'\0' )
 //	{
 //		if( CheckUTF16H( *Str1 ) == TRUE )
@@ -205,7 +205,7 @@ extern const wchar_t *_WCSCHR( const wchar_t *Str, wchar_t Char )
 
 extern const char *_STRRCHR( const char *Str, int Char )
 {
-	return CL_strrchr( CHAR_CODEPAGE, Str, ( DWORD )Char ) ;
+	return CL_strrchr( CHAR_CHARCODEFORMAT, Str, ( DWORD )Char ) ;
 //	char *lastp;
 //
 //	lastp = NULL;
@@ -229,7 +229,7 @@ extern const char *_STRRCHR( const char *Str, int Char )
 
 extern const wchar_t *_WCSRCHR( const wchar_t *Str, wchar_t Char )
 {
-	return ( const wchar_t * )CL_strrchr( WCHAR_T_CODEPAGE, ( const char * )Str, ( DWORD )Char ) ;
+	return ( const wchar_t * )CL_strrchr( WCHAR_T_CHARCODEFORMAT, ( const char * )Str, ( DWORD )Char ) ;
 //	wchar_t *lastp;
 //
 //	lastp = NULL;
@@ -253,7 +253,7 @@ extern const wchar_t *_WCSRCHR( const wchar_t *Str, wchar_t Char )
 
 extern int _STRCMP( const char *Str1, const char *Str2 )
 {
-	return CL_strcmp( CHAR_CODEPAGE, Str1, Str2 ) ;
+	return CL_strcmp( CHAR_CHARCODEFORMAT, Str1, Str2 ) ;
 //	int i ;
 //	for( i = 0 ; Str1[i] != '\0' && Str2[i] != '\0' && Str1[i] == Str2[i] ; i ++ ){}
 //	return ( Str1[i] != Str2[i] ) ? 1 : 0 ;
@@ -261,7 +261,7 @@ extern int _STRCMP( const char *Str1, const char *Str2 )
 
 extern int _WCSCMP( const wchar_t *Str1, const wchar_t *Str2 )
 {
-	return CL_strcmp( WCHAR_T_CODEPAGE, ( const char * )Str1, ( const char * )Str2 ) ;
+	return CL_strcmp( WCHAR_T_CHARCODEFORMAT, ( const char * )Str1, ( const char * )Str2 ) ;
 //	int i ;
 //	for( i = 0 ; Str1[i] != L'\0' && Str2[i] != L'\0' && Str1[i] == Str2[i] ; i ++ ){}
 //	return ( Str1[i] != Str2[i] ) ? 1 : 0 ;
@@ -269,7 +269,7 @@ extern int _WCSCMP( const wchar_t *Str1, const wchar_t *Str2 )
 
 extern int _STRICMP( const char *Str1, const char *Str2 )
 {
-	return CL_stricmp( CHAR_CODEPAGE, Str1, Str2 ) ;
+	return CL_stricmp( CHAR_CHARCODEFORMAT, Str1, Str2 ) ;
 //	int i ;
 //	char c1, c2;
 //	for( i = 0 ; Str1[i] != '\0' && Str2[i] != '\0'; i ++ )
@@ -283,12 +283,12 @@ extern int _STRICMP( const char *Str1, const char *Str2 )
 
 extern int _WCSICMP( const wchar_t *Str1, const wchar_t *Str2 )
 {
-	return CL_stricmp( WCHAR_T_CODEPAGE, ( const char * )Str1, ( const char * )Str2 ) ;
+	return CL_stricmp( WCHAR_T_CHARCODEFORMAT, ( const char * )Str1, ( const char * )Str2 ) ;
 }
 
 extern char *_STRUPR( char *Str )
 {
-	return CL_strupr( CHAR_CODEPAGE, Str ) ;
+	return CL_strupr( CHAR_CHARCODEFORMAT, Str ) ;
 //	char *OrigStr = Str ;
 //
 //	while( *Str != '\0' )
@@ -309,7 +309,7 @@ extern char *_STRUPR( char *Str )
 
 extern wchar_t *_WCSUPR( wchar_t *Str )
 {
-	return ( wchar_t * )CL_strupr( WCHAR_T_CODEPAGE, ( char * )Str ) ;
+	return ( wchar_t * )CL_strupr( WCHAR_T_CHARCODEFORMAT, ( char * )Str ) ;
 //	while( *Str != L'\0' )
 //	{
 //		if( CheckUTF16H( *Str ) == TRUE )
@@ -328,7 +328,7 @@ extern wchar_t *_WCSUPR( wchar_t *Str )
 
 extern int _STRNCMP( const char *Str1, const char *Str2, int Size )
 {
-	return CL_strncmp( CHAR_CODEPAGE, Str1, Str2, Size ) ;
+	return CL_strncmp( CHAR_CHARCODEFORMAT, Str1, Str2, Size ) ;
 //	int i ;
 //	for( i = 0 ; i < Size && Str1[i] == Str2[i] ; i ++ ){}
 //	return i != Size ? 1 : 0 ;
@@ -336,7 +336,7 @@ extern int _STRNCMP( const char *Str1, const char *Str2, int Size )
 
 extern int _WCSNCMP( const wchar_t *Str1, const wchar_t *Str2, int Size )
 {
-	return CL_strncmp( WCHAR_T_CODEPAGE, ( const char * )Str1, ( const char * )Str2, Size ) ;
+	return CL_strncmp( WCHAR_T_CHARCODEFORMAT, ( const char * )Str1, ( const char * )Str2, Size ) ;
 //	int i ;
 //	for( i = 0 ; i < Size && Str1[i] == Str2[i] ; i ++ ){}
 //	return i != Size ? 1 : 0 ;
@@ -344,13 +344,13 @@ extern int _WCSNCMP( const wchar_t *Str1, const wchar_t *Str2, int Size )
 
 extern int _VSPRINTF( char *Buffer, const char *FormatString, va_list Arg )
 {
-	return CL_vsprintf( CHAR_CODEPAGE, FALSE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, Buffer, FormatString, Arg ) ;
+	return CL_vsprintf( CHAR_CHARCODEFORMAT, FALSE, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT, Buffer, FormatString, Arg ) ;
 //	return vsprintf( Buffer, FormatString, Arg ) ;
 }
 
 extern int _VSWPRINTF( wchar_t *Buffer, const wchar_t *FormatString, va_list Arg )
 {
-	return CL_vsprintf( WCHAR_T_CODEPAGE, TRUE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, ( char * )Buffer, ( const char * )FormatString, Arg ) ;
+	return CL_vsprintf( WCHAR_T_CHARCODEFORMAT, TRUE, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT, ( char * )Buffer, ( const char * )FormatString, Arg ) ;
 //#ifdef __ANDROID
 //	return vswprintf( ( wchar_t * )Buffer, 4096, ( wchar_t * )FormatWString, Arg ) ;
 //#else
@@ -364,7 +364,7 @@ extern int _SPRINTF( char *Buffer, const char *FormatString, ... )
 	int Result ;
 
 	va_start( VaList, FormatString ) ;
-	Result = CL_vsprintf( CHAR_CODEPAGE, FALSE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, Buffer, FormatString, VaList ) ;
+	Result = CL_vsprintf( CHAR_CHARCODEFORMAT, FALSE, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT, Buffer, FormatString, VaList ) ;
 	va_end( VaList ) ;
 	
 	return Result ;
@@ -383,7 +383,7 @@ extern int _SWPRINTF( wchar_t *Buffer, const wchar_t *FormatString, ... )
 	int Result ;
 
 	va_start( VaList, FormatString ) ;
-	Result = CL_vsprintf( WCHAR_T_CODEPAGE, TRUE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, ( char * )Buffer, ( const char * )FormatString, VaList ) ;
+	Result = CL_vsprintf( WCHAR_T_CHARCODEFORMAT, TRUE, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT, ( char * )Buffer, ( const char * )FormatString, VaList ) ;
 	va_end( VaList ) ;
 	
 	return Result ;
@@ -851,32 +851,32 @@ extern double _SQRTD( double Real )
 
 extern int _ATOI( const char *String )
 {
-	return CL_atoi( CHAR_CODEPAGE, String ) ;
+	return CL_atoi( CHAR_CHARCODEFORMAT, String ) ;
 }
 
 extern int _ATOIW( const wchar_t *String )
 {
-	return CL_atoi( WCHAR_T_CODEPAGE, ( const char * )String ) ;
+	return CL_atoi( WCHAR_T_CHARCODEFORMAT, ( const char * )String ) ;
 }
 
 extern double _ATOF( const char *String )
 {
-	return CL_atof( CHAR_CODEPAGE, String ) ;
+	return CL_atof( CHAR_CHARCODEFORMAT, String ) ;
 }
 
 extern double _ATOFW( const wchar_t *String )
 {
-	return CL_atof( WCHAR_T_CODEPAGE, ( const char * )String ) ;
+	return CL_atof( WCHAR_T_CHARCODEFORMAT, ( const char * )String ) ;
 }
 
 extern char *_ITOA( int Value, char *Buffer, int Radix )
 {
-	return CL_itoa( CHAR_CODEPAGE, Value, Buffer, Radix ) ;
+	return CL_itoa( CHAR_CHARCODEFORMAT, Value, Buffer, Radix ) ;
 }
 
 extern wchar_t *_ITOAW( int Value, wchar_t *Buffer, int Radix )
 {
-	return ( wchar_t * )CL_itoa( WCHAR_T_CODEPAGE, Value, ( char * )Buffer, Radix ) ;
+	return ( wchar_t * )CL_itoa( WCHAR_T_CHARCODEFORMAT, Value, ( char * )Buffer, Radix ) ;
 }
 
 extern void _SHR64( DWORD *Number64, int ShftNum )
@@ -1252,6 +1252,457 @@ LOOPEND:
 	Dest64[ 1 ] = dat_dst_1 ;
 #endif
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 文字コード関係
+
+// 文字列の文字コード形式を別の文字コード形式に変換する
+extern int NS_ConvertStringCharCodeFormat( int SrcCharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */, const void *SrcString, int DestCharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */, void *DestStringBuffer )
+{
+	return ConvString( ( const char * )SrcString, SrcCharCodeFormat, ( char * )DestStringBuffer, DestCharCodeFormat ) ;
+}
+
+// 文字列の引数の文字コード形式を設定する( 文字列描画系関数とその他一部関数を除く )( UNICODE版では無効 )
+extern int NS_SetUseCharCodeFormat( int CharCodeFormat /* DX_CHARCODEFORMAT_SHIFTJIS 等 */ )
+{
+	_SET_CHAR_CHARCODEFORMAT( CharCodeFormat ) ;
+
+	return 0 ;
+}
+
+
+
+
+
+
+// 文字列関係
+
+// strcpy と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern void NS_strcpyDx(   TCHAR *Dest, const TCHAR *Src )
+{
+#ifdef UNICODE
+	CL_strcpy( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Dest, ( const char * )Src ) ;
+#else // UNICODE
+	CL_strcpy( g_BaseFuncSystem.Use_char_CharCodeFormat, Dest, Src ) ;
+#endif // UNICODE
+}
+
+// 位置指定付き strcpy、Pos はコピー開始位置　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern void NS_strpcpyDx(    TCHAR *Dest, const TCHAR *Src, int Pos )
+{
+#ifdef UNICODE
+	CL_strpcpy( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Dest, ( const char * )Src, Pos ) ;
+#else // UNICODE
+	CL_strpcpy( g_BaseFuncSystem.Use_char_CharCodeFormat, Dest, Src, Pos ) ;
+#endif // UNICODE
+}
+
+// 位置指定付き strcpy、Pos はコピー開始位置( 全角文字も 1 扱い )　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern void NS_strpcpy2Dx(   TCHAR *Dest, const TCHAR *Src, int Pos )
+{
+#ifdef UNICODE
+	CL_strpcpy2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Dest, ( const char * )Src, Pos ) ;
+#else // UNICODE
+	CL_strpcpy2( g_BaseFuncSystem.Use_char_CharCodeFormat, Dest, Src, Pos ) ;
+#endif // UNICODE
+}
+
+// strncpy と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern void NS_strncpyDx(  TCHAR *Dest, const TCHAR *Src, int Num )
+{
+#ifdef UNICODE
+	CL_strncpy( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Dest, ( const char * )Src, Num ) ;
+#else // UNICODE
+	CL_strncpy( g_BaseFuncSystem.Use_char_CharCodeFormat, Dest, Src, Num ) ;
+#endif // UNICODE
+}
+
+// strncpy の Num が文字数( 全角文字も 1 扱い )になったもの、終端に必ずヌル文字が代入される( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern void NS_strncpy2Dx( TCHAR *Dest, const TCHAR *Src, int Num )
+{
+#ifdef UNICODE
+	CL_strncpy2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Dest, ( const char * )Src, Num ) ;
+#else // UNICODE
+	CL_strncpy2( g_BaseFuncSystem.Use_char_CharCodeFormat, Dest, Src, Num ) ;
+#endif // UNICODE
+}
+
+// strncpy の文字列の終端からの文字数指定版( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern void NS_strrncpyDx(   TCHAR *Dest, const TCHAR *Src, int Num )
+{
+#ifdef UNICODE
+	CL_strrncpy( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Dest, ( const char * )Src, Num ) ;
+#else // UNICODE
+	CL_strrncpy( g_BaseFuncSystem.Use_char_CharCodeFormat, Dest, Src, Num ) ;
+#endif // UNICODE
+}
+
+// strncpy の文字列の終端からの文字数( 全角文字も 1 扱い )指定版、終端に必ずヌル文字が代入される( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern void NS_strrncpy2Dx(  TCHAR *Dest, const TCHAR *Src, int Num )
+{
+#ifdef UNICODE
+	CL_strrncpy2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Dest, ( const char * )Src, Num ) ;
+#else // UNICODE
+	CL_strrncpy2( g_BaseFuncSystem.Use_char_CharCodeFormat, Dest, Src, Num ) ;
+#endif // UNICODE
+}
+
+// strncpy のコピー開始位置指定版、Pos はコピー開始位置、Num は文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern void NS_strpncpyDx(   TCHAR *Dest, const TCHAR *Src, int Pos, int Num )
+{
+#ifdef UNICODE
+	CL_strpncpy( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Dest, ( const char * )Src, Pos, Num ) ;
+#else // UNICODE
+	CL_strpncpy( g_BaseFuncSystem.Use_char_CharCodeFormat, Dest, Src, Pos, Num ) ;
+#endif // UNICODE
+}
+
+// strncpy のコピー開始位置指定版、Pos はコピー開始位置( 全角文字も 1 扱い )、Num は文字数( 全角文字も 1 扱い )、終端に必ずヌル文字が代入される( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern void NS_strpncpy2Dx(  TCHAR *Dest, const TCHAR *Src, int Pos, int Num )
+{
+#ifdef UNICODE
+	CL_strpncpy2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Dest, ( const char * )Src, Pos, Num ) ;
+#else // UNICODE
+	CL_strpncpy2( g_BaseFuncSystem.Use_char_CharCodeFormat, Dest, Src, Pos, Num ) ;
+#endif // UNICODE
+}
+
+// strcat と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern void NS_strcatDx(   TCHAR *Dest, const TCHAR *Src )
+{
+#ifdef UNICODE
+	CL_strcat( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Dest, ( const char * )Src ) ;
+#else // UNICODE
+	CL_strcat( g_BaseFuncSystem.Use_char_CharCodeFormat, Dest, Src ) ;
+#endif // UNICODE
+}
+
+// strlen と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strlenDx(   const TCHAR *Str )
+{
+#ifdef UNICODE
+	return CL_strlen( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str ) ;
+#else // UNICODE
+	return CL_strlen( g_BaseFuncSystem.Use_char_CharCodeFormat, Str ) ;
+#endif // UNICODE
+}
+
+// strlen の戻り値が文字数( 全角文字も 1 扱い )になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strlen2Dx(  const TCHAR *Str )
+{
+#ifdef UNICODE
+	return CL_strlen2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str ) ;
+#else // UNICODE
+	return CL_strlen2( g_BaseFuncSystem.Use_char_CharCodeFormat, Str ) ;
+#endif // UNICODE
+}
+
+// strcmp と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strcmpDx(   const TCHAR *Str1, const TCHAR *Str2 )
+{
+#ifdef UNICODE
+	return CL_strcmp( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str1, ( const char * )Str2 ) ;
+#else // UNICODE
+	return CL_strcmp( g_BaseFuncSystem.Use_char_CharCodeFormat, Str1, Str2 ) ;
+#endif // UNICODE
+}
+
+// stricmp と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_stricmpDx(  const TCHAR *Str1, const TCHAR *Str2 )
+{
+#ifdef UNICODE
+	return CL_stricmp( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str1, ( const char * )Str2 ) ;
+#else // UNICODE
+	return CL_stricmp( g_BaseFuncSystem.Use_char_CharCodeFormat, Str1, Str2 ) ;
+#endif // UNICODE
+}
+
+// strncmp と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strncmpDx(  const TCHAR *Str1, const TCHAR *Str2, int Num )
+{
+#ifdef UNICODE
+	return CL_strncmp( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str1, ( const char * )Str2, Num ) ;
+#else // UNICODE
+	return CL_strncmp( g_BaseFuncSystem.Use_char_CharCodeFormat, Str1, Str2, Num ) ;
+#endif // UNICODE
+}
+
+// strncmp2 の Num が文字数( 全角文字も 1 扱い )になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strncmp2Dx( const TCHAR *Str1, const TCHAR *Str2, int Num )
+{
+#ifdef UNICODE
+	return CL_strncmp2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str1, ( const char * )Str2, Num ) ;
+#else // UNICODE
+	return CL_strncmp2( g_BaseFuncSystem.Use_char_CharCodeFormat, Str1, Str2, Num ) ;
+#endif // UNICODE
+}
+
+// strncmp の比較開始位置指定版、Pos が比較開始位置、Num が文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strpncmpDx(   const TCHAR *Str1, const TCHAR *Str2, int Pos, int Num )
+{
+#ifdef UNICODE
+	return CL_strpncmp( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str1, ( const char * )Str2, Pos, Num ) ;
+#else // UNICODE
+	return CL_strpncmp( g_BaseFuncSystem.Use_char_CharCodeFormat, Str1, Str2, Pos, Num ) ;
+#endif // UNICODE
+}
+
+// strncmp の比較開始位置指定版、Pos が比較開始位置( 全角文字も 1 扱い )、Num が文字数( 全角文字も 1 扱い )( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strpncmp2Dx(  const TCHAR *Str1, const TCHAR *Str2, int Pos, int Num )
+{
+#ifdef UNICODE
+	return CL_strpncmp2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str1, ( const char * )Str2, Pos, Num ) ;
+#else // UNICODE
+	return CL_strpncmp2( g_BaseFuncSystem.Use_char_CharCodeFormat, Str1, Str2, Pos, Num ) ;
+#endif // UNICODE
+}
+
+// 文字列の指定の位置の文字コードを取得する、Pos は取得する位置、CharNums は文字数を代入する変数のアドレス、戻り値は文字コード( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern DWORD NS_strgetchrDx(  const TCHAR *Str, int Pos, int *CharNums )
+{
+#ifdef UNICODE
+	return CL_strgetchr( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str, Pos, CharNums ) ;
+#else // UNICODE
+	return CL_strgetchr( g_BaseFuncSystem.Use_char_CharCodeFormat, Str, Pos, CharNums ) ;
+#endif // UNICODE
+}
+
+// 文字列の指定の位置の文字コードを取得する、Pos は取得する位置( 全角文字も 1 扱い )、CharNums は文字数を代入する変数のアドレス、戻り値は文字コード( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern DWORD NS_strgetchr2Dx( const TCHAR *Str, int Pos, int *CharNums )
+{
+#ifdef UNICODE
+	return CL_strgetchr2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str, Pos, CharNums ) ;
+#else // UNICODE
+	return CL_strgetchr2( g_BaseFuncSystem.Use_char_CharCodeFormat, Str, Pos, CharNums ) ;
+#endif // UNICODE
+}
+
+// 文字列の指定の位置に文字コードを書き込む、Pos は書き込む位置、CharCode は文字コード、戻り値は書き込んだ文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strputchrDx(  TCHAR *Str, int Pos, DWORD CharCode )
+{
+#ifdef UNICODE
+	return CL_strputchr( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Str, Pos, CharCode ) ;
+#else // UNICODE
+	return CL_strputchr( g_BaseFuncSystem.Use_char_CharCodeFormat, Str, Pos, CharCode ) ;
+#endif // UNICODE
+}
+
+// 文字列の指定の位置に文字コードを書き込む、Pos は書き込む位置( 全角文字も 1 扱い )、CharCode は文字コード、戻り値は書き込んだ文字数( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strputchr2Dx( TCHAR *Str, int Pos, DWORD CharCode )
+{
+#ifdef UNICODE
+	return CL_strputchr2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Str, Pos, CharCode ) ;
+#else // UNICODE
+	return CL_strputchr2( g_BaseFuncSystem.Use_char_CharCodeFormat, Str, Pos, CharCode ) ;
+#endif // UNICODE
+}
+
+// 文字列の指定の位置のアドレスを取得する、Pos は取得する位置　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern const TCHAR * NS_strposDx(     const TCHAR *Str, int Pos )
+{
+#ifdef UNICODE
+	return ( const TCHAR * )CL_strpos( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str, Pos ) ;
+#else // UNICODE
+	return CL_strpos( g_BaseFuncSystem.Use_char_CharCodeFormat, Str, Pos ) ;
+#endif // UNICODE
+}
+
+// 文字列の指定の位置のアドレスを取得する、Pos は取得する位置( 全角文字も 1 扱い )　( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern const TCHAR * NS_strpos2Dx(    const TCHAR *Str, int Pos )
+{
+#ifdef UNICODE
+	return ( const TCHAR * )CL_strpos2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str, Pos ) ;
+#else // UNICODE
+	return CL_strpos2( g_BaseFuncSystem.Use_char_CharCodeFormat, Str, Pos ) ;
+#endif // UNICODE
+}
+
+// strstr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern const TCHAR * NS_strstrDx(   const TCHAR *Str1, const TCHAR *Str2 )
+{
+#ifdef UNICODE
+	return ( wchar_t * )CL_strstr( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str1, ( const char * )Str2 ) ;
+#else // UNICODE
+	return CL_strstr( g_BaseFuncSystem.Use_char_CharCodeFormat, Str1, Str2 ) ;
+#endif // UNICODE
+}
+
+// strstr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strstr2Dx(    const TCHAR *Str1, const TCHAR *Str2 )
+{
+#ifdef UNICODE
+	return CL_strstr2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str1, ( const char * )Str2 ) ;
+#else // UNICODE
+	return CL_strstr2( g_BaseFuncSystem.Use_char_CharCodeFormat, Str1, Str2 ) ;
+#endif // UNICODE
+}
+
+// strrstr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern const TCHAR * NS_strrstrDx( const TCHAR *Str1, const TCHAR *Str2 )
+{
+#ifdef UNICODE
+	return ( wchar_t * )CL_strrstr( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str1, ( const char * )Str2 ) ;
+#else // UNICODE
+	return CL_strrstr( g_BaseFuncSystem.Use_char_CharCodeFormat, Str1, Str2 ) ;
+#endif // UNICODE
+}
+
+// strrstr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strrstr2Dx(   const TCHAR *Str1, const TCHAR *Str2 )
+{
+#ifdef UNICODE
+	return CL_strrstr2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str1, ( const char * )Str2 ) ;
+#else // UNICODE
+	return CL_strrstr2( g_BaseFuncSystem.Use_char_CharCodeFormat, Str1, Str2 ) ;
+#endif // UNICODE
+}
+
+// strchr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern const TCHAR * NS_strchrDx(   const TCHAR *Str, DWORD CharCode )
+{
+#ifdef UNICODE
+	return ( const TCHAR * )CL_strchr( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str, CharCode ) ;
+#else // UNICODE
+	return CL_strchr( g_BaseFuncSystem.Use_char_CharCodeFormat, Str, CharCode ) ;
+#endif // UNICODE
+}
+
+// strchr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strchr2Dx( const TCHAR *Str, DWORD CharCode )
+{
+#ifdef UNICODE
+	return CL_strchr2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str, CharCode ) ;
+#else // UNICODE
+	return CL_strchr2( g_BaseFuncSystem.Use_char_CharCodeFormat, Str, CharCode ) ;
+#endif // UNICODE
+}
+
+// strrchr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern const TCHAR * NS_strrchrDx(  const TCHAR *Str, DWORD CharCode )
+{
+#ifdef UNICODE
+	return ( const TCHAR * )CL_strrchr( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str, CharCode ) ;
+#else // UNICODE
+	return CL_strrchr( g_BaseFuncSystem.Use_char_CharCodeFormat, Str, CharCode ) ;
+#endif // UNICODE
+}
+
+// strrchr の戻り値が文字列先頭からの文字数( 全角文字も 1 扱い ) になったもの( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_strrchr2Dx(   const TCHAR *Str, DWORD CharCode )
+{
+#ifdef UNICODE
+	return CL_strrchr2( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str, CharCode ) ;
+#else // UNICODE
+	return CL_strrchr2( g_BaseFuncSystem.Use_char_CharCodeFormat, Str, CharCode ) ;
+#endif // UNICODE
+}
+
+// strupr と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern TCHAR *NS_struprDx(   TCHAR *Str )
+{
+#ifdef UNICODE
+	return ( wchar_t * )CL_strupr( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Str ) ;
+#else // UNICODE
+	return CL_strupr( g_BaseFuncSystem.Use_char_CharCodeFormat, Str ) ;
+#endif // UNICODE
+}
+
+// vsprintf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_vsprintfDx( TCHAR *Buffer, const TCHAR *FormatString, va_list Arg )
+{
+#ifdef UNICODE
+	return CL_vsprintf( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, TRUE,  g_BaseFuncSystem.Use_char_CharCodeFormat, g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( char * )Buffer, ( const char * )FormatString, Arg ) ;
+#else // UNICODE
+	return CL_vsprintf( g_BaseFuncSystem.Use_char_CharCodeFormat,    FALSE, g_BaseFuncSystem.Use_char_CharCodeFormat, g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, Buffer, FormatString, Arg ) ;
+#endif // UNICODE
+}
+
+// sprintf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_sprintfDx(  TCHAR *Buffer, const TCHAR *FormatString, ... )
+{
+	int Result ;
+	va_list VaList ;
+
+	va_start( VaList, FormatString ) ;
+	Result = NS_vsprintfDx( Buffer, FormatString, VaList ) ;
+	va_end( VaList ) ;
+
+	return Result ;
+}
+
+// itoa と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern TCHAR *NS_itoaDx(     int Value, TCHAR *Buffer, int Radix )
+{
+#ifdef UNICODE
+	return ( TCHAR * )CL_itoa( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, Value, ( char * )Buffer, Radix ) ;
+#else // UNICODE
+	return CL_itoa( g_BaseFuncSystem.Use_char_CharCodeFormat, Value, Buffer, Radix ) ;
+#endif // UNICODE
+}
+
+// atoi と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_atoiDx(     const TCHAR *Str )
+{
+#ifdef UNICODE
+	return CL_atoi( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str ) ;
+#else // UNICODE
+	return CL_atoi( g_BaseFuncSystem.Use_char_CharCodeFormat, Str ) ;
+#endif // UNICODE
+}
+
+// atof と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern double NS_atofDx(     const TCHAR *Str )
+{
+#ifdef UNICODE
+	return CL_atof( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )Str ) ;
+#else // UNICODE
+	return CL_atof( g_BaseFuncSystem.Use_char_CharCodeFormat, Str ) ;
+#endif // UNICODE
+}
+
+// vsscanf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_vsscanfDx(  const TCHAR *String, const TCHAR *FormatString, va_list Arg )
+{
+#ifdef UNICODE
+	return CL_vsscanf( g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, TRUE,  g_BaseFuncSystem.Use_char_CharCodeFormat, g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, ( const char * )String, ( const char * )FormatString, Arg ) ;
+#else // UNICODE
+	return CL_vsscanf( g_BaseFuncSystem.Use_char_CharCodeFormat,    FALSE, g_BaseFuncSystem.Use_char_CharCodeFormat, g_BaseFuncSystem.Use_wchar_t_CharCodeFormat, String, FormatString, Arg ) ;
+#endif // UNICODE
+}
+
+// sscanf と同等の機能( マルチバイト文字列版では文字コード形式として SetUseCharCodeFormat で設定した形式が使用されます )
+extern int NS_sscanfDx(   const TCHAR *String, const TCHAR *FormatString, ... )
+{
+	int Result ;
+	va_list VaList ;
+
+	va_start( VaList, FormatString ) ;
+	Result = NS_vsscanfDx( String, FormatString, VaList ) ;
+	va_end( VaList ) ;
+
+	return Result ;
+}
+
+
+
+
+
+
+
+
+
+
 
 #ifdef DX_USE_NAMESPACE
 

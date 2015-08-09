@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ読み込み処理３用ヘッダ
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -49,7 +49,7 @@ struct PMD_VERTEX
 	float	Normal[ 3 ] ;						// 法線
 	float	Uv[ 2 ] ;							// テクスチャ座標
 	WORD	BoneNo[ 2 ] ;						// ボーン番号
-	BYTE	BoneWeight ;						// BoneNo[ 0 ] のボーンの影響度( 0～100 ) BoneNo[ 1 ] の影響度は( 100 - BoneWeight )
+	BYTE	BoneWeight ;						// BoneNo[ 0 ] のボーンの影響度( 0〜100 ) BoneNo[ 1 ] の影響度は( 100 - BoneWeight )
 	BYTE	Edge ;								// エッジフラグ  0:エッジ有効  1:エッジ無効
 } ;
 
@@ -233,6 +233,8 @@ struct PMD_READ_BONE_INFO
 	int					IsIKAnim ;				// ＩＫアニメーションをつけるかどうか
 	int					IsIKChild ;				// ＩＫアニメーションするボーンの子ボーン( 且つＩＫの影響を受けないボーン )かどうか
 	int					IKLimitAngle ;			// ＩＫ時に角度制限をするかどうか
+	MATRIX				LocalMatrix ;			// 構築したローカル行列
+	int					SetupLocalWorldMatrix ;	// ローカル→ワールド行列が構築されているかどうか
 	MATRIX				LocalWorldMatrix ;		// 構築したローカル→ワールド行列
 	VECTOR				Translate ;				// 平行移動値
 	FLOAT4				Rotate ;				// 回転値

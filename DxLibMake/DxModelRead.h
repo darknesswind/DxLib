@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ読み込みヘッダ
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -129,7 +129,8 @@ struct MV1_ANIMSET_R
 	float					StartTime ;						// 開始時間
 	float					EndTime ;						// 終了時間
 	int						IsAddAnim ;						// 加算アニメーションかどうか( 1:加算アニメーション  0:絶対値アニメーション )
-	int						IsMatrixLinearBlend ;				// 各キーの補間を行列単位で線形補間を刷るかどうかのフラグ( 1:行列で線形補間  0:要素単位で補間 )
+	int						IsMatrixLinearBlend ;			// 各キーの補間を行列単位で線形補間を刷るかどうかのフラグ( 1:行列で線形補間  0:要素単位で補間 )
+	int						IsLoopAnim ;					// ループ用アニメーションかどうか( 1:ループアニメーション  0:通常アニメーション )
 
 	int						AnimNum ;						// (読み取り専用)アニメーションデータの数
 	MV1_ANIM_R				*AnimFirst ;					// (読み取り専用)先頭のアニメーション
@@ -482,7 +483,7 @@ struct MV1_MODEL_R
 {
 	MEMINFO					*Mem ;							// (読み取り専用)メモリアドレス保存データへのポインタ
 
-	int						CodePage ;						// char版のオブジェクト追加関数が呼ばれた際に想定する文字コードページ
+	int						CharCodeFormat ;					// char版のオブジェクト追加関数が呼ばれた際に想定する文字文字コード形式
 	wchar_t					*FilePath ;						// ファイルパスへのポインタ( この文字列は MV1RAddString を使用してはいけない )
 	wchar_t					*Name ;							// 名前へのポインタ( この文字列は MV1RAddString を使用してはいけない )
 	int						MeshFaceRightHand ;				// 面情報が右手系の並びになっているかどうか( TRUE:なっている  FALSE:なっていない )

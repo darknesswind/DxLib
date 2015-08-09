@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		モデルデータ読み込み処理４用ヘッダ
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -36,7 +36,7 @@ namespace DxLib
 struct PMX_BASEINFO
 {
 	BYTE	EncodeType ;						// 文字コードのエンコードタイプ 0:UTF16 1:UTF8
-	BYTE	UVNum ;								// 追加ＵＶ数 ( 0～4 )
+	BYTE	UVNum ;								// 追加ＵＶ数 ( 0〜4 )
 	BYTE	VertexIndexSize ;					// 頂点Indexサイズ ( 1 or 2 or 4 )
 	BYTE	TextureIndexSize ;					// テクスチャIndexサイズ ( 1 or 2 or 4 )
 	BYTE	MaterialIndexSize ;					// マテリアルIndexサイズ ( 1 or 2 or 4 )
@@ -288,6 +288,8 @@ struct PMX_READ_BONE_INFO
 	int					IsIK ;					// ＩＫボーンかどうか
 	int					IsIKAnim ;				// ＩＫアニメーションをつけるかどうか
 	int					IsIKChild ;				// ＩＫアニメーションするボーンの子ボーン( 且つＩＫの影響を受けないボーン )かどうか
+	MATRIX				LocalMatrix ;			// 構築したローカル行列
+	int					SetupLocalWorldMatrix ;	// ローカル→ワールド行列が構築されているかどうか
 	MATRIX				LocalWorldMatrix ;		// 構築したローカル→ワールド行列
 	VECTOR				Translate ;				// 平行移動値
 	FLOAT4				Rotate ;				// 回転値

@@ -1,4 +1,4 @@
-﻿float4 Param      : register( c0 ) ;
+float4 Param      : register( c0 ) ;
 float  BlendRatio : register( c0 ) ;
 float3 Half       : register( c1 ) ;
 float3 One        : register( c2 ) ;

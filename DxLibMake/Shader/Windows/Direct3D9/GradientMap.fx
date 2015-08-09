@@ -1,4 +1,4 @@
-﻿float3 RGBToY : register( c0 ) ;
+float3 RGBToY : register( c0 ) ;
 
 sampler SrcTexture         : register( s0 ) ;
 sampler GradientMapTexture : register( s1 ) ;

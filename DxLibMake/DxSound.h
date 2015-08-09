@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		サウンドプログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -119,6 +119,9 @@ struct SOUNDBUFFER
 	int							SampleNum ;				// サンプルの数
 
 	WAVEFORMATEX				Format ;				// バッファのフォーマット
+
+	int							UseGetCurrentPosition ;	// GetCurrentPosition を使用するかどうか
+	int							IsStream ;				// ストリーム再生用のサウンドバッファかどうか
 
 	// DirectSound 以外の場合に使用
 	WAVEDATA					*Wave ;					// 波形データバッファ
@@ -346,7 +349,7 @@ struct SOUNDSYSTEMDATA
 #ifndef DX_NON_SAVEFUNCTION
 	int							SoundCaptureFlag ;				// サウンドキャプチャを実行している最中かどうかのフラグ(TRUE:最中 FASLE:違う)
 	int							SoundCaptureSample ;			// キャプチャしたサンプルの数(44.1KHz換算)
-	HANDLE						SoundCaptureFileHandle ;		// キャプチャしたサウンドを保存しているファイル
+	DWORD_PTR					SoundCaptureFileHandle ;		// キャプチャしたサウンドを保存しているファイル
 #endif // DX_NON_SAVEFUNCTION
 
 	int							CreateSoundDataType ;			// 作成するサウンドデータのデータタイプ
@@ -414,7 +417,7 @@ extern	int		TerminateSoundSystem( void ) ;																			// サウンドシ�
 extern	int		RefreshStreamSoundPlayCompLength( int SoundHandle, int CurrentPosition = -1, int ASyncThread = FALSE ) ;	// サウンドハンドルの再生完了時間を更新する
 extern	int		ST_SoftSoundPlayerProcessAll( void ) ;																	// ソフトウエアで制御する全てのサウンドデータプレイヤーの定期処理を行う
 
-extern	int		StartSoundCapture( const char *SaveFilePath ) ;															// サウンドキャプチャの開始
+extern	int		StartSoundCapture( const wchar_t *SaveFilePath ) ;															// サウンドキャプチャの開始
 extern	int		SoundCaptureProcess( int CaptureSample ) ;																// サウンドキャプチャの周期的処理
 extern	int		EndSoundCapture( void ) ;																				// サウンドキャプチャの終了
 
@@ -500,7 +503,7 @@ extern	int		PlayMusicByResource_WCHAR_T(		const wchar_t *ResourceName, const wch
 
 
 //サウンドバッファ用
-extern	int		SoundBuffer_Initialize(          SOUNDBUFFER *Buffer, DWORD Bytes, WAVEFORMATEX *Format, SOUNDBUFFER *Src, int Is3DSound ) ;
+extern	int		SoundBuffer_Initialize(          SOUNDBUFFER *Buffer, DWORD Bytes, WAVEFORMATEX *Format, SOUNDBUFFER *Src, int UseGetCurrentPosition, int IsStream, int Is3DSound ) ;
 extern	int		SoundBuffer_Duplicate(           SOUNDBUFFER *Buffer, SOUNDBUFFER *Src, int Is3DSound ) ;
 extern	int		SoundBuffer_Terminate(           SOUNDBUFFER *Buffer ) ;
 extern	int		SoundBuffer_CheckEnable(         SOUNDBUFFER *Buffer ) ;

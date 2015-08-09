@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		Windows用データタイプ定義ヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -22,133 +22,7 @@
 		#ifndef DX_GCC_COMPILE
 			#ifndef DX_SRC_COMPILE
 				#ifdef _MSC_VER
-					#if _MSC_VER >= 1900
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "DxDrawFunc_vs2015_x64_d.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW_vs2015_x64_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW_vs2015_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib_vs2015_x64_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib_vs2015_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#else // _DEBUG
-								#pragma comment( lib, "DxDrawFunc_vs2015_x64.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW_vs2015_x64.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW_vs2015_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib_vs2015_x64.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib_vs2015_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#endif // _DEBUG
-						#else // _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "DxDrawFunc_vs2015_x86_d.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW_vs2015_x86_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW_vs2015_x86_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib_vs2015_x86_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib_vs2015_x86_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#else // _DEBUG
-								#pragma comment( lib, "DxDrawFunc_vs2015_x86.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW_vs2015_x86.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW_vs2015_x86.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib_vs2015_x86.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib_vs2015_x86.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#endif // _DEBUG
-						#endif // _WIN64
-					#elif _MSC_VER >= 1800
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "DxDrawFunc_vs2012_x64_d.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW_vs2012_x64_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW_vs2013_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib_vs2012_x64_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib_vs2013_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#else // _DEBUG
-								#pragma comment( lib, "DxDrawFunc_vs2012_x64.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW_vs2012_x64.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW_vs2013_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib_vs2012_x64.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib_vs2013_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#endif // _DEBUG
-						#else // _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "DxDrawFunc_d.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#else // _DEBUG
-								#pragma comment( lib, "DxDrawFunc.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#endif // _DEBUG
-						#endif // _WIN64
-					#elif _MSC_VER >= 1700
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "DxDrawFunc_vs2012_x64_d.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW_vs2012_x64_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW_vs2012_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib_vs2012_x64_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib_vs2012_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#else // _DEBUG
-								#pragma comment( lib, "DxDrawFunc_vs2012_x64.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW_vs2012_x64.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW_vs2012_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib_vs2012_x64.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib_vs2012_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#endif // _DEBUG
-						#else // _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "DxDrawFunc_vs2012_x86_d.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW_vs2012_x86_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW_vs2012_x86_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib_vs2012_x86_d.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib_vs2012_x86_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#else // _DEBUG
-								#pragma comment( lib, "DxDrawFunc_vs2012_x86.lib"			)		//  描画部分の抜き出し
-								#ifdef UNICODE
-									#pragma comment( lib, "DxLibW_vs2012_x86.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLibW_vs2012_x86.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#else
-									#pragma comment( lib, "DxLib_vs2012_x86.lib"			)		//  ＤＸライブラリ使用指定
-									#pragma comment( lib, "DxUseCLib_vs2012_x86.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
-								#endif
-							#endif // _DEBUG
-						#endif // _WIN64
-					#else // _MSC_VER >= 1700
+					#if _MSC_VER <  1700
 						#ifdef _WIN64
 							#ifdef _DEBUG
 								#pragma comment( lib, "DxDrawFunc_x64_d.lib"		)		//  描画部分の抜き出し
@@ -190,7 +64,135 @@
 								#endif
 							#endif // _DEBUG
 						#endif // _WIN64
-					#endif // // _MSC_VER >= 1700
+					#else	// _MSC_VER <  1700
+						#if _MSC_VER >= 1900
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2015_x64_d.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2015_x64_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2015_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2015_x64_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2015_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#else // _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2015_x64.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2015_x64.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2015_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2015_x64.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2015_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#endif // _DEBUG
+							#else // _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2015_x86_d.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2015_x86_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2015_x86_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2015_x86_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2015_x86_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#else // _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2015_x86.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2015_x86.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2015_x86.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2015_x86.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2015_x86.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#endif // _DEBUG
+							#endif // _WIN64
+						#elif _MSC_VER >= 1800
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2012_x64_d.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2012_x64_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2013_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2012_x64_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2013_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#else // _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2012_x64.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2012_x64.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2013_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2012_x64.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2013_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#endif // _DEBUG
+							#else // _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2012_x86_d.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2012_x86_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2013_x86_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2012_x86_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2013_x86_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#else // _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2012_x86.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2012_x86.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2013_x86.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2012_x86.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2013_x86.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#endif // _DEBUG
+							#endif // _WIN64
+						#elif _MSC_VER >= 1700
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2012_x64_d.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2012_x64_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2012_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2012_x64_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2012_x64_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#else // _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2012_x64.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2012_x64.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2012_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2012_x64.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2012_x64.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#endif // _DEBUG
+							#else // _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2012_x86_d.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2012_x86_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2012_x86_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2012_x86_d.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2012_x86_d.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#else // _DEBUG
+									#pragma comment( lib, "DxDrawFunc_vs2012_x86.lib"			)		//  描画部分の抜き出し
+									#ifdef UNICODE
+										#pragma comment( lib, "DxLibW_vs2012_x86.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLibW_vs2012_x86.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#else
+										#pragma comment( lib, "DxLib_vs2012_x86.lib"			)		//  ＤＸライブラリ使用指定
+										#pragma comment( lib, "DxUseCLib_vs2012_x86.lib"		)		//  標準Ｃライブラリを使用する部分の lib ファイルの使用指定
+									#endif
+								#endif // _DEBUG
+							#endif // _WIN64
+						#endif // // _MSC_VER >= 1700
+					#endif // // _MSC_VER <  1700
 				#else // _MSC_VER
 					#pragma comment( lib, "DxDrawFunc.lib"		)			//  描画部分の抜き出し
 					#ifdef UNICODE
@@ -239,73 +241,7 @@
 			#endif
 			#ifndef DX_NON_BULLET_PHYSICS
 				#ifdef _MSC_VER
-					#if _MSC_VER >= 1900
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libbulletcollision_vs2015_x64_d.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2015_x64_d.lib" )
-								#pragma comment( lib, "libbulletmath_vs2015_x64_d.lib" )
-							#else
-								#pragma comment( lib, "libbulletcollision_vs2015_x64.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2015_x64.lib" )
-								#pragma comment( lib, "libbulletmath_vs2015_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libbulletcollision_vs2015_x86_d.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2015_x86_d.lib" )
-								#pragma comment( lib, "libbulletmath_vs2015_x86_d.lib" )
-							#else
-								#pragma comment( lib, "libbulletcollision_vs2015_x86.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2015_x86.lib" )
-								#pragma comment( lib, "libbulletmath_vs2015_x86.lib" )
-							#endif
-						#endif
-					#elif _MSC_VER >= 1800
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libbulletcollision_vs2013_x64_d.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2013_x64_d.lib" )
-								#pragma comment( lib, "libbulletmath_vs2013_x64_d.lib" )
-							#else
-								#pragma comment( lib, "libbulletcollision_vs2013_x64.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2013_x64.lib" )
-								#pragma comment( lib, "libbulletmath_vs2013_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libbulletcollision_vs2013_x86_d.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2013_x86_d.lib" )
-								#pragma comment( lib, "libbulletmath_vs2013_x86_d.lib" )
-							#else
-								#pragma comment( lib, "libbulletcollision_vs2013_x86.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2013_x86.lib" )
-								#pragma comment( lib, "libbulletmath_vs2013_x86.lib" )
-							#endif
-						#endif
-					#elif _MSC_VER >= 1700
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libbulletcollision_vs2012_x64_d.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2012_x64_d.lib" )
-								#pragma comment( lib, "libbulletmath_vs2012_x64_d.lib" )
-							#else
-								#pragma comment( lib, "libbulletcollision_vs2012_x64.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2012_x64.lib" )
-								#pragma comment( lib, "libbulletmath_vs2012_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libbulletcollision_vs2012_x86_d.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2012_x86_d.lib" )
-								#pragma comment( lib, "libbulletmath_vs2012_x86_d.lib" )
-							#else
-								#pragma comment( lib, "libbulletcollision_vs2012_x86.lib" )
-								#pragma comment( lib, "libbulletdynamics_vs2012_x86.lib" )
-								#pragma comment( lib, "libbulletmath_vs2012_x86.lib" )
-							#endif
-						#endif
-					#else // _MSC_VER >= 1700
+					#if _MSC_VER <  1700
 						#ifdef DX_USE_VC8_BULLET_PHYSICS_LIB
 							#ifdef _WIN64
 								#ifdef _DEBUG
@@ -351,7 +287,75 @@
 								#endif
 							#endif
 						#endif // DX_USE_VC8_BULLET_PHYSICS_LIB
-					#endif // _MSC_VER >= 1700
+					#else // _MSC_VER <  1700
+						#if _MSC_VER >= 1900
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libbulletcollision_vs2015_x64_d.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2015_x64_d.lib" )
+									#pragma comment( lib, "libbulletmath_vs2015_x64_d.lib" )
+								#else
+									#pragma comment( lib, "libbulletcollision_vs2015_x64.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2015_x64.lib" )
+									#pragma comment( lib, "libbulletmath_vs2015_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libbulletcollision_vs2015_x86_d.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2015_x86_d.lib" )
+									#pragma comment( lib, "libbulletmath_vs2015_x86_d.lib" )
+								#else
+									#pragma comment( lib, "libbulletcollision_vs2015_x86.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2015_x86.lib" )
+									#pragma comment( lib, "libbulletmath_vs2015_x86.lib" )
+								#endif
+							#endif
+						#elif _MSC_VER >= 1800
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libbulletcollision_vs2013_x64_d.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2013_x64_d.lib" )
+									#pragma comment( lib, "libbulletmath_vs2013_x64_d.lib" )
+								#else
+									#pragma comment( lib, "libbulletcollision_vs2013_x64.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2013_x64.lib" )
+									#pragma comment( lib, "libbulletmath_vs2013_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libbulletcollision_vs2013_x86_d.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2013_x86_d.lib" )
+									#pragma comment( lib, "libbulletmath_vs2013_x86_d.lib" )
+								#else
+									#pragma comment( lib, "libbulletcollision_vs2013_x86.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2013_x86.lib" )
+									#pragma comment( lib, "libbulletmath_vs2013_x86.lib" )
+								#endif
+							#endif
+						#elif _MSC_VER >= 1700
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libbulletcollision_vs2012_x64_d.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2012_x64_d.lib" )
+									#pragma comment( lib, "libbulletmath_vs2012_x64_d.lib" )
+								#else
+									#pragma comment( lib, "libbulletcollision_vs2012_x64.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2012_x64.lib" )
+									#pragma comment( lib, "libbulletmath_vs2012_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libbulletcollision_vs2012_x86_d.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2012_x86_d.lib" )
+									#pragma comment( lib, "libbulletmath_vs2012_x86_d.lib" )
+								#else
+									#pragma comment( lib, "libbulletcollision_vs2012_x86.lib" )
+									#pragma comment( lib, "libbulletdynamics_vs2012_x86.lib" )
+									#pragma comment( lib, "libbulletmath_vs2012_x86.lib" )
+								#endif
+							#endif
+						#endif // _MSC_VER >= 1700
+					#endif // _MSC_VER < 1700
 				#else // _MSC_VER
 					#pragma comment( lib, "libbulletcollision.lib" )	// Bullet Physics ライブラリ 
 					#pragma comment( lib, "libbulletdynamics.lib" )
@@ -360,49 +364,7 @@
 			#endif
 			#ifndef DX_NON_TIFFREAD
 				#ifdef _MSC_VER
-					#if _MSC_VER >= 1900
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libtiff_vs2015_x64_d.lib" )	// ＴＩＦＦライブラリ
-							#else
-								#pragma comment( lib, "libtiff_vs2015_x64.lib" )	// ＴＩＦＦライブラリ
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libtiff_vs2015_x86_d.lib" )		// ＴＩＦＦライブラリ
-							#else
-								#pragma comment( lib, "libtiff_vs2015_x86.lib" )		// ＴＩＦＦライブラリ
-							#endif
-						#endif
-					#elif _MSC_VER >= 1800
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libtiff_vs2013_x64_d.lib" )		// ＴＩＦＦライブラリ
-							#else
-								#pragma comment( lib, "libtiff_vs2013_x64.lib" )		// ＴＩＦＦライブラリ
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libtiff_vs2013_x86_d.lib" )		// ＴＩＦＦライブラリ
-							#else
-								#pragma comment( lib, "libtiff_vs2013_x86.lib" )		// ＴＩＦＦライブラリ
-							#endif
-						#endif
-					#elif _MSC_VER >= 1700
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libtiff_vs2012_x64_d.lib" )	// ＴＩＦＦライブラリ
-							#else
-								#pragma comment( lib, "libtiff_vs2012_x64.lib" )	// ＴＩＦＦライブラリ
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libtiff_vs2012_x86_d.lib" )	// ＴＩＦＦライブラリ
-							#else
-								#pragma comment( lib, "libtiff_vs2012_x86.lib" )	// ＴＩＦＦライブラリ
-							#endif
-						#endif
-					#else // _MSC_VER >= 1700
+					#if _MSC_VER <  1700
 						#ifdef _WIN64
 							#ifdef _DEBUG
 								#pragma comment( lib, "libtiff_x64_d.lib" )		// ＴＩＦＦライブラリ
@@ -416,68 +378,58 @@
 								#pragma comment( lib, "libtiff.lib" )			// ＴＩＦＦライブラリ
 							#endif
 						#endif
-					#endif // _MSC_VER >= 1700
+					#else // _MSC_VER <  1700
+						#if _MSC_VER >= 1900
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libtiff_vs2015_x64_d.lib" )	// ＴＩＦＦライブラリ
+								#else
+									#pragma comment( lib, "libtiff_vs2015_x64.lib" )	// ＴＩＦＦライブラリ
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libtiff_vs2015_x86_d.lib" )		// ＴＩＦＦライブラリ
+								#else
+									#pragma comment( lib, "libtiff_vs2015_x86.lib" )		// ＴＩＦＦライブラリ
+								#endif
+							#endif
+						#elif _MSC_VER >= 1800
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libtiff_vs2013_x64_d.lib" )		// ＴＩＦＦライブラリ
+								#else
+									#pragma comment( lib, "libtiff_vs2013_x64.lib" )		// ＴＩＦＦライブラリ
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libtiff_vs2013_x86_d.lib" )		// ＴＩＦＦライブラリ
+								#else
+									#pragma comment( lib, "libtiff_vs2013_x86.lib" )		// ＴＩＦＦライブラリ
+								#endif
+							#endif
+						#elif _MSC_VER >= 1700
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libtiff_vs2012_x64_d.lib" )	// ＴＩＦＦライブラリ
+								#else
+									#pragma comment( lib, "libtiff_vs2012_x64.lib" )	// ＴＩＦＦライブラリ
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libtiff_vs2012_x86_d.lib" )	// ＴＩＦＦライブラリ
+								#else
+									#pragma comment( lib, "libtiff_vs2012_x86.lib" )	// ＴＩＦＦライブラリ
+								#endif
+							#endif
+						#endif // _MSC_VER >= 1700
+					#endif // _MSC_VER <  1700
 				#else // _MSC_VER
 					#pragma comment( lib, "libtiff.lib" )			// ＴＩＦＦライブラリ
 				#endif // _MSC_VER
 			#endif
 			#ifndef DX_NON_PNGREAD
 				#ifdef _MSC_VER
-					#if _MSC_VER >= 1900
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libpng_vs2015_x64_d.lib" )	// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2015_x64_d.lib" )
-							#else
-								#pragma comment( lib, "libpng_vs2015_x64.lib" )		// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2015_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libpng_vs2015_x86_d.lib" )	// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2015_x86_d.lib" )
-							#else
-								#pragma comment( lib, "libpng_vs2015_x86.lib" )		// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2015_x86.lib" )
-							#endif
-						#endif
-					#elif _MSC_VER >= 1800
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libpng_vs2013_x64_d.lib" )	// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2013_x64_d.lib" )
-							#else
-								#pragma comment( lib, "libpng_vs2013_x64.lib" )		// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2013_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libpng_vs2013_x86_d.lib" )	// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2013_x86_d.lib" )
-							#else
-								#pragma comment( lib, "libpng_vs2013_x86.lib" )		// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2013_x86.lib" )
-							#endif
-						#endif
-					#elif _MSC_VER >= 1700
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libpng_vs2012_x64_d.lib" )	// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2012_x64_d.lib" )
-							#else
-								#pragma comment( lib, "libpng_vs2012_x64.lib" )		// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2012_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libpng_vs2012_x86_d.lib" )	// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2012_x86_d.lib" )
-							#else
-								#pragma comment( lib, "libpng_vs2012_x86.lib" )		// ＰＮＧライブラリ
-								#pragma comment( lib, "zlib_vs2012_x86.lib" )
-							#endif
-						#endif
-					#else // _MSC_VER >= 1700
+					#if _MSC_VER <  1700
 						#ifdef _WIN64
 							#ifdef _DEBUG
 								#pragma comment( lib, "libpng_x64_d.lib" )		// ＰＮＧライブラリ
@@ -495,7 +447,63 @@
 								#pragma comment( lib, "zlib.lib" )
 							#endif
 						#endif
-					#endif // _MSC_VER >= 1700
+					#else // MSC_VER <  1700
+						#if _MSC_VER >= 1900
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libpng_vs2015_x64_d.lib" )	// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2015_x64_d.lib" )
+								#else
+									#pragma comment( lib, "libpng_vs2015_x64.lib" )		// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2015_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libpng_vs2015_x86_d.lib" )	// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2015_x86_d.lib" )
+								#else
+									#pragma comment( lib, "libpng_vs2015_x86.lib" )		// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2015_x86.lib" )
+								#endif
+							#endif
+						#elif _MSC_VER >= 1800
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libpng_vs2013_x64_d.lib" )	// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2013_x64_d.lib" )
+								#else
+									#pragma comment( lib, "libpng_vs2013_x64.lib" )		// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2013_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libpng_vs2013_x86_d.lib" )	// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2013_x86_d.lib" )
+								#else
+									#pragma comment( lib, "libpng_vs2013_x86.lib" )		// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2013_x86.lib" )
+								#endif
+							#endif
+						#elif _MSC_VER >= 1700
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libpng_vs2012_x64_d.lib" )	// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2012_x64_d.lib" )
+								#else
+									#pragma comment( lib, "libpng_vs2012_x64.lib" )		// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2012_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libpng_vs2012_x86_d.lib" )	// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2012_x86_d.lib" )
+								#else
+									#pragma comment( lib, "libpng_vs2012_x86.lib" )		// ＰＮＧライブラリ
+									#pragma comment( lib, "zlib_vs2012_x86.lib" )
+								#endif
+							#endif
+						#endif // _MSC_VER >= 1700
+					#endif // _MSC_VER < 1700
 				#else // _MSC_VER
 					#pragma comment( lib, "libpng.lib" )			// ＰＮＧライブラリ
 					#pragma comment( lib, "zlib.lib" )
@@ -503,49 +511,7 @@
 			#endif
 			#ifndef DX_NON_JPEGREAD
 				#ifdef _MSC_VER
-					#if _MSC_VER >= 1900
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libjpeg_vs2015_x64_d.lib" )		// ＪＰＥＧライブラリ
-							#else
-								#pragma comment( lib, "libjpeg_vs2015_x64.lib" )		// ＪＰＥＧライブラリ
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libjpeg_vs2015_x86_d.lib" )		// ＪＰＥＧライブラリ
-							#else
-								#pragma comment( lib, "libjpeg_vs2015_x86.lib" )		// ＪＰＥＧライブラリ
-							#endif
-						#endif
-					#elif _MSC_VER >= 1800
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libjpeg_vs2013_x64_d.lib" )		// ＪＰＥＧライブラリ
-							#else
-								#pragma comment( lib, "libjpeg_vs2013_x64.lib" )		// ＪＰＥＧライブラリ
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libjpeg_vs2013_x86_d.lib" )		// ＪＰＥＧライブラリ
-							#else
-								#pragma comment( lib, "libjpeg_vs2013_x86.lib" )		// ＪＰＥＧライブラリ
-							#endif
-						#endif
-					#elif _MSC_VER >= 1700
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "libjpeg_vs2012_x64_d.lib" )		// ＪＰＥＧライブラリ
-							#else
-								#pragma comment( lib, "libjpeg_vs2012_x64.lib" )		// ＪＰＥＧライブラリ
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "libjpeg_vs2012_x86_d.lib" )		// ＪＰＥＧライブラリ
-							#else
-								#pragma comment( lib, "libjpeg_vs2012_x86.lib" )		// ＪＰＥＧライブラリ
-							#endif
-						#endif
-					#else // _MSC_VER >= 1700
+					#if _MSC_VER <  1700
 						#ifdef _WIN64
 							#ifdef _DEBUG
 								#pragma comment( lib, "libjpeg_x64_d.lib" )		// ＪＰＥＧライブラリ
@@ -559,80 +525,58 @@
 								#pragma comment( lib, "libjpeg.lib" )			// ＪＰＥＧライブラリ
 							#endif
 						#endif
-					#endif // _MSC_VER >= 1700
+					#else // _MSC_VER <  1700
+						#if _MSC_VER >= 1900
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libjpeg_vs2015_x64_d.lib" )		// ＪＰＥＧライブラリ
+								#else
+									#pragma comment( lib, "libjpeg_vs2015_x64.lib" )		// ＪＰＥＧライブラリ
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libjpeg_vs2015_x86_d.lib" )		// ＪＰＥＧライブラリ
+								#else
+									#pragma comment( lib, "libjpeg_vs2015_x86.lib" )		// ＪＰＥＧライブラリ
+								#endif
+							#endif
+						#elif _MSC_VER >= 1800
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libjpeg_vs2013_x64_d.lib" )		// ＪＰＥＧライブラリ
+								#else
+									#pragma comment( lib, "libjpeg_vs2013_x64.lib" )		// ＪＰＥＧライブラリ
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libjpeg_vs2013_x86_d.lib" )		// ＪＰＥＧライブラリ
+								#else
+									#pragma comment( lib, "libjpeg_vs2013_x86.lib" )		// ＪＰＥＧライブラリ
+								#endif
+							#endif
+						#elif _MSC_VER >= 1700
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "libjpeg_vs2012_x64_d.lib" )		// ＪＰＥＧライブラリ
+								#else
+									#pragma comment( lib, "libjpeg_vs2012_x64.lib" )		// ＪＰＥＧライブラリ
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "libjpeg_vs2012_x86_d.lib" )		// ＪＰＥＧライブラリ
+								#else
+									#pragma comment( lib, "libjpeg_vs2012_x86.lib" )		// ＪＰＥＧライブラリ
+								#endif
+							#endif
+						#endif // _MSC_VER >= 1700
+					#endif // _MSC_VER <  1700
 				#else // _MSC_VER
 					#pragma comment( lib, "libjpeg.lib" )			// ＪＰＥＧライブラリ
 				#endif // _MSC_VER
 			#endif
 			#ifndef DX_NON_OGGVORBIS								// ＯｇｇＶｏｒｂｉｓライブラリ
 				#ifdef _MSC_VER
-					#if _MSC_VER >= 1900
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2015_x64_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2015_x64_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2015_x64_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2015_x64.lib" )
-								#pragma comment( lib, "vorbis_static_vs2015_x64.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2015_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2015_x86_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2015_x86_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2015_x86_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2015_x86.lib" )
-								#pragma comment( lib, "vorbis_static_vs2015_x86.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2015_x86.lib" )
-							#endif
-						#endif
-					#elif _MSC_VER >= 1800
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2013_x64_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2013_x64_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2013_x64_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2013_x64.lib" )
-								#pragma comment( lib, "vorbis_static_vs2013_x64.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2013_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2013_x86_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2013_x86_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2013_x86_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2013_x86.lib" )
-								#pragma comment( lib, "vorbis_static_vs2013_x86.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2013_x86.lib" )
-							#endif
-						#endif
-					#elif _MSC_VER >= 1700
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2012_x64_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2012_x64_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2012_x64_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2012_x64.lib" )
-								#pragma comment( lib, "vorbis_static_vs2012_x64.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2012_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2012_x86_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2012_x86_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2012_x86_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2012_x86.lib" )
-								#pragma comment( lib, "vorbis_static_vs2012_x86.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2012_x86.lib" )
-							#endif
-						#endif
-					#else // _MSC_VER >= 1700
+					#if _MSC_VER <  1700
 						#ifdef _WIN64
 							#ifdef _DEBUG
 								#pragma comment( lib, "ogg_static_x64_d.lib" )
@@ -654,7 +598,75 @@
 								#pragma comment( lib, "vorbisfile_static.lib" )
 							#endif
 						#endif
-					#endif // _MSC_VER >= 1700
+					#else // _MSC_VER <  1700
+						#if _MSC_VER >= 1900
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2015_x64_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2015_x64_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2015_x64_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2015_x64.lib" )
+									#pragma comment( lib, "vorbis_static_vs2015_x64.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2015_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2015_x86_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2015_x86_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2015_x86_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2015_x86.lib" )
+									#pragma comment( lib, "vorbis_static_vs2015_x86.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2015_x86.lib" )
+								#endif
+							#endif
+						#elif _MSC_VER >= 1800
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2013_x64_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2013_x64_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2013_x64_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2013_x64.lib" )
+									#pragma comment( lib, "vorbis_static_vs2013_x64.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2013_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2013_x86_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2013_x86_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2013_x86_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2013_x86.lib" )
+									#pragma comment( lib, "vorbis_static_vs2013_x86.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2013_x86.lib" )
+								#endif
+							#endif
+						#elif _MSC_VER >= 1700
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2012_x64_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2012_x64_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2012_x64_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2012_x64.lib" )
+									#pragma comment( lib, "vorbis_static_vs2012_x64.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2012_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2012_x86_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2012_x86_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2012_x86_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2012_x86.lib" )
+									#pragma comment( lib, "vorbis_static_vs2012_x86.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2012_x86.lib" )
+								#endif
+							#endif
+						#endif // _MSC_VER >= 1700
+					#endif // _MSC_VER < 1700
 				#else // _MSC_VER
 					#pragma comment( lib, "ogg_static.lib" )
 					#pragma comment( lib, "vorbis_static.lib" )
@@ -663,97 +675,7 @@
 			#endif
 			#ifndef DX_NON_OGGTHEORA								// ＯｇｇＴｈｅｏｒａライブラリ
 				#ifdef _MSC_VER
-					#if _MSC_VER >= 1900
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2015_x64_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2015_x64_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2015_x64_d.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2015_x64_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2015_x64.lib" )
-								#pragma comment( lib, "vorbis_static_vs2015_x64.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2015_x64.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2015_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2015_x86_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2015_x86_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2015_x86_d.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2015_x86_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2015_x86.lib" )
-								#pragma comment( lib, "vorbis_static_vs2015_x86.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2015_x86.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2015_x86.lib" )
-							#endif
-						#endif
-					#elif _MSC_VER >= 1800
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2013_x64_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2013_x64_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2013_x64_d.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2013_x64_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2013_x64.lib" )
-								#pragma comment( lib, "vorbis_static_vs2013_x64.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2013_x64.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2013_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2013_x86_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2013_x86_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2013_x86_d.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2013_x86_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2013_x86.lib" )
-								#pragma comment( lib, "vorbis_static_vs2013_x86.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2013_x86.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2013_x86.lib" )
-							#endif
-						#endif
-					#elif _MSC_VER >= 1700
-						#ifdef _WIN64
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2012_x64_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2012_x64_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2012_x64_d.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2012_x64_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2012_x64.lib" )
-								#pragma comment( lib, "vorbis_static_vs2012_x64.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2012_x64.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2012_x64.lib" )
-							#endif
-						#else
-							#ifdef _DEBUG
-								#pragma comment( lib, "ogg_static_vs2012_x86_d.lib" )
-								#pragma comment( lib, "vorbis_static_vs2012_x86_d.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2012_x86_d.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2012_x86_d.lib" )
-							#else
-								#pragma comment( lib, "ogg_static_vs2012_x86.lib" )
-								#pragma comment( lib, "vorbis_static_vs2012_x86.lib" )
-								#pragma comment( lib, "vorbisfile_static_vs2012_x86.lib" )
-
-								#pragma comment( lib, "libtheora_static_vs2012_x86.lib" )
-							#endif
-						#endif
-					#else // _MSC_VER >= 1700
+					#if _MSC_VER <  1700
 						#ifdef _WIN64
 							#ifdef _DEBUG
 								#pragma comment( lib, "ogg_static_x64_d.lib" )
@@ -783,7 +705,99 @@
 								#pragma comment( lib, "libtheora_static.lib" )
 							#endif
 						#endif
-					#endif // _MSC_VER >= 1700
+					#else // _MSC_VER <  1700
+						#if _MSC_VER >= 1900
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2015_x64_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2015_x64_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2015_x64_d.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2015_x64_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2015_x64.lib" )
+									#pragma comment( lib, "vorbis_static_vs2015_x64.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2015_x64.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2015_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2015_x86_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2015_x86_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2015_x86_d.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2015_x86_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2015_x86.lib" )
+									#pragma comment( lib, "vorbis_static_vs2015_x86.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2015_x86.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2015_x86.lib" )
+								#endif
+							#endif
+						#elif _MSC_VER >= 1800
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2013_x64_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2013_x64_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2013_x64_d.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2013_x64_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2013_x64.lib" )
+									#pragma comment( lib, "vorbis_static_vs2013_x64.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2013_x64.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2013_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2013_x86_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2013_x86_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2013_x86_d.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2013_x86_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2013_x86.lib" )
+									#pragma comment( lib, "vorbis_static_vs2013_x86.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2013_x86.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2013_x86.lib" )
+								#endif
+							#endif
+						#elif _MSC_VER >= 1700
+							#ifdef _WIN64
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2012_x64_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2012_x64_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2012_x64_d.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2012_x64_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2012_x64.lib" )
+									#pragma comment( lib, "vorbis_static_vs2012_x64.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2012_x64.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2012_x64.lib" )
+								#endif
+							#else
+								#ifdef _DEBUG
+									#pragma comment( lib, "ogg_static_vs2012_x86_d.lib" )
+									#pragma comment( lib, "vorbis_static_vs2012_x86_d.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2012_x86_d.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2012_x86_d.lib" )
+								#else
+									#pragma comment( lib, "ogg_static_vs2012_x86.lib" )
+									#pragma comment( lib, "vorbis_static_vs2012_x86.lib" )
+									#pragma comment( lib, "vorbisfile_static_vs2012_x86.lib" )
+
+									#pragma comment( lib, "libtheora_static_vs2012_x86.lib" )
+								#endif
+							#endif
+						#endif // _MSC_VER >= 1700
+					#endif // _MSC_VER < 1700
 				#else // _MSC_VER
 					#pragma comment( lib, "ogg_static.lib" )
 					#pragma comment( lib, "vorbis_static.lib" )
@@ -828,6 +842,10 @@ namespace DxLib
 #define LONG_PTR	int
 #endif
 #endif
+
+#define DX_READSOUNDFUNCTION_ACM					(1 << ( DX_READSOUNDFUNCTION_DEFAULT_NUM + 0 ))		// ACM を使用した読み込み処理
+#define DX_READSOUNDFUNCTION_MP3					(1 << ( DX_READSOUNDFUNCTION_DEFAULT_NUM + 1 ))		// ACM を使用した MP3 の読み込み処理
+#define DX_READSOUNDFUNCTION_DSMP3					(1 << ( DX_READSOUNDFUNCTION_DEFAULT_NUM + 2 ))		// DirectShow を使用した MP3 の読み込み処理
 
 // 構造体定義 --------------------------------------------------------------------
 

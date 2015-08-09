@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ＦＢＸモデルデータ読み込みプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -1240,7 +1240,7 @@ static int AnalyseFbxNode( MV1_MODEL_R *RModel, FBX_MODEL *Model, MV1_FRAME_R *P
 										if( k == Mesh->MaterialNum )
 										{
 //											FbxUTF8ToAnsi( FbxMaterialDim[ j ]->GetName(), ANSIBuffer, &ANSISize ) ;
-											ConvString( FbxMaterialDim[ j ]->GetName(), DX_CODEPAGE_UTF8, ( char * )UTF16LE_Buffer, DX_CODEPAGE_UTF16LE ) ; 
+											ConvString( FbxMaterialDim[ j ]->GetName(), DX_CHARCODEFORMAT_UTF8, ( char * )UTF16LE_Buffer, DX_CHARCODEFORMAT_UTF16LE ) ; 
 											DXST_ERRORLOGFMT_ADDUTF16LE(( "\x46\x00\x62\x00\x78\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x3a\x00\x20\x00\xce\x30\xfc\x30\xc9\x30\x85\x51\x6b\x30\x00\x4e\xf4\x81\x59\x30\x8b\x30\xde\x30\xc6\x30\xea\x30\xa2\x30\xeb\x30\x4c\x30\x8b\x89\x64\x30\x4b\x30\x8a\x30\x7e\x30\x5b\x30\x93\x30\x67\x30\x57\x30\x5f\x30\x20\x00\x65\x00\x42\x00\x59\x00\x5f\x00\x43\x00\x4f\x00\x4e\x00\x54\x00\x52\x00\x4f\x00\x4c\x00\x5f\x00\x50\x00\x4f\x00\x49\x00\x4e\x00\x54\x00\x20\x00\x2c\x00\x20\x00\x25\x00\x73\x00\x20\x00\x0a\x00\x00"/*@ L"Fbx Load : ノード内に一致するマテリアルが見つかりませんでした eBY_CONTROL_POINT , %s \n" @*/, UTF16LE_Buffer )) ;
 											DXFREE( FbxMaterialDim ) ;
 											return -1 ;
@@ -1760,8 +1760,8 @@ extern int MV1LoadModelToFBX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	MV1InitReadModel( &RModel ) ;
 	RModel.MeshFaceRightHand = TRUE ;
 
-	// モデル名とファイル名とコードページをセット
-	RModel.CodePage = DX_CODEPAGE_UTF8 ;
+	// モデル名とファイル名と文字コード形式をセット
+	RModel.CharCodeFormat = DX_CHARCODEFORMAT_UTF8 ;
 	RModel.FilePath = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->FilePath ) + 1 ) * sizeof( wchar_t ) ) ;
 	RModel.Name     = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->Name     ) + 1 ) * sizeof( wchar_t ) ) ;
 	_WCSCPY( RModel.FilePath, LoadParam->FilePath ) ;
@@ -1805,7 +1805,7 @@ extern int MV1LoadModelToFBX( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	}
 
 	// FBXフォーマットのチェック
-	ConvString( ( const char * )LoadParam->FilePath, WCHAR_T_CODEPAGE, ( char * )UTF8Buffer, DX_CODEPAGE_UTF8 ) ;
+	ConvString( ( const char * )LoadParam->FilePath, WCHAR_T_CHARCODEFORMAT, ( char * )UTF8Buffer, DX_CHARCODEFORMAT_UTF8 ) ;
 	if( FbxModel.pManager->GetIOPluginRegistry()->DetectReaderFileFormat( UTF8Buffer, iFileFormat ) == false )
 	{
 		goto FUNCTIONEND ;

@@ -1,57 +1,57 @@
-#include "../VertexShader.h"
+ï»¿#include "../VertexShader.h"
 
-// ’¸“_ƒVƒF[ƒ_[‚Ì“ü—Í
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®å…¥åŠ›
 struct VS_INPUT
 {
-	float3 Position        : POSITION0 ;		// À•W( ƒ[ƒJƒ‹‹óŠÔ )
-	float3 Normal          : NORMAL ;			// –@ü
-	float4 Diffuse         : COLOR0 ;			// ƒfƒBƒtƒ…[ƒYƒJƒ‰[
-	float4 Specular        : COLOR1 ;			// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
-	float2 TexCoords0      : TEXCOORD0 ;		// ƒeƒNƒXƒ`ƒƒÀ•W‚O
-	float2 TexCoords1      : TEXCOORD1 ;		// ƒeƒNƒXƒ`ƒƒÀ•W‚P
+	float3 Position        : POSITION0 ;		// åº§æ¨™( ãƒ­ãƒ¼ã‚«ãƒ«ç©ºé–“ )
+	float3 Normal          : NORMAL ;			// æ³•ç·š
+	float4 Diffuse         : COLOR0 ;			// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
+	float4 Specular        : COLOR1 ;			// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
+	float2 TexCoords0      : TEXCOORD0 ;		// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ï¼
+	float2 TexCoords1      : TEXCOORD1 ;		// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ï¼‘
 
 #ifdef BUMPMAP
-	// ƒoƒ“ƒvƒ}ƒbƒv
-	float3 Tan             : TANGENT0 ;			// Úü( ƒ[ƒJƒ‹‹óŠÔ )
-	float3 Bin             : BINORMAL0 ;		// ]–@ü( ƒ[ƒJƒ‹‹óŠÔ )
+	// ãƒãƒ³ãƒ—ãƒãƒƒãƒ—
+	float3 Tan             : TANGENT0 ;			// æ¥ç·š( ãƒ­ãƒ¼ã‚«ãƒ«ç©ºé–“ )
+	float3 Bin             : BINORMAL0 ;		// å¾“æ³•ç·š( ãƒ­ãƒ¼ã‚«ãƒ«ç©ºé–“ )
 #endif // BUMPMAP
 
 #ifdef SKINMESH
-	// ƒXƒLƒjƒ“ƒOƒƒbƒVƒ…
-	int4   BlendIndices0   : BLENDINDICES0 ;	// ƒ{[ƒ“ˆ——p FloatŒ^’è””z—ñƒCƒ“ƒfƒbƒNƒX‚O
-	float4 BlendWeight0    : BLENDWEIGHT0 ;		// ƒ{[ƒ“ˆ——pƒEƒGƒCƒg’l‚O
+	// ã‚¹ã‚­ãƒ‹ãƒ³ã‚°ãƒ¡ãƒƒã‚·ãƒ¥
+	int4   BlendIndices0   : BLENDINDICES0 ;	// ãƒœãƒ¼ãƒ³å‡¦ç†ç”¨ Floatå‹å®šæ•°é…åˆ—ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ï¼
+	float4 BlendWeight0    : BLENDWEIGHT0 ;		// ãƒœãƒ¼ãƒ³å‡¦ç†ç”¨ã‚¦ã‚¨ã‚¤ãƒˆå€¤ï¼
 
 	#ifdef BONE8
 
-		int4   BlendIndices1   : BLENDINDICES1 ;	// ƒ{[ƒ“ˆ——p FloatŒ^’è””z—ñƒCƒ“ƒfƒbƒNƒX‚P
-		float4 BlendWeight1    : BLENDWEIGHT1 ;		// ƒ{[ƒ“ˆ——pƒEƒGƒCƒg’l‚P
+		int4   BlendIndices1   : BLENDINDICES1 ;	// ãƒœãƒ¼ãƒ³å‡¦ç†ç”¨ Floatå‹å®šæ•°é…åˆ—ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ï¼‘
+		float4 BlendWeight1    : BLENDWEIGHT1 ;		// ãƒœãƒ¼ãƒ³å‡¦ç†ç”¨ã‚¦ã‚¨ã‚¤ãƒˆå€¤ï¼‘
 
 	#endif // BONE8
 
 #endif // SKINMESH
 } ;
 
-// ’¸“_ƒVƒF[ƒ_[‚Ìo—Í
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®å‡ºåŠ›
 struct VS_OUTPUT
 {
-	float4 Diffuse         : COLOR0 ;		// ƒfƒBƒtƒ…[ƒYƒJƒ‰[
-	float4 Specular        : COLOR1 ;		// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[
-	float4 TexCoords0_1    : TEXCOORD0 ;	// xy:ƒeƒNƒXƒ`ƒƒÀ•W zw:ƒTƒuƒeƒNƒXƒ`ƒƒÀ•W
-	float3 VPosition       : TEXCOORD1 ;	// À•W( ƒrƒ…[‹óŠÔ )
-	float3 VNormal         : TEXCOORD2 ;	// –@ü( ƒrƒ…[‹óŠÔ )
+	float4 Diffuse         : COLOR0 ;		// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼
+	float4 Specular        : COLOR1 ;		// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼
+	float4 TexCoords0_1    : TEXCOORD0 ;	// xy:ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ zw:ã‚µãƒ–ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™
+	float3 VPosition       : TEXCOORD1 ;	// åº§æ¨™( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )
+	float3 VNormal         : TEXCOORD2 ;	// æ³•ç·š( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )
 #ifdef BUMPMAP
-	float3 VTan            : TEXCOORD3 ;    // Úü( ƒrƒ…[‹óŠÔ )
-	float3 VBin            : TEXCOORD4 ;    // ]–@ü( ƒrƒ…[‹óŠÔ )
+	float3 VTan            : TEXCOORD3 ;    // æ¥ç·š( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )
+	float3 VBin            : TEXCOORD4 ;    // å¾“æ³•ç·š( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )
 #endif // BUMPMAP
-	float1 Fog             : TEXCOORD5 ;	// ƒtƒHƒOƒpƒ‰ƒ[ƒ^( x )
+	float1 Fog             : TEXCOORD5 ;	// ãƒ•ã‚©ã‚°ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿( x )
 
 #if SHADOWMAP
-	float3 ShadowMap0Pos   : TEXCOORD6 ;	// ƒVƒƒƒhƒEƒ}ƒbƒv‚O‚Ìƒ‰ƒCƒgÀ•W( x, y, z )
-	float3 ShadowMap1Pos   : TEXCOORD7 ;	// ƒVƒƒƒhƒEƒ}ƒbƒv‚P‚Ìƒ‰ƒCƒgÀ•W( x, y, z )
-	float3 ShadowMap2Pos   : TEXCOORD8 ;	// ƒVƒƒƒhƒEƒ}ƒbƒv‚Q‚Ìƒ‰ƒCƒgÀ•W( x, y, z )
+	float3 ShadowMap0Pos   : TEXCOORD6 ;	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒãƒƒãƒ—ï¼ã®ãƒ©ã‚¤ãƒˆåº§æ¨™( x, y, z )
+	float3 ShadowMap1Pos   : TEXCOORD7 ;	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒãƒƒãƒ—ï¼‘ã®ãƒ©ã‚¤ãƒˆåº§æ¨™( x, y, z )
+	float3 ShadowMap2Pos   : TEXCOORD8 ;	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒãƒƒãƒ—ï¼’ã®ãƒ©ã‚¤ãƒˆåº§æ¨™( x, y, z )
 #endif // SHADOWMAP
 
-	float4 Position        : SV_POSITION ;	// À•W( ƒvƒƒWƒFƒNƒVƒ‡ƒ“‹óŠÔ )
+	float4 Position        : SV_POSITION ;	// åº§æ¨™( ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³ç©ºé–“ )
 } ;
 
 
@@ -67,7 +67,7 @@ struct VS_OUTPUT
 
 
 
-// mainŠÖ”
+// mainé–¢æ•°
 VS_OUTPUT main( VS_INPUT VSInput )
 {
 	VS_OUTPUT	VSOutput ;
@@ -87,13 +87,13 @@ VS_OUTPUT main( VS_INPUT VSInput )
 #endif
 
 
-	// ’¸“_À•W•ÏŠ· ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( ŠJn )
+	// é ‚ç‚¹åº§æ¨™å¤‰æ› ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( é–‹å§‹ )
 
 	#ifdef SKINMESH
 
-		// ƒXƒLƒ“ƒƒbƒVƒ…
+		// ã‚¹ã‚­ãƒ³ãƒ¡ãƒƒã‚·ãƒ¥
 
-		// ƒuƒŒƒ“ƒhs—ñ‚Ìì¬
+		// ãƒ–ãƒ¬ãƒ³ãƒ‰è¡Œåˆ—ã®ä½œæˆ
 		lBoneFloatIndex = VSInput.BlendIndices0 ;
 		lLocalWorldMatrix[ 0 ]  = g_LocalWorldMatrix.Matrix[ lBoneFloatIndex.x + 0 ] * VSInput.BlendWeight0.xxxx;
 		lLocalWorldMatrix[ 1 ]  = g_LocalWorldMatrix.Matrix[ lBoneFloatIndex.x + 1 ] * VSInput.BlendWeight0.xxxx;
@@ -134,11 +134,11 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#endif	// SKINMESH
 
-	// ƒ[ƒJƒ‹À•W‚ÌƒZƒbƒg
+	// ãƒ­ãƒ¼ã‚«ãƒ«åº§æ¨™ã®ã‚»ãƒƒãƒˆ
 	lLocalPosition.xyz = VSInput.Position ;
 	lLocalPosition.w = 1.0f ;
 
-	// À•WŒvZ( ƒ[ƒJƒ‹¨ƒrƒ…[¨ƒvƒƒWƒFƒNƒVƒ‡ƒ“ )
+	// åº§æ¨™è¨ˆç®—( ãƒ­ãƒ¼ã‚«ãƒ«â†’ãƒ“ãƒ¥ãƒ¼â†’ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³ )
 	lWorldPosition.x = dot( lLocalPosition, LOCAL_WORLD_MAT[ 0 ] ) ;
 	lWorldPosition.y = dot( lLocalPosition, LOCAL_WORLD_MAT[ 1 ] ) ;
 	lWorldPosition.z = dot( lLocalPosition, LOCAL_WORLD_MAT[ 2 ] ) ;
@@ -154,10 +154,10 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	VSOutput.Position.z = dot( lViewPosition, g_Base.ProjectionMatrix[ 2 ] ) ;
 	VSOutput.Position.w = dot( lViewPosition, g_Base.ProjectionMatrix[ 3 ] ) ;
 	
-	// À•W( ƒrƒ…[‹óŠÔ )‚ğ•Û‘¶
+	// åº§æ¨™( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )ã‚’ä¿å­˜
 	VSOutput.VPosition = lViewPosition.xyz;
 	
-	// –@ü‚ğŒvZ
+	// æ³•ç·šã‚’è¨ˆç®—
 	lWorldNrm.x = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 0 ].xyz ) ;
 	lWorldNrm.y = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 1 ].xyz ) ;
 	lWorldNrm.z = dot( VSInput.Normal, LOCAL_WORLD_MAT[ 2 ].xyz ) ;
@@ -166,12 +166,12 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	lViewNrm.y = dot( lWorldNrm, g_Base.ViewMatrix[ 1 ].xyz ) ;
 	lViewNrm.z = dot( lWorldNrm, g_Base.ViewMatrix[ 2 ].xyz ) ;
 
-	// –@ü( ƒrƒ…[‹óŠÔ )‚ğ•Û‘¶
+	// æ³•ç·š( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )ã‚’ä¿å­˜
 	VSOutput.VNormal = lViewNrm;
 
 	#ifdef BUMPMAP
 
-		// ]–@üAÚü‚ğƒrƒ…[‹óŠÔ‚É“Š‰e‚·‚é
+		// å¾“æ³•ç·šã€æ¥ç·šã‚’ãƒ“ãƒ¥ãƒ¼ç©ºé–“ã«æŠ•å½±ã™ã‚‹
 		lWorldTan.x = dot( VSInput.Tan, LOCAL_WORLD_MAT[ 0 ].xyz ) ;
 		lWorldTan.y = dot( VSInput.Tan, LOCAL_WORLD_MAT[ 1 ].xyz ) ;
 		lWorldTan.z = dot( VSInput.Tan, LOCAL_WORLD_MAT[ 2 ].xyz ) ;
@@ -188,45 +188,45 @@ VS_OUTPUT main( VS_INPUT VSInput )
 		lViewBin.y = dot( lWorldBin, g_Base.ViewMatrix[ 1 ].xyz ) ;
 		lViewBin.z = dot( lWorldBin, g_Base.ViewMatrix[ 2 ].xyz ) ;
 		
-		// ]–@üAÚü( ƒrƒ…[‹óŠÔ )‚ğ•Û‘¶
+		// å¾“æ³•ç·šã€æ¥ç·š( ãƒ“ãƒ¥ãƒ¼ç©ºé–“ )ã‚’ä¿å­˜
 		VSOutput.VTan = lViewTan;
 		VSOutput.VBin = lViewBin;
 
 	#endif	// BUMPMAP
 
-	// ƒfƒBƒtƒ…[ƒYƒJƒ‰[‚ğƒZƒbƒg
+	// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºã‚«ãƒ©ãƒ¼ã‚’ã‚»ãƒƒãƒˆ
 	VSOutput.Diffuse  = g_Base.DiffuseSource  > 0.5f ? VSInput.Diffuse  : g_Common.Material.Diffuse ;
 	
-	// ƒXƒyƒLƒ…ƒ‰ƒJƒ‰[‚ğƒZƒbƒg
+	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã‚«ãƒ©ãƒ¼ã‚’ã‚»ãƒƒãƒˆ
 	VSOutput.Specular = ( g_Base.SpecularSource > 0.5f ? VSInput.Specular : g_Common.Material.Specular ) * g_Base.MulSpecularColor ;
 
-	// ’¸“_À•W•ÏŠ· ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( I—¹ )
+	// é ‚ç‚¹åº§æ¨™å¤‰æ› ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( çµ‚äº† )
 
 
 
 
 
-	// ƒtƒHƒOŒvZ =============================================( ŠJn )
+	// ãƒ•ã‚©ã‚°è¨ˆç®— =============================================( é–‹å§‹ )
 
 	#if FOG_LINEAR || FOG_EXP || FOG_EXP2
 
 		#ifdef FOG_LINEAR
 
-			// üŒ`ƒtƒHƒOŒvZ
+			// ç·šå½¢ãƒ•ã‚©ã‚°è¨ˆç®—
 			VSOutput.Fog.x = lViewPosition.z * g_Common.Fog.LinearDiv + g_Common.Fog.LinearAdd ;
 
 		#endif
 
 		#ifdef FOG_EXP
 
-			// w”ƒtƒHƒOŒvZ 1.0f / pow( e, ‹——£ * density )
+			// æŒ‡æ•°ãƒ•ã‚©ã‚°è¨ˆç®— 1.0f / pow( e, è·é›¢ * density )
 			VSOutput.Fog.x = 1.0f / pow( abs( g_Common.Fog.E ), lViewPosition.z * g_Common.Fog.Density ) ;
 
 		#endif
 
 		#ifdef FOG_EXP2
 
-			// w”ƒtƒHƒO‚QŒvZ 1.0f / pow( e, ( ‹——£ * density ) * ( ‹——£ * density ) )
+			// æŒ‡æ•°ãƒ•ã‚©ã‚°ï¼’è¨ˆç®— 1.0f / pow( e, ( è·é›¢ * density ) * ( è·é›¢ * density ) )
 			VSOutput.Fog.x = 1.0f / pow( abs( g_Common.Fog.E ), ( lViewPosition.z * g_Common.Fog.Density ) * ( lViewPosition.z * g_Common.Fog.Density ) ) ;
 
 		#endif
@@ -237,30 +237,30 @@ VS_OUTPUT main( VS_INPUT VSInput )
 
 	#endif // FOG_LINEAR || FOG_EXP || FOG_EXP2
 
-	// ƒtƒHƒOŒvZ =============================================( I—¹ )
+	// ãƒ•ã‚©ã‚°è¨ˆç®— =============================================( çµ‚äº† )
 
 #if SHADOWMAP
-	// [“x‰e—p‚Ìƒ‰ƒCƒg‚©‚çŒ©‚½Ë‰eÀ•W‚ğZo =================( ŠJn )
+	// æ·±åº¦å½±ç”¨ã®ãƒ©ã‚¤ãƒˆã‹ã‚‰è¦‹ãŸå°„å½±åº§æ¨™ã‚’ç®—å‡º =================( é–‹å§‹ )
 
-	// ƒ[ƒ‹ƒhÀ•W‚ğƒVƒƒƒhƒEƒ}ƒbƒv‚O‚Ìƒ‰ƒCƒgİ’è‚ÌË‰eÀ•W‚É•ÏŠ·
+	// ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™ã‚’ã‚·ãƒ£ãƒ‰ã‚¦ãƒãƒƒãƒ—ï¼ã®ãƒ©ã‚¤ãƒˆè¨­å®šã®å°„å½±åº§æ¨™ã«å¤‰æ›
 	VSOutput.ShadowMap0Pos.x = dot( lWorldPosition, g_OtherMatrix.ShadowMapLightViewProjectionMatrix[ 0 ][ 0 ] ) ;
 	VSOutput.ShadowMap0Pos.y = dot( lWorldPosition, g_OtherMatrix.ShadowMapLightViewProjectionMatrix[ 0 ][ 1 ] ) ;
 	VSOutput.ShadowMap0Pos.z = dot( lWorldPosition, g_OtherMatrix.ShadowMapLightViewProjectionMatrix[ 0 ][ 2 ] ) ;
 
-	// ƒ[ƒ‹ƒhÀ•W‚ğƒVƒƒƒhƒEƒ}ƒbƒv‚P‚Ìƒ‰ƒCƒgİ’è‚ÌË‰eÀ•W‚É•ÏŠ·
+	// ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™ã‚’ã‚·ãƒ£ãƒ‰ã‚¦ãƒãƒƒãƒ—ï¼‘ã®ãƒ©ã‚¤ãƒˆè¨­å®šã®å°„å½±åº§æ¨™ã«å¤‰æ›
 	VSOutput.ShadowMap1Pos.x = dot( lWorldPosition, g_OtherMatrix.ShadowMapLightViewProjectionMatrix[ 1 ][ 0 ] ) ;
 	VSOutput.ShadowMap1Pos.y = dot( lWorldPosition, g_OtherMatrix.ShadowMapLightViewProjectionMatrix[ 1 ][ 1 ] ) ;
 	VSOutput.ShadowMap1Pos.z = dot( lWorldPosition, g_OtherMatrix.ShadowMapLightViewProjectionMatrix[ 1 ][ 2 ] ) ;
 
-	// ƒ[ƒ‹ƒhÀ•W‚ğƒVƒƒƒhƒEƒ}ƒbƒv‚Q‚Ìƒ‰ƒCƒgİ’è‚ÌË‰eÀ•W‚É•ÏŠ·
+	// ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™ã‚’ã‚·ãƒ£ãƒ‰ã‚¦ãƒãƒƒãƒ—ï¼’ã®ãƒ©ã‚¤ãƒˆè¨­å®šã®å°„å½±åº§æ¨™ã«å¤‰æ›
 	VSOutput.ShadowMap2Pos.x = dot( lWorldPosition, g_OtherMatrix.ShadowMapLightViewProjectionMatrix[ 2 ][ 0 ] ) ;
 	VSOutput.ShadowMap2Pos.y = dot( lWorldPosition, g_OtherMatrix.ShadowMapLightViewProjectionMatrix[ 2 ][ 1 ] ) ;
 	VSOutput.ShadowMap2Pos.z = dot( lWorldPosition, g_OtherMatrix.ShadowMapLightViewProjectionMatrix[ 2 ][ 2 ] ) ;
 
-	// [“x‰e—p‚Ìƒ‰ƒCƒg‚©‚çŒ©‚½Ë‰eÀ•W‚ğZo =================( I—¹ )
+	// æ·±åº¦å½±ç”¨ã®ãƒ©ã‚¤ãƒˆã‹ã‚‰è¦‹ãŸå°„å½±åº§æ¨™ã‚’ç®—å‡º =================( çµ‚äº† )
 #endif
 
-	// ƒeƒNƒXƒ`ƒƒÀ•W‚ÌƒZƒbƒg
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ã®ã‚»ãƒƒãƒˆ
 	VSOutput.TexCoords0_1.x = dot( VSInput.TexCoords0, g_OtherMatrix.TextureMatrix[ 0 ][ 0 ] ) ;
 	VSOutput.TexCoords0_1.y = dot( VSInput.TexCoords0, g_OtherMatrix.TextureMatrix[ 0 ][ 1 ] ) ;
 

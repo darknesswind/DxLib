@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		WindowsOS用描画処理プログラム
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -915,7 +915,7 @@ extern int Graphics_Hardware_CheckValid_PF( void )
 
 // 環境依存描画設定関係
 
-// メインウインドウの背景色を設定する( Red,Green,Blue:それぞれ ０～２５５ )
+// メインウインドウの背景色を設定する( Red,Green,Blue:それぞれ ０〜２５５ )
 extern	int		Graphics_Hardware_SetBackgroundColor_PF( int Red, int Green, int Blue )
 {
 	return 0 ;
@@ -1281,7 +1281,7 @@ extern	int		Graphics_Hardware_SetFogColor_PF( DWORD FogColor )
 	}
 }
 
-// フォグが始まる距離と終了する距離を設定する( 0.0f ～ 1.0f )
+// フォグが始まる距離と終了する距離を設定する( 0.0f 〜 1.0f )
 extern	int		Graphics_Hardware_SetFogStartEnd_PF( float start, float end )
 {
 	switch( GRAWIN.Setting.UseGraphicsAPI )
@@ -1301,7 +1301,7 @@ extern	int		Graphics_Hardware_SetFogStartEnd_PF( float start, float end )
 	}
 }
 
-// フォグの密度を設定する( 0.0f ～ 1.0f )
+// フォグの密度を設定する( 0.0f 〜 1.0f )
 extern	int		Graphics_Hardware_SetFogDensity_PF( float density )
 {
 	switch( GRAWIN.Setting.UseGraphicsAPI )

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ウインドウ関係制御プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -287,7 +287,9 @@ static HWND WindowZType_Win32Param[] =
 
 // 圧縮キーボードフックＤＬＬバイナリデータ
 extern int  DxKeyHookBinaryConvert ;
-extern BYTE DxKeyHookBinary[];
+extern BYTE DxKeyHookBinary[] ;
+extern int  DxKeyHookBinary_x64_Convert ;
+extern BYTE DxKeyHookBinary_x64[] ;
 
 WINDATA WinData ;												// ウインドウのデータ
 
@@ -305,7 +307,7 @@ static void			GetMainWindowSize( int *SizeX, int *SizeY ) ;								// メイン�
 
 // メッセージ処理関数
 static	LRESULT		CALLBACK DxLib_WinProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam ) ;	// メインウインドウのメッセージコールバック関数
-LRESULT CALLBACK	LowLevelKeyboardProc (INT nCode, WPARAM wParam, LPARAM lParam)	;			// フックされた時のコールバック関数
+//LRESULT CALLBACK	LowLevelKeyboardProc (INT nCode, WPARAM wParam, LPARAM lParam)	;			// フックされた時のコールバック関数
 #ifdef DX_THREAD_SAFE
 DWORD	WINAPI		ProcessMessageThreadFunction( LPVOID ) ;									// ProcessMessage をひたすら呼びつづけるスレッド
 #endif
@@ -1058,13 +1060,19 @@ extern int TerminateWindow( void )
 				}
 
 				// メッセージフックを無効に
-				if( WinData.GetMessageHookHandle != NULL )
+//				if( WinData.GetMessageHookHandle != NULL )
 				{
-					UnhookWindowsHookEx( WinData.GetMessageHookHandle ) ;
-					UnhookWindowsHookEx( WinData.KeyboardHookHandle ) ;
-					FreeLibrary( WinData.MessageHookDLL ) ;
-					WinData.GetMessageHookHandle = NULL ;
-					WinData.KeyboardHookHandle = NULL ;
+					if( WinData.MessageHookDLL != NULL )
+					{
+						WinData.MessageHookCallBadk( WinData.MainWindow, &WinData.KeyboardHookHandle, FALSE ) ;
+//						UnhookWindowsHookEx( WinData.GetMessageHookHandle ) ;
+//						UnhookWindowsHookEx( WinData.KeyboardHookHandle ) ;
+						FreeLibrary( WinData.MessageHookDLL ) ;
+						WinData.MessageHookCallBadk = NULL ;
+						WinData.MessageHookDLL = NULL ;
+//						WinData.GetMessageHookHandle = NULL ;
+						WinData.KeyboardHookHandle = NULL ;
+					}
 				}
 
 				// キーボードフックＤＬＬとしてテンポラリファイルを使用していた場合はファイルを削除する
@@ -1715,7 +1723,7 @@ int DrawBackGraph( HDC /*DestDC*/ )
 		SETUP_GRAPHHANDLE_GPARAM GParam ;
 
 		Graphics_Image_InitSetupGraphHandleGParam_Normal_NonDrawValid( &GParam, 32, FALSE, FALSE ) ;
-		BackUpScreen = Graphics_Image_MakeGraph_UseGParam( &GParam, DrawScreenWidth, DrawScreenHeight, FALSE, FALSE ) ;
+		BackUpScreen = Graphics_Image_MakeGraph_UseGParam( &GParam, DrawScreenWidth, DrawScreenHeight, FALSE, FALSE, 0, FALSE ) ;
 	}
 
 	// 画面画像の取得
@@ -3150,11 +3158,11 @@ extern int NS_GetPcInfo(
 		TotalVideoMemorySize
 	) ;
 
-	if( OSString            != NULL ) ConvString( ( const char * )OSStringBuffer,            WCHAR_T_CODEPAGE, ( char * )OSString,            _TCODEPAGE ) ;
-	if( DirectXString       != NULL ) ConvString( ( const char * )DirectXStringBuffer,       WCHAR_T_CODEPAGE, ( char * )DirectXString,       _TCODEPAGE ) ;
-	if( CPUString           != NULL ) ConvString( ( const char * )CPUStringBuffer,           WCHAR_T_CODEPAGE, ( char * )CPUString,           _TCODEPAGE ) ;
-	if( VideoDriverFileName != NULL ) ConvString( ( const char * )VideoDriverFileNameBuffer, WCHAR_T_CODEPAGE, ( char * )VideoDriverFileName, _TCODEPAGE ) ;
-	if( VideoDriverString   != NULL ) ConvString( ( const char * )VideoDriverStringBuffer,   WCHAR_T_CODEPAGE, ( char * )VideoDriverString,   _TCODEPAGE ) ;
+	if( OSString            != NULL ) ConvString( ( const char * )OSStringBuffer,            WCHAR_T_CHARCODEFORMAT, ( char * )OSString,            _TCHARCODEFORMAT ) ;
+	if( DirectXString       != NULL ) ConvString( ( const char * )DirectXStringBuffer,       WCHAR_T_CHARCODEFORMAT, ( char * )DirectXString,       _TCHARCODEFORMAT ) ;
+	if( CPUString           != NULL ) ConvString( ( const char * )CPUStringBuffer,           WCHAR_T_CHARCODEFORMAT, ( char * )CPUString,           _TCHARCODEFORMAT ) ;
+	if( VideoDriverFileName != NULL ) ConvString( ( const char * )VideoDriverFileNameBuffer, WCHAR_T_CHARCODEFORMAT, ( char * )VideoDriverFileName, _TCHARCODEFORMAT ) ;
+	if( VideoDriverString   != NULL ) ConvString( ( const char * )VideoDriverStringBuffer,   WCHAR_T_CHARCODEFORMAT, ( char * )VideoDriverString,   _TCHARCODEFORMAT ) ;
 
 	return Result ;
 #endif
@@ -3371,7 +3379,7 @@ extern TCHAR NS_GetInputSystemChar( int DeleteFlag )
 
 	Result = GetInputSystemChar_WCHAR_T( DeleteFlag ) ;
 
-	return ( TCHAR )ConvCharCode( ( DWORD )Result, WCHAR_T_CODEPAGE, _TCODEPAGE ) ;
+	return ( TCHAR )ConvCharCode( ( DWORD )Result, WCHAR_T_CHARCODEFORMAT, _TCHARCODEFORMAT ) ;
 #endif
 }
 
@@ -3741,27 +3749,27 @@ extern int NS_SetUseCharSet( int CharSet /* = DX_CHARSET_SHFTJIS 等 */ )
 	default :
 	case DX_CHARSET_DEFAULT :
 		_SET_CHARSET( DX_CHARSET_DEFAULT ) ;
-		_SET_CHAR_CODEPAGE( DX_CODEPAGE_SHIFTJIS ) ;
+		_SET_CHAR_CHARCODEFORMAT( DX_CHARCODEFORMAT_SHIFTJIS ) ;
 		break ;
 
 	case DX_CHARSET_SHFTJIS :
 		_SET_CHARSET( DX_CHARSET_SHFTJIS ) ;
-		_SET_CHAR_CODEPAGE( DX_CODEPAGE_SHIFTJIS ) ;
+		_SET_CHAR_CHARCODEFORMAT( DX_CHARCODEFORMAT_SHIFTJIS ) ;
 		break ;
 
 	case DX_CHARSET_HANGEUL :
 		_SET_CHARSET( DX_CHARSET_HANGEUL ) ;
-		_SET_CHAR_CODEPAGE( DX_CODEPAGE_UHC ) ;
+		_SET_CHAR_CHARCODEFORMAT( DX_CHARCODEFORMAT_UHC ) ;
 		break ;
 
 	case DX_CHARSET_BIG5 :
 		_SET_CHARSET( DX_CHARSET_BIG5 ) ;
-		_SET_CHAR_CODEPAGE( DX_CODEPAGE_BIG5 ) ;
+		_SET_CHAR_CHARCODEFORMAT( DX_CHARCODEFORMAT_BIG5 ) ;
 		break ;
 
 	case DX_CHARSET_GB2312 :
 		_SET_CHARSET( DX_CHARSET_GB2312 ) ;
-		_SET_CHAR_CODEPAGE( DX_CODEPAGE_GB2312 ) ;
+		_SET_CHAR_CHARCODEFORMAT( DX_CHARCODEFORMAT_GB2312 ) ;
 		break ;
 	}
 
@@ -4172,7 +4180,7 @@ extern int NS_SetWindowPosition( int x, int y )
 	// 終了
 	return 0 ;
 }
-
+/*
 // _KBDLLHOOKSTRUCT 構造体の定義
 typedef struct tag_KBDLLHOOKSTRUCT
 {
@@ -4229,7 +4237,7 @@ LRESULT CALLBACK LowLevelKeyboardProc (INT nCode, WPARAM wParam, LPARAM lParam)
 	}
     return CallNextHookEx( WinData.TaskHookHandle, nCode, wParam, lParam);
 }
-
+*/
 #ifdef DX_THREAD_SAFE
 
 // ProcessMessage をひたすら呼びつづけるスレッド
@@ -4445,19 +4453,19 @@ WAIT:
 
 #endif
 
-// フックされた時のコールバック関数
-LRESULT CALLBACK MsgHook(int /*nCnode*/, WPARAM /* wParam */, LPARAM lParam)
-{
-	MSG *pmsg;
-
-	if( WinData.ActiveFlag == TRUE && WinData.SysCommandOffFlag == TRUE )
-	{
-		pmsg = (MSG *)lParam;
-		if(pmsg->message == WM_USER + 260) pmsg->message = WM_NULL;
-	}
-
-	return 0;
-}
+//// フックされた時のコールバック関数
+//LRESULT CALLBACK MsgHook(int /*nCnode*/, WPARAM /* wParam */, LPARAM lParam)
+//{
+//	MSG *pmsg;
+//
+//	if( WinData.ActiveFlag == TRUE && WinData.SysCommandOffFlag == TRUE )
+//	{
+//		pmsg = (MSG *)lParam;
+//		if(pmsg->message == WM_USER + 260) pmsg->message = WM_NULL;
+//	}
+//
+//	return 0;
+//}
 
 // タスクスイッチを有効にするかどうかを設定する
 extern int NS_SetSysCommandOffFlag( int Flag, const TCHAR *HookDllPath )
@@ -4493,17 +4501,27 @@ extern int SetSysCommandOffFlag_WCHAR_T( int Flag, const wchar_t *HookDllPath )
 			HANDLE FileHandle ;
 			void *DestBuffer ;
 			DWORD WriteSize ;
+			int *pDxKeyHookBinaryConvert ;
+			void *pDxKeyHookBinary ;
+
+#ifdef _WIN64
+			pDxKeyHookBinaryConvert = &DxKeyHookBinary_x64_Convert ;
+			pDxKeyHookBinary        = DxKeyHookBinary_x64 ;
+#else // _WIN64
+			pDxKeyHookBinaryConvert = &DxKeyHookBinaryConvert ;
+			pDxKeyHookBinary        = DxKeyHookBinary ;
+#endif // _WIN64
 
 			// パス名が特に指定されなかった場合は内蔵のＤＬＬを
 			// テンポラリファイルに出力して使用する
 
-			// キーボードフックＤＬＬファイルのサイズを取得する
-			if( DxKeyHookBinaryConvert == 0 )
+			// キーボードフックＤＬＬファイルのサイズを取得す
+			if( *pDxKeyHookBinaryConvert == 0 )
 			{
-				DxKeyHookBinaryConvert = 1 ;
-				Char128ToBin( DxKeyHookBinary, DxKeyHookBinary ) ;
+				*pDxKeyHookBinaryConvert = 1 ;
+				Char128ToBin( pDxKeyHookBinary, pDxKeyHookBinary ) ;
 			}
-			FileSize = DXA_Decode( DxKeyHookBinary, NULL ) ;
+			FileSize = DXA_Decode( pDxKeyHookBinary, NULL ) ;
 
 			// メモリの確保
 			DestBuffer = DXALLOC( ( size_t )FileSize ) ;
@@ -4511,7 +4529,7 @@ extern int SetSysCommandOffFlag_WCHAR_T( int Flag, const wchar_t *HookDllPath )
 				return -1 ;
 
 			// 解凍
-			DXA_Decode( DxKeyHookBinary, DestBuffer ) ;
+			DXA_Decode( pDxKeyHookBinary, DestBuffer ) ;
 
 			// テンポラリファイルのディレクトリパスを取得する
 			if( GetTempPathW( FILEPATH_MAX, WinData.HookDLLFilePath ) == 0 )
@@ -4576,13 +4594,13 @@ extern int SetSysCommandOffFlag_WCHAR_T( int Flag, const wchar_t *HookDllPath )
 		if( Flag == TRUE )
 		{
 			// キーボードフックのセット
-			if( WinData.TaskHookHandle == NULL )
-			{
+//			if( WinData.TaskHookHandle == NULL )
+//			{
 //				WinData.TaskHookHandle = SetWindowsHookExW( WH_KEYBOARD_LL, LowLevelKeyboardProc, WinData.Instance, 0 ) ;
-			}
+//			}
 
 			// メッセージフックのセット
-			if( WinData.GetMessageHookHandle == NULL )
+//			if( WinData.GetMessageHookHandle == NULL )
 			{
 //				WinData.MessageHookThredID = GetWindowThreadProcessId( WinData.MainWindow, NULL ) ;
 //				WinData.MessageHookThredID = GetWindowThreadProcessId( GetDesktopWindow(), NULL ) ;
@@ -4594,10 +4612,28 @@ extern int SetSysCommandOffFlag_WCHAR_T( int Flag, const wchar_t *HookDllPath )
 					WinData.MessageHookCallBadk = ( MSGFUNC )GetProcAddress( WinData.MessageHookDLL, "SetMSGHookDll" ) ;
 					if( WinData.MessageHookCallBadk != NULL )
 					{
-						WinData.MessageHookCallBadk( WinData.MainWindow, &WinData.KeyboardHookHandle ) ;
+						WinData.MessageHookCallBadk( WinData.MainWindow, &WinData.KeyboardHookHandle, TRUE ) ;
 //						WinData.GetMessageHookHandle = SetWindowsHookExW( WH_GETMESSAGE, WinData.MessageHookCallBadk, WinData.MessageHookDLL, WinData.MessageHookThredID ) ;
-						WinData.GetMessageHookHandle = SetWindowsHookExW( WH_GETMESSAGE, MsgHook, WinData.Instance, 0 ) ;
+//						WinData.GetMessageHookHandle = SetWindowsHookExW( WH_GETMESSAGE, MsgHook, WinData.Instance, 0 ) ;
 					}
+				}
+			}
+		}
+		else
+		{
+			// メッセージフックを無効に
+//			if( WinData.GetMessageHookHandle != NULL )
+			{
+				if( WinData.MessageHookDLL != NULL )
+				{
+					WinData.MessageHookCallBadk( WinData.MainWindow, &WinData.KeyboardHookHandle, FALSE ) ;
+//					UnhookWindowsHookEx( WinData.GetMessageHookHandle ) ;
+//					UnhookWindowsHookEx( WinData.KeyboardHookHandle ) ;
+					FreeLibrary( WinData.MessageHookDLL ) ;
+					WinData.MessageHookCallBadk = NULL ;
+					WinData.MessageHookDLL = NULL ;
+//					WinData.GetMessageHookHandle = NULL ;
+					WinData.KeyboardHookHandle = NULL ;
 				}
 			}
 		}
@@ -5147,7 +5183,7 @@ extern int NS_GetDragFilePath( TCHAR *FilePathBuffer )
 	}
 
 	// 文字列をコピーする
-	Size = ConvString( ( const char * )WinData.DragFileName[ WinData.DragFileNum - 1 ], WCHAR_T_CODEPAGE, ( char * )FilePathBuffer, _TCODEPAGE ) ;
+	Size = ConvString( ( const char * )WinData.DragFileName[ WinData.DragFileNum - 1 ], WCHAR_T_CHARCODEFORMAT, ( char * )FilePathBuffer, _TCHARCODEFORMAT ) ;
 
 	// NULL を渡されたら文字列格納に必要なサイズを返す
 	if( FilePathBuffer == NULL ) 
@@ -6896,7 +6932,7 @@ extern int NS_GetMenuItemName( int ItemID, TCHAR *NameBuffer )
 	if( Result != 0 ) return -1 ;
 
 	// 項目名をコピー
-	ConvString( ( const char * )ItemInfo.dwTypeData, WCHAR_T_CODEPAGE, ( char * )NameBuffer, _TCODEPAGE ) ;
+	ConvString( ( const char * )ItemInfo.dwTypeData, WCHAR_T_CHARCODEFORMAT, ( char * )NameBuffer, _TCHARCODEFORMAT ) ;
 
 	// 終了
 	return 0 ;
@@ -7758,47 +7794,6 @@ extern int NS_GetMouseInputLog( int *Button, int *ClickX, int *ClickY, int LogDe
 
 
 
-// ウエイト系関数
-
-// 指定の時間だけ処理をとめる
-extern int NS_WaitTimer( int WaitTime )
-{
-	LONGLONG StartTime, EndTime ;
-
-	StartTime = NS_GetNowHiPerformanceCount( FALSE ) ;
-
-	// 4msec前まで寝る
-	WaitTime *= 1000 ;
-	if( WaitTime > 4000 )
-	{
-		// 指定時間の間メッセージループ
-		EndTime = StartTime + WaitTime - 4000 ;
-		while( ProcessMessage() == 0 && EndTime > NS_GetNowHiPerformanceCount( FALSE ) ) Sleep( 1 ) ;
-	}
-
-	// 4msec以下の分は正確に待つ
-	EndTime = StartTime + WaitTime ;
-	while( EndTime > NS_GetNowHiPerformanceCount( FALSE ) ){}
-
-	// 終了
-	return 0 ;
-}
-
-#ifndef DX_NON_INPUT
-
-// キーの入力待ち
-extern int NS_WaitKey( void )
-{
-	int BackCode = 0 ;
-
-	while( ProcessMessage() == 0 && CheckHitKeyAll() != 0 ){Sleep(1);}
-	while( ProcessMessage() == 0 && ( BackCode = CheckHitKeyAll() ) == 0 ){Sleep(1);}
-//	while( ProcessMessage() == 0 && CheckHitKeyAll() != 0 ){Sleep(1);}
-
-	return BackCode ;
-}
-
-#endif // DX_NON_INPUT
 
 
 
@@ -8308,8 +8303,8 @@ extern int OutSystemInfo( void )
 	{
 		char UTF16LE_Buffer[ 128 ] ;
 		char DestBuffer[ 128 ] ;
-		ConvString( ( const char * )DXLIB_VERSION_STR, WCHAR_T_CODEPAGE, UTF16LE_Buffer, DX_CODEPAGE_UTF16LE ) ;
-		CL_sprintf( DX_CODEPAGE_UTF16LE, TRUE, DX_CODEPAGE_SHIFTJIS, DX_CODEPAGE_UTF16LE, DestBuffer, "\x24\xff\x38\xff\xe9\x30\xa4\x30\xd6\x30\xe9\x30\xea\x30\x20\x00\x56\x00\x65\x00\x72\x00\x25\x00\x73\x00\x0a\x00\x00"/*@ L"ＤＸライブラリ Ver%s\n" @*/, UTF16LE_Buffer ) ;
+		ConvString( ( const char * )DXLIB_VERSION_STR, WCHAR_T_CHARCODEFORMAT, UTF16LE_Buffer, DX_CHARCODEFORMAT_UTF16LE ) ;
+		CL_sprintf( DX_CHARCODEFORMAT_UTF16LE, TRUE, DX_CHARCODEFORMAT_SHIFTJIS, DX_CHARCODEFORMAT_UTF16LE, DestBuffer, "\x24\xff\x38\xff\xe9\x30\xa4\x30\xd6\x30\xe9\x30\xea\x30\x20\x00\x56\x00\x65\x00\x72\x00\x25\x00\x73\x00\x0a\x00\x00"/*@ L"ＤＸライブラリ Ver%s\n" @*/, UTF16LE_Buffer ) ;
 
 		DXST_ERRORLOG_ADDUTF16LE( DestBuffer ) ;
 	}
@@ -8784,7 +8779,7 @@ MMXEND:
 			{
 				DXST_ERRORLOGFMT_ADDA(( "\x82\x62\x82\x6f\x82\x74\x96\xbc\x81\x46%s"/*@ "ＣＰＵ名：%s" @*/, CpuName )) ;
 
-				ConvString( ( const char * )CpuName, DX_CODEPAGE_ASCII, ( char * )WinData.PcInfo.CPUString, WCHAR_T_CODEPAGE ) ;
+				ConvString( ( const char * )CpuName, DX_CHARCODEFORMAT_ASCII, ( char * )WinData.PcInfo.CPUString, WCHAR_T_CHARCODEFORMAT ) ;
 			}
 		}
 	}
@@ -9251,7 +9246,7 @@ int WM_ACTIVATEProcess( WPARAM wParam, LPARAM /*lParam*/, int APPMes, int Dummy 
 		{
 			// WinNT カーネルの場合の処理
 
-			if( WinData.GetMessageHookHandle == NULL && ActiveFlag == TRUE )
+			if( /*WinData.GetMessageHookHandle == NULL &&*/ ActiveFlag == TRUE )
 			{
 //				WinData.MessageHookThredID = GetWindowThreadProcessId( WinData.MainWindow, NULL ) ;
 //				WinData.MessageHookThredID = GetWindowThreadProcessId( GetDesktopWindow(), NULL ) ;
@@ -9263,21 +9258,27 @@ int WM_ACTIVATEProcess( WPARAM wParam, LPARAM /*lParam*/, int APPMes, int Dummy 
 					WinData.MessageHookCallBadk = ( MSGFUNC )GetProcAddress( WinData.MessageHookDLL, "SetMSGHookDll" ) ;
 					if( WinData.MessageHookCallBadk != NULL )
 					{
-						WinData.MessageHookCallBadk( WinData.MainWindow, &WinData.KeyboardHookHandle ) ;
+						WinData.MessageHookCallBadk( WinData.MainWindow, &WinData.KeyboardHookHandle, TRUE ) ;
 //						WinData.GetMessageHookHandle = SetWindowsHookExW( WH_GETMESSAGE, WinData.MessageHookCallBadk, WinData.MessageHookDLL, WinData.MessageHookThredID ) ;
-						WinData.GetMessageHookHandle = SetWindowsHookExW( WH_GETMESSAGE, MsgHook, WinData.Instance, 0 ) ;
+//						WinData.GetMessageHookHandle = SetWindowsHookExW( WH_GETMESSAGE, MsgHook, WinData.Instance, 0 ) ;
 					}
 				}
 			}
 			else
-			if( WinData.GetMessageHookHandle != NULL && ActiveFlag == FALSE )
+			if( /*WinData.GetMessageHookHandle != NULL &&*/ ActiveFlag == FALSE )
 			{
 				// メッセージフックを無効に
-				UnhookWindowsHookEx( WinData.GetMessageHookHandle ) ;
-				UnhookWindowsHookEx( WinData.KeyboardHookHandle ) ;
-				FreeLibrary( WinData.MessageHookDLL ) ;
-				WinData.GetMessageHookHandle = NULL ;
-				WinData.KeyboardHookHandle = NULL ;
+				if( WinData.MessageHookDLL != NULL )
+				{
+					WinData.MessageHookCallBadk( WinData.MainWindow, &WinData.KeyboardHookHandle, FALSE ) ;
+//					UnhookWindowsHookEx( WinData.GetMessageHookHandle ) ;
+//					UnhookWindowsHookEx( WinData.KeyboardHookHandle ) ;
+					FreeLibrary( WinData.MessageHookDLL ) ;
+					WinData.MessageHookCallBadk = NULL ;
+					WinData.MessageHookDLL = NULL ;
+//					WinData.GetMessageHookHandle = NULL ;
+					WinData.KeyboardHookHandle = NULL ;
+				}
 			}
 		}
 

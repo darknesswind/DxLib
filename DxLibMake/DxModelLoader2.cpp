@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		ＭＱＯモデルデータ読み込みプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -310,8 +310,8 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 	if( _MEMCMP( LoadParam->DataBuffer, "Metasequoia Document\r\nFormat Text Ver 1.0\r\n", 22 ) != 0 )
 		return -1 ;
 
-	// モデル名とファイル名とコードページをセット
-	RModel.CodePage = DX_CODEPAGE_SHIFTJIS ;
+	// モデル名とファイル名と文字コード形式をセット
+	RModel.CharCodeFormat = DX_CHARCODEFORMAT_SHIFTJIS ;
 	RModel.FilePath = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->FilePath ) + 1 ) * sizeof( wchar_t ) ) ;
 	RModel.Name     = ( wchar_t * )DXALLOC( ( _WCSLEN( LoadParam->Name     ) + 1 ) * sizeof( wchar_t ) ) ;
 	_WCSCPY( RModel.FilePath, LoadParam->FilePath ) ;
@@ -378,8 +378,8 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			a = 1.0f ;
 			for(;;)
 			{
-				static char *MaterialError1 = "MQO Load Error : No.%d \x82\xcc Material \x82\xcc %s \x82\xcc\x8c\xe3\x82\xc9 ( \x82\xaa\x82\xa0\x82\xe8\x82\xdc\x82\xb9\x82\xf1\x82\xc5\x82\xb5\x82\xbd\n"/*@ "MQO Load Error : No.%d の Material の %s の後に ( がありませんでした\n" @*/ ;
-				static char *MaterialError2 = "MQO Load Error : No.%d \x82\xcc Material \x82\xcc %s \x82\xcc\x90\x94\x92\x6c\x82\xcc\x8c\xe3\x82\xc9 ) \x82\xaa\x82\xa0\x82\xe8\x82\xdc\x82\xb9\x82\xf1\x82\xc5\x82\xb5\x82\xbd\n"/*@ "MQO Load Error : No.%d の Material の %s の数値の後に ) がありませんでした\n" @*/ ;
+				static const char *MaterialError1 = "MQO Load Error : No.%d \x82\xcc Material \x82\xcc %s \x82\xcc\x8c\xe3\x82\xc9 ( \x82\xaa\x82\xa0\x82\xe8\x82\xdc\x82\xb9\x82\xf1\x82\xc5\x82\xb5\x82\xbd\n"/*@ "MQO Load Error : No.%d の Material の %s の後に ( がありませんでした\n" @*/ ;
+				static const char *MaterialError2 = "MQO Load Error : No.%d \x82\xcc Material \x82\xcc %s \x82\xcc\x90\x94\x92\x6c\x82\xcc\x8c\xe3\x82\xc9 ) \x82\xaa\x82\xa0\x82\xe8\x82\xdc\x82\xb9\x82\xf1\x82\xc5\x82\xb5\x82\xbd\n"/*@ "MQO Load Error : No.%d の Material の %s の数値の後に ) がありませんでした\n" @*/ ;
 
 				SkipSpace( &MqoModel, 1 ) ;
 				if( *MqoModel.TextNow == '\r' ) break ;
@@ -628,7 +628,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 						wchar_t StringW[ 1024 ] ;
 						wchar_t FileNameW[ 512 ] ;
 
-						ConvString( String, DX_CODEPAGE_SHIFTJIS, ( char * )StringW, WCHAR_T_CODEPAGE ) ;
+						ConvString( String, DX_CHARCODEFORMAT_SHIFTJIS, ( char * )StringW, WCHAR_T_CHARCODEFORMAT ) ;
 						AnalysisFileNameAndDirPathW_( StringW, FileNameW, NULL ) ;
 						Texture = MV1RAddTextureW( &RModel, FileNameW, StringW, NULL, TRUE ) ;
 					}
@@ -737,7 +737,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 			}
 			FrameStack[ Depth ] = Frame ;
 
-			ConvString( ( const char * )Frame->NameW, WCHAR_T_CODEPAGE, FrameNameUTF16LE, DX_CODEPAGE_UTF16LE ) ;
+			ConvString( ( const char * )Frame->NameW, WCHAR_T_CHARCODEFORMAT, FrameNameUTF16LE, DX_CHARCODEFORMAT_UTF16LE ) ;
 
 			// スケールの初期値をセット
 			Frame->Scale.x = 1.0f ;
@@ -846,7 +846,7 @@ extern int MV1LoadModelToMQO( const MV1_MODEL_LOAD_PARAM *LoadParam, int ASyncTh
 				{
 					// 頂点数を取得
 					Mesh->PositionNum = ( DWORD )GetInt( &MqoModel ) ;
-					if( Mesh->PositionNum < 0 )
+					if( ( int )Mesh->PositionNum < 0 )
 					{
 						DXST_ERRORLOGFMT_ADDUTF16LE( ( "\x4d\x00\x51\x00\x4f\x00\x20\x00\x4c\x00\x6f\x00\x61\x00\x64\x00\x20\x00\x45\x00\x72\x00\x72\x00\x6f\x00\x72\x00\x20\x00\x3a\x00\x20\x00\x4f\x00\x62\x00\x6a\x00\x65\x00\x63\x00\x74\x00\x20\x00\x25\x00\x73\x00\x20\x00\xc1\x30\xe3\x30\xf3\x30\xaf\x30\x6e\x30\x20\x00\x76\x00\x65\x00\x72\x00\x74\x00\x65\x00\x78\x00\x20\x00\x6e\x30\x70\x65\x6e\x30\xd6\x53\x97\x5f\x6b\x30\x31\x59\x57\x65\x57\x30\x7e\x30\x57\x30\x5f\x30\x0a\x00\x00"/*@ L"MQO Load Error : Object %s チャンクの vertex の数の取得に失敗しました\n" @*/, FrameNameUTF16LE ) ) ;
 						goto ENDLABEL ;

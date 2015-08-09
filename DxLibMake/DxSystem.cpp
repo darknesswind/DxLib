@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		システムプログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -110,7 +110,7 @@ extern int DxLib_FmtErrorUTF16LE( const char *FormatString , ... )
 	va_start( VaList , FormatString ) ;
 
 	// 編集後の文字列を取得する
-	CL_vsprintf( DX_CODEPAGE_UTF16LE, TRUE, CHAR_CODEPAGE, WCHAR_T_CODEPAGE, String, FormatString, VaList ) ;
+	CL_vsprintf( DX_CHARCODEFORMAT_UTF16LE, TRUE, CHAR_CHARCODEFORMAT, WCHAR_T_CHARCODEFORMAT, String, FormatString, VaList ) ;
 
 	// 可変長リストのポインタをリセットする
 	va_end( VaList ) ;
@@ -177,6 +177,88 @@ extern int NS_SetNotInputFlag( int Flag )
 
 	return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ウエイト系関数
+
+// 指定の時間だけ処理をとめる
+extern int NS_WaitTimer( int WaitTime )
+{
+	LONGLONG StartTime, EndTime ;
+
+	StartTime = NS_GetNowHiPerformanceCount( FALSE ) ;
+
+	// 4msec前まで寝る
+	WaitTime *= 1000 ;
+	if( WaitTime > 4000 )
+	{
+		// 指定時間の間メッセージループ
+		EndTime = StartTime + WaitTime - 4000 ;
+		while( ProcessMessage() == 0 && EndTime > NS_GetNowHiPerformanceCount( FALSE ) )
+		{
+			Thread_Sleep( 1 ) ;
+		}
+	}
+
+	// 4msec以下の分は正確に待つ
+	EndTime = StartTime + WaitTime ;
+	while( EndTime > NS_GetNowHiPerformanceCount( FALSE ) ){}
+
+	// 終了
+	return 0 ;
+}
+
+#ifndef DX_NON_INPUT
+
+// キーの入力待ち
+extern int NS_WaitKey( void )
+{
+	int BackCode = 0 ;
+
+	while( ProcessMessage() == 0 && CheckHitKeyAll() != 0 )
+	{
+		Thread_Sleep( 1 ) ;
+	}
+
+	while( ProcessMessage() == 0 && ( BackCode = CheckHitKeyAll() ) == 0 )
+	{
+		Thread_Sleep( 1 ) ;
+	}
+
+//	while( ProcessMessage() == 0 && CheckHitKeyAll() != 0 )
+//	{
+//		Thread_Sleep( 1 ) ;
+//	}
+
+	return BackCode ;
+}
+
+#endif // DX_NON_INPUT
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #ifdef DX_USE_NAMESPACE

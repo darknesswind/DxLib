@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		メモリ関連プログラム
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -481,6 +481,9 @@ extern void NS_DxDumpAlloc( void )
 	HeapInfoDump( &MemData.BigHeap ) ;
 
 	DxPrintAllocSize() ;
+
+	// 環境依存のメモリ確保の情報を出力
+	DxDumpAlloc_PF() ;
 
 	DXST_ERRORLOG_ADDW( L"\n" ) ;
 

@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		マスク処理プログラム( Direct3D11 )
 // 
-//  	Ver 3.14d
+//  	Ver 3.14f
 // 
 //-----------------------------------------------------------------------------
 
@@ -297,7 +297,7 @@ extern	int			Mask_D3D11_SetUseMaskScreenFlag_PF( void )
 
 	// 描画先を変更する
 
-	// マスクサーフェスが存在していて且つ有効な場合はマスクサーフェスを描画対称にする
+	// マスクサーフェスが存在していて且つ有効な場合はマスクサーフェスを描画対象にする
 	if( MASKD.MaskValidFlag && MASKD3D11.MaskScreenTexture )
 	{
 		Graphics_D3D11_DeviceState_SetRenderTarget( MASKD3D11.MaskScreenTexture, MASKD3D11.MaskScreenTextureRTV ) ;
@@ -390,13 +390,47 @@ extern	int			Mask_D3D11_DrawAfterFunction_PF( RECT *Rect )
 	// マスクを使用している場合のみマスク画像と合成して転送
 	if( MASKD.MaskValidFlag && MASKD3D11.MaskScreenTexture )
 	{
+		IMAGEDATA *MaskScreenImage = NULL ;
+		D_ID3D11Texture2D          *MaskImageTexture ;
+		D_ID3D11ShaderResourceView *MaskImageTextureSRV ;
+		D_ID3D11PixelShader        *MaskPixelShader ;
+		int                         AlphaBlend ;
+
+		// マスク用グラフィックハンドルが有効な場合はマスク用グラフィックハンドルの情報を取得する
+		if( MASKD.MaskScreenGraphHandle != 0 )
+		{
+			MaskScreenImage = Graphics_Image_GetData( MASKD.MaskScreenGraphHandle ) ;
+
+			// 既に無効になっていたら設定も 0 にする
+			if( MaskScreenImage == NULL )
+			{
+				MASKD.MaskScreenGraphHandle = 0 ;
+			}
+		}
+
+		// 使用するマスクイメージテクスチャをセット
+		if( MaskScreenImage != NULL )
+		{
+			MaskImageTexture    = MaskScreenImage->Hard.Draw[ 0 ].Tex->PF->D3D11.Texture ;
+			MaskImageTextureSRV = MaskScreenImage->Hard.Draw[ 0 ].Tex->PF->D3D11.TextureSRV ;
+			MaskPixelShader     = MASKD.MaskReverseEffectFlag ? GD3D11.Device.Shader.Base.MaskEffect_UseGraphHandle_ReverseEffect_PS : GD3D11.Device.Shader.Base.MaskEffect_UseGraphHandle_PS ;
+			AlphaBlend          = TRUE ;
+		}
+		else
+		{
+			MaskImageTexture    = MASKD3D11.MaskImageTexture ;
+			MaskImageTextureSRV = MASKD3D11.MaskImageTextureSRV ;
+			MaskPixelShader     = MASKD.MaskReverseEffectFlag ? GD3D11.Device.Shader.Base.MaskEffect_ReverseEffect_PS : GD3D11.Device.Shader.Base.MaskEffect_PS ;
+			AlphaBlend          = FALSE ;
+		}
+
 		Graphics_D3D11_StretchRect(
 			MASKD3D11.MaskScreenTexture,   MASKD3D11.MaskScreenTextureSRV, Rect,
 			MASKD3D11.DestTargetTexture2D, MASKD3D11.DestTargetRTV,        Rect,
 			D_D3D11_FILTER_TYPE_POINT,
-			TRUE,
-			NULL, MASKD.MaskReverseEffectFlag ? GD3D11.Device.Shader.Base.MaskEffect_ReverseEffect_PS : GD3D11.Device.Shader.Base.MaskEffect_PS,
-			MASKD3D11.MaskImageTexture,    MASKD3D11.MaskImageTextureSRV,  Rect
+			AlphaBlend,
+			NULL, MaskPixelShader,
+			MaskImageTexture,              MaskImageTextureSRV,  Rect
 		) ;
 	}
 

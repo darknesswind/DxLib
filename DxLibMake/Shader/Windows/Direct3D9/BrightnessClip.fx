@@ -1,4 +1,4 @@
-﻿float   ClipBrightness : register( c0 ) ;
+float   ClipBrightness : register( c0 ) ;
 float4  RGBToY         : register( c1 ) ;
 float4  ClipFillColor  : register( c2 ) ;
 sampler SrcTexture     : register( s0 ) ;

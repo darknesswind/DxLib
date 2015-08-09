@@ -1,4 +1,4 @@
-#include "../PixelShader.h"
+﻿#include "../PixelShader.h"
 
 SamplerState g_SrcSampler       : register( s0 ) ;
 Texture2D    g_SrcTexture       : register( t0 ) ;

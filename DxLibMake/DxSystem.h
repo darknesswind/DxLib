@@ -2,7 +2,7 @@
 // 
 // 		ＤＸライブラリ		システムプログラムヘッダファイル
 // 
-// 				Ver 3.14d
+// 				Ver 3.14f
 // 
 // -------------------------------------------------------------------------------
 
@@ -79,10 +79,6 @@ extern	int			DxLib_FmtErrorUTF16LE( const char    *FormatString, ... ) ;				// �
 
 // 非同期読み込み関係
 extern	int			GetASyncLoadFlag( void ) ;												// 非同期読み込みを行うかどうかを取得する
-
-// 文字列変換
-//extern	int			WCharToMBChar( int CodePage, const DXWCHAR *Src, char *Dest, int DestSize ) ;		// ワイド文字列をマルチバイト文字列に変換する
-//extern	int			MBCharToWChar( int CodePage, const char *Src, DXWCHAR *Dest, int DestSize ) ;		// マルチバイト文字列をワイド文字列に変換する
 
 #ifdef DX_USE_NAMESPACE
 
